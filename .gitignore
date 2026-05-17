@@ -1,0 +1,4 @@
+node_modules/
+.env
+wp-qortal-import/
+npm-debug.log*

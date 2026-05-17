@@ -1,0 +1,20 @@
+[
+  {
+    "id": 201,
+    "date": "2019-03-01T08:00:00",
+    "modified": "2020-01-10T12:00:00",
+    "slug": "about",
+    "status": "publish",
+    "link": "https://example.com/about/",
+    "title": {
+      "rendered": "About"
+    },
+    "excerpt": {
+      "rendered": ""
+    },
+    "content": {
+      "rendered": "<p>This is a sample WordPress page.</p><p><a href=\"https://example.com/sample-post-with-media/\">Sample post</a></p>"
+    },
+    "featured_media": 0
+  }
+]

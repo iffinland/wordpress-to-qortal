@@ -1,0 +1,42 @@
+[
+  {
+    "id": 101,
+    "date": "2020-05-12T10:30:00",
+    "modified": "2021-03-10T14:20:00",
+    "slug": "sample-post-with-media",
+    "status": "publish",
+    "link": "https://example.com/sample-post-with-media/",
+    "title": {
+      "rendered": "Sample Post With Media"
+    },
+    "excerpt": {
+      "rendered": "<p>This is a short sample excerpt.</p>"
+    },
+    "content": {
+      "rendered": "<p>This is a sample WordPress post.</p><p><img src=\"https://example.com/wp-content/uploads/2020/05/sample-image.jpg\" alt=\"Sample image\"></p><p><a href=\"https://example.com/another-post/\">Internal link</a> and <a href=\"https://qortal.org\">external link</a>.</p><audio controls src=\"https://example.com/wp-content/uploads/2020/05/sample-audio.mp3\"></audio>"
+    },
+    "categories": [2, 8],
+    "tags": [5, 13],
+    "featured_media": 88
+  },
+  {
+    "id": 102,
+    "date": "2022-01-02T09:00:00",
+    "modified": "2022-01-03T11:15:00",
+    "slug": "sample-post-with-video",
+    "status": "publish",
+    "link": "https://example.com/sample-post-with-video/",
+    "title": {
+      "rendered": "Sample Post With Video"
+    },
+    "excerpt": {
+      "rendered": "<p>Another sample excerpt.</p>"
+    },
+    "content": {
+      "rendered": "<p>This post contains a video source.</p><video controls><source src=\"https://example.com/wp-content/uploads/2022/01/sample-video.mp4\" type=\"video/mp4\"></video><p><a href=\"/relative-internal-link/\">Relative internal link</a></p>"
+    },
+    "categories": [2],
+    "tags": [],
+    "featured_media": 0
+  }
+]

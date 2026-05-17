@@ -1,0 +1,20 @@
+{
+  "name": "wp-to-qortal",
+  "version": "0.1.0",
+  "description": "A small WordPress to Qortal-native JSON importer MVP.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dump": "node src/dump.js",
+    "convert": "node src/convertRaw.js",
+    "dump:sample": "node src/dump.js --sample && node src/convertRaw.js",
+    "inspect": "node src/inspect.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.7"
+  }
+}

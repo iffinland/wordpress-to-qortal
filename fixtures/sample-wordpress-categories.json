@@ -1,0 +1,22 @@
+[
+  {
+    "id": 2,
+    "count": 2,
+    "description": "Sample category",
+    "link": "https://example.com/category/articles/",
+    "name": "Articles",
+    "slug": "articles",
+    "taxonomy": "category",
+    "parent": 0
+  },
+  {
+    "id": 8,
+    "count": 1,
+    "description": "Sample audio category",
+    "link": "https://example.com/category/audio/",
+    "name": "Audio",
+    "slug": "audio",
+    "taxonomy": "category",
+    "parent": 0
+  }
+]

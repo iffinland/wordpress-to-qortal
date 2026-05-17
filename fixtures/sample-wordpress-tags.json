@@ -1,0 +1,20 @@
+[
+  {
+    "id": 5,
+    "count": 1,
+    "description": "",
+    "link": "https://example.com/tag/qortal/",
+    "name": "Qortal",
+    "slug": "qortal",
+    "taxonomy": "post_tag"
+  },
+  {
+    "id": 13,
+    "count": 1,
+    "description": "",
+    "link": "https://example.com/tag/wordpress/",
+    "name": "WordPress",
+    "slug": "wordpress",
+    "taxonomy": "post_tag"
+  }
+]

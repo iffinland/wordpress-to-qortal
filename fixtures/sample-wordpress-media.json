@@ -1,0 +1,30 @@
+[
+  {
+    "id": 88,
+    "date": "2020-05-12T10:25:00",
+    "modified": "2020-05-12T10:25:00",
+    "slug": "sample-image",
+    "status": "inherit",
+    "link": "https://example.com/sample-image/",
+    "title": {
+      "rendered": "Sample Image"
+    },
+    "media_type": "image",
+    "mime_type": "image/jpeg",
+    "source_url": "https://example.com/wp-content/uploads/2020/05/sample-image.jpg"
+  },
+  {
+    "id": 89,
+    "date": "2020-05-12T10:26:00",
+    "modified": "2020-05-12T10:26:00",
+    "slug": "sample-audio",
+    "status": "inherit",
+    "link": "https://example.com/sample-audio/",
+    "title": {
+      "rendered": "Sample Audio"
+    },
+    "media_type": "file",
+    "mime_type": "audio/mpeg",
+    "source_url": "https://example.com/wp-content/uploads/2020/05/sample-audio.mp3"
+  }
+]
