@@ -34,6 +34,7 @@ LIMIT_PAGES=5
 LIMIT_CATEGORIES=100
 LIMIT_TAGS=100
 LIMIT_MEDIA=20
+DOWNLOAD_MEDIA=false
 WORDPRESS_USERNAME=
 WORDPRESS_APP_PASSWORD=
 ```
@@ -47,6 +48,7 @@ Settings:
 - `LIMIT_CATEGORIES` is how many categories to fetch.
 - `LIMIT_TAGS` is how many tags to fetch.
 - `LIMIT_MEDIA` is how many media library items to fetch.
+- `DOWNLOAD_MEDIA` controls whether `npm run download-media` downloads files during the full workflow.
 - `WORDPRESS_USERNAME` is optional and is only needed when the WordPress REST API requires authentication.
 - `WORDPRESS_APP_PASSWORD` is optional and should be a WordPress Application Password, not the normal account password.
 
@@ -117,6 +119,62 @@ npm run dump
 npm run convert
 ```
 
+## Download Media
+
+```bash
+npm run download-media
+```
+
+This reads `converted/media-map.json`, downloads source media files into `media/`, calculates `sha256`, and updates `media-map.json`.
+
+By default, media download only runs when `.env` contains:
+
+```env
+DOWNLOAD_MEDIA=true
+```
+
+You can force it manually with:
+
+```bash
+npm run download-media -- --force
+```
+
+## Validate Output
+
+```bash
+npm run validate
+```
+
+This checks that the expected raw and converted files exist and writes:
+
+```text
+wp-qortal-import/logs/validation.json
+```
+
+## Full Workflow
+
+After WordPress credentials are ready, use:
+
+```bash
+npm run inspect
+npm run prepare
+```
+
+`npm run prepare` runs:
+
+```bash
+npm run dump
+npm run convert
+npm run download-media
+npm run validate
+```
+
+For a detailed full import guide, see:
+
+```text
+docs/FULL_IMPORT_WORKFLOW.md
+```
+
 ## Run With Sample Data
 
 Use this while WordPress access is not ready yet:
@@ -140,7 +198,8 @@ wp-qortal-import/
 │   ├── wordpress-pages.json
 │   ├── wordpress-categories.json
 │   ├── wordpress-tags.json
-│   └── wordpress-media.json
+│   ├── wordpress-media.json
+│   └── dump-manifest.json
 └── converted/
     ├── posts/
     │   └── example-post.json
@@ -151,7 +210,8 @@ wp-qortal-import/
     ├── categories.json
     ├── tags.json
     ├── url-map.json
-    └── media-map.json
+    ├── media-map.json
+    └── import-manifest.json
 ```
 
 Errors are written into:
@@ -180,9 +240,6 @@ Each converted post keeps important WordPress source data:
 
 These are planned for later phases:
 
-- Pages
-- Categories and tags as full JSON files
-- Media download and local media map
 - WordPress XML/WXR import
 - Qortal/QDN publishing
 - Qortal CMS/Q-App UI

@@ -4,6 +4,17 @@ function unique(values) {
   return [...new Set(values.filter(Boolean))];
 }
 
+function splitSrcset(value) {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((entry) => entry.trim().split(/\s+/)[0])
+    .filter(Boolean);
+}
+
 function isInternalUrl(url, wordpressBaseUrl) {
   if (!url) {
     return false;
@@ -20,9 +31,19 @@ export function inspectPostHtml(contentHtml, wordpressBaseUrl) {
   const $ = cheerio.load(contentHtml || '');
 
   const images = unique(
-    $('img')
-      .map((_, element) => $(element).attr('src'))
-      .get()
+    [
+      ...$('img')
+        .map((_, element) => $(element).attr('src'))
+        .get(),
+      ...$('img')
+        .map((_, element) => splitSrcset($(element).attr('srcset')))
+        .get()
+        .flat(),
+      ...$('source')
+        .map((_, element) => splitSrcset($(element).attr('srcset')))
+        .get()
+        .flat()
+    ]
   );
 
   const audio = unique(

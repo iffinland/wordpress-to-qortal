@@ -42,6 +42,7 @@ function readPositiveInteger(name, fallback) {
 export function loadConfig() {
   const wordpressUsername = process.env.WORDPRESS_USERNAME?.trim() || '';
   const wordpressAppPassword = process.env.WORDPRESS_APP_PASSWORD?.trim() || '';
+  const downloadMedia = process.env.DOWNLOAD_MEDIA?.trim().toLowerCase() === 'true';
 
   return {
     wordpressBaseUrl: normalizeBaseUrl(readRequiredEnv('WORDPRESS_BASE_URL')),
@@ -51,6 +52,7 @@ export function loadConfig() {
     limitCategories: readPositiveInteger('LIMIT_CATEGORIES', DEFAULT_LIMIT_CATEGORIES),
     limitTags: readPositiveInteger('LIMIT_TAGS', DEFAULT_LIMIT_TAGS),
     limitMedia: readPositiveInteger('LIMIT_MEDIA', DEFAULT_LIMIT_MEDIA),
+    downloadMedia,
     wordpressUsername,
     wordpressAppPassword,
     hasWordPressAuth: Boolean(wordpressUsername && wordpressAppPassword),

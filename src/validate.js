@@ -1,0 +1,125 @@
+import path from 'node:path';
+import { loadConfig } from './config.js';
+import { readJson, writeJson, ensureDir } from './utils/files.js';
+
+const REQUIRED_RAW_FILES = [
+  'wordpress-posts.json',
+  'wordpress-pages.json',
+  'wordpress-categories.json',
+  'wordpress-tags.json',
+  'wordpress-media.json'
+];
+
+const REQUIRED_CONVERTED_FILES = [
+  'posts-index.json',
+  'pages-index.json',
+  'categories.json',
+  'tags.json',
+  'media-map.json',
+  'url-map.json',
+  'import-manifest.json'
+];
+
+function addIssue(issues, level, message, context = {}) {
+  issues.push({
+    level,
+    message,
+    ...context
+  });
+}
+
+async function readJsonOrIssue(filePath, issues, required = true) {
+  try {
+    return await readJson(filePath);
+  } catch (error) {
+    addIssue(issues, required ? 'error' : 'warning', error.message, { file: filePath });
+    return null;
+  }
+}
+
+async function main() {
+  const config = loadConfig();
+  const issues = [];
+  const rawDir = path.join(config.outputDir, 'raw');
+  const convertedDir = path.join(config.outputDir, 'converted');
+  const logsDir = path.join(config.outputDir, 'logs');
+
+  await ensureDir(logsDir);
+
+  for (const fileName of REQUIRED_RAW_FILES) {
+    const data = await readJsonOrIssue(path.join(rawDir, fileName), issues);
+
+    if (data && !Array.isArray(data)) {
+      addIssue(issues, 'error', 'Raw file must contain a JSON array.', { file: fileName });
+    }
+  }
+
+  for (const fileName of REQUIRED_CONVERTED_FILES) {
+    await readJsonOrIssue(path.join(convertedDir, fileName), issues);
+  }
+
+  const postsIndex = (await readJsonOrIssue(path.join(convertedDir, 'posts-index.json'), issues)) || [];
+  const pagesIndex = (await readJsonOrIssue(path.join(convertedDir, 'pages-index.json'), issues)) || [];
+  const mediaMap = (await readJsonOrIssue(path.join(convertedDir, 'media-map.json'), issues)) || {};
+  const urlMap = (await readJsonOrIssue(path.join(convertedDir, 'url-map.json'), issues)) || {};
+
+  for (const item of postsIndex) {
+    if (!item.slug || !item.file || !item.source_id) {
+      addIssue(issues, 'error', 'Post index item is missing slug, file, or source_id.', { item });
+    }
+  }
+
+  for (const item of pagesIndex) {
+    if (!item.slug || !item.file || !item.source_id) {
+      addIssue(issues, 'error', 'Page index item is missing slug, file, or source_id.', { item });
+    }
+  }
+
+  for (const [url, item] of Object.entries(mediaMap)) {
+    if (!url.startsWith('http')) {
+      addIssue(issues, 'warning', 'Media URL is not absolute.', { url });
+    }
+
+    if (!item.qdn_service) {
+      addIssue(issues, 'error', 'Media map item is missing qdn_service.', { url });
+    }
+  }
+
+  for (const [url, item] of Object.entries(urlMap)) {
+    if (!item.type) {
+      addIssue(issues, 'error', 'URL map item is missing type.', { url });
+    }
+  }
+
+  const errors = issues.filter((issue) => issue.level === 'error');
+  const warnings = issues.filter((issue) => issue.level === 'warning');
+
+  await writeJson(path.join(logsDir, 'validation.json'), {
+    checked_at: new Date().toISOString(),
+    errors,
+    warnings
+  });
+
+  console.log('');
+  console.log('Importer validation complete');
+  console.log('');
+  console.log(`Posts indexed: ${postsIndex.length}`);
+  console.log(`Pages indexed: ${pagesIndex.length}`);
+  console.log(`Media map entries: ${Object.keys(mediaMap).length}`);
+  console.log(`URL map entries: ${Object.keys(urlMap).length}`);
+  console.log(`Warnings: ${warnings.length}`);
+  console.log(`Errors: ${errors.length}`);
+  console.log('');
+  console.log(`Validation log: ${path.join(logsDir, 'validation.json')}`);
+
+  if (errors.length > 0) {
+    process.exitCode = 1;
+  }
+}
+
+main().catch((error) => {
+  console.error('');
+  console.error('Validation failed');
+  console.error(error.message);
+  process.exitCode = 1;
+});

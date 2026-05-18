@@ -1,4 +1,5 @@
 import { inspectPostHtml } from './utils/html.js';
+import { toPlainText, truncateText } from './utils/text.js';
 
 export function safeFileName(value, fallback) {
   return (value || fallback)
@@ -24,7 +25,10 @@ export function convertPost(post, { wordpressBaseUrl, importerVersion }) {
     modified: post.modified || null,
     status: post.status || null,
     excerpt: post.excerpt?.rendered || '',
+    excerpt_text: toPlainText(post.excerpt?.rendered || ''),
     content_html: contentHtml,
+    content_text: toPlainText(contentHtml),
+    summary: truncateText(toPlainText(post.excerpt?.rendered || contentHtml), 240),
     categories: post.categories || [],
     tags: post.tags || [],
     featured_media: post.featured_media || null,
@@ -57,7 +61,10 @@ export function convertPage(page, { wordpressBaseUrl, importerVersion }) {
     modified: page.modified || null,
     status: page.status || null,
     excerpt: page.excerpt?.rendered || '',
+    excerpt_text: toPlainText(page.excerpt?.rendered || ''),
     content_html: contentHtml,
+    content_text: toPlainText(contentHtml),
+    summary: truncateText(toPlainText(page.excerpt?.rendered || contentHtml), 240),
     parent: page.parent || 0,
     menu_order: page.menu_order || 0,
     featured_media: page.featured_media || null,

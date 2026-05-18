@@ -121,6 +121,25 @@ async function main() {
       ...serializeError(error)
     }))
   );
+  await writeJson(path.join(rawDir, 'dump-manifest.json'), {
+    dumped_at: new Date().toISOString(),
+    wordpress_base_url: config.wordpressBaseUrl,
+    limits: {
+      posts: config.limitPosts,
+      pages: config.limitPages,
+      categories: config.limitCategories,
+      tags: config.limitTags,
+      media: config.limitMedia
+    },
+    counts: {
+      posts: rawPosts.length,
+      pages: rawPages.length,
+      categories: rawCategories.length,
+      tags: rawTags.length,
+      media: rawMedia.length
+    },
+    errors: errors.length
+  });
 
   console.log('');
   console.log(useSample ? 'Sample WordPress raw dump complete' : 'WordPress raw dump complete');
@@ -133,6 +152,7 @@ async function main() {
   console.log(`Errors: ${errors.length}`);
   console.log('');
   console.log(`Raw directory: ${rawDir}`);
+  console.log(`Dump manifest: ${path.join(rawDir, 'dump-manifest.json')}`);
   console.log(`Output directory: ${config.outputDir}`);
 
   if (errors.length > 0) {

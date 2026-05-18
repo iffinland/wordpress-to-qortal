@@ -98,6 +98,23 @@ async function main() {
   await writeJson(path.join(convertedDir, 'tags.json'), convertedTags);
   await writeJson(path.join(convertedDir, 'media-map.json'), mediaMap);
   await writeJson(path.join(convertedDir, 'url-map.json'), urlMap);
+  await writeJson(path.join(convertedDir, 'import-manifest.json'), {
+    converted_at: new Date().toISOString(),
+    importer_version: config.importerVersion,
+    wordpress_base_url: config.wordpressBaseUrl,
+    counts: {
+      posts_read: rawPosts.length,
+      posts_converted: convertedPosts.length,
+      pages_read: rawPages.length,
+      pages_converted: convertedPages.length,
+      categories: convertedCategories.length,
+      tags: convertedTags.length,
+      media_library_items: convertedMedia.length,
+      media_map_entries: Object.keys(mediaMap).length,
+      url_map_entries: Object.keys(urlMap).length
+    },
+    errors: errors.length
+  });
   await writeJson(path.join(logsDir, 'errors.json'), errors);
 
   const stats = countPostStats([...convertedPosts, ...convertedPages]);
@@ -124,6 +141,7 @@ async function main() {
   console.log(`Errors: ${errors.length}`);
   console.log('');
   console.log(`Converted directory: ${convertedDir}`);
+  console.log(`Import manifest: ${path.join(convertedDir, 'import-manifest.json')}`);
 }
 
 main().catch((error) => {

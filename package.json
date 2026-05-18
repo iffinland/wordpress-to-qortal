@@ -7,6 +7,9 @@
   "scripts": {
     "dump": "node src/dump.js",
     "convert": "node src/convertRaw.js",
+    "download-media": "node src/downloadMedia.js",
+    "validate": "node src/validate.js",
+    "prepare": "npm run dump && npm run convert && npm run download-media && npm run validate",
     "dump:sample": "node src/dump.js --sample && node src/convertRaw.js",
     "inspect": "node src/inspect.js"
   },
