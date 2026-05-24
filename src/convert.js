@@ -37,7 +37,9 @@ export function convertPost(post, { wordpressBaseUrl, importerVersion }) {
     media: {
       images: htmlInspection.images,
       audio: htmlInspection.audio,
-      video: htmlInspection.video
+      video: htmlInspection.video,
+      documents: htmlInspection.documents,
+      embeds: htmlInspection.embeds
     },
     import: {
       imported_at: new Date().toISOString(),
@@ -73,7 +75,9 @@ export function convertPage(page, { wordpressBaseUrl, importerVersion }) {
     media: {
       images: htmlInspection.images,
       audio: htmlInspection.audio,
-      video: htmlInspection.video
+      video: htmlInspection.video,
+      documents: htmlInspection.documents,
+      embeds: htmlInspection.embeds
     },
     import: {
       imported_at: new Date().toISOString(),
@@ -156,6 +160,8 @@ export function countPostStats(convertedPosts) {
       totals.images += post.media.images.length;
       totals.audio += post.media.audio.length;
       totals.video += post.media.video.length;
+      totals.documents += post.media.documents.length;
+      totals.embeds += post.media.embeds.length;
       totals.internalLinks += post.links.internal.length;
       totals.externalLinks += post.links.external.length;
       (post.categories || []).forEach((categoryId) => totals.categoryIds.add(categoryId));
@@ -166,6 +172,8 @@ export function countPostStats(convertedPosts) {
       images: 0,
       audio: 0,
       video: 0,
+      documents: 0,
+      embeds: 0,
       internalLinks: 0,
       externalLinks: 0,
       categoryIds: new Set(),
@@ -236,6 +244,7 @@ export function createMediaMap(convertedPosts, convertedPages = [], convertedMed
     contentItem.media.images.forEach((url) => addMediaItem(mediaMap, url, 'image'));
     contentItem.media.audio.forEach((url) => addMediaItem(mediaMap, url, 'audio'));
     contentItem.media.video.forEach((url) => addMediaItem(mediaMap, url, 'video'));
+    contentItem.media.documents.forEach((url) => addMediaItem(mediaMap, url, 'document'));
   }
 
   for (const mediaItem of convertedMediaItems) {

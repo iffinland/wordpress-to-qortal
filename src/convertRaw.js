@@ -13,7 +13,7 @@ import {
   createUrlMap,
   safeFileName
 } from './convert.js';
-import { ensureDir, readJson, writeJson } from './utils/files.js';
+import { ensureDir, readJson, resetDir, writeJson } from './utils/files.js';
 
 function serializeError(error, context = {}) {
   return {
@@ -37,8 +37,8 @@ async function main() {
   const convertedPagesDir = path.join(convertedDir, 'pages');
   const logsDir = path.join(config.outputDir, 'logs');
 
-  await ensureDir(convertedPostsDir);
-  await ensureDir(convertedPagesDir);
+  await resetDir(convertedPostsDir);
+  await resetDir(convertedPagesDir);
   await ensureDir(logsDir);
 
   const rawPosts = await readRawArray(rawPostsPath, errors, true);
@@ -134,6 +134,8 @@ async function main() {
   console.log(`Images found: ${stats.images}`);
   console.log(`Audio files found: ${stats.audio}`);
   console.log(`Video files found: ${stats.video}`);
+  console.log(`Documents found: ${stats.documents}`);
+  console.log(`Embedded media found: ${stats.embeds}`);
   console.log(`Internal links found: ${stats.internalLinks}`);
   console.log(`External links found: ${stats.externalLinks}`);
   console.log(`Media map entries: ${Object.keys(mediaMap).length}`);

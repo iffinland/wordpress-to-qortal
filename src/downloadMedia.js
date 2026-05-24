@@ -45,7 +45,8 @@ function createLocalMediaPath(url, mediaItem, index) {
   const folder = MEDIA_DIRS[type] || MEDIA_DIRS.file;
   const extension = getExtensionFromUrl(url);
   const baseName = getBaseNameFromUrl(url, `media-${index + 1}`);
-  return path.join('media', folder, `${baseName}${extension}`);
+  const uniqueSuffix = mediaItem.source_id || createHash('sha256').update(url).digest('hex').slice(0, 10);
+  return path.join('media', folder, `${baseName}-${uniqueSuffix}${extension}`);
 }
 
 function getSha256(buffer) {
@@ -98,6 +99,16 @@ async function main() {
   let skipped = 0;
 
   for (const [url, mediaItem] of entries) {
+    if (!config.downloadMediaTypes.has(mediaItem.type || 'file')) {
+      skipped += 1;
+      continue;
+    }
+
+    if (!config.downloadExternalMedia && !isSameSiteUrl(url, config.wordpressBaseUrl)) {
+      skipped += 1;
+      continue;
+    }
+
     if (mediaItem.local_path && mediaItem.sha256) {
       skipped += 1;
       continue;
@@ -141,6 +152,16 @@ async function main() {
 
   if (errors.length > 0) {
     process.exitCode = 1;
+  }
+}
+
+function isSameSiteUrl(url, baseUrl) {
+  try {
+    const sourceHost = new URL(url).hostname.replace(/^www\./, '');
+    const siteHost = new URL(baseUrl).hostname.replace(/^www\./, '');
+    return sourceHost === siteHost;
+  } catch {
+    return false;
   }
 }
 

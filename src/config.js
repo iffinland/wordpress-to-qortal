@@ -40,9 +40,25 @@ function readPositiveInteger(name, fallback) {
 }
 
 export function loadConfig() {
+  const wordpressAuthMode =
+    process.env.WORDPRESS_AUTH_MODE?.trim().toLowerCase() || 'application_password';
+  const wordpressLoginUrl = process.env.WORDPRESS_LOGIN_URL?.trim() || '/login/';
   const wordpressUsername = process.env.WORDPRESS_USERNAME?.trim() || '';
   const wordpressAppPassword = process.env.WORDPRESS_APP_PASSWORD?.trim() || '';
+  const wordpressPassword = process.env.WORDPRESS_PASSWORD?.trim() || '';
   const downloadMedia = process.env.DOWNLOAD_MEDIA?.trim().toLowerCase() === 'true';
+  const downloadExternalMedia =
+    process.env.DOWNLOAD_EXTERNAL_MEDIA?.trim().toLowerCase() === 'true';
+  const downloadMediaTypes = new Set(
+    (process.env.DOWNLOAD_MEDIA_TYPES || 'image,audio,video,document,file')
+      .split(',')
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean)
+  );
+
+  if (!['application_password', 'session'].includes(wordpressAuthMode)) {
+    throw new Error('WORDPRESS_AUTH_MODE must be application_password or session.');
+  }
 
   return {
     wordpressBaseUrl: normalizeBaseUrl(readRequiredEnv('WORDPRESS_BASE_URL')),
@@ -53,9 +69,17 @@ export function loadConfig() {
     limitTags: readPositiveInteger('LIMIT_TAGS', DEFAULT_LIMIT_TAGS),
     limitMedia: readPositiveInteger('LIMIT_MEDIA', DEFAULT_LIMIT_MEDIA),
     downloadMedia,
+    downloadExternalMedia,
+    downloadMediaTypes,
+    wordpressAuthMode,
+    wordpressLoginUrl,
     wordpressUsername,
     wordpressAppPassword,
-    hasWordPressAuth: Boolean(wordpressUsername && wordpressAppPassword),
+    wordpressPassword,
+    hasWordPressAuth:
+      wordpressAuthMode === 'session'
+        ? Boolean(wordpressUsername && wordpressPassword)
+        : Boolean(wordpressUsername && wordpressAppPassword),
     importerVersion: '0.1.0'
   };
 }

@@ -20,11 +20,24 @@ function isInternalUrl(url, wordpressBaseUrl) {
     return false;
   }
 
-  if (url.startsWith('/')) {
+  if (url.startsWith('/') || url.startsWith('#')) {
     return true;
   }
 
-  return url.startsWith(wordpressBaseUrl);
+  try {
+    const linkHost = new URL(url, wordpressBaseUrl).hostname.replace(/^www\./, '');
+    const siteHost = new URL(wordpressBaseUrl).hostname.replace(/^www\./, '');
+    return Boolean(linkHost) && linkHost === siteHost;
+  } catch {
+    return false;
+  }
+}
+
+function urlsWithExtensions(urls, extensions) {
+  return urls.filter((url) => {
+    const normalized = url.toLowerCase().split(/[?#]/)[0];
+    return extensions.some((extension) => normalized.endsWith(extension));
+  });
 }
 
 export function inspectPostHtml(contentHtml, wordpressBaseUrl) {
@@ -34,6 +47,9 @@ export function inspectPostHtml(contentHtml, wordpressBaseUrl) {
     [
       ...$('img')
         .map((_, element) => $(element).attr('src'))
+        .get(),
+      ...$('img')
+        .map((_, element) => $(element).attr('data-lazy-src'))
         .get(),
       ...$('img')
         .map((_, element) => splitSrcset($(element).attr('srcset')))
@@ -63,14 +79,34 @@ export function inspectPostHtml(contentHtml, wordpressBaseUrl) {
       .map((_, element) => $(element).attr('href'))
       .get()
   );
+  const linkedImages = urlsWithExtensions(links, ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif']);
+  const linkedAudio = urlsWithExtensions(links, ['.mp3', '.m4a', '.wav', '.ogg', '.flac']);
+  const linkedVideo = urlsWithExtensions(links, ['.mp4', '.webm', '.mov', '.m4v']);
+  const documents = urlsWithExtensions(links, [
+    '.pdf',
+    '.doc',
+    '.docx',
+    '.odt',
+    '.xls',
+    '.xlsx',
+    '.epub',
+    '.zip'
+  ]);
+  const embeds = unique(
+    $('iframe')
+      .map((_, element) => $(element).attr('src') || $(element).attr('data-src'))
+      .get()
+  );
 
   const internal = links.filter((url) => isInternalUrl(url, wordpressBaseUrl));
   const external = links.filter((url) => !isInternalUrl(url, wordpressBaseUrl));
 
   return {
-    images,
-    audio,
-    video,
+    images: unique([...images, ...linkedImages]),
+    audio: unique([...audio, ...linkedAudio]),
+    video: unique([...video, ...linkedVideo]),
+    documents,
+    embeds,
     links: {
       internal,
       external

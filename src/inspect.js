@@ -14,9 +14,9 @@ function printAuthHint(error, config) {
   console.log('Authentication required.');
 
   if (!config.hasWordPressAuth) {
-    console.log('Add WORDPRESS_USERNAME and WORDPRESS_APP_PASSWORD to your .env file.');
+    console.log('Add the credentials required by WORDPRESS_AUTH_MODE to your .env file.');
   } else {
-    console.log('The configured WordPress username or application password was rejected.');
+    console.log('The configured WordPress authentication was rejected.');
   }
 }
 
@@ -37,14 +37,18 @@ async function main() {
   const config = loadConfig();
   const client = new WordPressClient({
     baseUrl: config.wordpressBaseUrl,
+    authMode: config.wordpressAuthMode,
+    loginUrl: config.wordpressLoginUrl,
     username: config.wordpressUsername,
-    appPassword: config.wordpressAppPassword
+    appPassword: config.wordpressAppPassword,
+    password: config.wordpressPassword
   });
 
   console.log('');
   console.log('WordPress API inspection');
   console.log('');
   printResult('Base URL', config.wordpressBaseUrl);
+  printResult('Authentication mode', config.wordpressAuthMode);
   printResult('Authentication configured', config.hasWordPressAuth ? 'yes' : 'no');
   console.log('');
 

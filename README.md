@@ -35,8 +35,13 @@ LIMIT_CATEGORIES=100
 LIMIT_TAGS=100
 LIMIT_MEDIA=20
 DOWNLOAD_MEDIA=false
+DOWNLOAD_EXTERNAL_MEDIA=false
+DOWNLOAD_MEDIA_TYPES=image,audio,video,document,file
+WORDPRESS_AUTH_MODE=application_password
+WORDPRESS_LOGIN_URL=/login/
 WORDPRESS_USERNAME=
 WORDPRESS_APP_PASSWORD=
+WORDPRESS_PASSWORD=
 ```
 
 Settings:
@@ -49,8 +54,13 @@ Settings:
 - `LIMIT_TAGS` is how many tags to fetch.
 - `LIMIT_MEDIA` is how many media library items to fetch.
 - `DOWNLOAD_MEDIA` controls whether `npm run download-media` downloads files during the full workflow.
-- `WORDPRESS_USERNAME` is optional and is only needed when the WordPress REST API requires authentication.
-- `WORDPRESS_APP_PASSWORD` is optional and should be a WordPress Application Password, not the normal account password.
+- `DOWNLOAD_EXTERNAL_MEDIA=false` avoids copying third-party linked files by default.
+- `DOWNLOAD_MEDIA_TYPES` limits the downloaded resource types when a staged migration is needed.
+- `WORDPRESS_AUTH_MODE=application_password` uses `WORDPRESS_USERNAME` with `WORDPRESS_APP_PASSWORD`.
+- `WORDPRESS_AUTH_MODE=session` signs in through the normal WordPress login form using `WORDPRESS_USERNAME` with `WORDPRESS_PASSWORD`.
+- `WORDPRESS_LOGIN_URL` defaults to `/login/` for sites using a custom login path.
+- `WORDPRESS_APP_PASSWORD` should be used where the site makes Application Passwords available.
+- `WORDPRESS_PASSWORD` is for session-mode fallback where the user only has the site's normal member login.
 
 ## Inspect The WordPress API
 

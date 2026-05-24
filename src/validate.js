@@ -60,8 +60,11 @@ async function main() {
 
   const postsIndex = (await readJsonOrIssue(path.join(convertedDir, 'posts-index.json'), issues)) || [];
   const pagesIndex = (await readJsonOrIssue(path.join(convertedDir, 'pages-index.json'), issues)) || [];
+  const categories = (await readJsonOrIssue(path.join(convertedDir, 'categories.json'), issues)) || [];
+  const tags = (await readJsonOrIssue(path.join(convertedDir, 'tags.json'), issues)) || [];
   const mediaMap = (await readJsonOrIssue(path.join(convertedDir, 'media-map.json'), issues)) || {};
   const urlMap = (await readJsonOrIssue(path.join(convertedDir, 'url-map.json'), issues)) || {};
+  const rawPosts = (await readJsonOrIssue(path.join(rawDir, 'wordpress-posts.json'), issues)) || [];
 
   for (const item of postsIndex) {
     if (!item.slug || !item.file || !item.source_id) {
@@ -73,6 +76,25 @@ async function main() {
     if (!item.slug || !item.file || !item.source_id) {
       addIssue(issues, 'error', 'Page index item is missing slug, file, or source_id.', { item });
     }
+  }
+
+  const knownCategoryIds = new Set(categories.map((item) => item.source_id));
+  const knownTagIds = new Set(tags.map((item) => item.source_id));
+  const usedCategoryIds = new Set(rawPosts.flatMap((post) => post.categories || []));
+  const usedTagIds = new Set(rawPosts.flatMap((post) => post.tags || []));
+  const missingCategoryIds = [...usedCategoryIds].filter((id) => !knownCategoryIds.has(id));
+  const missingTagIds = [...usedTagIds].filter((id) => !knownTagIds.has(id));
+
+  if (missingCategoryIds.length > 0) {
+    addIssue(issues, 'warning', 'Some post category IDs are missing from categories.json.', {
+      source_ids: missingCategoryIds
+    });
+  }
+
+  if (missingTagIds.length > 0) {
+    addIssue(issues, 'warning', 'Some post tag IDs are missing from tags.json. Increase LIMIT_TAGS.', {
+      source_ids: missingTagIds
+    });
   }
 
   for (const [url, item] of Object.entries(mediaMap)) {
@@ -105,6 +127,8 @@ async function main() {
   console.log('');
   console.log(`Posts indexed: ${postsIndex.length}`);
   console.log(`Pages indexed: ${pagesIndex.length}`);
+  console.log(`Categories available: ${categories.length}`);
+  console.log(`Tags available: ${tags.length}`);
   console.log(`Media map entries: ${Object.keys(mediaMap).length}`);
   console.log(`URL map entries: ${Object.keys(urlMap).length}`);
   console.log(`Warnings: ${warnings.length}`);

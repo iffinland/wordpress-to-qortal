@@ -24,9 +24,9 @@ function printAuthHint(error, config) {
   console.error('WordPress requires authentication for this REST API endpoint.');
 
   if (!config.hasWordPressAuth) {
-    console.error('Add WORDPRESS_USERNAME and WORDPRESS_APP_PASSWORD to your .env file.');
+    console.error('Add the credentials required by WORDPRESS_AUTH_MODE to your .env file.');
   } else {
-    console.error('The configured WordPress username or application password was rejected.');
+    console.error('The configured WordPress authentication was rejected.');
   }
 }
 
@@ -52,8 +52,11 @@ async function main() {
   const useSample = process.argv.includes('--sample');
   const client = new WordPressClient({
     baseUrl: config.wordpressBaseUrl,
+    authMode: config.wordpressAuthMode,
+    loginUrl: config.wordpressLoginUrl,
     username: config.wordpressUsername,
-    appPassword: config.wordpressAppPassword
+    appPassword: config.wordpressAppPassword,
+    password: config.wordpressPassword
   });
 
   const rawDir = path.join(config.outputDir, 'raw');

@@ -13,11 +13,36 @@ LIMIT_CATEGORIES=10000
 LIMIT_TAGS=10000
 LIMIT_MEDIA=100000
 DOWNLOAD_MEDIA=true
+DOWNLOAD_EXTERNAL_MEDIA=false
+DOWNLOAD_MEDIA_TYPES=image,audio,video,document,file
+WORDPRESS_AUTH_MODE=application_password
+WORDPRESS_LOGIN_URL=/login/
 WORDPRESS_USERNAME=your-wordpress-username
 WORDPRESS_APP_PASSWORD=your-wordpress-application-password
+WORDPRESS_PASSWORD=
 ```
 
 Use a WordPress Application Password, not the normal account password.
+
+If the site only provides a normal member login and protects REST API access with that login session, use:
+
+```env
+WORDPRESS_AUTH_MODE=session
+WORDPRESS_LOGIN_URL=/login/
+WORDPRESS_USERNAME=your-login-email
+WORDPRESS_APP_PASSWORD=
+WORDPRESS_PASSWORD=your-normal-login-password
+```
+
+Keep `.env` local. It is excluded from git.
+
+`DOWNLOAD_EXTERNAL_MEDIA=false` is recommended initially. Content may contain linked third-party PDFs or media that should be preserved as links rather than copied.
+
+For an initial small media test, use:
+
+```env
+DOWNLOAD_MEDIA_TYPES=image,document
+```
 
 ## 2. Inspect Access
 
