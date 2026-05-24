@@ -39,6 +39,7 @@ async function readJsonOrIssue(filePath, issues, required = true) {
 
 async function main() {
   const config = loadConfig();
+  const requireMedia = process.argv.includes('--require-media');
   const issues = [];
   const rawDir = path.join(config.outputDir, 'raw');
   const convertedDir = path.join(config.outputDir, 'converted');
@@ -105,6 +106,16 @@ async function main() {
     if (!item.qdn_service) {
       addIssue(issues, 'error', 'Media map item is missing qdn_service.', { url });
     }
+
+    const sameSite = isSameSiteUrl(url, config.wordpressBaseUrl);
+    const expectedDownload =
+      requireMedia &&
+      config.downloadMediaTypes.has(item.type || 'file') &&
+      (config.downloadExternalMedia || sameSite);
+
+    if (expectedDownload && (!item.local_path || !item.sha256 || !item.downloaded)) {
+      addIssue(issues, 'error', 'Expected media file is not downloaded.', { url });
+    }
   }
 
   for (const [url, item] of Object.entries(urlMap)) {
@@ -130,6 +141,7 @@ async function main() {
   console.log(`Categories available: ${categories.length}`);
   console.log(`Tags available: ${tags.length}`);
   console.log(`Media map entries: ${Object.keys(mediaMap).length}`);
+  console.log(`Media files downloaded: ${Object.values(mediaMap).filter((item) => item.downloaded).length}`);
   console.log(`URL map entries: ${Object.keys(urlMap).length}`);
   console.log(`Warnings: ${warnings.length}`);
   console.log(`Errors: ${errors.length}`);
@@ -138,6 +150,16 @@ async function main() {
 
   if (errors.length > 0) {
     process.exitCode = 1;
+  }
+}
+
+function isSameSiteUrl(url, baseUrl) {
+  try {
+    const sourceHost = new URL(url).hostname.replace(/^www\./, '');
+    const siteHost = new URL(baseUrl).hostname.replace(/^www\./, '');
+    return sourceHost === siteHost;
+  } catch {
+    return false;
   }
 }
 

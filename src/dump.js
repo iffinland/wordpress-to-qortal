@@ -109,7 +109,10 @@ async function main() {
   const rawMedia = await dumpResource({
     label: 'media',
     fileName: 'wordpress-media.json',
-    fetcher: () => client.fetchMedia({ limit: config.limitMedia }),
+    fetcher: () =>
+      config.mediaScope === 'selected_posts'
+        ? client.fetchMediaForPosts(rawPosts)
+        : client.fetchMedia({ limit: config.limitMedia }),
     samplePath: path.join(fixturesDir, 'sample-wordpress-media.json'),
     useSample,
     rawDir,
@@ -134,6 +137,7 @@ async function main() {
       tags: config.limitTags,
       media: config.limitMedia
     },
+    media_scope: config.mediaScope,
     counts: {
       posts: rawPosts.length,
       pages: rawPages.length,

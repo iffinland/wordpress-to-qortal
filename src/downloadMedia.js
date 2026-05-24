@@ -1,4 +1,8 @@
 import { createHash } from 'node:crypto';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { rename, rm, stat } from 'node:fs/promises';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import path from 'node:path';
 import { loadConfig } from './config.js';
 import { ensureDir, readJson, writeJson } from './utils/files.js';
@@ -11,6 +15,7 @@ const MEDIA_DIRS = {
   document: 'documents',
   file: 'files'
 };
+const DOWNLOAD_CONCURRENCY = 3;
 
 function serializeError(error, context = {}) {
   return {
@@ -49,11 +54,7 @@ function createLocalMediaPath(url, mediaItem, index) {
   return path.join('media', folder, `${baseName}-${uniqueSuffix}${extension}`);
 }
 
-function getSha256(buffer) {
-  return createHash('sha256').update(buffer).digest('hex');
-}
-
-async function downloadFile(url) {
+async function downloadFile(url, outputPath) {
   const response = await fetch(url, {
     headers: {
       Accept: '*/*'
@@ -64,7 +65,29 @@ async function downloadFile(url) {
     throw new Error(`Media download failed: ${response.status} ${response.statusText}`);
   }
 
-  return Buffer.from(await response.arrayBuffer());
+  if (!response.body) {
+    throw new Error('Media download returned an empty response body.');
+  }
+
+  const tempPath = `${outputPath}.part`;
+  const hash = createHash('sha256');
+  let bytes = 0;
+  const hashTransform = new Transform({
+    transform(chunk, encoding, callback) {
+      hash.update(chunk);
+      bytes += chunk.length;
+      callback(null, chunk);
+    }
+  });
+
+  await rm(tempPath, { force: true });
+  await pipeline(Readable.fromWeb(response.body), hashTransform, createWriteStream(tempPath));
+  await rename(tempPath, outputPath);
+
+  return {
+    sha256: hash.digest('hex'),
+    bytes
+  };
 }
 
 async function main() {
@@ -96,48 +119,74 @@ async function main() {
 
   const entries = Object.entries(mediaMap);
   let downloaded = 0;
+  let recovered = 0;
   let skipped = 0;
+  let cursor = 0;
+  let checkpoint = Promise.resolve();
 
-  for (const [url, mediaItem] of entries) {
+  async function checkpointMediaMap() {
+    checkpoint = checkpoint.then(() => writeJson(mediaMapPath, mediaMap));
+    await checkpoint;
+  }
+
+  async function processEntry([url, mediaItem]) {
     if (!config.downloadMediaTypes.has(mediaItem.type || 'file')) {
       skipped += 1;
-      continue;
+      return;
     }
 
     if (!config.downloadExternalMedia && !isSameSiteUrl(url, config.wordpressBaseUrl)) {
       skipped += 1;
-      continue;
+      return;
     }
 
     if (mediaItem.local_path && mediaItem.sha256) {
       skipped += 1;
-      continue;
+      return;
     }
 
     try {
       const localPath = createLocalMediaPath(url, mediaItem, downloaded + skipped);
       const absolutePath = path.join(config.outputDir, localPath);
-      const data = await downloadFile(url);
-
       await ensureDir(path.dirname(absolutePath));
-      await writeBinaryFile(absolutePath, data);
+      const existing = await inspectExistingFile(absolutePath);
+      const fileInfo = existing || (await downloadFile(url, absolutePath));
 
       mediaMap[url] = {
         ...mediaItem,
         local_path: localPath.replaceAll(path.sep, '/'),
-        sha256: getSha256(data),
-        bytes: data.length,
+        sha256: fileInfo.sha256,
+        bytes: fileInfo.bytes,
         downloaded: true,
         downloaded_at: new Date().toISOString()
       };
-      downloaded += 1;
+
+      if (existing) {
+        recovered += 1;
+      } else {
+        downloaded += 1;
+      }
+
+      await checkpointMediaMap();
+      console.log(`${existing ? 'Recovered' : 'Downloaded'}: ${localPath}`);
     } catch (error) {
       errors.push(serializeError(error, { url }));
       console.error(`Failed to download media ${url}: ${error.message}`);
     }
   }
 
-  await writeJson(mediaMapPath, mediaMap);
+  async function worker() {
+    while (cursor < entries.length) {
+      const index = cursor;
+      cursor += 1;
+      await processEntry(entries[index]);
+    }
+  }
+
+  await Promise.all(
+    Array.from({ length: Math.min(DOWNLOAD_CONCURRENCY, entries.length) }, () => worker())
+  );
+  await checkpointMediaMap();
   await writeJson(path.join(logsDir, 'media-download-errors.json'), errors);
 
   console.log('');
@@ -145,6 +194,7 @@ async function main() {
   console.log('');
   console.log(`Media map entries: ${entries.length}`);
   console.log(`Downloaded: ${downloaded}`);
+  console.log(`Recovered existing files: ${recovered}`);
   console.log(`Skipped: ${skipped}`);
   console.log(`Errors: ${errors.length}`);
   console.log('');
@@ -165,9 +215,25 @@ function isSameSiteUrl(url, baseUrl) {
   }
 }
 
-async function writeBinaryFile(filePath, data) {
-  const { writeFile } = await import('node:fs/promises');
-  await writeFile(filePath, data);
+async function inspectExistingFile(filePath) {
+  try {
+    const fileStats = await stat(filePath);
+    if (!fileStats.isFile() || fileStats.size === 0) {
+      return null;
+    }
+
+    const hash = createHash('sha256');
+    for await (const chunk of createReadStream(filePath)) {
+      hash.update(chunk);
+    }
+
+    return {
+      bytes: fileStats.size,
+      sha256: hash.digest('hex')
+    };
+  } catch {
+    return null;
+  }
 }
 
 main().catch((error) => {

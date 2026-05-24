@@ -34,6 +34,7 @@ LIMIT_PAGES=5
 LIMIT_CATEGORIES=100
 LIMIT_TAGS=100
 LIMIT_MEDIA=20
+MEDIA_SCOPE=library
 DOWNLOAD_MEDIA=false
 DOWNLOAD_EXTERNAL_MEDIA=false
 DOWNLOAD_MEDIA_TYPES=image,audio,video,document,file
@@ -53,6 +54,7 @@ Settings:
 - `LIMIT_CATEGORIES` is how many categories to fetch.
 - `LIMIT_TAGS` is how many tags to fetch.
 - `LIMIT_MEDIA` is how many media library items to fetch.
+- `MEDIA_SCOPE=library` fetches a media-library slice; use `MEDIA_SCOPE=selected_posts` to fetch attachments and featured media for the selected posts.
 - `DOWNLOAD_MEDIA` controls whether `npm run download-media` downloads files during the full workflow.
 - `DOWNLOAD_EXTERNAL_MEDIA=false` avoids copying third-party linked files by default.
 - `DOWNLOAD_MEDIA_TYPES` limits the downloaded resource types when a staged migration is needed.
@@ -131,6 +133,14 @@ npm run convert
 
 ## Download Media
 
+Review the planned download size first:
+
+```bash
+npm run plan-media
+```
+
+This writes `wp-qortal-import/logs/media-plan.json` and shows file totals by type.
+
 ```bash
 npm run download-media
 ```
@@ -161,6 +171,24 @@ This checks that the expected raw and converted files exist and writes:
 wp-qortal-import/logs/validation.json
 ```
 
+After downloading media, require every selected same-site media file to be present and hashed:
+
+```bash
+npm run validate:media
+```
+
+## Prepare QDN Publish Plan
+
+```bash
+npm run prepare-publish
+```
+
+This does not publish anything. It creates deterministic proposed QDN services and identifiers for posts, pages, indexes, and downloaded media:
+
+```text
+wp-qortal-import/publish-log/publish-plan.json
+```
+
 ## Full Workflow
 
 After WordPress credentials are ready, use:
@@ -175,6 +203,7 @@ npm run prepare
 ```bash
 npm run dump
 npm run convert
+npm run plan-media
 npm run download-media
 npm run validate
 ```

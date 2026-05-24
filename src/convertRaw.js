@@ -46,13 +46,22 @@ async function main() {
   const rawCategories = await readRawArray(rawCategoriesPath, errors);
   const rawTags = await readRawArray(rawTagsPath, errors);
   const rawMedia = await readRawArray(rawMediaPath, errors);
+  const mediaByParent = new Map();
+
+  for (const rawMediaItem of rawMedia) {
+    const parentId = rawMediaItem.post || 0;
+    if (!mediaByParent.has(parentId)) {
+      mediaByParent.set(parentId, []);
+    }
+    mediaByParent.get(parentId).push(rawMediaItem);
+  }
 
   const convertedPosts = [];
   const convertedPages = [];
 
   for (const rawPost of rawPosts) {
     try {
-      const convertedPost = convertPost(rawPost, config);
+      const convertedPost = convertPost(rawPost, config, mediaByParent.get(rawPost.id) || []);
       const fileName = `${safeFileName(convertedPost.slug, `post-${convertedPost.source_id}`)}.json`;
       const outputPath = path.join(convertedPostsDir, fileName);
 
@@ -83,7 +92,10 @@ async function main() {
   const convertedMedia = rawMedia.map(convertMediaItem);
   const postsIndex = convertedPosts.map(createPostIndexItem);
   const pagesIndex = convertedPages.map(createPageIndexItem);
-  const mediaMap = createMediaMap(convertedPosts, convertedPages, convertedMedia);
+  const convertedPagesForMedia = config.mediaScope === 'selected_posts' ? [] : convertedPages;
+  const generatedMediaMap = createMediaMap(convertedPosts, convertedPagesForMedia, convertedMedia);
+  const existingMediaMap = await readOptionalJson(path.join(convertedDir, 'media-map.json'));
+  const mediaMap = preserveDownloadedMedia(generatedMediaMap, existingMediaMap);
   const urlMap = createUrlMap({
     convertedPosts,
     convertedPages,
@@ -173,4 +185,31 @@ async function readRawArray(filePath, errors, required = false) {
     console.error(`Skipping optional raw file ${filePath}: ${error.message}`);
     return [];
   }
+}
+
+async function readOptionalJson(filePath) {
+  try {
+    return await readJson(filePath);
+  } catch {
+    return {};
+  }
+}
+
+function preserveDownloadedMedia(generatedMediaMap, existingMediaMap) {
+  const downloadedFields = ['local_path', 'sha256', 'bytes', 'downloaded', 'downloaded_at'];
+
+  return Object.fromEntries(
+    Object.entries(generatedMediaMap).map(([url, mediaItem]) => {
+      const existing = existingMediaMap[url] || {};
+      const preserved = {};
+
+      for (const field of downloadedFields) {
+        if (existing[field] !== undefined && existing[field] !== null) {
+          preserved[field] = existing[field];
+        }
+      }
+
+      return [url, { ...mediaItem, ...preserved }];
+    })
+  );
 }

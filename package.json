@@ -7,9 +7,12 @@
   "scripts": {
     "dump": "node src/dump.js",
     "convert": "node src/convertRaw.js",
+    "plan-media": "node src/planMedia.js",
     "download-media": "node src/downloadMedia.js",
     "validate": "node src/validate.js",
-    "prepare": "npm run dump && npm run convert && npm run download-media && npm run validate",
+    "validate:media": "node src/validate.js --require-media",
+    "prepare-publish": "node src/preparePublish.js",
+    "prepare": "npm run dump && npm run convert && npm run plan-media && npm run download-media && npm run validate",
     "dump:sample": "node src/dump.js --sample && node src/convertRaw.js",
     "inspect": "node src/inspect.js"
   },

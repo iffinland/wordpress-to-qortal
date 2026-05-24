@@ -159,11 +159,40 @@ export class WordPressClient {
     return this.fetchCollection('/wp-json/wp/v2/tags', { limit });
   }
 
-  async fetchMedia({ limit = 100 } = {}) {
-    return this.fetchCollection('/wp-json/wp/v2/media', { limit });
+  async fetchMedia({ limit = 100, parent } = {}) {
+    return this.fetchCollection('/wp-json/wp/v2/media', {
+      limit,
+      query: parent ? { parent: String(parent) } : {}
+    });
   }
 
-  async fetchCollection(endpoint, { limit = 100 } = {}) {
+  async fetchMediaItem(id) {
+    return this.fetchJson(new URL(`${this.baseUrl}/wp-json/wp/v2/media/${id}`));
+  }
+
+  async fetchMediaForPosts(posts) {
+    const mediaById = new Map();
+
+    for (const post of posts) {
+      const attachments = await this.fetchMedia({ limit: 1000, parent: post.id });
+
+      for (const attachment of attachments) {
+        mediaById.set(attachment.id, attachment);
+      }
+    }
+
+    const featuredIds = [...new Set(posts.map((post) => post.featured_media).filter(Boolean))];
+
+    for (const mediaId of featuredIds) {
+      if (!mediaById.has(mediaId)) {
+        mediaById.set(mediaId, await this.fetchMediaItem(mediaId));
+      }
+    }
+
+    return [...mediaById.values()];
+  }
+
+  async fetchCollection(endpoint, { limit = 100, query = {} } = {}) {
     const items = [];
     const perPage = Math.min(limit, 100);
     let page = 1;
@@ -172,6 +201,7 @@ export class WordPressClient {
       const url = new URL(`${this.baseUrl}${endpoint}`);
       url.searchParams.set('per_page', String(perPage));
       url.searchParams.set('page', String(page));
+      Object.entries(query).forEach(([name, value]) => url.searchParams.set(name, value));
 
       let pageItems;
 

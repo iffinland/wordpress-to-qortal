@@ -12,6 +12,7 @@ LIMIT_PAGES=100000
 LIMIT_CATEGORIES=10000
 LIMIT_TAGS=10000
 LIMIT_MEDIA=100000
+MEDIA_SCOPE=library
 DOWNLOAD_MEDIA=true
 DOWNLOAD_EXTERNAL_MEDIA=false
 DOWNLOAD_MEDIA_TYPES=image,audio,video,document,file
@@ -38,6 +39,8 @@ Keep `.env` local. It is excluded from git.
 
 `DOWNLOAD_EXTERNAL_MEDIA=false` is recommended initially. Content may contain linked third-party PDFs or media that should be preserved as links rather than copied.
 
+For a limited post demo, use `MEDIA_SCOPE=selected_posts`. This collects featured images and attachment records belonging to the posts included by `LIMIT_POSTS`.
+
 For an initial small media test, use:
 
 ```env
@@ -63,9 +66,24 @@ This runs:
 ```bash
 npm run dump
 npm run convert
+npm run plan-media
 npm run download-media
 npm run validate
 ```
+
+After media has been downloaded, run the stricter media validation:
+
+```bash
+npm run validate:media
+```
+
+Prepare the resource plan before implementing or running QDN publishing:
+
+```bash
+npm run prepare-publish
+```
+
+This writes `wp-qortal-import/publish-log/publish-plan.json` without publishing data.
 
 ## 4. Output
 
@@ -105,6 +123,7 @@ wp-qortal-import/converted/tags.json
 wp-qortal-import/converted/media-map.json
 wp-qortal-import/converted/url-map.json
 wp-qortal-import/logs/validation.json
+wp-qortal-import/logs/media-plan.json
 ```
 
 ## Notes

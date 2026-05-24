@@ -10,7 +10,7 @@ export function safeFileName(value, fallback) {
     .replace(/^-+|-+$/g, '') || fallback;
 }
 
-export function convertPost(post, { wordpressBaseUrl, importerVersion }) {
+export function convertPost(post, { wordpressBaseUrl, importerVersion }, attachments = []) {
   const contentHtml = post.content?.rendered || '';
   const htmlInspection = inspectPostHtml(contentHtml, wordpressBaseUrl);
 
@@ -32,7 +32,13 @@ export function convertPost(post, { wordpressBaseUrl, importerVersion }) {
     categories: post.categories || [],
     tags: post.tags || [],
     featured_media: post.featured_media || null,
-    attachments: [],
+    attachments: attachments.map((item) => ({
+      source_id: item.id,
+      source_url: item.source_url || null,
+      media_type: item.media_type || null,
+      mime_type: item.mime_type || null,
+      title: item.title?.rendered || ''
+    })),
     links: htmlInspection.links,
     media: {
       images: htmlInspection.images,

@@ -55,9 +55,14 @@ export function loadConfig() {
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean)
   );
+  const mediaScope = process.env.MEDIA_SCOPE?.trim().toLowerCase() || 'library';
 
   if (!['application_password', 'session'].includes(wordpressAuthMode)) {
     throw new Error('WORDPRESS_AUTH_MODE must be application_password or session.');
+  }
+
+  if (!['library', 'selected_posts'].includes(mediaScope)) {
+    throw new Error('MEDIA_SCOPE must be library or selected_posts.');
   }
 
   return {
@@ -68,6 +73,7 @@ export function loadConfig() {
     limitCategories: readPositiveInteger('LIMIT_CATEGORIES', DEFAULT_LIMIT_CATEGORIES),
     limitTags: readPositiveInteger('LIMIT_TAGS', DEFAULT_LIMIT_TAGS),
     limitMedia: readPositiveInteger('LIMIT_MEDIA', DEFAULT_LIMIT_MEDIA),
+    mediaScope,
     downloadMedia,
     downloadExternalMedia,
     downloadMediaTypes,
