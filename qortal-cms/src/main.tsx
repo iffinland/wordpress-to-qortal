@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { Edit3, Eye, FileText, Image, RefreshCcw, Save, Search, Send, Tags } from 'lucide-react';
 import { createSourceFromLocation, type CmsData, type CmsSource } from './contentSource';
 import { hasQortalBridge, requestQortal, toBase64 } from './qortalClient';
+import { RichTextEditor } from './RichTextEditor';
 import type { ContentItem, IndexItem, Term } from './types';
 import './styles.css';
 
@@ -230,10 +231,10 @@ function App() {
               Summary
               <textarea value={draft.summary} onChange={(event) => setDraft({ ...draft, summary: event.target.value })} />
             </label>
-            <label>
-              Content HTML
-              <textarea className="html-editor" value={draft.contentHtml} onChange={(event) => setDraft({ ...draft, contentHtml: event.target.value })} />
-            </label>
+            <div className="editor-field">
+              <span>Content</span>
+              <RichTextEditor value={draft.contentHtml} onChange={(contentHtml) => setDraft({ ...draft, contentHtml })} />
+            </div>
             <button className="secondary" onClick={() => selectedPost && setDraft(createDraft(selectedPost))}>
               <RefreshCcw size={16} /> Reset
             </button>
