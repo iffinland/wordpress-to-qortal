@@ -68,6 +68,12 @@ select {
   text-align: center;
 }
 
+.source-status {
+  margin: 10px 0 0;
+  color: #9fcbbd;
+  font-size: 13px;
+}
+
 .toolbar {
   display: grid;
   grid-template-columns: 1fr 1fr;

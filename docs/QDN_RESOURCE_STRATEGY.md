@@ -134,6 +134,20 @@ The important boundary is:
 - Qortal production uses QDN-backed resources.
 - The content JSON structure should stay the same.
 
+The current viewer supports both loader modes:
+
+```text
+/
+```
+
+loads local content.
+
+```text
+/?source=qdn&name=<QortalName>
+```
+
+loads `DOCUMENT/<QortalName>/cr-qdn-manifest` first and then resolves all indexes, posts, pages, and media through that manifest.
+
 ## External Linked Media
 
 External linked media is not automatically published in the first strategy.

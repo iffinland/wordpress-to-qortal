@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CalendarDays, ExternalLink, FileText, Image, Link, Play, Search, Tags } from 'lucide-react';
-import { formatBytes, loadContent, loadIndexes, resolveMediaUrl, rewriteHtmlMedia } from './contentApi';
+import { createContentSource, formatBytes, rewriteHtmlMedia, type ContentSource } from './contentApi';
 import type { ContentItem, IndexItem, MediaMap, Term } from './types';
 import './styles.css';
 
@@ -12,6 +12,7 @@ interface LoadedData {
   tags: Term[];
   mediaMap: MediaMap;
   postDetails: Map<number, ContentItem>;
+  source: ContentSource;
 }
 
 type ViewMode = 'posts' | 'pages';
@@ -36,18 +37,27 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadIndexes()
+    let source: ContentSource;
+    try {
+      source = createContentSource();
+    } catch (sourceError) {
+      setError((sourceError as Error).message);
+      return;
+    }
+
+    source
+      .loadIndexes()
       .then(async (loaded) => {
         const postDetails = new Map<number, ContentItem>();
-        const posts = await Promise.all(loaded.posts.map((post) => loadContent(post.file)));
+        const posts = await Promise.all(loaded.posts.map((post) => source.loadContent(post.file)));
         for (const post of posts) {
           postDetails.set(post.source_id, post);
         }
 
-        setData({ ...loaded, postDetails });
+        setData({ ...loaded, postDetails, source });
         const first = loaded.posts[0] || loaded.pages[0];
         if (first) {
-          setSelected(postDetails.get(first.source_id) || (await loadContent(first.file)));
+          setSelected(postDetails.get(first.source_id) || (await source.loadContent(first.file)));
         }
       })
       .catch((loadError: Error) => setError(loadError.message));
@@ -70,7 +80,7 @@ function App() {
   async function openItem(item: IndexItem) {
     try {
       setError(null);
-      setSelected(data?.postDetails.get(item.source_id) || (await loadContent(item.file)));
+      setSelected(data?.postDetails.get(item.source_id) || (await data!.source.loadContent(item.file)));
     } catch (loadError) {
       setError((loadError as Error).message);
     }
@@ -81,12 +91,12 @@ function App() {
   }
 
   if (!data || !selected) {
-    return <div className="app-loading">Loading local Qortal content...</div>;
+    return <div className="app-loading">Loading Qortal content...</div>;
   }
 
   const categoryNames = termNames(selected.categories, data.categories);
   const tagNames = termNames(selected.tags, data.tags);
-  const rewrittenHtml = rewriteHtmlMedia(selected.content_html, data.mediaMap);
+  const rewrittenHtml = rewriteHtmlMedia(selected.content_html, data.mediaMap, data.source.resolveMediaUrl);
   const selectedMedia = collectSelectedMedia(selected, data.mediaMap);
 
   return (
@@ -100,6 +110,7 @@ function App() {
             <span>{data.pages.length} pages</span>
             <span>{Object.values(data.mediaMap).filter((item) => item.downloaded).length} media</span>
           </div>
+          <p className="source-status">{data.source.label}</p>
         </header>
 
         <div className="toolbar">
@@ -168,10 +179,10 @@ function App() {
           <div className="content-grid">
             <div className="wp-content" dangerouslySetInnerHTML={{ __html: rewrittenHtml }} />
             <aside className="resource-panel">
-              <ResourceBlock title="Images" icon={<Image size={17} />} items={selectedMedia.images} mediaMap={data.mediaMap} />
-              <ResourceBlock title="Video" icon={<Play size={17} />} items={selectedMedia.video} mediaMap={data.mediaMap} />
-              <ResourceBlock title="Documents" icon={<FileText size={17} />} items={selectedMedia.documents} mediaMap={data.mediaMap} />
-              <ResourceBlock title="External links" icon={<ExternalLink size={17} />} items={selected.links.external.slice(0, 16)} mediaMap={data.mediaMap} />
+              <ResourceBlock title="Images" icon={<Image size={17} />} items={selectedMedia.images} mediaMap={data.mediaMap} source={data.source} />
+              <ResourceBlock title="Video" icon={<Play size={17} />} items={selectedMedia.video} mediaMap={data.mediaMap} source={data.source} />
+              <ResourceBlock title="Documents" icon={<FileText size={17} />} items={selectedMedia.documents} mediaMap={data.mediaMap} source={data.source} />
+              <ResourceBlock title="External links" icon={<ExternalLink size={17} />} items={selected.links.external.slice(0, 16)} mediaMap={data.mediaMap} source={data.source} />
             </aside>
           </div>
         </article>
@@ -188,7 +199,19 @@ function collectSelectedMedia(item: ContentItem, mediaMap: MediaMap) {
   return { images, video, documents };
 }
 
-function ResourceBlock({ title, icon, items, mediaMap }: { title: string; icon: React.ReactNode; items: string[]; mediaMap: MediaMap }) {
+function ResourceBlock({
+  title,
+  icon,
+  items,
+  mediaMap,
+  source
+}: {
+  title: string;
+  icon: React.ReactNode;
+  items: string[];
+  mediaMap: MediaMap;
+  source: ContentSource;
+}) {
   if (items.length === 0) {
     return null;
   }
@@ -203,7 +226,7 @@ function ResourceBlock({ title, icon, items, mediaMap }: { title: string; icon: 
       <div className="resource-list">
         {items.map((item) => {
           const media = mediaMap[item];
-          const href = resolveMediaUrl(item, mediaMap);
+          const href = source.resolveMediaUrl(item, mediaMap);
           const label = item.split('/').pop() || item;
           return (
             <a key={item} href={href} target="_blank" rel="noreferrer">

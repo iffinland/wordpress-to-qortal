@@ -278,6 +278,20 @@ The Vite dev server exposes those files under:
 
 That means large downloaded media files are not duplicated into the viewer project.
 
+The viewer has two data loading modes:
+
+```text
+http://localhost:5174/
+```
+
+uses local filesystem-backed content through `/qortal-content/`.
+
+```text
+http://localhost:5174/?source=qdn&name=YourQortalName
+```
+
+uses QDN resources through `cr-qdn-manifest`. This mode is for testing after the manifest and content resources have been published to QDN.
+
 Build the viewer:
 
 ```bash

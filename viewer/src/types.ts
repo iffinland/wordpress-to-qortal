@@ -67,3 +67,43 @@ export interface MediaMapItem {
 }
 
 export type MediaMap = Record<string, MediaMapItem>;
+
+export interface QdnResourceRef {
+  type: string;
+  service: string;
+  identifier: string;
+  local_path?: string | null;
+  source_url?: string | null;
+}
+
+export interface QdnManifest {
+  version: string;
+  generated_at: string;
+  qdn_name: string | null;
+  entrypoints: {
+    posts_index: QdnResourceRef;
+    pages_index: QdnResourceRef;
+    categories: QdnResourceRef;
+    tags: QdnResourceRef;
+    media_map: QdnResourceRef;
+    url_map: QdnResourceRef;
+  };
+  resources: {
+    by_path: Record<string, QdnResourceRef>;
+    by_identifier: Record<string, QdnResourceRef>;
+    by_source_url: Record<string, QdnResourceRef>;
+  };
+  linked_only_media: Array<{
+    source_url: string;
+    type: string;
+    reason: string;
+  }>;
+  summary: {
+    posts: number;
+    pages: number;
+    indexes: number;
+    media: number;
+    linked_only_media: number;
+    total_publish_resources: number;
+  };
+}
