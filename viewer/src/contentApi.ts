@@ -73,6 +73,7 @@ export function createLocalContentSource(): ContentSource {
 
 export function createQdnContentSource(name: string): ContentSource {
   let manifestPromise: Promise<QdnManifest> | null = null;
+  let sourceUrlResources: Record<string, QdnResourceRef> = {};
 
   const loadManifest = () => {
     manifestPromise ??= fetchQdnResource<QdnManifest>({
@@ -104,6 +105,7 @@ export function createQdnContentSource(name: string): ContentSource {
     label: `QDN: ${name}`,
     async loadIndexes() {
       const manifest = await loadManifest();
+      sourceUrlResources = manifest.resources.by_source_url || {};
       const [posts, pages, categories, tags, mediaMap] = await Promise.all([
         loadByRef<IndexItem[]>(manifest.entrypoints.posts_index),
         loadByRef<IndexItem[]>(manifest.entrypoints.pages_index),
@@ -116,6 +118,11 @@ export function createQdnContentSource(name: string): ContentSource {
     },
     loadContent: (file) => loadByPath<ContentItem>(`converted/${file}`),
     resolveMediaUrl: (sourceUrl, mediaMap) => {
+      const manifestRef = sourceUrlResources[sourceUrl];
+      if (manifestRef?.service && manifestRef?.identifier) {
+        return `/arbitrary/${encodeURIComponent(manifestRef.service)}/${encodeURIComponent(name)}/${encodeURIComponent(manifestRef.identifier)}`;
+      }
+
       const media = mediaMap[sourceUrl];
       if (media?.qdn_service && media?.qdn_identifier) {
         return `/arbitrary/${encodeURIComponent(media.qdn_service)}/${encodeURIComponent(name)}/${encodeURIComponent(media.qdn_identifier)}`;
