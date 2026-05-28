@@ -256,6 +256,12 @@ For a detailed full import guide, see:
 docs/FULL_IMPORT_WORKFLOW.md
 ```
 
+The first QDN resource strategy is documented here:
+
+```text
+docs/QDN_RESOURCE_STRATEGY.md
+```
+
 ## Run With Sample Data
 
 Use this while WordPress access is not ready yet:
