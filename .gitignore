@@ -3,4 +3,5 @@ node_modules/
 wp-qortal-import/
 viewer/dist/
 qortal-cms/dist/
+release/
 npm-debug.log*

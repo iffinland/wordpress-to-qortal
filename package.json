@@ -1,10 +1,14 @@
 {
   "name": "wp-to-qortal",
   "version": "0.1.0",
-  "description": "A small WordPress to Qortal-native JSON importer MVP.",
+  "description": "WordPress to Qortal migration importer and QDN publisher.",
   "type": "module",
   "private": true,
+  "workspaces": [
+    "viewer"
+  ],
   "scripts": {
+    "start": "npm run migration:dev",
     "dump": "node src/dump.js",
     "convert": "node src/convertRaw.js",
     "plan-media": "node src/planMedia.js",
@@ -13,16 +17,17 @@
     "validate:media": "node src/validate.js --require-media",
     "prepare-publish": "node src/preparePublish.js",
     "publish": "node src/publish.js",
+    "migration:dev": "npm --prefix viewer run dev",
+    "migration:build": "npm --prefix viewer run build",
+    "migration:preview": "npm --prefix viewer run preview",
     "viewer:dev": "npm --prefix viewer run dev",
     "viewer:build": "npm --prefix viewer run build",
     "viewer:preview": "npm --prefix viewer run preview",
-    "cms:dev": "npm --prefix qortal-cms run dev",
-    "cms:build": "npm --prefix qortal-cms run build",
-    "cms:preview": "npm --prefix qortal-cms run preview",
     "prepare-import": "npm run dump && npm run convert && npm run plan-media && npm run download-media && npm run validate",
-    "check": "npm run validate:media && npm run viewer:build && npm run cms:build",
+    "check": "npm run validate:media && npm run migration:build",
     "dump:sample": "node src/dump.js --sample && node src/convertRaw.js",
-    "inspect": "node src/inspect.js"
+    "inspect": "node src/inspect.js",
+    "package:migration": "node scripts/createMigrationPackage.js"
   },
   "engines": {
     "node": ">=18"

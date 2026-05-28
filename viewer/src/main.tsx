@@ -124,8 +124,8 @@ function ViewerApp({ onPublish }: { onPublish: () => void }) {
     <main className="app-shell">
       <aside className="sidebar">
         <header className="sidebar-header">
-          <p className="eyebrow">Qortal Migration Demo</p>
-          <h1>Content Viewer</h1>
+          <p className="eyebrow">WordPress to Qortal</p>
+          <h1>Migration Preview</h1>
           <div className="summary-grid">
             <span>{data.posts.length} posts</span>
             <span>{data.pages.length} pages</span>
@@ -143,7 +143,7 @@ function ViewerApp({ onPublish }: { onPublish: () => void }) {
           </button>
           <button onClick={onPublish}>
             <Send size={15} />
-            Publish
+            Publish to QDN
           </button>
         </div>
 

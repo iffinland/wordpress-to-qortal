@@ -194,11 +194,11 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
         {onBack && (
           <button type="button" className="back-button" onClick={onBack}>
             <ArrowLeft size={17} />
-            Back to viewer
+            Back to preview
           </button>
         )}
-        <p className="eyebrow">Qortal Migration Demo</p>
-        <h1>Minimal QDN Publisher</h1>
+        <p className="eyebrow">WordPress to Qortal</p>
+        <h1>Migration Publisher</h1>
         <div className="publisher-controls">
           <label>
             Qortal name
@@ -226,6 +226,9 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
           <span>{summary.published} published</span>
           <span>{summary.failed} failed</span>
         </div>
+        <p className="publisher-note">
+          Demo publishes a small smoke-test set. CMS JSON publishes imported posts, pages, and indexes. Full media publishes every planned resource, including downloaded media files.
+        </p>
         {!hasBridge && (
           <p className="publisher-warning">
             Qortal request API is not available in this browser context. Bridge checks:

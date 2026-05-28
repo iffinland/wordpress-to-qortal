@@ -433,12 +433,19 @@ select {
 }
 
 .publisher-summary span,
-.publisher-warning {
+.publisher-warning,
+.publisher-note {
   padding: 8px 10px;
   border: 1px solid #dfe5df;
   border-radius: 6px;
   background: #fff;
   font-size: 14px;
+}
+
+.publisher-note {
+  max-width: 980px;
+  margin: 12px 0 0;
+  color: #4a5650;
 }
 
 .publisher-warning {

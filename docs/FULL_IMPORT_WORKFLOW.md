@@ -85,7 +85,43 @@ npm run prepare-publish
 
 This writes `wp-qortal-import/publish-log/publish-plan.json` without publishing data.
 
-## 4. Output
+## 4. Preview The Imported Content
+
+```bash
+npm run migration:dev
+```
+
+Open:
+
+```text
+http://localhost:5174/
+```
+
+Use the preview to check imported posts, pages, media, tags, and categories before publishing.
+
+## 5. Publish Through Qortal UI Dev Mode
+
+Open the publisher inside Qortal UI dev mode:
+
+```text
+http://localhost:5174/?tool=publish&name=YourQortalName
+```
+
+Use the publish modes in this order:
+
+1. `Demo` for a small smoke test.
+2. `CMS JSON` for posts, pages, indexes, and the QDN manifest.
+3. `Full media` for every planned media resource.
+
+QDN read test:
+
+```text
+http://localhost:5174/?source=qdn&name=YourQortalName
+```
+
+The browser publisher requires Qortal UI's `qortalRequest` bridge. It will not publish from a normal browser tab.
+
+## 6. Output
 
 Raw WordPress data:
 
@@ -111,7 +147,7 @@ Logs:
 wp-qortal-import/logs/
 ```
 
-## 5. Important Files
+## 7. Important Files
 
 ```text
 wp-qortal-import/raw/dump-manifest.json

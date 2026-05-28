@@ -1,7 +1,7 @@
 {
-  "name": "wp-to-qortal-viewer",
+  "name": "wp-to-qortal-migration-publisher",
   "version": "0.1.0",
-  "description": "Local TypeScript viewer for converted WordPress to Qortal content.",
+  "description": "Migration preview and QDN publisher for converted WordPress content.",
   "type": "module",
   "private": true,
   "scripts": {

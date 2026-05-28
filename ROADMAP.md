@@ -27,18 +27,18 @@ npm run download-media
 npm run validate
 ```
 
-For a single full run:
+For a single full import run:
 
 ```bash
-npm run prepare
+npm run prepare-import
 ```
 
 ## Later Importer Phases
 
 - Add WordPress WXR/XML import support.
 - Add optional content link rewriting using `url-map.json`.
-- Add QDN publish preparation logs.
-- Add QDN publish implementation only after the JSON model is stable.
+- Keep improving QDN publish preparation logs.
+- Keep browser-based QDN publishing in the Migration Publisher until direct node publishing is ready.
 
 ## Separate CMS/Q-App Scope
 

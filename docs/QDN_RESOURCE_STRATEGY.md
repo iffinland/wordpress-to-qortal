@@ -1,6 +1,6 @@
 # QDN Resource Strategy
 
-This document defines the first publishing strategy for the 50-post demo dataset. It is intentionally conservative: the importer prepares resources and logs, but the first real QDN publishing command should only be added after this structure has been tested with the local viewer.
+This document defines the publishing strategy for migrated WordPress datasets. It is intentionally conservative: the importer prepares resources and logs, while real QDN publishing currently happens through the browser-based Migration Publisher inside Qortal UI dev mode.
 
 ## Goals
 
@@ -100,9 +100,9 @@ The publish command should refuse to run when `QORTAL_NAME` is empty.
 Direct node upload checks and future direct-node publishing require `QORTAL_API_KEY`.
 For local development, prefer `QORTAL_API_KEY_FILE` so the API key is read from the Qortal install directory and not stored in the project.
 
-## Viewer Loading Strategy
+## Migration Preview Loading Strategy
 
-The local viewer currently reads:
+The local Migration Preview currently reads:
 
 ```text
 /qortal-content/converted/posts-index.json
@@ -110,7 +110,7 @@ The local viewer currently reads:
 /qortal-content/media/...
 ```
 
-The Q-App viewer should later replace local paths with QDN lookups using:
+The QDN mode replaces local paths with QDN lookups using:
 
 ```text
 SERVICE + NAME + IDENTIFIER
@@ -134,7 +134,7 @@ The important boundary is:
 - Qortal production uses QDN-backed resources.
 - The content JSON structure should stay the same.
 
-The current viewer supports both loader modes:
+The current Migration Preview supports both loader modes:
 
 ```text
 /
@@ -148,13 +148,19 @@ loads local content.
 
 loads `DOCUMENT/<QortalName>/cr-qdn-manifest` first and then resolves all indexes, posts, pages, and media through that manifest.
 
-The current minimal publisher helper is:
+The current Migration Publisher is:
 
 ```text
 /?tool=publish&name=<QortalName>
 ```
 
 It is intentionally browser/Qortal UI based. It uses `qortalRequest({ action: 'PUBLISH_QDN_RESOURCE', ... })` so Qortal UI handles account signing. The Node.js CLI does not ask for or store a private key.
+
+Publisher modes:
+
+- `Demo` publishes one small smoke-test set.
+- `CMS JSON` publishes imported posts, pages, indexes, and one image for basic media testing.
+- `Full media` publishes every planned resource, including all downloaded media files.
 
 ## External Linked Media
 
@@ -168,24 +174,25 @@ Current behavior:
 
 This prevents the demo import from silently copying third-party files.
 
-## First Real Publish Command
+## CLI Dry Run And Browser Publish
 
-The first implementation should be:
+The CLI validates the plan:
 
 ```bash
 npm run publish -- --dry-run
-npm run publish
+npm run publish -- --dry-run --check-node
 ```
 
 Current behavior:
 
 - `npm run publish -- --dry-run` validates the generated publish plan.
 - `npm run publish -- --dry-run --check-node` also checks node status and temporary upload space.
-- Real publishing intentionally fails until the Qortal node API request format is confirmed.
+- Real CLI publishing intentionally fails until a safe direct-node publishing path is confirmed.
+- Real QDN publishing is available through the Migration Publisher in Qortal UI dev mode.
 
 The Qortal node API can build unsigned ARBITRARY transactions through `/arbitrary/...` endpoints. A browser Q-App normally uses `qortalRequest({ action: 'PUBLISH_QDN_RESOURCE', ... })`, which delegates signing and publishing to Qortal UI. A Node.js CLI publisher must therefore either integrate a safe signing path or hand publishing off to a Qortal UI/Q-App workflow.
 
-Expected real publish behavior:
+Expected future direct CLI publish behavior:
 
 - `--dry-run` prints planned actions and validates local files.
 - Real publish posts data to the local Qortal node API.
