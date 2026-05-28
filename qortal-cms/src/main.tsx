@@ -52,6 +52,20 @@ function createNewPostDraft(): DraftState {
   };
 }
 
+function createIndexItem(post: ContentItem): IndexItem {
+  return {
+    type: post.type,
+    source_id: post.source_id,
+    old_url: post.old_url,
+    slug: post.slug,
+    title: post.title,
+    date: post.date,
+    modified: post.modified,
+    status: post.status,
+    file: post.file
+  };
+}
+
 function App() {
   const [source, setSource] = useState<CmsSource | null>(null);
   const [data, setData] = useState<CmsData | null>(null);
@@ -176,8 +190,10 @@ function App() {
     const nextPost = applyDraftToPost();
     if (!nextPost) return;
 
+    const postPath = `converted/${nextPost.file}`;
     const existingResource = selectedIndex ? source.getResourceForPath(`converted/${selectedIndex.file}`) : null;
     const resource = existingResource || {
+      type: 'post',
       service: 'DOCUMENT',
       identifier: `cr-post-${createSlug(nextPost.slug || nextPost.title)}-${Date.now().toString(36)}`
     };
@@ -191,6 +207,27 @@ function App() {
     setStatus('Publishing draft...');
     setError(null);
     try {
+      const nextIndex = createIndexItem(nextPost);
+      const nextPostsIndex = isNewPost
+        ? [nextIndex, ...(data?.posts || [])]
+        : (data?.posts || []).map((post) => post.source_id === nextPost.source_id ? nextIndex : post);
+      const nextManifest = source.manifest ? {
+        ...source.manifest,
+        resources: {
+          by_path: {
+            ...source.manifest.resources.by_path,
+            [postPath]: {
+              type: 'post',
+              service: resource.service,
+              identifier: resource.identifier,
+              local_path: postPath
+            }
+          },
+          by_source_url: source.manifest.resources.by_source_url
+        }
+      } : null;
+
+      setStatus('Publishing post...');
       await requestQortal({
         action: 'PUBLISH_QDN_RESOURCE',
         name: qdnName,
@@ -201,24 +238,44 @@ function App() {
         title: nextPost.title,
         description: `Edited post: ${nextPost.summary || nextPost.slug}`.slice(0, 4000)
       });
+
+      if (source.manifest) {
+        setStatus('Updating posts index...');
+        await requestQortal({
+          action: 'PUBLISH_QDN_RESOURCE',
+          name: qdnName,
+          service: source.manifest.entrypoints.posts_index.service,
+          identifier: source.manifest.entrypoints.posts_index.identifier,
+          data64: toBase64(JSON.stringify(nextPostsIndex, null, 2)),
+          encoding: 'base64',
+          title: 'Posts index',
+          description: 'Updated CMS posts index'
+        });
+      }
+
+      const manifestResource = source.getResourceForPath('converted/qdn-manifest.json');
+      if (nextManifest && manifestResource) {
+        setStatus('Updating QDN manifest...');
+        await requestQortal({
+          action: 'PUBLISH_QDN_RESOURCE',
+          name: qdnName,
+          service: manifestResource.service,
+          identifier: manifestResource.identifier,
+          data64: toBase64(JSON.stringify(nextManifest, null, 2)),
+          encoding: 'base64',
+          title: 'QDN manifest',
+          description: 'Updated CMS QDN resource manifest'
+        });
+        source.manifest = nextManifest;
+      }
+
       setSelectedPost(nextPost);
+      setSelectedIndex(nextIndex);
+      setData((current) => current ? { ...current, posts: nextPostsIndex } : current);
       if (isNewPost) {
-        const nextIndex: IndexItem = {
-          type: 'post',
-          source_id: nextPost.source_id,
-          old_url: '',
-          slug: nextPost.slug,
-          title: nextPost.title,
-          date: nextPost.date,
-          modified: nextPost.modified,
-          status: nextPost.status,
-          file: nextPost.file
-        };
-        setSelectedIndex(nextIndex);
-        setData((current) => current ? { ...current, posts: [nextIndex, ...current.posts] } : current);
         setIsNewPost(false);
       }
-      setStatus('Draft published.');
+      setStatus(source.manifest ? 'Draft, posts index, and manifest published.' : 'Draft published. Open QDN mode to publish the shared posts index.');
     } catch (publishError) {
       setError((publishError as Error).message);
       setStatus('');
