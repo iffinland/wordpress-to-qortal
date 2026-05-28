@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Edit3, Eye, FileText, Image, RefreshCcw, Save, Search, Send, Tags } from 'lucide-react';
+import { Edit3, Eye, FileText, Image, Plus, RefreshCcw, Save, Search, Send, Tags } from 'lucide-react';
 import { createSourceFromLocation, type CmsData, type CmsSource } from './contentSource';
 import { hasQortalBridge, requestQortal, toBase64 } from './qortalClient';
 import { RichTextEditor } from './RichTextEditor';
@@ -13,6 +13,7 @@ interface DraftState {
   title: string;
   summary: string;
   contentHtml: string;
+  slug?: string;
 }
 
 function decodeText(value = '') {
@@ -34,6 +35,23 @@ function createDraft(post: ContentItem): DraftState {
   };
 }
 
+function createSlug(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 72) || `post-${Date.now().toString(36)}`;
+}
+
+function createNewPostDraft(): DraftState {
+  return {
+    title: 'Untitled post',
+    summary: '',
+    contentHtml: '<p></p>',
+    slug: `new-post-${Date.now().toString(36)}`
+  };
+}
+
 function App() {
   const [source, setSource] = useState<CmsSource | null>(null);
   const [data, setData] = useState<CmsData | null>(null);
@@ -41,6 +59,7 @@ function App() {
   const [selectedPost, setSelectedPost] = useState<ContentItem | null>(null);
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [panelMode, setPanelMode] = useState<PanelMode>('preview');
+  const [isNewPost, setIsNewPost] = useState(false);
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +103,7 @@ function App() {
       setSelectedIndex(post);
       setSelectedPost(content);
       setDraft(createDraft(content));
+      setIsNewPost(false);
       setPanelMode('preview');
     } catch (loadError) {
       setError((loadError as Error).message);
@@ -93,7 +113,49 @@ function App() {
   }
 
   function applyDraftToPost(): ContentItem | null {
-    if (!selectedPost || !draft) return null;
+    if (!draft) return null;
+    if (isNewPost) {
+      const now = new Date().toISOString();
+      const slug = createSlug(draft.slug || draft.title);
+      return {
+        type: 'post',
+        source: 'qortal-cms',
+        source_id: Date.now(),
+        old_url: '',
+        slug,
+        title: draft.title,
+        date: now,
+        modified: now,
+        status: 'publish',
+        file: `posts/${slug}.json`,
+        excerpt: draft.summary,
+        excerpt_text: draft.summary,
+        content_html: draft.contentHtml,
+        content_text: draft.contentHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(),
+        summary: draft.summary,
+        categories: [],
+        tags: [],
+        featured_media: null,
+        attachments: [],
+        links: {
+          internal: [],
+          external: []
+        },
+        media: {
+          images: [],
+          audio: [],
+          video: [],
+          documents: [],
+          embeds: []
+        },
+        import: {
+          imported_at: now,
+          importer_version: 'qortal-cms-0.1.0'
+        }
+      };
+    }
+
+    if (!selectedPost) return null;
     return {
       ...selectedPost,
       title: draft.title,
@@ -105,26 +167,26 @@ function App() {
   }
 
   async function publishDraft() {
-    if (!source || !selectedIndex || !draft) return;
+    if (!source || !draft) return;
     if (!hasQortalBridge()) {
       setError('Qortal request API is not available. Open this CMS through Qortal UI dev mode.');
       return;
     }
 
-    const resource = source.getResourceForPath(`converted/${selectedIndex.file}`);
-    if (!resource) {
-      setError('This post does not have a QDN resource mapping yet.');
-      return;
-    }
+    const nextPost = applyDraftToPost();
+    if (!nextPost) return;
+
+    const existingResource = selectedIndex ? source.getResourceForPath(`converted/${selectedIndex.file}`) : null;
+    const resource = existingResource || {
+      service: 'DOCUMENT',
+      identifier: `cr-post-${createSlug(nextPost.slug || nextPost.title)}-${Date.now().toString(36)}`
+    };
 
     const qdnName = source.qdnName || new URLSearchParams(window.location.search).get('name') || '';
     if (!qdnName) {
       setError('Missing Qortal name. Use ?source=qdn&name=<QortalName> for publish tests.');
       return;
     }
-
-    const nextPost = applyDraftToPost();
-    if (!nextPost) return;
 
     setStatus('Publishing draft...');
     setError(null);
@@ -140,6 +202,22 @@ function App() {
         description: `Edited post: ${nextPost.summary || nextPost.slug}`.slice(0, 4000)
       });
       setSelectedPost(nextPost);
+      if (isNewPost) {
+        const nextIndex: IndexItem = {
+          type: 'post',
+          source_id: nextPost.source_id,
+          old_url: '',
+          slug: nextPost.slug,
+          title: nextPost.title,
+          date: nextPost.date,
+          modified: nextPost.modified,
+          status: nextPost.status,
+          file: nextPost.file
+        };
+        setSelectedIndex(nextIndex);
+        setData((current) => current ? { ...current, posts: [nextIndex, ...current.posts] } : current);
+        setIsNewPost(false);
+      }
       setStatus('Draft published.');
     } catch (publishError) {
       setError((publishError as Error).message);
@@ -152,6 +230,17 @@ function App() {
   const heroImage = selectedPost?.media.images[0];
   const heroSrc = heroImage && source && data ? source.resolveMediaUrl(heroImage, data.mediaMap) : '';
   const previewHtml = draft?.contentHtml || selectedPost?.content_html || '';
+
+  function startNewPost() {
+    const nextDraft = createNewPostDraft();
+    setSelectedIndex(null);
+    setSelectedPost(null);
+    setDraft(nextDraft);
+    setIsNewPost(true);
+    setPanelMode('edit');
+    setStatus('New post draft created.');
+    setError(null);
+  }
 
   return (
     <main className="cms-shell">
@@ -166,6 +255,11 @@ function App() {
           <Search size={17} />
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search posts" />
         </label>
+
+        <button className="new-post-button" onClick={startNewPost}>
+          <Plus size={17} />
+          New post
+        </button>
 
         <div className="post-list">
           {filteredPosts.map((post) => (
@@ -185,15 +279,15 @@ function App() {
         {error && <div className="notice error">{error}</div>}
         {status && <div className="notice">{status}</div>}
 
-        {selectedPost && (
+        {(selectedPost || draft) && (
           <>
             {heroSrc && <img className="hero-image" src={heroSrc} alt="" />}
             <div className="post-meta">
-              <span><FileText size={16} /> Source #{selectedPost.source_id}</span>
+              <span><FileText size={16} /> {isNewPost ? 'New post' : `Source #${selectedPost?.source_id}`}</span>
               <span><Tags size={16} /> {categoryNames.join(', ') || 'Uncategorized'}</span>
             </div>
-            <h2>{draft?.title || decodeText(selectedPost.title)}</h2>
-            <p className="summary">{draft?.summary || decodeText(selectedPost.summary)}</p>
+            <h2>{draft?.title || decodeText(selectedPost?.title || 'Untitled post')}</h2>
+            <p className="summary">{draft?.summary || decodeText(selectedPost?.summary || '')}</p>
             <div className="tag-row">
               {tagNames.map((tag) => <span key={tag}>{tag}</span>)}
             </div>
@@ -231,15 +325,21 @@ function App() {
               Summary
               <textarea value={draft.summary} onChange={(event) => setDraft({ ...draft, summary: event.target.value })} />
             </label>
+            {isNewPost && (
+              <label>
+                Slug
+                <input value={draft.slug || ''} onChange={(event) => setDraft({ ...draft, slug: event.target.value })} />
+              </label>
+            )}
             <div className="editor-field">
               <span>Content</span>
               <RichTextEditor value={draft.contentHtml} onChange={(contentHtml) => setDraft({ ...draft, contentHtml })} />
             </div>
-            <button className="secondary" onClick={() => selectedPost && setDraft(createDraft(selectedPost))}>
+            <button className="secondary" onClick={() => selectedPost ? setDraft(createDraft(selectedPost)) : setDraft(createNewPostDraft())}>
               <RefreshCcw size={16} /> Reset
             </button>
             <button className="primary" onClick={publishDraft}>
-              <Send size={16} /> Publish edited post
+              <Send size={16} /> {isNewPost ? 'Publish new post' : 'Publish edited post'}
             </button>
           </div>
         )}
