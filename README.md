@@ -312,6 +312,48 @@ Build the viewer:
 npm run viewer:build
 ```
 
+## Qortal CMS App
+
+The real CMS/Q-App shell lives in:
+
+```text
+qortal-cms/
+```
+
+Install its dependencies once:
+
+```bash
+cd qortal-cms
+npm install
+cd ..
+```
+
+Run the CMS locally:
+
+```bash
+npm run cms:dev
+```
+
+The local CMS opens at:
+
+```text
+http://localhost:5180/
+```
+
+The first CMS version can:
+
+- read the converted local dataset
+- open imported posts
+- preview post HTML and media
+- edit title, summary, and HTML
+- publish an edited post through Qortal UI when running in QDN mode
+
+QDN mode:
+
+```text
+http://localhost:5180/?source=qdn&name=YourQortalName
+```
+
 ## Full Workflow
 
 After WordPress credentials are ready, use:

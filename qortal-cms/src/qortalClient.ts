@@ -1,0 +1,84 @@
+interface QortalRequestPayload {
+  action: string;
+  service?: string;
+  name?: string;
+  identifier?: string;
+  data64?: string;
+  encoding?: string;
+  file?: File;
+  filename?: string;
+  title?: string;
+  description?: string;
+}
+
+declare global {
+  interface Window {
+    qortalRequest?: (payload: QortalRequestPayload) => Promise<unknown>;
+  }
+
+  var qortalRequest: ((payload: QortalRequestPayload) => Promise<unknown>) | undefined;
+}
+
+function findQortalRequest(): ((payload: QortalRequestPayload) => Promise<unknown>) | null {
+  if (typeof window === 'undefined') return null;
+
+  if (typeof window.qortalRequest === 'function') return window.qortalRequest;
+  if (typeof globalThis.qortalRequest === 'function') return globalThis.qortalRequest;
+
+  try {
+    if (window.parent && window.parent !== window && typeof window.parent.qortalRequest === 'function') {
+      return window.parent.qortalRequest;
+    }
+  } catch {
+    // Continue with other Qortal UI bridge locations.
+  }
+
+  try {
+    const topWindow = window.top;
+    if (topWindow && topWindow !== window && typeof topWindow.qortalRequest === 'function') {
+      return topWindow.qortalRequest;
+    }
+  } catch {
+    // Continue with other Qortal UI bridge locations.
+  }
+
+  if (typeof qortalRequest === 'function') return qortalRequest;
+  return null;
+}
+
+export function hasQortalBridge() {
+  return Boolean(findQortalRequest());
+}
+
+export async function requestQortal(payload: QortalRequestPayload) {
+  const bridge = findQortalRequest();
+  if (!bridge) {
+    throw new Error('Qortal request API is not available.');
+  }
+  return bridge(payload);
+}
+
+export async function fetchQdnResource<T>(service: string, name: string, identifier: string): Promise<T> {
+  const bridge = findQortalRequest();
+
+  if (bridge) {
+    const response = await bridge({
+      action: 'FETCH_QDN_RESOURCE',
+      service,
+      name,
+      identifier
+    });
+    return typeof response === 'string' ? (JSON.parse(response) as T) : (response as T);
+  }
+
+  const nodeUrl = (import.meta.env.VITE_QORTAL_NODE_URL || 'http://localhost:12391').replace(/\/+$/, '');
+  const response = await fetch(`${nodeUrl}/arbitrary/${encodeURIComponent(service)}/${encodeURIComponent(name)}/${encodeURIComponent(identifier)}`);
+  if (!response.ok) {
+    throw new Error(`Unable to fetch QDN resource ${service}/${name}/${identifier}: ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+export function toBase64(value: string): string {
+  return btoa(unescape(encodeURIComponent(value)));
+}
