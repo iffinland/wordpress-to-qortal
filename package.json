@@ -12,6 +12,9 @@
     "validate": "node src/validate.js",
     "validate:media": "node src/validate.js --require-media",
     "prepare-publish": "node src/preparePublish.js",
+    "viewer:dev": "npm --prefix viewer run dev",
+    "viewer:build": "npm --prefix viewer run build",
+    "viewer:preview": "npm --prefix viewer run preview",
     "prepare": "npm run dump && npm run convert && npm run plan-media && npm run download-media && npm run validate",
     "dump:sample": "node src/dump.js --sample && node src/convertRaw.js",
     "inspect": "node src/inspect.js"

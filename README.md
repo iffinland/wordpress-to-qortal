@@ -189,6 +189,48 @@ This does not publish anything. It creates deterministic proposed QDN services a
 wp-qortal-import/publish-log/publish-plan.json
 ```
 
+## Local Viewer
+
+Install the viewer dependencies once:
+
+```bash
+cd viewer
+npm install
+cd ..
+```
+
+Run the TypeScript viewer:
+
+```bash
+npm run viewer:dev
+```
+
+The viewer opens at:
+
+```text
+http://localhost:5174/
+```
+
+During local development the viewer reads the already converted dataset directly from:
+
+```text
+wp-qortal-import/
+```
+
+The Vite dev server exposes those files under:
+
+```text
+/qortal-content/
+```
+
+That means large downloaded media files are not duplicated into the viewer project.
+
+Build the viewer:
+
+```bash
+npm run viewer:build
+```
+
 ## Full Workflow
 
 After WordPress credentials are ready, use:
@@ -281,4 +323,4 @@ These are planned for later phases:
 
 - WordPress XML/WXR import
 - Qortal/QDN publishing
-- Qortal CMS/Q-App UI
+- Qortal CMS/Q-App editing UI
