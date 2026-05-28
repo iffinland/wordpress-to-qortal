@@ -58,7 +58,7 @@ This confirms whether the REST API endpoints are reachable with the configured c
 ## 3. Run Everything
 
 ```bash
-npm run prepare
+npm run prepare-import
 ```
 
 This runs:

@@ -318,10 +318,10 @@ After WordPress credentials are ready, use:
 
 ```bash
 npm run inspect
-npm run prepare
+npm run prepare-import
 ```
 
-`npm run prepare` runs:
+`npm run prepare-import` runs:
 
 ```bash
 npm run dump
@@ -329,6 +329,12 @@ npm run convert
 npm run plan-media
 npm run download-media
 npm run validate
+```
+
+Run the local sanity checks:
+
+```bash
+npm run check
 ```
 
 For a detailed full import guide, see:

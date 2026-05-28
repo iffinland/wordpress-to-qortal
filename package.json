@@ -16,7 +16,8 @@
     "viewer:dev": "npm --prefix viewer run dev",
     "viewer:build": "npm --prefix viewer run build",
     "viewer:preview": "npm --prefix viewer run preview",
-    "prepare": "npm run dump && npm run convert && npm run plan-media && npm run download-media && npm run validate",
+    "prepare-import": "npm run dump && npm run convert && npm run plan-media && npm run download-media && npm run validate",
+    "check": "npm run validate:media && npm run viewer:build",
     "dump:sample": "node src/dump.js --sample && node src/convertRaw.js",
     "inspect": "node src/inspect.js"
   },
