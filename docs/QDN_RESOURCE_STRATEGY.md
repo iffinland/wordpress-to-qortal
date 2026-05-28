@@ -92,10 +92,12 @@ Before real publishing, add a configuration value:
 QORTAL_NAME=
 QORTAL_NODE_URL=http://localhost:12391
 QORTAL_API_KEY=
+QORTAL_API_KEY_FILE=~/qortal/apikey.txt
 ```
 
 The publish command should refuse to run when `QORTAL_NAME` is empty.
 Direct node upload checks and future direct-node publishing require `QORTAL_API_KEY`.
+For local development, prefer `QORTAL_API_KEY_FILE` so the API key is read from the Qortal install directory and not stored in the project.
 
 ## Viewer Loading Strategy
 

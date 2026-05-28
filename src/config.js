@@ -1,4 +1,7 @@
 import dotenv from 'dotenv';
+import { existsSync, readFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 dotenv.config();
 
@@ -21,6 +24,27 @@ function readRequiredEnv(name) {
 
 function normalizeBaseUrl(url) {
   return url.replace(/\/+$/, '');
+}
+
+function expandHome(filePath) {
+  if (!filePath) {
+    return '';
+  }
+  if (filePath === '~') {
+    return os.homedir();
+  }
+  if (filePath.startsWith('~/')) {
+    return path.join(os.homedir(), filePath.slice(2));
+  }
+  return filePath;
+}
+
+function readOptionalFile(filePath) {
+  const expanded = expandHome(filePath);
+  if (!expanded || !existsSync(expanded)) {
+    return '';
+  }
+  return readFileSync(expanded, 'utf8').trim();
 }
 
 function readPositiveInteger(name, fallback) {
@@ -60,7 +84,8 @@ export function loadConfig() {
   const qortalNodeUrl = normalizeBaseUrl(
     process.env.QORTAL_NODE_URL?.trim() || 'http://localhost:12391'
   );
-  const qortalApiKey = process.env.QORTAL_API_KEY?.trim() || '';
+  const qortalApiKeyFile = process.env.QORTAL_API_KEY_FILE?.trim() || '';
+  const qortalApiKey = process.env.QORTAL_API_KEY?.trim() || readOptionalFile(qortalApiKeyFile);
 
   if (!['application_password', 'session'].includes(wordpressAuthMode)) {
     throw new Error('WORDPRESS_AUTH_MODE must be application_password or session.');
@@ -94,6 +119,7 @@ export function loadConfig() {
     qortalName,
     qortalNodeUrl,
     qortalApiKey,
+    qortalApiKeyFile,
     importerVersion: '0.1.0'
   };
 }

@@ -46,6 +46,7 @@ WORDPRESS_PASSWORD=
 QORTAL_NAME=
 QORTAL_NODE_URL=http://localhost:12391
 QORTAL_API_KEY=
+QORTAL_API_KEY_FILE=~/qortal/apikey.txt
 ```
 
 Settings:
@@ -69,6 +70,7 @@ Settings:
 - `QORTAL_NAME` is the registered Qortal name that will publish the prepared resources.
 - `QORTAL_NODE_URL` is the local Qortal node API base URL.
 - `QORTAL_API_KEY` is required for Qortal node upload checks and future direct-node publishing.
+- `QORTAL_API_KEY_FILE` can point to the local Qortal `apikey.txt` file so the key is not copied into `.env`.
 
 ## Inspect The WordPress API
 
@@ -209,6 +211,7 @@ The command requires:
 QORTAL_NAME=YourQortalName
 QORTAL_NODE_URL=http://localhost:12391
 QORTAL_API_KEY=
+QORTAL_API_KEY_FILE=~/qortal/apikey.txt
 ```
 
 The dry run checks:
