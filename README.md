@@ -1,8 +1,8 @@
 # WP to Qortal Importer
 
-This is a small Node.js MVP importer for moving WordPress content toward a Qortal-native JSON structure.
+This project contains a small Node.js importer plus early Qortal viewer/CMS shells for moving WordPress content toward a Qortal-native JSON structure.
 
-The first version only fetches WordPress posts through the public WordPress REST API. It does not publish anything to Qortal/QDN yet.
+The importer remains the priority: it fetches WordPress data, converts it to local JSON, downloads media, validates the dataset, and prepares deterministic QDN resource plans. The CMS is kept in a separate folder so the importer can later be reused independently.
 
 ## Requirements
 
@@ -207,7 +207,7 @@ The Q-App can use this manifest to map local content paths and source media URLs
 
 ## QDN Publish Dry Run
 
-Real QDN publishing is not implemented yet. First validate the publishing plan:
+First validate the publishing plan:
 
 ```bash
 npm run publish -- --dry-run
@@ -241,6 +241,8 @@ To also check a running Qortal node and available temporary upload space:
 ```bash
 npm run publish -- --dry-run --check-node
 ```
+
+The importer-side direct publish command is still treated as a controlled test surface. Interactive QDN publish tests currently happen through the viewer/CMS inside Qortal UI dev mode, using Qortal UI's `qortalRequest` bridge.
 
 ## Local Viewer
 
@@ -343,16 +345,27 @@ http://localhost:5180/
 The first CMS version can:
 
 - read the converted local dataset
+- read published QDN resources through `cr-qdn-manifest`
 - open imported posts
 - preview post HTML and media
-- edit title, summary, and HTML
+- edit title, summary, and rich text content
+- create a new post draft
 - publish an edited post through Qortal UI when running in QDN mode
+- publish a new post resource and update `posts-index` plus `qdn-manifest` in QDN mode
 
 QDN mode:
 
 ```text
 http://localhost:5180/?source=qdn&name=YourQortalName
 ```
+
+For the current test name:
+
+```text
+http://localhost:5180/?source=qdn&name=developer%20iffi
+```
+
+Publish actions require the CMS to run inside Qortal UI dev mode or another real Q-App context where `qortalRequest` is available. A normal browser can preview local data, but it cannot publish to QDN.
 
 ## Full Workflow
 
@@ -457,5 +470,7 @@ Each converted post keeps important WordPress source data:
 These are planned for later phases:
 
 - WordPress XML/WXR import
-- Qortal/QDN publishing
-- Qortal CMS/Q-App editing UI
+- full importer-side QDN publish automation
+- CMS media upload and insertion
+- CMS category and tag management
+- CMS page editing
