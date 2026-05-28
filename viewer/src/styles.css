@@ -322,6 +322,136 @@ select {
   color: #26332f;
 }
 
+.publisher-shell {
+  min-height: 100vh;
+  padding: 32px;
+  color: #1f2925;
+  background: #f5f7f4;
+}
+
+.publisher-header {
+  max-width: 980px;
+  margin: 0 auto 22px;
+}
+
+.publisher-header h1 {
+  margin: 4px 0 18px;
+  color: #18231f;
+  font-size: 36px;
+  line-height: 1.1;
+}
+
+.publisher-controls {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.publisher-controls label {
+  display: grid;
+  gap: 6px;
+  color: #4a5650;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.publisher-controls input {
+  min-height: 42px;
+  padding: 0 12px;
+  border: 1px solid #cdd8d0;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.publisher-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 6px;
+  color: #17211f;
+  background: #9fcbbd;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.publisher-controls button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.publisher-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.publisher-summary span,
+.publisher-warning {
+  padding: 8px 10px;
+  border: 1px solid #dfe5df;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 14px;
+}
+
+.publisher-warning {
+  max-width: 980px;
+  margin: 12px auto 0;
+  color: #774413;
+  border-color: #f0c68d;
+  background: #fff7e8;
+}
+
+.publisher-list {
+  display: grid;
+  gap: 10px;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.publisher-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #dfe5df;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.publisher-row div:first-child {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.publisher-row strong,
+.publisher-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.publisher-row span {
+  color: #64716b;
+  font-size: 13px;
+}
+
+.publisher-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #31423b;
+}
+
 @media (max-width: 980px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -359,6 +489,15 @@ select {
   }
 
   .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .publisher-shell {
+    padding: 18px;
+  }
+
+  .publisher-controls,
+  .publisher-row {
     grid-template-columns: 1fr;
   }
 }

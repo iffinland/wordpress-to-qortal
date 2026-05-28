@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { CalendarDays, ExternalLink, FileText, Image, Link, Play, Search, Tags } from 'lucide-react';
 import { createContentSource, formatBytes, rewriteHtmlMedia, type ContentSource } from './contentApi';
+import { PublisherPage } from './publisher/PublisherPage';
 import type { ContentItem, IndexItem, MediaMap, Term } from './types';
 import './styles.css';
 
@@ -29,6 +30,11 @@ function termNames(ids: number[], terms: Term[]): string[] {
 }
 
 function App() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('tool') === 'publish') {
+    return <PublisherPage />;
+  }
+
   const [data, setData] = useState<LoadedData | null>(null);
   const [selected, setSelected] = useState<ContentItem | null>(null);
   const [query, setQuery] = useState('');
@@ -49,9 +55,11 @@ function App() {
       .loadIndexes()
       .then(async (loaded) => {
         const postDetails = new Map<number, ContentItem>();
-        const posts = await Promise.all(loaded.posts.map((post) => source.loadContent(post.file)));
-        for (const post of posts) {
-          postDetails.set(post.source_id, post);
+        if (source.mode === 'local') {
+          const posts = await Promise.all(loaded.posts.map((post) => source.loadContent(post.file)));
+          for (const post of posts) {
+            postDetails.set(post.source_id, post);
+          }
         }
 
         setData({ ...loaded, postDetails, source });
@@ -74,13 +82,19 @@ function App() {
   }, [activeIndex, categoryId, mode, query]);
 
   function selectedCategoryMatches(item: IndexItem, category: number): boolean {
-    return data?.postDetails.get(item.source_id)?.categories.includes(category) || false;
+    const details = data?.postDetails.get(item.source_id);
+    if (!details && data?.source.mode === 'qdn') {
+      return true;
+    }
+    return details?.categories.includes(category) || false;
   }
 
   async function openItem(item: IndexItem) {
     try {
       setError(null);
-      setSelected(data?.postDetails.get(item.source_id) || (await data!.source.loadContent(item.file)));
+      const details = data?.postDetails.get(item.source_id) || (await data!.source.loadContent(item.file));
+      data?.postDetails.set(item.source_id, details);
+      setSelected(details);
     } catch (loadError) {
       setError((loadError as Error).message);
     }

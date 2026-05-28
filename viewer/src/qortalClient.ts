@@ -4,6 +4,12 @@ interface QortalRequestPayload {
   name?: string;
   identifier?: string;
   build?: boolean;
+  data64?: string;
+  encoding?: string;
+  file?: File;
+  filename?: string;
+  title?: string;
+  description?: string;
 }
 
 declare global {

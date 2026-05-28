@@ -148,6 +148,14 @@ loads local content.
 
 loads `DOCUMENT/<QortalName>/cr-qdn-manifest` first and then resolves all indexes, posts, pages, and media through that manifest.
 
+The current minimal publisher helper is:
+
+```text
+/?tool=publish&name=<QortalName>
+```
+
+It is intentionally browser/Qortal UI based. It uses `qortalRequest({ action: 'PUBLISH_QDN_RESOURCE', ... })` so Qortal UI handles account signing. The Node.js CLI does not ask for or store a private key.
+
 ## External Linked Media
 
 External linked media is not automatically published in the first strategy.

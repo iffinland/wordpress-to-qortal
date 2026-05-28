@@ -292,6 +292,20 @@ http://localhost:5174/?source=qdn&name=YourQortalName
 
 uses QDN resources through `cr-qdn-manifest`. This mode is for testing after the manifest and content resources have been published to QDN.
 
+Open the minimal QDN publisher helper:
+
+```text
+http://localhost:5174/?tool=publish&name=YourQortalName
+```
+
+It publishes only the first demo set through Qortal UI's `qortalRequest` bridge:
+
+- one image
+- one post JSON
+- `media-map`
+- `posts-index`
+- `qdn-manifest`
+
 Build the viewer:
 
 ```bash
