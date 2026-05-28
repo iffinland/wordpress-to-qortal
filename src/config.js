@@ -56,6 +56,10 @@ export function loadConfig() {
       .filter(Boolean)
   );
   const mediaScope = process.env.MEDIA_SCOPE?.trim().toLowerCase() || 'library';
+  const qortalName = process.env.QORTAL_NAME?.trim() || '';
+  const qortalNodeUrl = normalizeBaseUrl(
+    process.env.QORTAL_NODE_URL?.trim() || 'http://localhost:12391'
+  );
 
   if (!['application_password', 'session'].includes(wordpressAuthMode)) {
     throw new Error('WORDPRESS_AUTH_MODE must be application_password or session.');
@@ -86,6 +90,8 @@ export function loadConfig() {
       wordpressAuthMode === 'session'
         ? Boolean(wordpressUsername && wordpressPassword)
         : Boolean(wordpressUsername && wordpressAppPassword),
+    qortalName,
+    qortalNodeUrl,
     importerVersion: '0.1.0'
   };
 }

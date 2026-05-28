@@ -138,7 +138,12 @@ npm run publish -- --dry-run
 npm run publish
 ```
 
-Expected behavior:
+Current behavior:
+
+- `npm run publish -- --dry-run` validates the generated publish plan.
+- Real publishing intentionally fails until the Qortal node API request format is confirmed.
+
+Expected real publish behavior:
 
 - `--dry-run` prints planned actions and validates local files.
 - Real publish posts data to the local Qortal node API.

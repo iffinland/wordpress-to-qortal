@@ -43,6 +43,8 @@ WORDPRESS_LOGIN_URL=/login/
 WORDPRESS_USERNAME=
 WORDPRESS_APP_PASSWORD=
 WORDPRESS_PASSWORD=
+QORTAL_NAME=
+QORTAL_NODE_URL=http://localhost:12391
 ```
 
 Settings:
@@ -63,6 +65,8 @@ Settings:
 - `WORDPRESS_LOGIN_URL` defaults to `/login/` for sites using a custom login path.
 - `WORDPRESS_APP_PASSWORD` should be used where the site makes Application Passwords available.
 - `WORDPRESS_PASSWORD` is for session-mode fallback where the user only has the site's normal member login.
+- `QORTAL_NAME` is the registered Qortal name that will publish the prepared resources.
+- `QORTAL_NODE_URL` is the local Qortal node API base URL.
 
 ## Inspect The WordPress API
 
@@ -187,6 +191,35 @@ This does not publish anything. It creates deterministic proposed QDN services a
 
 ```text
 wp-qortal-import/publish-log/publish-plan.json
+```
+
+## QDN Publish Dry Run
+
+Real QDN publishing is not implemented yet. First validate the publishing plan:
+
+```bash
+npm run publish -- --dry-run
+```
+
+The command requires:
+
+```env
+QORTAL_NAME=YourQortalName
+QORTAL_NODE_URL=http://localhost:12391
+```
+
+The dry run checks:
+
+- all planned local files exist
+- services and identifiers are present
+- identifiers are unique
+- identifier length is valid
+- total publish size can be reviewed before real publishing
+
+It writes:
+
+```text
+wp-qortal-import/publish-log/dry-run.json
 ```
 
 ## Local Viewer

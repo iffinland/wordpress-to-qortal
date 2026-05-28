@@ -12,6 +12,7 @@
     "validate": "node src/validate.js",
     "validate:media": "node src/validate.js --require-media",
     "prepare-publish": "node src/preparePublish.js",
+    "publish": "node src/publish.js",
     "viewer:dev": "npm --prefix viewer run dev",
     "viewer:build": "npm --prefix viewer run build",
     "viewer:preview": "npm --prefix viewer run preview",
