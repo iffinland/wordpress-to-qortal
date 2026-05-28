@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Play, Send, XCircle } from 'lucide-react';
-import { CONTENT_BASE } from '../contentApi';
+import { ArrowLeft, CheckCircle2, Play, Send, XCircle } from 'lucide-react';
+import { CONTENT_BASE, getRouteParams } from '../contentApi';
 import { hasQortalBridge, requestQortal } from '../qortalClient';
 import { formatBytes } from '../contentApi';
 
@@ -63,10 +63,11 @@ function createMinimalRows(plan: PublishPlan): PublishRow[] {
     }));
 }
 
-export function PublisherPage() {
-  const params = new URLSearchParams(window.location.search);
-  const initialName = params.get('name') || import.meta.env.VITE_QDN_NAME || '';
-  const [qortalName, setQortalName] = useState(initialName);
+export function PublisherPage({ initialName = '', onBack }: { initialName?: string; onBack?: () => void }) {
+  const params = getRouteParams();
+  const routeName = params.get('name') || params.get('qdnName') || '';
+  const resolvedInitialName = initialName || routeName || import.meta.env.VITE_QDN_NAME || '';
+  const [qortalName, setQortalName] = useState(resolvedInitialName);
   const [rows, setRows] = useState<PublishRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -154,6 +155,12 @@ export function PublisherPage() {
   return (
     <main className="publisher-shell">
       <section className="publisher-header">
+        {onBack && (
+          <button type="button" className="back-button" onClick={onBack}>
+            <ArrowLeft size={17} />
+            Back to viewer
+          </button>
+        )}
         <p className="eyebrow">Qortal Migration Demo</p>
         <h1>Minimal QDN Publisher</h1>
         <div className="publisher-controls">

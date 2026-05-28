@@ -48,6 +48,23 @@ function findQortalRequest(): ((payload: QortalRequestPayload) => Promise<unknow
   return null;
 }
 
+function getRouteParams(): URLSearchParams {
+  const params = new URLSearchParams(window.location.search);
+  const hash = window.location.hash || '';
+  const hashQueryIndex = hash.indexOf('?');
+
+  if (hashQueryIndex >= 0) {
+    const hashParams = new URLSearchParams(hash.slice(hashQueryIndex + 1));
+    for (const [key, value] of hashParams.entries()) {
+      if (!params.has(key)) {
+        params.set(key, value);
+      }
+    }
+  }
+
+  return params;
+}
+
 export function hasQortalBridge(): boolean {
   return Boolean(findQortalRequest());
 }
@@ -86,8 +103,10 @@ export async function fetchQdnResource<T>({
     return result as T;
   }
 
+  const params = getRouteParams();
+  const nodeUrl = (params.get('node') || import.meta.env.VITE_QORTAL_NODE_URL || 'http://localhost:12391').replace(/\/+$/, '');
   const response = await fetch(
-    `/arbitrary/${encodeURIComponent(service)}/${encodeURIComponent(name)}/${encodeURIComponent(identifier)}`
+    `${nodeUrl}/arbitrary/${encodeURIComponent(service)}/${encodeURIComponent(name)}/${encodeURIComponent(identifier)}`
   );
   if (!response.ok) {
     throw new Error(`Failed to fetch QDN resource ${service}/${name}/${identifier}: ${response.status}`);

@@ -21,6 +21,28 @@ export interface ContentSource {
   resolveMediaUrl: (sourceUrl: string, mediaMap: MediaMap) => string;
 }
 
+export function getRouteParams(): URLSearchParams {
+  const params = new URLSearchParams(window.location.search);
+  const hash = window.location.hash || '';
+  const hashQueryIndex = hash.indexOf('?');
+
+  if (hashQueryIndex >= 0) {
+    const hashParams = new URLSearchParams(hash.slice(hashQueryIndex + 1));
+    for (const [key, value] of hashParams.entries()) {
+      if (!params.has(key)) {
+        params.set(key, value);
+      }
+    }
+  }
+
+  const hashPath = hash.split('?')[0].replace(/^#\/?/, '');
+  if (hashPath === 'publish' && !params.has('tool')) {
+    params.set('tool', 'publish');
+  }
+
+  return params;
+}
+
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(`${CONTENT_BASE}/${path}`);
   if (!response.ok) {
@@ -104,7 +126,7 @@ export function createQdnContentSource(name: string): ContentSource {
 }
 
 export function createContentSource(): ContentSource {
-  const params = new URLSearchParams(window.location.search);
+  const params = getRouteParams();
   const source = params.get('source') || params.get('mode') || 'local';
   const qdnName = params.get('name') || params.get('qdnName') || import.meta.env.VITE_QDN_NAME || '';
 

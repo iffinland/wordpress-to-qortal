@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { CalendarDays, ExternalLink, FileText, Image, Link, Play, Search, Tags } from 'lucide-react';
-import { createContentSource, formatBytes, rewriteHtmlMedia, type ContentSource } from './contentApi';
+import { CalendarDays, ExternalLink, FileText, Image, Link, Play, Search, Send, Tags } from 'lucide-react';
+import { createContentSource, formatBytes, getRouteParams, rewriteHtmlMedia, type ContentSource } from './contentApi';
 import { PublisherPage } from './publisher/PublisherPage';
 import type { ContentItem, IndexItem, MediaMap, Term } from './types';
 import './styles.css';
@@ -17,6 +17,7 @@ interface LoadedData {
 }
 
 type ViewMode = 'posts' | 'pages';
+type ToolMode = 'viewer' | 'publish';
 
 function decodeText(value: string): string {
   const textarea = document.createElement('textarea');
@@ -30,17 +31,18 @@ function termNames(ids: number[], terms: Term[]): string[] {
 }
 
 function App() {
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('tool') === 'publish') {
-    return <PublisherPage />;
-  }
-
+  const params = getRouteParams();
+  const [tool, setTool] = useState<ToolMode>(params.get('tool') === 'publish' ? 'publish' : 'viewer');
   const [data, setData] = useState<LoadedData | null>(null);
   const [selected, setSelected] = useState<ContentItem | null>(null);
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<ViewMode>('posts');
   const [categoryId, setCategoryId] = useState<number | 'all'>('all');
   const [error, setError] = useState<string | null>(null);
+
+  if (tool === 'publish') {
+    return <PublisherPage initialName={params.get('name') || params.get('qdnName') || ''} onBack={() => setTool('viewer')} />;
+  }
 
   useEffect(() => {
     let source: ContentSource;
@@ -133,6 +135,10 @@ function App() {
           </button>
           <button className={mode === 'pages' ? 'active' : ''} onClick={() => setMode('pages')}>
             Pages
+          </button>
+          <button onClick={() => setTool('publish')}>
+            <Send size={15} />
+            Publish
           </button>
         </div>
 
