@@ -33,16 +33,21 @@ function termNames(ids: number[], terms: Term[]): string[] {
 function App() {
   const params = getRouteParams();
   const [tool, setTool] = useState<ToolMode>(params.get('tool') === 'publish' ? 'publish' : 'viewer');
+
+  if (tool === 'publish') {
+    return <PublisherPage initialName={params.get('name') || params.get('qdnName') || ''} onBack={() => setTool('viewer')} />;
+  }
+
+  return <ViewerApp onPublish={() => setTool('publish')} />;
+}
+
+function ViewerApp({ onPublish }: { onPublish: () => void }) {
   const [data, setData] = useState<LoadedData | null>(null);
   const [selected, setSelected] = useState<ContentItem | null>(null);
   const [query, setQuery] = useState('');
   const [mode, setMode] = useState<ViewMode>('posts');
   const [categoryId, setCategoryId] = useState<number | 'all'>('all');
   const [error, setError] = useState<string | null>(null);
-
-  if (tool === 'publish') {
-    return <PublisherPage initialName={params.get('name') || params.get('qdnName') || ''} onBack={() => setTool('viewer')} />;
-  }
 
   useEffect(() => {
     let source: ContentSource;
@@ -136,7 +141,7 @@ function App() {
           <button className={mode === 'pages' ? 'active' : ''} onClick={() => setMode('pages')}>
             Pages
           </button>
-          <button onClick={() => setTool('publish')}>
+          <button onClick={onPublish}>
             <Send size={15} />
             Publish
           </button>
