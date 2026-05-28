@@ -16,6 +16,7 @@ interface PublishResource {
 interface PublishPlan {
   resources: {
     posts: PublishResource[];
+    pages: PublishResource[];
     indexes: PublishResource[];
     media: PublishResource[];
   };
@@ -25,6 +26,8 @@ interface PublishRow extends PublishResource {
   status: 'pending' | 'publishing' | 'published' | 'failed';
   message: string;
 }
+
+type PublishMode = 'demo' | 'cms-json' | 'full';
 
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(`${CONTENT_BASE}/${path}`);
@@ -40,22 +43,26 @@ function toBase64(value: string): string {
 
 function resourceTitle(resource: PublishResource): string {
   if (resource.type === 'post') return 'Imported WordPress post';
+  if (resource.type === 'page') return 'Imported WordPress page';
   if (resource.type === 'image') return 'Imported WordPress image';
   if (resource.identifier === 'cr-qdn-manifest') return 'QDN loader manifest';
   if (resource.identifier === 'cr-posts-index') return 'Posts index';
+  if (resource.identifier === 'cr-pages-index') return 'Pages index';
+  if (resource.identifier === 'cr-categories') return 'Categories';
+  if (resource.identifier === 'cr-tags') return 'Tags';
   if (resource.identifier === 'cr-media-map') return 'Media map';
   return resource.identifier;
 }
 
-function createMinimalRows(plan: PublishPlan): PublishRow[] {
-  const firstPost = plan.resources.posts[0];
-  const firstImage = plan.resources.media.find((resource) => resource.type === 'image');
-  const requiredIndexes = ['cr-media-map', 'cr-posts-index', 'cr-qdn-manifest']
-    .map((identifier) => plan.resources.indexes.find((resource) => resource.identifier === identifier))
-    .filter(Boolean) as PublishResource[];
-
-  return [...(firstImage ? [firstImage] : []), firstPost, ...requiredIndexes]
-    .filter(Boolean)
+function toRows(resources: PublishResource[]): PublishRow[] {
+  const seen = new Set<string>();
+  return resources
+    .filter((resource) => {
+      const key = `${resource.service}:${resource.identifier}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
     .map((resource) => ({
       ...resource,
       status: 'pending',
@@ -63,11 +70,31 @@ function createMinimalRows(plan: PublishPlan): PublishRow[] {
     }));
 }
 
+function createRows(plan: PublishPlan, mode: PublishMode): PublishRow[] {
+  const firstPost = plan.resources.posts[0];
+  const firstImage = plan.resources.media.find((resource) => resource.type === 'image');
+  const coreIndexes = ['cr-qdn-manifest', 'cr-posts-index', 'cr-pages-index', 'cr-categories', 'cr-tags', 'cr-media-map', 'cr-url-map']
+    .map((identifier) => plan.resources.indexes.find((resource) => resource.identifier === identifier))
+    .filter(Boolean) as PublishResource[];
+
+  if (mode === 'demo') {
+    return toRows([...(firstImage ? [firstImage] : []), firstPost, ...coreIndexes].filter(Boolean) as PublishResource[]);
+  }
+
+  if (mode === 'cms-json') {
+    return toRows([...(firstImage ? [firstImage] : []), ...plan.resources.posts, ...plan.resources.pages, ...coreIndexes]);
+  }
+
+  return toRows([...plan.resources.posts, ...plan.resources.pages, ...plan.resources.indexes, ...plan.resources.media]);
+}
+
 export function PublisherPage({ initialName = '', onBack }: { initialName?: string; onBack?: () => void }) {
   const params = getRouteParams();
   const routeName = params.get('name') || params.get('qdnName') || '';
   const resolvedInitialName = initialName || routeName || import.meta.env.VITE_QDN_NAME || '';
   const [qortalName, setQortalName] = useState(resolvedInitialName);
+  const [plan, setPlan] = useState<PublishPlan | null>(null);
+  const [mode, setMode] = useState<PublishMode>('cms-json');
   const [rows, setRows] = useState<PublishRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -76,9 +103,17 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
 
   useEffect(() => {
     fetchJson<PublishPlan>('publish-log/publish-plan.json')
-      .then((plan) => setRows(createMinimalRows(plan)))
+      .then((loadedPlan) => {
+        setPlan(loadedPlan);
+        setRows(createRows(loadedPlan, mode));
+      })
       .catch((loadError: Error) => setError(loadError.message));
-  }, []);
+  }, [mode]);
+
+  function changeMode(nextMode: PublishMode) {
+    setMode(nextMode);
+    if (plan) setRows(createRows(plan, nextMode));
+  }
 
   const summary = useMemo(() => {
     const bytes = rows.reduce((sum, row) => sum + (row.bytes || 0), 0);
@@ -171,7 +206,18 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
           </label>
           <button type="button" disabled={!hasBridge || isPublishing || !qortalName.trim()} onClick={publishAll}>
             <Send size={17} />
-            Publish test set
+            Publish selected set
+          </button>
+        </div>
+        <div className="publisher-modes">
+          <button type="button" className={mode === 'demo' ? 'active' : ''} onClick={() => changeMode('demo')}>
+            Demo
+          </button>
+          <button type="button" className={mode === 'cms-json' ? 'active' : ''} onClick={() => changeMode('cms-json')}>
+            CMS JSON
+          </button>
+          <button type="button" className={mode === 'full' ? 'active' : ''} onClick={() => changeMode('full')}>
+            Full media
           </button>
         </div>
         <div className="publisher-summary">

@@ -402,6 +402,29 @@ select {
   opacity: 0.55;
 }
 
+.publisher-modes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.publisher-modes button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #cdd8d0;
+  border-radius: 6px;
+  color: #26332f;
+  background: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.publisher-modes button.active {
+  border-color: #7caf9f;
+  background: #dceee7;
+}
+
 .publisher-summary {
   display: flex;
   flex-wrap: wrap;
