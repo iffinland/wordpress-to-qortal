@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Play, Send, XCircle } from 'lucide-react';
 import { CONTENT_BASE, getRouteParams } from '../contentApi';
-import { hasQortalBridge, requestQortal } from '../qortalClient';
+import { getQortalBridgeDiagnostics, hasQortalBridge, requestQortal } from '../qortalClient';
 import { formatBytes } from '../contentApi';
 
 interface PublishResource {
@@ -72,6 +72,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   const [error, setError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const hasBridge = hasQortalBridge();
+  const bridgeDiagnostics = getQortalBridgeDiagnostics();
 
   useEffect(() => {
     fetchJson<PublishPlan>('publish-log/publish-plan.json')
@@ -181,7 +182,8 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
         </div>
         {!hasBridge && (
           <p className="publisher-warning">
-            Qortal request API is not available in this browser context. Open this publisher through Qortal UI or a Q-App context.
+            Qortal request API is not available in this browser context. Bridge checks:
+            {` window=${bridgeDiagnostics.window}, globalThis=${bridgeDiagnostics.globalThis}, parent=${bridgeDiagnostics.parent}, top=${bridgeDiagnostics.top}, opener=${bridgeDiagnostics.opener}, injected=${bridgeDiagnostics.injectedGlobal}`}
           </p>
         )}
         {error && <p className="publisher-warning">{error}</p>}

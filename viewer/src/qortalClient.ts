@@ -16,6 +16,11 @@ declare global {
   interface Window {
     qortalRequest?: (payload: QortalRequestPayload) => Promise<unknown>;
   }
+
+  // Some Qortal UI contexts expose qortalRequest as an injected global rather
+  // than as a normal window property.
+  // eslint-disable-next-line no-var
+  var qortalRequest: ((payload: QortalRequestPayload) => Promise<unknown>) | undefined;
 }
 
 function findQortalRequest(): ((payload: QortalRequestPayload) => Promise<unknown>) | null {
@@ -25,6 +30,10 @@ function findQortalRequest(): ((payload: QortalRequestPayload) => Promise<unknow
 
   if (typeof window.qortalRequest === 'function') {
     return window.qortalRequest;
+  }
+
+  if (typeof globalThis !== 'undefined' && typeof globalThis.qortalRequest === 'function') {
+    return globalThis.qortalRequest;
   }
 
   try {
@@ -45,7 +54,68 @@ function findQortalRequest(): ((payload: QortalRequestPayload) => Promise<unknow
     // Top window access can fail depending on Qortal UI framing.
   }
 
+  try {
+    const openerWindow = window.opener;
+    if (openerWindow && typeof openerWindow.qortalRequest === 'function') {
+      return openerWindow.qortalRequest;
+    }
+  } catch {
+    // Opener access can fail depending on browser security boundaries.
+  }
+
+  if (typeof qortalRequest !== 'undefined' && typeof qortalRequest === 'function') {
+    return qortalRequest;
+  }
+
   return null;
+}
+
+export function getQortalBridgeDiagnostics() {
+  const diagnostics = {
+    window: false,
+    globalThis: false,
+    parent: false,
+    top: false,
+    opener: false,
+    injectedGlobal: false
+  };
+
+  if (typeof window === 'undefined') {
+    return diagnostics;
+  }
+
+  diagnostics.window = typeof window.qortalRequest === 'function';
+  diagnostics.globalThis =
+    typeof globalThis !== 'undefined' && typeof globalThis.qortalRequest === 'function';
+
+  try {
+    diagnostics.parent =
+      Boolean(window.parent && window.parent !== window) &&
+      typeof window.parent.qortalRequest === 'function';
+  } catch {
+    diagnostics.parent = false;
+  }
+
+  try {
+    const topWindow = window.top;
+    diagnostics.top =
+      Boolean(topWindow && topWindow !== window) &&
+      typeof topWindow?.qortalRequest === 'function';
+  } catch {
+    diagnostics.top = false;
+  }
+
+  try {
+    diagnostics.opener =
+      Boolean(window.opener) && typeof window.opener.qortalRequest === 'function';
+  } catch {
+    diagnostics.opener = false;
+  }
+
+  diagnostics.injectedGlobal =
+    typeof qortalRequest !== 'undefined' && typeof qortalRequest === 'function';
+
+  return diagnostics;
 }
 
 function getRouteParams(): URLSearchParams {
