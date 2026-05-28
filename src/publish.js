@@ -9,6 +9,7 @@ const REQUIRED_DRY_RUN_FLAG = '--dry-run';
 function parseArgs(argv) {
   return {
     dryRun: argv.includes(REQUIRED_DRY_RUN_FLAG),
+    checkNode: argv.includes('--check-node'),
     force: argv.includes('--force'),
     limit: readLimit(argv)
   };
@@ -73,6 +74,49 @@ function qortalPayloadFor(resource, qortalName) {
     ...basePayload,
     file: '<local file>',
     filename: path.basename(resource.local_path || resource.identifier)
+  };
+}
+
+async function fetchText(url, options = {}) {
+  const response = await fetch(url, options);
+  const text = await response.text();
+  return {
+    ok: response.ok,
+    status: response.status,
+    contentType: response.headers.get('content-type') || '',
+    text
+  };
+}
+
+async function checkQortalNode(config, totalBytes) {
+  const headers = config.qortalApiKey ? { 'X-API-KEY': config.qortalApiKey } : {};
+  const status = await fetchText(`${config.qortalNodeUrl}/admin/status`);
+  let parsedStatus = null;
+
+  try {
+    parsedStatus = JSON.parse(status.text);
+  } catch {
+    parsedStatus = null;
+  }
+
+  const tmpUrl = new URL(`${config.qortalNodeUrl}/arbitrary/check/tmp`);
+  tmpUrl.searchParams.set('totalSize', String(totalBytes));
+  const tmp = await fetchText(tmpUrl, { headers });
+
+  return {
+    admin_status: {
+      ok: status.ok,
+      status: status.status,
+      content_type: status.contentType,
+      body: parsedStatus || status.text.slice(0, 500)
+    },
+    tmp_space_check: {
+      ok: tmp.ok,
+      status: tmp.status,
+      content_type: tmp.contentType,
+      body: tmp.text.slice(0, 500),
+      api_key_configured: Boolean(config.qortalApiKey)
+    }
   };
 }
 
@@ -144,6 +188,7 @@ async function main() {
   const errors = [];
   const warnings = [];
   let totalBytes = 0;
+  let nodeCheck = null;
 
   for (const resource of resources) {
     const key = `${resource.service}:${config.qortalName}:${resource.identifier}`;
@@ -182,6 +227,24 @@ async function main() {
     });
   }
 
+  if (args.checkNode) {
+    nodeCheck = await checkQortalNode(config, totalBytes);
+    if (!nodeCheck.admin_status.ok) {
+      errors.push({
+        resource: null,
+        errors: [`Qortal node status check failed with HTTP ${nodeCheck.admin_status.status}.`]
+      });
+    }
+    if (!nodeCheck.tmp_space_check.ok) {
+      warnings.push({
+        resource: null,
+        warnings: [
+          `Qortal tmp upload space check returned HTTP ${nodeCheck.tmp_space_check.status}.`
+        ]
+      });
+    }
+  }
+
   const log = {
     version: '0.1.0',
     generated_at: new Date().toISOString(),
@@ -192,6 +255,7 @@ async function main() {
     resources_checked: resources.length,
     resources_total: allResources.length,
     total_bytes: totalBytes,
+    node_check: nodeCheck,
     errors,
     warnings,
     resources: rows
@@ -208,6 +272,11 @@ async function main() {
   console.log(`Total checked size: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`);
   console.log(`Warnings: ${warnings.length}`);
   console.log(`Errors: ${errors.length}`);
+  if (nodeCheck) {
+    console.log(
+      `Node status check: HTTP ${nodeCheck.admin_status.status}, tmp check: HTTP ${nodeCheck.tmp_space_check.status}`
+    );
+  }
   console.log(`Dry-run log: ${dryRunLogPath}`);
 
   if (errors.length) {

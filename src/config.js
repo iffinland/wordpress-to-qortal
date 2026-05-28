@@ -60,6 +60,7 @@ export function loadConfig() {
   const qortalNodeUrl = normalizeBaseUrl(
     process.env.QORTAL_NODE_URL?.trim() || 'http://localhost:12391'
   );
+  const qortalApiKey = process.env.QORTAL_API_KEY?.trim() || '';
 
   if (!['application_password', 'session'].includes(wordpressAuthMode)) {
     throw new Error('WORDPRESS_AUTH_MODE must be application_password or session.');
@@ -92,6 +93,7 @@ export function loadConfig() {
         : Boolean(wordpressUsername && wordpressAppPassword),
     qortalName,
     qortalNodeUrl,
+    qortalApiKey,
     importerVersion: '0.1.0'
   };
 }

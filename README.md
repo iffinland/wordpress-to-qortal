@@ -45,6 +45,7 @@ WORDPRESS_APP_PASSWORD=
 WORDPRESS_PASSWORD=
 QORTAL_NAME=
 QORTAL_NODE_URL=http://localhost:12391
+QORTAL_API_KEY=
 ```
 
 Settings:
@@ -67,6 +68,7 @@ Settings:
 - `WORDPRESS_PASSWORD` is for session-mode fallback where the user only has the site's normal member login.
 - `QORTAL_NAME` is the registered Qortal name that will publish the prepared resources.
 - `QORTAL_NODE_URL` is the local Qortal node API base URL.
+- `QORTAL_API_KEY` is required for Qortal node upload checks and future direct-node publishing.
 
 ## Inspect The WordPress API
 
@@ -206,6 +208,7 @@ The command requires:
 ```env
 QORTAL_NAME=YourQortalName
 QORTAL_NODE_URL=http://localhost:12391
+QORTAL_API_KEY=
 ```
 
 The dry run checks:
@@ -220,6 +223,12 @@ It writes:
 
 ```text
 wp-qortal-import/publish-log/dry-run.json
+```
+
+To also check a running Qortal node and available temporary upload space:
+
+```bash
+npm run publish -- --dry-run --check-node
 ```
 
 ## Local Viewer

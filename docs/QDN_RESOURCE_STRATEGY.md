@@ -91,9 +91,11 @@ Before real publishing, add a configuration value:
 ```env
 QORTAL_NAME=
 QORTAL_NODE_URL=http://localhost:12391
+QORTAL_API_KEY=
 ```
 
 The publish command should refuse to run when `QORTAL_NAME` is empty.
+Direct node upload checks and future direct-node publishing require `QORTAL_API_KEY`.
 
 ## Viewer Loading Strategy
 
@@ -141,7 +143,10 @@ npm run publish
 Current behavior:
 
 - `npm run publish -- --dry-run` validates the generated publish plan.
+- `npm run publish -- --dry-run --check-node` also checks node status and temporary upload space.
 - Real publishing intentionally fails until the Qortal node API request format is confirmed.
+
+The Qortal node API can build unsigned ARBITRARY transactions through `/arbitrary/...` endpoints. A browser Q-App normally uses `qortalRequest({ action: 'PUBLISH_QDN_RESOURCE', ... })`, which delegates signing and publishing to Qortal UI. A Node.js CLI publisher must therefore either integrate a safe signing path or hand publishing off to a Qortal UI/Q-App workflow.
 
 Expected real publish behavior:
 
