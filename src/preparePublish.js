@@ -32,6 +32,7 @@ function createContentResources(items, contentType) {
 
 function createIndexResources() {
   return [
+    ['qdn-manifest', 'converted/qdn-manifest.json'],
     ['posts-index', 'converted/posts-index.json'],
     ['pages-index', 'converted/pages-index.json'],
     ['categories', 'converted/categories.json'],
@@ -79,6 +80,65 @@ function createMediaResources(mediaMap) {
   return { resources, linkedOnly };
 }
 
+function createQdnManifest({ posts, pages, indexes, media, linkedOnly }) {
+  const resources = [...posts, ...pages, ...indexes, ...media];
+  const byPath = {};
+  const byIdentifier = {};
+  const bySourceUrl = {};
+
+  for (const resource of resources) {
+    const qdn = {
+      type: resource.type,
+      service: resource.service,
+      identifier: resource.identifier
+    };
+
+    if (resource.local_path) {
+      byPath[resource.local_path] = qdn;
+    }
+
+    if (resource.identifier) {
+      byIdentifier[resource.identifier] = {
+        ...qdn,
+        local_path: resource.local_path || null,
+        source_url: resource.source_url || null
+      };
+    }
+
+    if (resource.source_url) {
+      bySourceUrl[resource.source_url] = qdn;
+    }
+  }
+
+  return {
+    version: '0.1.0',
+    generated_at: new Date().toISOString(),
+    qdn_name: null,
+    entrypoints: {
+      posts_index: byPath['converted/posts-index.json'],
+      pages_index: byPath['converted/pages-index.json'],
+      categories: byPath['converted/categories.json'],
+      tags: byPath['converted/tags.json'],
+      media_map: byPath['converted/media-map.json'],
+      url_map: byPath['converted/url-map.json']
+    },
+    resources: {
+      by_path: byPath,
+      by_identifier: byIdentifier,
+      by_source_url: bySourceUrl
+    },
+    linked_only_media: linkedOnly,
+    summary: {
+      posts: posts.length,
+      pages: pages.length,
+      indexes: indexes.length,
+      media: media.length,
+      linked_only_media: linkedOnly.length,
+      total_publish_resources: resources.length
+    }
+  };
+}
+
 async function main() {
   const config = loadConfig();
   const convertedDir = path.join(config.outputDir, 'converted');
@@ -89,8 +149,15 @@ async function main() {
 
   const posts = createContentResources(postsIndex, 'post');
   const pages = createContentResources(pagesIndex, 'page');
-  const indexes = createIndexResources();
   const media = createMediaResources(mediaMap);
+  const indexes = createIndexResources();
+  const qdnManifest = createQdnManifest({
+    posts,
+    pages,
+    indexes,
+    media: media.resources,
+    linkedOnly: media.linkedOnly
+  });
 
   const plan = {
     version: '0.1.0',
@@ -115,6 +182,7 @@ async function main() {
   };
 
   await ensureDir(publishLogDir);
+  await writeJson(path.join(convertedDir, 'qdn-manifest.json'), qdnManifest);
   await writeJson(path.join(publishLogDir, 'publish-plan.json'), plan);
   await writeJson(path.join(publishLogDir, 'published-resources.json'), []);
   await writeJson(path.join(publishLogDir, 'errors.json'), []);
@@ -129,6 +197,7 @@ async function main() {
   console.log(`Linked-only media: ${media.linkedOnly.length}`);
   console.log(`Total resources planned: ${plan.summary.total_publish_resources}`);
   console.log('');
+  console.log(`QDN manifest: ${path.join(convertedDir, 'qdn-manifest.json')}`);
   console.log(`Publish plan: ${path.join(publishLogDir, 'publish-plan.json')}`);
 }
 

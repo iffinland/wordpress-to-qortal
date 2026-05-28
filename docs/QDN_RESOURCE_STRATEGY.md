@@ -37,9 +37,10 @@ Current rules:
   - `cr-pages-index`
   - `cr-categories`
   - `cr-tags`
-  - `cr-media-map`
-  - `cr-url-map`
-  - `cr-import-manifest`
+- `cr-media-map`
+- `cr-url-map`
+- `cr-import-manifest`
+- `cr-qdn-manifest`
 
 The hash suffix makes identifiers stable and avoids collisions when two resources have similar slugs or filenames.
 
@@ -114,6 +115,18 @@ The Q-App viewer should later replace local paths with QDN lookups using:
 ```text
 SERVICE + NAME + IDENTIFIER
 ```
+
+The Q-App should start by loading:
+
+```text
+DOCUMENT + NAME + cr-qdn-manifest
+```
+
+That manifest maps:
+
+- `converted/<path>` to QDN service and identifier
+- source media URL to QDN service and identifier
+- known entrypoint indexes to their QDN identifiers
 
 The important boundary is:
 

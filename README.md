@@ -197,6 +197,14 @@ This does not publish anything. It creates deterministic proposed QDN services a
 wp-qortal-import/publish-log/publish-plan.json
 ```
 
+It also creates a Q-App loader manifest:
+
+```text
+wp-qortal-import/converted/qdn-manifest.json
+```
+
+The Q-App can use this manifest to map local content paths and source media URLs to QDN services and identifiers.
+
 ## QDN Publish Dry Run
 
 Real QDN publishing is not implemented yet. First validate the publishing plan:
