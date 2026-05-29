@@ -222,14 +222,19 @@ function App() {
     return (dataset?.comments || []).filter((comment) => comment.post_id === selectedPost?.id && comment.status === 'published');
   }, [dataset?.comments, selectedPost?.id]);
 
+  const visiblePosts = useMemo(() => {
+    const posts = dataset?.posts || [];
+    return isOwner ? posts : posts.filter((post) => post.status === 'published');
+  }, [dataset?.posts, isOwner]);
+
   const filteredPosts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return (dataset?.posts || []).filter((post) => {
+    return visiblePosts.filter((post) => {
       const matchesSearch = !normalized || `${post.title} ${post.slug} ${post.excerpt}`.toLowerCase().includes(normalized);
       const matchesStatus = statusFilter === 'all' || post.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [dataset?.posts, query, statusFilter]);
+  }, [query, statusFilter, visiblePosts]);
 
   async function openPost(index: CmsPostIndexItem) {
     if (!dataset) return;
@@ -259,7 +264,7 @@ function App() {
     setStatus('New post draft created.');
   }
 
-  function applyDraft(): { post: CmsPost; nextDataset: CmsDataset } | null {
+  function applyDraft(statusOverride?: CmsStatus): { post: CmsPost; nextDataset: CmsDataset } | null {
     if (!dataset || !selectedPost || !draft || !identity) return null;
     const slug = slugify(draft.slug || draft.title);
     const categoryResult = termsFromText(draft.categoryText, dataset.categories);
@@ -271,12 +276,12 @@ function App() {
       slug,
       excerpt: draft.excerpt,
       content_html: draft.content_html,
-      status: draft.status,
+      status: statusOverride || draft.status,
       category_ids: categoryResult.ids,
       tag_ids: tagResult.ids,
       comments_enabled: draft.comments_enabled,
       updated_at: updatedAt,
-      published_at: draft.status === 'published' ? selectedPost.published_at || updatedAt : selectedPost.published_at,
+      published_at: (statusOverride || draft.status) === 'published' ? selectedPost.published_at || updatedAt : selectedPost.published_at,
       qdn: {
         ...selectedPost.qdn,
         name: qdnName || dataset.manifest.owner_name,
@@ -307,16 +312,16 @@ function App() {
     setSelectedPost(applied.post);
     setSelectedIndex(toPostIndexItem(applied.post));
     saveLocalDataset(applied.nextDataset);
-    setStatus('Draft saved locally.');
+    setStatus('Local draft saved in this browser.');
   }
 
-  async function publishPost() {
+  async function publishPost(statusOverride?: CmsStatus) {
     if (!dataset || !identity || !isOwner) return;
     if (!hasQortalBridge()) {
       setError('Qortal bridge is not available. Open this CMS through Qortal UI dev mode to publish.');
       return;
     }
-    const applied = applyDraft();
+    const applied = applyDraft(statusOverride);
     if (!applied) return;
 
     const ownerName = qdnName || dataset.manifest.owner_name || identity.name;
@@ -327,7 +332,7 @@ function App() {
 
     setError(null);
     try {
-      setStatus('Publishing post and CMS indexes...');
+      setStatus(`${applied.post.status === 'published' ? 'Publishing post' : 'Saving QDN draft'} and updating CMS indexes...`);
       await publishJsonResources(ownerName, [
         {
           ref: applied.post.qdn,
@@ -377,7 +382,8 @@ function App() {
       setSelectedPost(applied.post);
       setSelectedIndex(toPostIndexItem(applied.post));
       saveLocalDataset(applied.nextDataset);
-      setStatus('Published to QDN.');
+      setDraft(createDraft(applied.post));
+      setStatus(applied.post.status === 'published' ? 'Published to QDN.' : 'Draft saved to QDN.');
     } catch (publishError) {
       setError((publishError as Error).message);
       setStatus('');
@@ -485,7 +491,7 @@ function App() {
 
         {section === 'dashboard' && (
           <div className="metric-grid">
-            <div><strong>{dataset.posts.length}</strong><span>posts</span></div>
+            <div><strong>{visiblePosts.length}</strong><span>{isOwner ? 'visible posts' : 'published posts'}</span></div>
             <div><strong>{dataset.posts.filter((post) => post.status === 'draft').length}</strong><span>drafts</span></div>
             <div><strong>{dataset.comments.length}</strong><span>comments</span></div>
             <div><strong>{identity.bridgeAvailable ? 'Ready' : 'Offline'}</strong><span>bridge</span></div>
@@ -561,7 +567,11 @@ function App() {
                 <label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as CmsStatus })}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label>
                 <label className="check-line"><input type="checkbox" checked={draft.comments_enabled} onChange={(event) => setDraft({ ...draft, comments_enabled: event.target.checked })} /> Comments enabled</label>
                 <RichTextEditor value={draft.content_html} onChange={(content_html) => setDraft({ ...draft, content_html })} />
-                <div className="action-row"><button className="icon-command" onClick={saveDraftLocal}><Save size={16} /> Save local</button><button className="icon-command primary" onClick={publishPost}><Send size={16} /> Publish to QDN</button></div>
+                <div className="action-row">
+                  <button className="icon-command" onClick={saveDraftLocal}><Save size={16} /> Save local draft</button>
+                  <button className="icon-command" onClick={() => publishPost('draft')}><Save size={16} /> Save QDN draft</button>
+                  <button className="icon-command primary" onClick={() => publishPost('published')}><Send size={16} /> Publish</button>
+                </div>
               </div>
             )}
 
