@@ -113,6 +113,14 @@ button {
   font-size: 14px;
 }
 
+.identity-card small {
+  display: block;
+  margin-top: 4px;
+  color: #9fcbbd;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .list-panel {
   display: flex;
   flex-direction: column;

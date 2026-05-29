@@ -37,6 +37,10 @@ export function getQdnNameFromLocation() {
   return params.get('name') || params.get('qdnName') || import.meta.env.VITE_QDN_NAME || '';
 }
 
+export function normalizeQortalName(value = '') {
+  return value.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
 export function createEmptyManifest(ownerName: string, ownerAddress = ''): CmsManifest {
   return {
     schema: 'qortal-cms/manifest@1',
@@ -128,11 +132,14 @@ export async function getViewerIdentity(ownerName: string): Promise<ViewerIdenti
   const devName = new URLSearchParams(window.location.search).get('viewerName') || '';
   if (!name && devName) name = devName;
 
+  const normalizedOwner = normalizeQortalName(ownerName);
+  const normalizedViewer = normalizeQortalName(name);
+
   return {
     address,
     name,
     bridgeAvailable,
-    role: ownerName && name === ownerName ? 'owner' : 'reader'
+    role: normalizedOwner && normalizedViewer === normalizedOwner ? 'owner' : 'reader'
   };
 }
 

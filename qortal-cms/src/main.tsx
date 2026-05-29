@@ -356,6 +356,7 @@ function App() {
 
   const selectedCategoryNames = selectedPost?.category_ids.map((id) => dataset.categories.find((term) => term.id === id)?.name).filter(Boolean) || [];
   const selectedTagNames = selectedPost?.tag_ids.map((id) => dataset.tags.find((term) => term.id === id)?.name).filter(Boolean) || [];
+  const ownerTarget = qdnName || dataset.manifest.owner_name || 'not set';
 
   return (
     <main className="cms-shell">
@@ -379,6 +380,7 @@ function App() {
           <div>
             <strong>{identity.name || 'No Qortal name detected'}</strong>
             <span>{isOwner ? 'Owner controls enabled' : 'Read-only mode'}</span>
+            <small>Owner target: {ownerTarget}</small>
           </div>
         </div>
       </aside>
@@ -416,8 +418,8 @@ function App() {
           </>
         )}
 
-        {section === 'media' && <div className="placeholder"><Image size={22} /><strong>Media library is staged next.</strong><span>Upload, QDN media index, and editor insertion controls will live here.</span></div>}
-        {section === 'imported' && <div className="placeholder"><Tags size={22} /><strong>Imported Content bridge is staged next.</strong><span>This view will read migrator manifests and adopt selected posts into the CMS index.</span></div>}
+        {section === 'media' && <div className="placeholder"><Image size={22} /><strong>Media library planned.</strong><span>Upload, QDN media index, and editor insertion controls will live here.</span></div>}
+        {section === 'imported' && <div className="placeholder"><Tags size={22} /><strong>Imported Content planned.</strong><span>This view will read migrator manifests and adopt selected posts into the CMS index.</span></div>}
         {section === 'settings' && <div className="settings-list"><p><strong>Owner name:</strong> {dataset.manifest.owner_name || qdnName || 'not set'}</p><p><strong>Manifest:</strong> DOCUMENT / {MANIFEST_IDENTIFIER}</p><p><strong>Posts index:</strong> DOCUMENT / {POSTS_INDEX_IDENTIFIER}</p><button className="icon-command" onClick={initLocalSite}><RefreshCcw size={16} /> Reset local dataset</button></div>}
       </section>
 
