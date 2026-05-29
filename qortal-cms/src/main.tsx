@@ -555,10 +555,7 @@ function App() {
   async function boot() {
     setStatus('Loading CMS dataset...');
     const initialIdentity = await getViewerIdentity(qdnName);
-    const ownerCandidates = [
-      qdnName,
-      ...initialIdentity.names
-    ].map((name) => name.trim()).filter(Boolean);
+    const ownerCandidates = (qdnName ? [qdnName] : initialIdentity.names).map((name) => name.trim()).filter(Boolean);
     const uniqueOwnerCandidates = [...new Set(ownerCandidates.map((name) => normalizePrincipal(name)))];
     const ownerCandidateByNormalized = new Map(ownerCandidates.map((name) => [normalizePrincipal(name), name]));
     let loadedDataset: CmsDataset | null = null;

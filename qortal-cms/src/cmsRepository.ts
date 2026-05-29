@@ -17,6 +17,10 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function localDatasetKey(ownerName: string) {
+  return `${LOCAL_STORAGE_KEY}:${normalizeQortalName(ownerName) || 'anonymous'}`;
+}
+
 export function slugify(value: string) {
   return value
     .toLowerCase()
@@ -195,11 +199,16 @@ export function createEmptyManifest(ownerName: string, ownerAddress = ''): CmsMa
 
 function ensureManifestShape(manifest: CmsManifest, ownerName: string): CmsManifest {
   const normalizedCoauthors = normalizeAddressList(manifest.coauthors || []);
-  const owner = manifest.owner_name || ownerName;
+  const ownerChanged = Boolean(
+    manifest.owner_name &&
+    ownerName &&
+    normalizeQortalName(manifest.owner_name) !== normalizeQortalName(ownerName)
+  );
+  const owner = ownerName || manifest.owner_name;
   const entrypoints = manifest.entrypoints || {};
   return {
     ...manifest,
-    site_id: manifest.site_id || createLegacySiteId(owner || manifest.title),
+    site_id: ownerChanged ? createSiteId(owner || manifest.title) : manifest.site_id || createLegacySiteId(owner || manifest.title),
     title: manifest.title || (owner ? `${owner} CMS` : 'Qortal CMS'),
     tagline: manifest.tagline || '',
     owner_name: owner,
@@ -352,12 +361,17 @@ export async function loadDataset(ownerName: string): Promise<CmsDataset> {
 }
 
 export function loadLocalDataset(ownerName: string): CmsDataset {
-  const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+  const stored = localStorage.getItem(localDatasetKey(ownerName)) || localStorage.getItem(LOCAL_STORAGE_KEY);
   if (stored) {
     try {
       const parsed = JSON.parse(stored) as CmsDataset;
       parsed.media ||= [];
       parsed.manifest = ensureManifestShape(parsed.manifest, ownerName);
+      if (normalizeQortalName(parsed.manifest.owner_name) !== normalizeQortalName(ownerName)) {
+        const dataset = createSampleDataset(ownerName);
+        saveLocalDataset(dataset);
+        return dataset;
+      }
       parsed.comments ||= [];
       if (parsed.local_posts) {
         parsed.local_posts = Object.fromEntries(Object.entries(parsed.local_posts).map(([id, post]) => [
@@ -365,9 +379,10 @@ export function loadLocalDataset(ownerName: string): CmsDataset {
           { ...post, cms_site_id: post.cms_site_id || parsed.manifest.site_id, cms_site_name: post.cms_site_name || parsed.manifest.owner_name }
         ]));
       }
+      saveLocalDataset(parsed);
       return parsed;
     } catch {
-      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      localStorage.removeItem(localDatasetKey(ownerName));
     }
   }
   const dataset = createSampleDataset(ownerName);
@@ -376,7 +391,7 @@ export function loadLocalDataset(ownerName: string): CmsDataset {
 }
 
 export function saveLocalDataset(dataset: CmsDataset) {
-  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataset));
+  localStorage.setItem(localDatasetKey(dataset.manifest.owner_name), JSON.stringify(dataset));
 }
 
 export async function loadPost(ref: QdnRef, fallback?: CmsPost): Promise<CmsPost> {
