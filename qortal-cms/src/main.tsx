@@ -18,8 +18,10 @@ import {
   getQdnNameFromLocation,
   getViewerIdentity,
   loadDataset,
+  loadQdnDataset,
   loadPost,
   normalizeAddressList,
+  normalizePrincipal,
   normalizeQortalAddress,
   publishJsonResource,
   publishJsonResources,
@@ -536,8 +538,24 @@ function App() {
 
   async function boot() {
     setStatus('Loading CMS dataset...');
-    const loadedDataset = await loadDataset(qdnName);
-    const viewerIdentity = await getViewerIdentity(qdnName || loadedDataset.manifest.owner_name, loadedDataset.manifest);
+    const initialIdentity = await getViewerIdentity(qdnName);
+    const ownerCandidates = [
+      qdnName,
+      ...initialIdentity.names
+    ].map((name) => name.trim()).filter(Boolean);
+    const uniqueOwnerCandidates = [...new Set(ownerCandidates.map((name) => normalizePrincipal(name)))];
+    const ownerCandidateByNormalized = new Map(ownerCandidates.map((name) => [normalizePrincipal(name), name]));
+    let loadedDataset: CmsDataset | null = null;
+
+    for (const normalizedName of uniqueOwnerCandidates) {
+      const candidate = ownerCandidateByNormalized.get(normalizedName) || normalizedName;
+      loadedDataset = await loadQdnDataset(candidate);
+      if (loadedDataset) break;
+    }
+
+    loadedDataset ||= await loadDataset(qdnName || initialIdentity.name);
+    const ownerName = qdnName || loadedDataset.manifest.owner_name || initialIdentity.name;
+    const viewerIdentity = await getViewerIdentity(ownerName, loadedDataset.manifest);
     setDataset(loadedDataset);
     setIdentity(viewerIdentity);
     const first = loadedDataset.posts[0] || null;
@@ -871,7 +889,7 @@ function App() {
     if (!dataset || !identity || !isSysop) return;
     const address = normalizeQortalAddress(coauthorAddressDraft);
     if (!address) {
-      setError('Enter a wallet address before adding a coauthor.');
+      setError('Enter a wallet address or Qortal name before adding a coauthor.');
       return;
     }
     if (address === identity.address) {
@@ -1782,8 +1800,8 @@ function App() {
               {isSysop ? (
                 <div className="coauthor-form">
                   <label>
-                    Wallet address
-                    <input value={coauthorAddressDraft} onChange={(event) => setCoauthorAddressDraft(event.target.value)} placeholder="Qortal wallet address" />
+                    Wallet address or Qortal name
+                    <input value={coauthorAddressDraft} onChange={(event) => setCoauthorAddressDraft(event.target.value)} placeholder="Qortal wallet address or Qortal name" />
                   </label>
                   <button className="icon-command primary" type="button" onClick={addCoauthor}><Plus size={16} /> Add coauthor</button>
                 </div>

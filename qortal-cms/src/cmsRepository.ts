@@ -91,6 +91,18 @@ export function normalizeAddressList(addresses: string[] = []) {
   return [...new Set(addresses.map(normalizeQortalAddress).filter(Boolean))];
 }
 
+export function normalizePrincipal(value = '') {
+  return normalizeQortalName(value);
+}
+
+export function principalMatches(value: string, viewer: { address?: string; names?: string[]; name?: string }) {
+  const normalizedValue = normalizePrincipal(value);
+  if (!normalizedValue) return false;
+  if (viewer.address && normalizePrincipal(viewer.address) === normalizedValue) return true;
+  if (viewer.name && normalizePrincipal(viewer.name) === normalizedValue) return true;
+  return (viewer.names || []).some((name) => normalizePrincipal(name) === normalizedValue);
+}
+
 export function createEmptyManifest(ownerName: string, ownerAddress = ''): CmsManifest {
   return {
     schema: 'qortal-cms/manifest@1',
@@ -201,7 +213,7 @@ export async function getViewerIdentity(ownerName: string, manifest?: CmsManifes
   const matchingOwnerName = allNames.find((nextName) => normalizeQortalName(nextName) === normalizedOwner) || '';
   const displayName = matchingOwnerName || allNames[0] || '';
   const isSysop = normalizedOwner && Boolean(matchingOwnerName);
-  const isCoauthor = Boolean(address && normalizeAddressList(manifest?.coauthors || []).includes(address));
+  const isCoauthor = (manifest?.coauthors || []).some((coauthor) => principalMatches(coauthor, { address, name: displayName, names: allNames }));
 
   return {
     address,
@@ -213,9 +225,9 @@ export async function getViewerIdentity(ownerName: string, manifest?: CmsManifes
   };
 }
 
-export async function loadDataset(ownerName: string): Promise<CmsDataset> {
+export async function loadQdnDataset(ownerName: string): Promise<CmsDataset | null> {
   if (!ownerName) {
-    return loadLocalDataset('');
+    return null;
   }
 
   try {
@@ -238,8 +250,13 @@ export async function loadDataset(ownerName: string): Promise<CmsDataset> {
     ]);
     return { manifest, posts, pages, categories, tags, media, comments, local_posts: {} };
   } catch {
-    return loadLocalDataset(ownerName);
+    return null;
   }
+}
+
+export async function loadDataset(ownerName: string): Promise<CmsDataset> {
+  const qdnDataset = await loadQdnDataset(ownerName);
+  return qdnDataset || loadLocalDataset(ownerName);
 }
 
 export function loadLocalDataset(ownerName: string): CmsDataset {
