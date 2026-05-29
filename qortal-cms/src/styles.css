@@ -465,6 +465,99 @@ button {
   line-height: 1.65;
 }
 
+.rich-surface code,
+.content-preview code {
+  padding: 2px 5px;
+  border: 1px solid #d4ddd8;
+  border-radius: 5px;
+  background: #f1f5f3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.92em;
+}
+
+.rich-surface pre,
+.content-preview pre {
+  padding: 12px;
+  overflow: auto;
+  border-radius: 8px;
+  color: #f5faf8;
+  background: #15211d;
+}
+
+.rich-tools-modal {
+  display: grid;
+  gap: 14px;
+  width: min(520px, 96vw);
+  max-height: 86vh;
+  padding: 16px;
+  overflow: auto;
+  border: 1px solid #d7dfda;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgb(12 23 19 / 26%);
+}
+
+.rich-tool-group {
+  display: grid;
+  gap: 8px;
+}
+
+.rich-tool-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #4f5d58;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.rich-tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 8px;
+}
+
+.rich-tool-grid button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #dce4df;
+  border-radius: 6px;
+  color: #26352f;
+  background: #f8faf8;
+  font-weight: 800;
+}
+
+.rich-tool-grid button:hover {
+  border-color: #8ebaaa;
+  background: #edf7f2;
+}
+
+.color-swatch-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.color-swatch-row button {
+  width: 32px;
+  height: 32px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px #cfd9d4;
+}
+
+.tool-underline {
+  text-decoration: underline;
+}
+
+.tool-strike {
+  text-decoration: line-through;
+}
+
 .action-row {
   justify-content: flex-end;
 }

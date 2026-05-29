@@ -12,6 +12,7 @@ This is the separate Qortal-native CMS/Q-App. It is not the WordPress migrator.
 - Shows editor and publish controls only to the owner name.
 - Shows read-only mode to everyone else.
 - Creates and edits posts with a rich text editor.
+- Provides a Discussion Boards-inspired rich text tools modal for headings, lists, code, quotes, links, and color.
 - Publishes posts and CMS indexes to QDN.
 - Publishes local computer media files to QDN and stores them in `cms-media-index`.
 - Attaches published media items to posts.
