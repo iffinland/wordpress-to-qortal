@@ -29,6 +29,8 @@ interface PublishRow extends PublishResource {
 }
 
 type PublishMode = 'demo' | 'cms-json' | 'full';
+type PublishSource = 'bundled' | 'folder';
+type FolderFileMap = Map<string, File>;
 
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(`${CONTENT_BASE}/${path}`);
@@ -36,6 +38,22 @@ async function fetchJson<T>(path: string): Promise<T> {
     throw new Error(`Failed to load ${path}: ${response.status}`);
   }
   return response.json() as Promise<T>;
+}
+
+function normalizeFolderPath(file: File): string {
+  const rawPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
+  const normalized = rawPath.replace(/\\/g, '/').replace(/^\/+/, '');
+  const marker = 'wp-qortal-import/';
+  const markerIndex = normalized.indexOf(marker);
+  return markerIndex >= 0 ? normalized.slice(markerIndex + marker.length) : normalized.split('/').slice(1).join('/') || normalized;
+}
+
+async function readFolderJson<T>(files: FolderFileMap, path: string): Promise<T> {
+  const file = files.get(path);
+  if (!file) {
+    throw new Error(`Selected folder does not contain ${path}. Select the wp-qortal-import folder.`);
+  }
+  return JSON.parse(await file.text()) as T;
 }
 
 function toBase64(value: string): string {
@@ -94,6 +112,8 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   const routeName = params.get('name') || params.get('qdnName') || '';
   const resolvedInitialName = initialName || routeName || import.meta.env.VITE_QDN_NAME || '';
   const [qortalName, setQortalName] = useState(resolvedInitialName);
+  const [source, setSource] = useState<PublishSource>('bundled');
+  const [folderFiles, setFolderFiles] = useState<FolderFileMap | null>(null);
   const [plan, setPlan] = useState<PublishPlan | null>(null);
   const [mode, setMode] = useState<PublishMode>('cms-json');
   const [rows, setRows] = useState<PublishRow[]>([]);
@@ -101,15 +121,48 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   const [isPublishing, setIsPublishing] = useState(false);
   const hasBridge = hasQortalBridge();
   const bridgeDiagnostics = getQortalBridgeDiagnostics();
+  const folderPickerProps = {
+    webkitdirectory: '',
+    directory: ''
+  } as React.InputHTMLAttributes<HTMLInputElement> & { webkitdirectory: string; directory: string };
 
   useEffect(() => {
+    if (source === 'folder') {
+      if (!folderFiles) {
+        setPlan(null);
+        setRows([]);
+        return;
+      }
+
+      readFolderJson<PublishPlan>(folderFiles, 'publish-log/publish-plan.json')
+        .then((loadedPlan) => {
+          setPlan(loadedPlan);
+          setRows(createRows(loadedPlan, mode));
+          setError(null);
+        })
+        .catch((loadError: Error) => setError(loadError.message));
+      return;
+    }
+
     fetchJson<PublishPlan>('publish-log/publish-plan.json')
       .then((loadedPlan) => {
         setPlan(loadedPlan);
         setRows(createRows(loadedPlan, mode));
       })
       .catch((loadError: Error) => setError(loadError.message));
-  }, [mode]);
+  }, [folderFiles, mode, source]);
+
+  function selectImportFolder(event: React.ChangeEvent<HTMLInputElement>) {
+    const selectedFiles = Array.from(event.target.files || []);
+    if (!selectedFiles.length) return;
+    const nextFiles: FolderFileMap = new Map();
+    for (const file of selectedFiles) {
+      nextFiles.set(normalizeFolderPath(file), file);
+    }
+    setSource('folder');
+    setFolderFiles(nextFiles);
+    setError(null);
+  }
 
   function changeMode(nextMode: PublishMode) {
     setMode(nextMode);
@@ -136,8 +189,9 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
     updateRow(resource.identifier, { status: 'publishing', message: '' });
 
     if (resource.service === 'DOCUMENT' || resource.service === 'JSON') {
-      const response = await fetch(`${CONTENT_BASE}/${resource.local_path}`);
-      const content = await response.text();
+      const content = source === 'folder'
+        ? await readLocalFileText(resource.local_path)
+        : await fetch(`${CONTENT_BASE}/${resource.local_path}`).then((response) => response.text());
       await requestQortal({
         action: 'PUBLISH_QDN_RESOURCE',
         name: qortalName,
@@ -152,10 +206,14 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       return;
     }
 
-    const response = await fetch(`${CONTENT_BASE}/${resource.local_path}`);
-    const blob = await response.blob();
     const filename = resource.local_path.split('/').pop() || resource.identifier;
-    const file = new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+    const file = source === 'folder'
+      ? readLocalFile(resource.local_path)
+      : await fetch(`${CONTENT_BASE}/${resource.local_path}`)
+        .then(async (response) => {
+          const blob = await response.blob();
+          return new File([blob], filename, { type: blob.type || 'application/octet-stream' });
+        });
 
     await requestQortal({
       action: 'PUBLISH_QDN_RESOURCE',
@@ -168,6 +226,18 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       description: `WordPress to Qortal demo media: ${resource.identifier}`
     });
     updateRow(resource.identifier, { status: 'published', message: 'Published' });
+  }
+
+  function readLocalFile(localPath: string): File {
+    const file = folderFiles?.get(localPath);
+    if (!file) {
+      throw new Error(`Selected folder does not contain ${localPath}.`);
+    }
+    return file;
+  }
+
+  async function readLocalFileText(localPath: string): Promise<string> {
+    return readLocalFile(localPath).text();
   }
 
   async function publishAll() {
@@ -206,6 +276,16 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
             Qortal name
             <input value={qortalName} onChange={(event) => setQortalName(event.target.value)} />
           </label>
+          <label>
+            Import folder
+            <input
+              type="file"
+              // Chromium-only folder picker. Qortal UI runs on Chromium.
+              multiple
+              {...folderPickerProps}
+              onChange={selectImportFolder}
+            />
+          </label>
           <button type="button" disabled={!hasBridge || isPublishing || !qortalName.trim()} onClick={publishAll}>
             <Send size={17} />
             Publish selected set
@@ -227,6 +307,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
           <span>{formatBytes(summary.bytes)}</span>
           <span>{summary.published} published</span>
           <span>{summary.failed} failed</span>
+          <span>{source === 'folder' ? 'local folder' : 'bundled files'}</span>
         </div>
         <p className="publisher-note">
           Demo publishes a small smoke-test set. CMS JSON publishes imported posts, pages, and indexes. Full media publishes every planned resource, including downloaded media files.

@@ -32,7 +32,8 @@
     "dump:sample": "node src/dump.js --sample && node src/convertRaw.js",
     "inspect": "node src/inspect.js",
     "package:migration": "node scripts/createMigrationPackage.js",
-    "package:zip": "node scripts/createMigrationZip.js"
+    "package:zip": "node scripts/createMigrationZip.js",
+    "package:migration-qapp": "node scripts/createMigrationQappZip.js"
   },
   "engines": {
     "node": ">=18"
