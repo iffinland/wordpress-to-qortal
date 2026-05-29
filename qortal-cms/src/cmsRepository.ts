@@ -187,7 +187,7 @@ function createSampleDataset(ownerName: string): CmsDataset {
     published_at: null,
     qdn: { service: 'DOCUMENT', identifier: createPostIdentifier('welcome-to-qortal-cms'), name: ownerName },
     content_html: '<p>This is a local draft. Open the editor, change the content, and publish through Qortal UI dev mode.</p>',
-    site_owner_name: ownerName,
+    cms_site_name: ownerName,
     featured_image: null,
     media: [],
     videos: [],
@@ -356,7 +356,7 @@ function isCmsPost(value: unknown): value is CmsPost {
 function sameSitePost(post: CmsPost, ownerName: string, resourceName = '') {
   const normalizedOwner = normalizeQortalName(ownerName);
   if (!normalizedOwner) return true;
-  return normalizeQortalName(post.site_owner_name || '') === normalizedOwner
+  return normalizeQortalName(post.cms_site_name || post.site_owner_name || '') === normalizedOwner
     || normalizeQortalName(post.qdn.name || '') === normalizedOwner
     || normalizeQortalName(resourceName) === normalizedOwner;
 }

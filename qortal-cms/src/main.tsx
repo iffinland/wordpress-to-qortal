@@ -690,9 +690,9 @@ function App() {
 
   function startNewPost() {
     if (!dataset || !identity) return;
-    const siteOwnerName = dataset.manifest.owner_name || qdnName || identity.name;
-    const post = emptyPost(identity.name || siteOwnerName, identity.address);
-    post.site_owner_name = siteOwnerName;
+    const cmsSiteName = dataset.manifest.owner_name || qdnName || identity.name;
+    const post = emptyPost(identity.name || cmsSiteName, identity.address);
+    post.cms_site_name = cmsSiteName;
     setSelectedIndex(toPostIndexItem(post));
     setSelectedPost(post);
     setDraft(createDraft(post));
@@ -707,10 +707,10 @@ function App() {
     const categoryResult = termsFromText(draft.categoryText, dataset.categories);
     const tagResult = termsFromText(draft.tagText, dataset.tags);
     const updatedAt = new Date().toISOString();
-    const siteOwnerName = dataset.manifest.owner_name || qdnName || identity.name;
+    const cmsSiteName = dataset.manifest.owner_name || qdnName || identity.name;
     const post: CmsPost = {
       ...selectedPost,
-      site_owner_name: siteOwnerName,
+      cms_site_name: cmsSiteName,
       title: draft.title,
       slug,
       excerpt: draft.excerpt,
@@ -723,10 +723,10 @@ function App() {
       published_at: (statusOverride || draft.status) === 'published' ? selectedPost.published_at || updatedAt : selectedPost.published_at,
       qdn: {
         ...selectedPost.qdn,
-        name: selectedPost.qdn.name || identity.name || siteOwnerName,
+        name: selectedPost.qdn.name || identity.name || cmsSiteName,
         identifier: selectedPost.qdn.identifier || createPostIdentifier(slug)
       },
-      author: selectedPost.author.name ? selectedPost.author : { name: identity.name, address: identity.address }
+      author: selectedPost.author.name && selectedPost.id !== 'sample-post' ? selectedPost.author : { name: identity.name, address: identity.address }
     };
     const index = toPostIndexItem(post);
     const exists = dataset.posts.some((item) => item.id === index.id);
@@ -735,7 +735,7 @@ function App() {
       : [index, ...dataset.posts];
     const nextDataset: CmsDataset = {
       ...dataset,
-      manifest: { ...dataset.manifest, updated_at: updatedAt, owner_name: siteOwnerName, owner_address: dataset.manifest.owner_address || identity.address },
+      manifest: { ...dataset.manifest, updated_at: updatedAt, owner_name: cmsSiteName, owner_address: dataset.manifest.owner_address || identity.address },
       posts,
       categories: categoryResult.terms,
       tags: tagResult.terms,
@@ -764,15 +764,15 @@ function App() {
     const applied = applyDraft(statusOverride);
     if (!applied) return;
 
-    const siteOwnerName = dataset.manifest.owner_name || qdnName || identity.name;
-    const publishName = isSysop ? siteOwnerName : identity.name;
-    if (!siteOwnerName || !publishName) {
+    const cmsSiteName = dataset.manifest.owner_name || qdnName || identity.name;
+    const publishName = isSysop ? cmsSiteName : identity.name;
+    if (!cmsSiteName || !publishName) {
       setError('Missing Qortal name. Publishing requires a logged-in Qortal account with a registered name.');
       return;
     }
     const postToPublish: CmsPost = {
       ...applied.post,
-      site_owner_name: siteOwnerName,
+      cms_site_name: cmsSiteName,
       qdn: { ...applied.post.qdn, service: 'DOCUMENT', name: publishName }
     };
     const postIndex = toPostIndexItem(postToPublish);
@@ -781,7 +781,7 @@ function App() {
       : [postIndex, ...applied.nextDataset.posts];
     const nextDataset: CmsDataset = {
       ...applied.nextDataset,
-      manifest: { ...applied.nextDataset.manifest, owner_name: siteOwnerName, owner_address: applied.nextDataset.manifest.owner_address || identity.address },
+      manifest: { ...applied.nextDataset.manifest, owner_name: cmsSiteName, owner_address: applied.nextDataset.manifest.owner_address || identity.address },
       posts,
       local_posts: { ...(applied.nextDataset.local_posts || {}), [postToPublish.id]: postToPublish }
     };
@@ -1101,6 +1101,7 @@ function App() {
       excerpt: importedPost.excerpt_text || stripHtml(importedPost.excerpt || '').slice(0, 500),
       category_ids: categoryResult.ids,
       tag_ids: tagResult.ids,
+      cms_site_name: ownerName,
       created_at: importedPost.date || now,
       updated_at: now,
       published_at: null,

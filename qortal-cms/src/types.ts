@@ -32,6 +32,7 @@ export interface CmsPostIndexItem {
 
 export interface CmsPost extends CmsPostIndexItem {
   schema: 'qortal-cms/post@1';
+  cms_site_name?: string;
   site_owner_name?: string;
   content_html: string;
   featured_image: QdnRef | null;
