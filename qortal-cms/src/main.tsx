@@ -1,19 +1,44 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Edit3, Eye, FileText, Image, Plus, RefreshCcw, Save, Search, Send, Tags } from 'lucide-react';
-import { createSourceFromLocation, type CmsData, type CmsSource } from './contentSource';
-import { hasQortalBridge, requestQortal, toBase64 } from './qortalClient';
+import { CheckCircle2, Edit3, Eye, FileText, Filter, Image, Lock, MessageSquare, Plus, RefreshCcw, Save, Search, Send, Settings, Tags, User, XCircle } from 'lucide-react';
 import { RichTextEditor } from './RichTextEditor';
-import type { ContentItem, IndexItem, Term } from './types';
+import {
+  CATEGORIES_IDENTIFIER,
+  CMS_VERSION,
+  COMMENTS_INDEX_IDENTIFIER,
+  MANIFEST_IDENTIFIER,
+  PAGES_INDEX_IDENTIFIER,
+  POSTS_INDEX_IDENTIFIER,
+  TAGS_IDENTIFIER,
+  createCommentIdentifier,
+  createEmptyManifest,
+  createPostIdentifier,
+  getQdnNameFromLocation,
+  getViewerIdentity,
+  loadDataset,
+  loadPost,
+  publishJsonResource,
+  qdnLink,
+  saveLocalDataset,
+  slugify,
+  toPostIndexItem
+} from './cmsRepository';
+import { hasQortalBridge } from './qortalClient';
+import type { CmsComment, CmsDataset, CmsPost, CmsPostIndexItem, CmsStatus, ViewerIdentity } from './types';
 import './styles.css';
 
-type PanelMode = 'preview' | 'edit';
+type Section = 'dashboard' | 'posts' | 'media' | 'imported' | 'settings';
+type EditorMode = 'preview' | 'edit';
 
 interface DraftState {
   title: string;
-  summary: string;
-  contentHtml: string;
-  slug?: string;
+  slug: string;
+  excerpt: string;
+  content_html: string;
+  status: CmsStatus;
+  comments_enabled: boolean;
+  categoryText: string;
+  tagText: string;
 }
 
 function decodeText(value = '') {
@@ -22,391 +47,433 @@ function decodeText(value = '') {
   return textarea.value;
 }
 
-function termNames(ids: number[], terms: Term[]) {
-  const byId = new Map(terms.map((term) => [term.source_id, decodeText(term.name)]));
-  return ids.map((id) => byId.get(id)).filter(Boolean) as string[];
+function stripHtml(value: string) {
+  return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-function createDraft(post: ContentItem): DraftState {
+function createDraft(post: CmsPost): DraftState {
   return {
     title: decodeText(post.title),
-    summary: decodeText(post.summary || post.excerpt_text || ''),
-    contentHtml: post.content_html
-  };
-}
-
-function createSlug(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 72) || `post-${Date.now().toString(36)}`;
-}
-
-function createNewPostDraft(): DraftState {
-  return {
-    title: 'Untitled post',
-    summary: '',
-    contentHtml: '<p></p>',
-    slug: `new-post-${Date.now().toString(36)}`
-  };
-}
-
-function createIndexItem(post: ContentItem): IndexItem {
-  return {
-    type: post.type,
-    source_id: post.source_id,
-    old_url: post.old_url,
     slug: post.slug,
-    title: post.title,
-    date: post.date,
-    modified: post.modified,
+    excerpt: decodeText(post.excerpt),
+    content_html: post.content_html,
     status: post.status,
-    file: post.file
+    comments_enabled: post.comments_enabled,
+    categoryText: post.category_ids.join(', '),
+    tagText: post.tag_ids.join(', ')
   };
+}
+
+function emptyPost(ownerName: string, ownerAddress: string): CmsPost {
+  const created = new Date().toISOString();
+  const slug = `new-post-${Date.now().toString(36)}`;
+  return {
+    schema: 'qortal-cms/post@1',
+    id: `post-${Date.now().toString(36)}`,
+    type: 'post',
+    title: 'Untitled post',
+    slug,
+    status: 'draft',
+    excerpt: '',
+    category_ids: [],
+    tag_ids: [],
+    created_at: created,
+    updated_at: created,
+    published_at: null,
+    qdn: { service: 'DOCUMENT', identifier: createPostIdentifier(slug), name: ownerName },
+    content_html: '<p></p>',
+    featured_image: null,
+    media: [],
+    comments_enabled: true,
+    author: { name: ownerName || 'local-owner', address: ownerAddress }
+  };
+}
+
+function listFromText(value: string) {
+  return value.split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+function termsFromText(value: string, existing: CmsDataset['categories']) {
+  const now = new Date().toISOString();
+  const bySlug = new Map(existing.map((term) => [term.slug, term]));
+  const nextTerms = [...existing];
+  const ids: string[] = [];
+
+  for (const name of listFromText(value)) {
+    const slug = slugify(name);
+    const existingTerm = bySlug.get(slug);
+    if (existingTerm) {
+      ids.push(existingTerm.id);
+      continue;
+    }
+    const term = { id: `term-${slug}`, name, slug, created_at: now, updated_at: now };
+    bySlug.set(slug, term);
+    nextTerms.push(term);
+    ids.push(term.id);
+  }
+
+  return { ids, terms: nextTerms };
 }
 
 function App() {
-  const [source, setSource] = useState<CmsSource | null>(null);
-  const [data, setData] = useState<CmsData | null>(null);
-  const [selectedIndex, setSelectedIndex] = useState<IndexItem | null>(null);
-  const [selectedPost, setSelectedPost] = useState<ContentItem | null>(null);
+  const qdnName = getQdnNameFromLocation();
+  const [section, setSection] = useState<Section>('posts');
+  const [editorMode, setEditorMode] = useState<EditorMode>('preview');
+  const [dataset, setDataset] = useState<CmsDataset | null>(null);
+  const [identity, setIdentity] = useState<ViewerIdentity | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<CmsPostIndexItem | null>(null);
+  const [selectedPost, setSelectedPost] = useState<CmsPost | null>(null);
   const [draft, setDraft] = useState<DraftState | null>(null);
-  const [panelMode, setPanelMode] = useState<PanelMode>('preview');
-  const [isNewPost, setIsNewPost] = useState(false);
   const [query, setQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<CmsStatus | 'all'>('all');
+  const [commentDraft, setCommentDraft] = useState('');
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  async function loadApp() {
-    setError(null);
-    setStatus('Loading content source...');
-    const nextSource = await createSourceFromLocation();
-    const nextData = await nextSource.loadInitialData();
-    const first = nextData.posts[0] || null;
-    const firstPost = first ? await nextSource.loadContent(first.file) : null;
-
-    setSource(nextSource);
-    setData(nextData);
-    setSelectedIndex(first);
-    setSelectedPost(firstPost);
-    setDraft(firstPost ? createDraft(firstPost) : null);
-    setStatus('');
-  }
-
   useEffect(() => {
-    loadApp().catch((loadError: Error) => {
-      setError(loadError.message);
+    boot().catch((bootError: Error) => {
+      setError(bootError.message);
       setStatus('');
     });
   }, []);
 
+  async function boot() {
+    setStatus('Loading CMS dataset...');
+    const loadedDataset = await loadDataset(qdnName);
+    const viewerIdentity = await getViewerIdentity(qdnName || loadedDataset.manifest.owner_name);
+    setDataset(loadedDataset);
+    setIdentity(viewerIdentity);
+    const first = loadedDataset.posts[0] || null;
+    setSelectedIndex(first);
+    if (first) {
+      const post = await safeLoadPost(first, loadedDataset);
+      setSelectedPost(post);
+      setDraft(createDraft(post));
+    }
+    setStatus('');
+  }
+
+  async function safeLoadPost(index: CmsPostIndexItem, data = dataset): Promise<CmsPost> {
+    const fallback = data?.local_posts?.[index.id];
+    try {
+      return await loadPost(index.qdn, fallback);
+    } catch {
+      if (fallback) return fallback;
+      throw new Error(`Unable to load post ${index.qdn.identifier}.`);
+    }
+  }
+
+  const isOwner = identity?.role === 'owner';
+  const canComment = Boolean(identity?.bridgeAvailable && identity.name && selectedPost?.comments_enabled);
+  const commentsForPost = useMemo(() => {
+    return (dataset?.comments || []).filter((comment) => comment.post_id === selectedPost?.id && comment.status === 'published');
+  }, [dataset?.comments, selectedPost?.id]);
+
   const filteredPosts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
-    return (data?.posts || []).filter((post) =>
-      !normalized ? true : `${post.title} ${post.slug}`.toLowerCase().includes(normalized)
-    );
-  }, [data?.posts, query]);
+    return (dataset?.posts || []).filter((post) => {
+      const matchesSearch = !normalized || `${post.title} ${post.slug} ${post.excerpt}`.toLowerCase().includes(normalized);
+      const matchesStatus = statusFilter === 'all' || post.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  }, [dataset?.posts, query, statusFilter]);
 
-  async function openPost(post: IndexItem) {
-    if (!source) return;
+  async function openPost(index: CmsPostIndexItem) {
+    if (!dataset) return;
     setError(null);
-    setStatus('Loading post...');
+    setStatus('Opening post...');
     try {
-      const content = await source.loadContent(post.file);
-      setSelectedIndex(post);
-      setSelectedPost(content);
-      setDraft(createDraft(content));
-      setIsNewPost(false);
-      setPanelMode('preview');
-    } catch (loadError) {
-      setError((loadError as Error).message);
+      const post = await safeLoadPost(index, dataset);
+      setSelectedIndex(index);
+      setSelectedPost(post);
+      setDraft(createDraft(post));
+      setEditorMode('preview');
+    } catch (openError) {
+      setError((openError as Error).message);
     } finally {
       setStatus('');
     }
   }
 
-  function applyDraftToPost(): ContentItem | null {
-    if (!draft) return null;
-    if (isNewPost) {
-      const now = new Date().toISOString();
-      const slug = createSlug(draft.slug || draft.title);
-      return {
-        type: 'post',
-        source: 'qortal-cms',
-        source_id: Date.now(),
-        old_url: '',
-        slug,
-        title: draft.title,
-        date: now,
-        modified: now,
-        status: 'publish',
-        file: `posts/${slug}.json`,
-        excerpt: draft.summary,
-        excerpt_text: draft.summary,
-        content_html: draft.contentHtml,
-        content_text: draft.contentHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim(),
-        summary: draft.summary,
-        categories: [],
-        tags: [],
-        featured_media: null,
-        attachments: [],
-        links: {
-          internal: [],
-          external: []
-        },
-        media: {
-          images: [],
-          audio: [],
-          video: [],
-          documents: [],
-          embeds: []
-        },
-        import: {
-          imported_at: now,
-          importer_version: 'qortal-cms-0.1.0'
-        }
-      };
-    }
-
-    if (!selectedPost) return null;
-    return {
-      ...selectedPost,
-      title: draft.title,
-      summary: draft.summary,
-      excerpt_text: draft.summary,
-      content_html: draft.contentHtml,
-      modified: new Date().toISOString()
-    };
+  function startNewPost() {
+    if (!dataset || !identity) return;
+    const post = emptyPost(qdnName || dataset.manifest.owner_name, identity.address);
+    setSelectedIndex(toPostIndexItem(post));
+    setSelectedPost(post);
+    setDraft(createDraft(post));
+    setEditorMode('edit');
+    setSection('posts');
+    setStatus('New post draft created.');
   }
 
-  async function publishDraft() {
-    if (!source || !draft) return;
-    if (!hasQortalBridge()) {
-      setError('Qortal request API is not available. Open this CMS through Qortal UI dev mode.');
-      return;
-    }
-
-    const nextPost = applyDraftToPost();
-    if (!nextPost) return;
-
-    const postPath = `converted/${nextPost.file}`;
-    const existingResource = selectedIndex ? source.getResourceForPath(`converted/${selectedIndex.file}`) : null;
-    const resource = existingResource || {
-      type: 'post',
-      service: 'DOCUMENT',
-      identifier: `cr-post-${createSlug(nextPost.slug || nextPost.title)}-${Date.now().toString(36)}`
+  function applyDraft(): { post: CmsPost; nextDataset: CmsDataset } | null {
+    if (!dataset || !selectedPost || !draft || !identity) return null;
+    const slug = slugify(draft.slug || draft.title);
+    const categoryResult = termsFromText(draft.categoryText, dataset.categories);
+    const tagResult = termsFromText(draft.tagText, dataset.tags);
+    const updatedAt = new Date().toISOString();
+    const post: CmsPost = {
+      ...selectedPost,
+      title: draft.title,
+      slug,
+      excerpt: draft.excerpt,
+      content_html: draft.content_html,
+      status: draft.status,
+      category_ids: categoryResult.ids,
+      tag_ids: tagResult.ids,
+      comments_enabled: draft.comments_enabled,
+      updated_at: updatedAt,
+      published_at: draft.status === 'published' ? selectedPost.published_at || updatedAt : selectedPost.published_at,
+      qdn: {
+        ...selectedPost.qdn,
+        name: qdnName || dataset.manifest.owner_name,
+        identifier: selectedPost.qdn.identifier || createPostIdentifier(slug)
+      },
+      author: selectedPost.author.name ? selectedPost.author : { name: identity.name, address: identity.address }
     };
+    const index = toPostIndexItem(post);
+    const exists = dataset.posts.some((item) => item.id === index.id);
+    const posts = exists
+      ? dataset.posts.map((item) => item.id === index.id ? index : item)
+      : [index, ...dataset.posts];
+    const nextDataset: CmsDataset = {
+      ...dataset,
+      manifest: { ...dataset.manifest, updated_at: updatedAt, owner_name: qdnName || dataset.manifest.owner_name, owner_address: dataset.manifest.owner_address || identity.address },
+      posts,
+      categories: categoryResult.terms,
+      tags: tagResult.terms,
+      local_posts: { ...(dataset.local_posts || {}), [post.id]: post }
+    };
+    return { post, nextDataset };
+  }
 
-    const qdnName = source.qdnName || new URLSearchParams(window.location.search).get('name') || '';
-    if (!qdnName) {
-      setError('Missing Qortal name. Use ?source=qdn&name=<QortalName> for publish tests.');
+  async function saveDraftLocal() {
+    const applied = applyDraft();
+    if (!applied) return;
+    setDataset(applied.nextDataset);
+    setSelectedPost(applied.post);
+    setSelectedIndex(toPostIndexItem(applied.post));
+    saveLocalDataset(applied.nextDataset);
+    setStatus('Draft saved locally.');
+  }
+
+  async function publishPost() {
+    if (!dataset || !identity || !isOwner) return;
+    if (!hasQortalBridge()) {
+      setError('Qortal bridge is not available. Open this CMS through Qortal UI dev mode to publish.');
+      return;
+    }
+    const applied = applyDraft();
+    if (!applied) return;
+
+    const ownerName = qdnName || dataset.manifest.owner_name || identity.name;
+    if (!ownerName) {
+      setError('Missing owner Qortal name. Open with ?name=<QortalName>.');
       return;
     }
 
-    setStatus('Publishing draft...');
     setError(null);
     try {
-      const nextIndex = createIndexItem(nextPost);
-      const nextPostsIndex = isNewPost
-        ? [nextIndex, ...(data?.posts || [])]
-        : (data?.posts || []).map((post) => post.source_id === nextPost.source_id ? nextIndex : post);
-      const nextManifest = source.manifest ? {
-        ...source.manifest,
-        resources: {
-          by_path: {
-            ...source.manifest.resources.by_path,
-            [postPath]: {
-              type: 'post',
-              service: resource.service,
-              identifier: resource.identifier,
-              local_path: postPath
-            }
-          },
-          by_source_url: source.manifest.resources.by_source_url
-        }
-      } : null;
-
       setStatus('Publishing post...');
-      await requestQortal({
-        action: 'PUBLISH_QDN_RESOURCE',
-        name: qdnName,
-        service: resource.service,
-        identifier: resource.identifier,
-        data64: toBase64(JSON.stringify(nextPost, null, 2)),
-        encoding: 'base64',
-        title: nextPost.title,
-        description: `Edited post: ${nextPost.summary || nextPost.slug}`.slice(0, 4000)
-      });
+      await publishJsonResource(ownerName, applied.post.qdn, applied.post, applied.post.title, stripHtml(applied.post.excerpt || applied.post.content_html).slice(0, 4000));
 
-      if (source.manifest) {
-        setStatus('Updating posts index...');
-        await requestQortal({
-          action: 'PUBLISH_QDN_RESOURCE',
-          name: qdnName,
-          service: source.manifest.entrypoints.posts_index.service,
-          identifier: source.manifest.entrypoints.posts_index.identifier,
-          data64: toBase64(JSON.stringify(nextPostsIndex, null, 2)),
-          encoding: 'base64',
-          title: 'Posts index',
-          description: 'Updated CMS posts index'
-        });
-      }
+      setStatus('Updating CMS indexes...');
+      await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: POSTS_INDEX_IDENTIFIER }, applied.nextDataset.posts, 'CMS posts index', 'Qortal CMS posts index');
+      await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: PAGES_INDEX_IDENTIFIER }, applied.nextDataset.pages, 'CMS pages index', 'Qortal CMS pages index');
+      await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: CATEGORIES_IDENTIFIER }, applied.nextDataset.categories, 'CMS categories', 'Qortal CMS categories');
+      await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: TAGS_IDENTIFIER }, applied.nextDataset.tags, 'CMS tags', 'Qortal CMS tags');
+      await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER }, applied.nextDataset.comments, 'CMS comments index', 'Qortal CMS comments index');
+      await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER }, applied.nextDataset.manifest, 'CMS manifest', 'Qortal CMS manifest');
 
-      const manifestResource = source.getResourceForPath('converted/qdn-manifest.json');
-      if (nextManifest && manifestResource) {
-        setStatus('Updating QDN manifest...');
-        await requestQortal({
-          action: 'PUBLISH_QDN_RESOURCE',
-          name: qdnName,
-          service: manifestResource.service,
-          identifier: manifestResource.identifier,
-          data64: toBase64(JSON.stringify(nextManifest, null, 2)),
-          encoding: 'base64',
-          title: 'QDN manifest',
-          description: 'Updated CMS QDN resource manifest'
-        });
-        source.manifest = nextManifest;
-      }
-
-      setSelectedPost(nextPost);
-      setSelectedIndex(nextIndex);
-      setData((current) => current ? { ...current, posts: nextPostsIndex } : current);
-      if (isNewPost) {
-        setIsNewPost(false);
-      }
-      setStatus(source.manifest ? 'Draft, posts index, and manifest published.' : 'Draft published. Open QDN mode to publish the shared posts index.');
+      setDataset(applied.nextDataset);
+      setSelectedPost(applied.post);
+      setSelectedIndex(toPostIndexItem(applied.post));
+      saveLocalDataset(applied.nextDataset);
+      setStatus('Published to QDN.');
     } catch (publishError) {
       setError((publishError as Error).message);
       setStatus('');
     }
   }
 
-  const categoryNames = selectedPost && data ? termNames(selectedPost.categories, data.categories) : [];
-  const tagNames = selectedPost && data ? termNames(selectedPost.tags, data.tags).slice(0, 12) : [];
-  const heroImage = selectedPost?.media.images[0];
-  const heroSrc = heroImage && source && data ? source.resolveMediaUrl(heroImage, data.mediaMap) : '';
-  const previewHtml = draft?.contentHtml || selectedPost?.content_html || '';
+  async function publishComment() {
+    if (!dataset || !selectedPost || !identity || !commentDraft.trim()) return;
+    if (!identity.bridgeAvailable || !identity.name) {
+      setError('Comment publishing requires Qortal UI and a logged-in Qortal name.');
+      return;
+    }
 
-  function startNewPost() {
-    const nextDraft = createNewPostDraft();
+    const created = new Date().toISOString();
+    const comment: CmsComment = {
+      schema: 'qortal-cms/comment@1',
+      id: `comment-${Date.now().toString(36)}`,
+      post_id: selectedPost.id,
+      post_identifier: selectedPost.qdn.identifier,
+      body_html: commentDraft,
+      status: 'published',
+      created_at: created,
+      updated_at: created,
+      author: { name: identity.name, address: identity.address },
+      qdn: { service: 'DOCUMENT', identifier: createCommentIdentifier(selectedPost.id), name: identity.name }
+    };
+
+    try {
+      setStatus('Publishing comment...');
+      await publishJsonResource(identity.name, comment.qdn, comment, `Comment on ${selectedPost.title}`, stripHtml(comment.body_html).slice(0, 4000));
+      const nextDataset = { ...dataset, comments: [comment, ...dataset.comments] };
+      setDataset(nextDataset);
+      saveLocalDataset(nextDataset);
+      setCommentDraft('');
+      setStatus('Comment published. Owner-side comment index sync will be handled in the moderation workflow.');
+    } catch (commentError) {
+      setError((commentError as Error).message);
+      setStatus('');
+    }
+  }
+
+  function initLocalSite() {
+    const ownerName = qdnName || identity?.name || 'local-owner';
+    const ownerAddress = identity?.address || '';
+    const nextDataset = {
+      manifest: createEmptyManifest(ownerName, ownerAddress),
+      posts: [],
+      pages: [],
+      categories: [],
+      tags: [],
+      comments: [],
+      local_posts: {}
+    };
+    setDataset(nextDataset);
+    saveLocalDataset(nextDataset);
     setSelectedIndex(null);
     setSelectedPost(null);
-    setDraft(nextDraft);
-    setIsNewPost(true);
-    setPanelMode('edit');
-    setStatus('New post draft created.');
-    setError(null);
+    setDraft(null);
+    setStatus('Local CMS dataset initialized.');
   }
+
+  if (error && !dataset) return <div className="app-message error"><XCircle />{error}</div>;
+  if (!dataset || !identity) return <div className="app-message"><RefreshCcw className="spin" />Loading Qortal CMS...</div>;
+
+  const selectedCategoryNames = selectedPost?.category_ids.map((id) => dataset.categories.find((term) => term.id === id)?.name).filter(Boolean) || [];
+  const selectedTagNames = selectedPost?.tag_ids.map((id) => dataset.tags.find((term) => term.id === id)?.name).filter(Boolean) || [];
 
   return (
     <main className="cms-shell">
-      <aside className="cms-sidebar">
-        <div className="brand">
+      <aside className="sidebar">
+        <div className="brand-block">
           <p>Qortal CMS</p>
-          <h1>Imported Content</h1>
-          <span>{source?.label || 'Loading source'}</span>
+          <h1>{dataset.manifest.title}</h1>
+          <span>Version {CMS_VERSION}</span>
         </div>
 
-        <label className="search">
-          <Search size={17} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search posts" />
-        </label>
+        <nav className="nav-list">
+          <button className={section === 'dashboard' ? 'active' : ''} onClick={() => setSection('dashboard')}><Eye size={17} /> Dashboard</button>
+          <button className={section === 'posts' ? 'active' : ''} onClick={() => setSection('posts')}><FileText size={17} /> Posts</button>
+          <button className={section === 'media' ? 'active' : ''} onClick={() => setSection('media')}><Image size={17} /> Media</button>
+          <button className={section === 'imported' ? 'active' : ''} onClick={() => setSection('imported')}><Tags size={17} /> Imported</button>
+          <button className={section === 'settings' ? 'active' : ''} onClick={() => setSection('settings')}><Settings size={17} /> Settings</button>
+        </nav>
 
-        <button className="new-post-button" onClick={startNewPost}>
-          <Plus size={17} />
-          New post
-        </button>
-
-        <div className="post-list">
-          {filteredPosts.map((post) => (
-            <button
-              key={post.source_id}
-              className={selectedIndex?.source_id === post.source_id ? 'active' : ''}
-              onClick={() => openPost(post)}
-            >
-              <strong>{decodeText(post.title)}</strong>
-              <span>{new Date(post.date).toLocaleDateString()}</span>
-            </button>
-          ))}
+        <div className="identity-card">
+          <User size={17} />
+          <div>
+            <strong>{identity.name || 'No Qortal name detected'}</strong>
+            <span>{isOwner ? 'Owner controls enabled' : 'Read-only mode'}</span>
+          </div>
         </div>
       </aside>
 
-      <section className="cms-reader">
-        {error && <div className="notice error">{error}</div>}
-        {status && <div className="notice">{status}</div>}
+      <section className="list-panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Content</p>
+            <h2>{section === 'posts' ? 'Posts' : section.charAt(0).toUpperCase() + section.slice(1)}</h2>
+          </div>
+          {isOwner && <button className="icon-command primary" onClick={startNewPost}><Plus size={17} /> New</button>}
+        </div>
 
-        {(selectedPost || draft) && (
+        {section === 'dashboard' && (
+          <div className="metric-grid">
+            <div><strong>{dataset.posts.length}</strong><span>posts</span></div>
+            <div><strong>{dataset.posts.filter((post) => post.status === 'draft').length}</strong><span>drafts</span></div>
+            <div><strong>{dataset.comments.length}</strong><span>comments</span></div>
+            <div><strong>{identity.bridgeAvailable ? 'Ready' : 'Offline'}</strong><span>bridge</span></div>
+          </div>
+        )}
+
+        {section === 'posts' && (
           <>
-            {heroSrc && <img className="hero-image" src={heroSrc} alt="" />}
-            <div className="post-meta">
-              <span><FileText size={16} /> {isNewPost ? 'New post' : `Source #${selectedPost?.source_id}`}</span>
-              <span><Tags size={16} /> {categoryNames.join(', ') || 'Uncategorized'}</span>
+            <label className="search-box"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search posts" /></label>
+            <label className="filter-box"><Filter size={17} /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CmsStatus | 'all')}><option value="all">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label>
+            <div className="post-list">
+              {filteredPosts.map((post) => (
+                <button key={post.id} className={selectedIndex?.id === post.id ? 'selected' : ''} onClick={() => openPost(post)}>
+                  <strong>{decodeText(post.title)}</strong>
+                  <span>{post.status} · {new Date(post.updated_at).toLocaleString()}</span>
+                </button>
+              ))}
             </div>
-            <h2>{draft?.title || decodeText(selectedPost?.title || 'Untitled post')}</h2>
-            <p className="summary">{draft?.summary || decodeText(selectedPost?.summary || '')}</p>
-            <div className="tag-row">
-              {tagNames.map((tag) => <span key={tag}>{tag}</span>)}
-            </div>
-            <article className="content-preview" dangerouslySetInnerHTML={{ __html: previewHtml }} />
           </>
         )}
+
+        {section === 'media' && <div className="placeholder"><Image size={22} /><strong>Media library is staged next.</strong><span>Upload, QDN media index, and editor insertion controls will live here.</span></div>}
+        {section === 'imported' && <div className="placeholder"><Tags size={22} /><strong>Imported Content bridge is staged next.</strong><span>This view will read migrator manifests and adopt selected posts into the CMS index.</span></div>}
+        {section === 'settings' && <div className="settings-list"><p><strong>Owner name:</strong> {dataset.manifest.owner_name || qdnName || 'not set'}</p><p><strong>Manifest:</strong> DOCUMENT / {MANIFEST_IDENTIFIER}</p><p><strong>Posts index:</strong> DOCUMENT / {POSTS_INDEX_IDENTIFIER}</p><button className="icon-command" onClick={initLocalSite}><RefreshCcw size={16} /> Reset local dataset</button></div>}
       </section>
 
-      <aside className="cms-editor">
-        <div className="editor-tabs">
-          <button className={panelMode === 'preview' ? 'active' : ''} onClick={() => setPanelMode('preview')}>
-            <Eye size={16} /> Preview
-          </button>
-          <button className={panelMode === 'edit' ? 'active' : ''} onClick={() => setPanelMode('edit')}>
-            <Edit3 size={16} /> Edit
-          </button>
+      <section className="workspace">
+        <div className="top-status">
+          <span>{status || 'Ready'}</span>
+          {error && <span className="error-text">{error}</span>}
+          <span className={identity.bridgeAvailable ? 'ok' : 'muted'}>{identity.bridgeAvailable ? 'Qortal bridge available' : 'Browser preview only'}</span>
         </div>
 
-        {panelMode === 'preview' && selectedPost && (
-          <div className="resource-box">
-            <h3><Image size={17} /> Resources</h3>
-            <p>{selectedPost.media.images.length} images</p>
-            <p>{selectedPost.media.video.length} videos</p>
-            <p>{selectedPost.links.external.length} external links</p>
-          </div>
-        )}
-
-        {panelMode === 'edit' && draft && (
-          <div className="edit-form">
-            <label>
-              Title
-              <input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} />
-            </label>
-            <label>
-              Summary
-              <textarea value={draft.summary} onChange={(event) => setDraft({ ...draft, summary: event.target.value })} />
-            </label>
-            {isNewPost && (
-              <label>
-                Slug
-                <input value={draft.slug || ''} onChange={(event) => setDraft({ ...draft, slug: event.target.value })} />
-              </label>
-            )}
-            <div className="editor-field">
-              <span>Content</span>
-              <RichTextEditor value={draft.contentHtml} onChange={(contentHtml) => setDraft({ ...draft, contentHtml })} />
+        {selectedPost && draft ? (
+          <>
+            <div className="editor-tabs">
+              <button className={editorMode === 'preview' ? 'active' : ''} onClick={() => setEditorMode('preview')}><Eye size={16} /> Preview</button>
+              {isOwner && <button className={editorMode === 'edit' ? 'active' : ''} onClick={() => setEditorMode('edit')}><Edit3 size={16} /> Edit</button>}
             </div>
-            <button className="secondary" onClick={() => selectedPost ? setDraft(createDraft(selectedPost)) : setDraft(createNewPostDraft())}>
-              <RefreshCcw size={16} /> Reset
-            </button>
-            <button className="primary" onClick={publishDraft}>
-              <Send size={16} /> {isNewPost ? 'Publish new post' : 'Publish edited post'}
-            </button>
-          </div>
-        )}
 
-        <div className="resource-box">
-          <h3><Save size={17} /> Status</h3>
-          <p>Bridge: {hasQortalBridge() ? 'available' : 'not available'}</p>
-          <p>Mode: {source?.mode || 'loading'}</p>
-        </div>
-      </aside>
+            {editorMode === 'preview' && (
+              <article className="preview-pane">
+                <div className="post-meta"><span>{selectedPost.status}</span><span>{new Date(selectedPost.updated_at).toLocaleString()}</span>{selectedPost.qdn.name && <a href={qdnLink(selectedPost.qdn)} target="_blank" rel="noreferrer">QDN resource</a>}</div>
+                <h2>{decodeText(selectedPost.title)}</h2>
+                {selectedPost.excerpt && <p className="summary">{decodeText(selectedPost.excerpt)}</p>}
+                <div className="chip-row">{selectedCategoryNames.map((name) => <span key={name}>{name}</span>)}{selectedTagNames.map((name) => <span key={name}>{name}</span>)}</div>
+                <div className="content-preview" dangerouslySetInnerHTML={{ __html: selectedPost.content_html }} />
+              </article>
+            )}
+
+            {editorMode === 'edit' && isOwner && (
+              <div className="edit-pane">
+                <label>Title<input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value, slug: slugify(event.target.value) })} /></label>
+                <label>Slug<input value={draft.slug} onChange={(event) => setDraft({ ...draft, slug: event.target.value })} /></label>
+                <label>Excerpt<textarea value={draft.excerpt} onChange={(event) => setDraft({ ...draft, excerpt: event.target.value })} /></label>
+                <div className="split-fields"><label>Categories<input value={draft.categoryText} onChange={(event) => setDraft({ ...draft, categoryText: event.target.value })} placeholder="News, Research" /></label><label>Tags<input value={draft.tagText} onChange={(event) => setDraft({ ...draft, tagText: event.target.value })} placeholder="Qortal, Podcast" /></label></div>
+                <label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as CmsStatus })}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label>
+                <label className="check-line"><input type="checkbox" checked={draft.comments_enabled} onChange={(event) => setDraft({ ...draft, comments_enabled: event.target.checked })} /> Comments enabled</label>
+                <RichTextEditor value={draft.content_html} onChange={(content_html) => setDraft({ ...draft, content_html })} />
+                <div className="action-row"><button className="icon-command" onClick={saveDraftLocal}><Save size={16} /> Save local</button><button className="icon-command primary" onClick={publishPost}><Send size={16} /> Publish to QDN</button></div>
+              </div>
+            )}
+
+            <section className="comments-panel">
+              <div className="panel-title"><MessageSquare size={18} /><h3>Comments</h3><span>{commentsForPost.length}</span></div>
+              {selectedPost.comments_enabled ? (
+                <>
+                  {commentsForPost.map((comment) => (
+                    <article key={comment.id} className="comment-card"><strong>{comment.author.name}</strong><span>{new Date(comment.updated_at).toLocaleString()}</span><div dangerouslySetInnerHTML={{ __html: comment.body_html }} />{identity.name === comment.author.name && <button className="text-button">Edit own comment ready</button>}</article>
+                  ))}
+                  <div className="comment-box"><RichTextEditor value={commentDraft} onChange={setCommentDraft} /><button className="icon-command" disabled={!canComment} onClick={publishComment}><Send size={16} /> Publish comment</button>{!canComment && <small>Commenting requires Qortal UI, a logged-in Qortal name, and comments enabled for this post.</small>}</div>
+                </>
+              ) : <p className="muted-text"><Lock size={16} /> Comments are disabled for this post.</p>}
+            </section>
+          </>
+        ) : (
+          <div className="placeholder"><FileText size={24} /><strong>No post selected</strong><span>{isOwner ? 'Create a new post or select an existing one.' : 'Select a published post to read.'}</span></div>
+        )}
+      </section>
     </main>
   );
 }

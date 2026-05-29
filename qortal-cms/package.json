@@ -1,7 +1,7 @@
 {
   "name": "qortal-cms",
   "version": "0.1.0",
-  "description": "Qortal-native CMS shell for imported WordPress content.",
+  "description": "Qortal-native CMS Q-App for posts, publishing, and owner-managed editing.",
   "type": "module",
   "private": true,
   "scripts": {

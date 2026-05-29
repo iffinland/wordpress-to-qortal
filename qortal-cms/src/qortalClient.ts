@@ -3,6 +3,7 @@ interface QortalRequestPayload {
   service?: string;
   name?: string;
   identifier?: string;
+  address?: string;
   data64?: string;
   encoding?: string;
   file?: File;
@@ -58,6 +59,17 @@ export async function requestQortal(payload: QortalRequestPayload) {
   return bridge(payload);
 }
 
+export async function tryRequestQortal<T>(payload: QortalRequestPayload): Promise<T | null> {
+  const bridge = findQortalRequest();
+  if (!bridge) return null;
+
+  try {
+    return await bridge(payload) as T;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchQdnResource<T>(service: string, name: string, identifier: string): Promise<T> {
   const bridge = findQortalRequest();
 
@@ -81,4 +93,8 @@ export async function fetchQdnResource<T>(service: string, name: string, identif
 
 export function toBase64(value: string): string {
   return btoa(unescape(encodeURIComponent(value)));
+}
+
+export function createQdnUrl(service: string, name: string, identifier: string) {
+  return `/arbitrary/${encodeURIComponent(service)}/${encodeURIComponent(name)}/${encodeURIComponent(identifier)}`;
 }

@@ -1,89 +1,92 @@
-export interface IndexItem {
-  type: 'post' | 'page';
-  source_id: number;
-  old_url: string;
-  slug: string;
-  title: string;
-  date: string;
-  modified: string;
-  status: string;
-  file: string;
-}
+export type CmsStatus = 'draft' | 'published' | 'archived';
+export type CmsRole = 'owner' | 'reader';
 
-export interface Term {
-  source_id: number;
-  name: string;
-  slug: string;
-  count?: number;
-}
-
-export interface ContentItem extends IndexItem {
-  source: string;
-  excerpt: string;
-  excerpt_text: string;
-  content_html: string;
-  content_text: string;
-  summary: string;
-  categories: number[];
-  tags: number[];
-  featured_media: number | null;
-  attachments: Array<{
-    source_id: number;
-    source_url: string;
-    media_type: string;
-    mime_type: string;
-    title: string;
-  }>;
-  links: {
-    internal: string[];
-    external: string[];
-  };
-  media: {
-    images: string[];
-    audio: string[];
-    video: string[];
-    documents: string[];
-    embeds: string[];
-  };
-  import: {
-    imported_at: string | null;
-    importer_version: string;
-  };
-}
-
-export interface MediaMapItem {
-  type: string;
-  local_path?: string;
-  qdn_service: string;
-  qdn_identifier: string | null;
-  sha256?: string;
-  bytes?: number;
-  downloaded?: boolean;
-  published: boolean;
-}
-
-export type MediaMap = Record<string, MediaMapItem>;
-
-export interface QdnResourceRef {
-  type: string;
+export interface QdnRef {
   service: string;
   identifier: string;
-  local_path?: string | null;
-  source_url?: string | null;
+  name?: string;
 }
 
-export interface QdnManifest {
-  qdn_name: string | null;
+export interface CmsTerm {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CmsPostIndexItem {
+  id: string;
+  type: 'post' | 'page';
+  title: string;
+  slug: string;
+  status: CmsStatus;
+  excerpt: string;
+  category_ids: string[];
+  tag_ids: string[];
+  created_at: string;
+  updated_at: string;
+  published_at: string | null;
+  qdn: QdnRef;
+}
+
+export interface CmsPost extends CmsPostIndexItem {
+  schema: 'qortal-cms/post@1';
+  content_html: string;
+  featured_image: QdnRef | null;
+  media: QdnRef[];
+  comments_enabled: boolean;
+  author: {
+    name: string;
+    address: string;
+  };
+}
+
+export interface CmsComment {
+  schema: 'qortal-cms/comment@1';
+  id: string;
+  post_id: string;
+  post_identifier: string;
+  body_html: string;
+  status: 'published' | 'hidden';
+  created_at: string;
+  updated_at: string;
+  author: {
+    name: string;
+    address: string;
+  };
+  qdn: QdnRef;
+}
+
+export interface CmsManifest {
+  schema: 'qortal-cms/manifest@1';
+  title: string;
+  owner_name: string;
+  owner_address: string;
+  version: string;
+  updated_at: string;
   entrypoints: {
-    posts_index: QdnResourceRef;
-    pages_index: QdnResourceRef;
-    categories: QdnResourceRef;
-    tags: QdnResourceRef;
-    media_map: QdnResourceRef;
-    url_map: QdnResourceRef;
+    posts_index: QdnRef;
+    pages_index: QdnRef;
+    categories: QdnRef;
+    tags: QdnRef;
+    comments_index: QdnRef;
   };
-  resources: {
-    by_path: Record<string, QdnResourceRef>;
-    by_source_url: Record<string, QdnResourceRef>;
-  };
+}
+
+export interface CmsDataset {
+  manifest: CmsManifest;
+  posts: CmsPostIndexItem[];
+  pages: CmsPostIndexItem[];
+  categories: CmsTerm[];
+  tags: CmsTerm[];
+  comments: CmsComment[];
+  local_posts?: Record<string, CmsPost>;
+}
+
+export interface ViewerIdentity {
+  address: string;
+  name: string;
+  role: CmsRole;
+  bridgeAvailable: boolean;
 }
