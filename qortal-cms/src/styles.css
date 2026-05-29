@@ -22,7 +22,7 @@ button {
 
 .cms-shell {
   display: grid;
-  grid-template-columns: 240px minmax(290px, 360px) minmax(0, 1fr);
+  grid-template-columns: 240px minmax(0, 360px) minmax(0, 1fr);
   min-height: 100vh;
 }
 
@@ -30,6 +30,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 22px;
+  min-width: 0;
   padding: 22px;
   color: #f4faf7;
   background: #20332f;
@@ -125,6 +126,7 @@ button {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
   min-height: 100vh;
   padding: 20px;
   background: #f8faf8;
@@ -149,6 +151,7 @@ button {
 .panel-header h2 {
   margin: 2px 0 0;
   font-size: 24px;
+  overflow-wrap: anywhere;
 }
 
 .icon-command {
@@ -702,7 +705,7 @@ button {
 }
 
 .import-batch-toolbar {
-  grid-template-columns: 1fr repeat(3, auto);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: center;
   padding: 10px;
   border: 1px solid #dce4df;
@@ -711,9 +714,16 @@ button {
 }
 
 .import-batch-toolbar span {
+  grid-column: 1 / -1;
   color: #51605b;
   font-size: 13px;
   font-weight: 800;
+}
+
+.import-batch-toolbar .icon-command {
+  width: 100%;
+  min-width: 0;
+  padding-inline: 8px;
 }
 
 .imported-row {
@@ -721,6 +731,7 @@ button {
   grid-template-columns: 24px 1fr;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   padding: 9px 11px;
   border: 1px solid #dce4df;
   border-radius: 8px;
@@ -736,6 +747,7 @@ button {
   display: grid;
   gap: 5px;
   width: 100%;
+  min-width: 0;
   padding: 0;
   text-align: left;
   border: 0;
@@ -751,6 +763,11 @@ button {
 .imported-row span {
   color: #6d7b76;
   font-size: 12px;
+}
+
+.imported-row strong,
+.imported-row span {
+  overflow-wrap: anywhere;
 }
 
 .adoption-state {
