@@ -94,6 +94,21 @@ function listFromText(value: string) {
   return value.split(',').map((item) => item.trim()).filter(Boolean);
 }
 
+function lastTermFragment(value: string) {
+  const parts = value.split(',');
+  return (parts[parts.length - 1] || '').trim().toLowerCase();
+}
+
+function appendTerm(value: string, termName: string) {
+  const existing = listFromText(value);
+  if (existing.some((item) => item.toLowerCase() === termName.toLowerCase())) {
+    return value;
+  }
+
+  const prefix = value.trim().endsWith(',') ? value : existing.slice(0, -1).join(', ');
+  return [prefix, termName].filter(Boolean).join(prefix ? ', ' : '');
+}
+
 function termsFromText(value: string, existing: CmsDataset['categories']) {
   const now = new Date().toISOString();
   const bySlug = new Map(existing.map((term) => [term.slug, term]));
@@ -114,6 +129,43 @@ function termsFromText(value: string, existing: CmsDataset['categories']) {
   }
 
   return { ids, terms: nextTerms };
+}
+
+function TermInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  terms
+}: {
+  label: string;
+  value: string;
+  onChange: (nextValue: string) => void;
+  placeholder: string;
+  terms: CmsDataset['categories'];
+}) {
+  const selected = listFromText(value).map((item) => item.toLowerCase());
+  const fragment = lastTermFragment(value);
+  const suggestions = terms
+    .filter((term) => !selected.includes(term.name.toLowerCase()))
+    .filter((term) => !fragment || term.name.toLowerCase().includes(fragment))
+    .slice(0, 8);
+
+  return (
+    <label>
+      {label}
+      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+      {suggestions.length > 0 && (
+        <div className="term-suggestions">
+          {suggestions.map((term) => (
+            <button key={term.id} type="button" onClick={() => onChange(appendTerm(value, term.name))}>
+              {term.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </label>
+  );
 }
 
 function App() {
@@ -479,7 +531,20 @@ function App() {
                 <div className="post-meta"><span>{selectedPost.status}</span><span>{new Date(selectedPost.updated_at).toLocaleString()}</span>{selectedPost.qdn.name && <a href={qdnLink(selectedPost.qdn)} target="_blank" rel="noreferrer">QDN resource</a>}</div>
                 <h2>{decodeText(selectedPost.title)}</h2>
                 {selectedPost.excerpt && <p className="summary">{decodeText(selectedPost.excerpt)}</p>}
-                <div className="chip-row">{selectedCategoryNames.map((name) => <span key={name}>{name}</span>)}{selectedTagNames.map((name) => <span key={name}>{name}</span>)}</div>
+                <div className="term-display">
+                  <div>
+                    <strong>Categories</strong>
+                    <div className="chip-row">
+                      {selectedCategoryNames.length ? selectedCategoryNames.map((name) => <span key={name}>{name}</span>) : <em>None</em>}
+                    </div>
+                  </div>
+                  <div>
+                    <strong>Tags</strong>
+                    <div className="chip-row">
+                      {selectedTagNames.length ? selectedTagNames.map((name) => <span key={name}>{name}</span>) : <em>None</em>}
+                    </div>
+                  </div>
+                </div>
                 <div className="content-preview" dangerouslySetInnerHTML={{ __html: selectedPost.content_html }} />
               </article>
             )}
@@ -489,7 +554,10 @@ function App() {
                 <label>Title<input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value, slug: slugify(event.target.value) })} /></label>
                 <label>Slug<input value={draft.slug} onChange={(event) => setDraft({ ...draft, slug: event.target.value })} /></label>
                 <label>Excerpt<textarea value={draft.excerpt} onChange={(event) => setDraft({ ...draft, excerpt: event.target.value })} /></label>
-                <div className="split-fields"><label>Categories<input value={draft.categoryText} onChange={(event) => setDraft({ ...draft, categoryText: event.target.value })} placeholder="News, Research" /></label><label>Tags<input value={draft.tagText} onChange={(event) => setDraft({ ...draft, tagText: event.target.value })} placeholder="Qortal, Podcast" /></label></div>
+                <div className="split-fields">
+                  <TermInput label="Categories" value={draft.categoryText} onChange={(categoryText) => setDraft({ ...draft, categoryText })} placeholder="News, Research" terms={dataset.categories} />
+                  <TermInput label="Tags" value={draft.tagText} onChange={(tagText) => setDraft({ ...draft, tagText })} placeholder="Qortal, Podcast" terms={dataset.tags} />
+                </div>
                 <label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as CmsStatus })}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label>
                 <label className="check-line"><input type="checkbox" checked={draft.comments_enabled} onChange={(event) => setDraft({ ...draft, comments_enabled: event.target.checked })} /> Comments enabled</label>
                 <RichTextEditor value={draft.content_html} onChange={(content_html) => setDraft({ ...draft, content_html })} />

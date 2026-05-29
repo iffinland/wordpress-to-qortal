@@ -319,7 +319,8 @@ button {
 }
 
 .post-meta,
-.chip-row {
+.chip-row,
+.term-suggestions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -336,6 +337,50 @@ button {
   font-size: 12px;
   font-weight: 800;
   text-decoration: none;
+}
+
+.term-display {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.term-display > div {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.term-display strong {
+  color: #4f5d58;
+  font-size: 13px;
+}
+
+.term-display em {
+  color: #88958f;
+  font-size: 13px;
+  font-style: normal;
+}
+
+.term-suggestions {
+  margin-top: 2px;
+}
+
+.term-suggestions button {
+  min-height: 28px;
+  padding: 0 9px;
+  border: 1px solid #cfd9d4;
+  border-radius: 999px;
+  color: #33423d;
+  background: #f8faf8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.term-suggestions button:hover {
+  border-color: #8ebaaa;
+  background: #e8f4ee;
 }
 
 .preview-pane h2 {
