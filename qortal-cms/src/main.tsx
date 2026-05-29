@@ -1588,7 +1588,12 @@ function App() {
                     />
                     <button type="button" onClick={() => previewImportedPost(post)}>
                       <strong>{decodeText(post.title)}</strong>
-                      <span>{post.date ? new Date(post.date).toLocaleDateString() : 'no date'} · {adopted ? 'adopted' : 'not adopted'}</span>
+                      <span>
+                        {post.date ? new Date(post.date).toLocaleDateString() : 'no date'} ·{' '}
+                        <strong className={adopted ? 'adoption-state adopted' : 'adoption-state pending'}>
+                          {adopted ? 'adopted' : 'not adopted'}
+                        </strong>
+                      </span>
                     </button>
                   </article>
                 );

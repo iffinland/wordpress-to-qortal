@@ -753,6 +753,18 @@ button {
   font-size: 12px;
 }
 
+.adoption-state {
+  font-weight: 900;
+}
+
+.adoption-state.adopted {
+  color: #167348;
+}
+
+.adoption-state.pending {
+  color: #b85613;
+}
+
 .imported-attachment-list {
   display: grid;
   gap: 8px;
