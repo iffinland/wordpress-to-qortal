@@ -131,11 +131,12 @@ The Imported view reads a migrator manifest such as:
 DOCUMENT / cr-qdn-manifest
 ```
 
-After loading the manifest, a SysOp or coauthor can preview a WordPress post and adopt it into the CMS as a draft. The original migrator resources are left untouched; CMS adoption creates a separate CMS post and updates CMS indexes.
+After loading the manifest, a SysOp or coauthor can preview a WordPress post and adopt it into the CMS as a draft. They can also select up to 10 unadopted imported posts and adopt them in one Qortal multi-publish confirmation.
+
+Imported attachments are read from the migrator `media-map` entrypoint. When an imported post is adopted, published imported media is added to the CMS media index and linked to the new CMS draft. Imported video resources are added to the post video list for lazy playback. The original migrator resources are left untouched; CMS adoption creates separate CMS posts and updates CMS indexes.
 
 ## Next Iterations
 
-- Batch imported-content adoption.
 - Rich text editor media insertion modal.
 - Comment moderation and owner-side comments index sync.
 - Page editor.
