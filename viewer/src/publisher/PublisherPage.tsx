@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Play, Send, XCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Play, Send, Square, SquareCheckBig, XCircle } from 'lucide-react';
 import { CONTENT_BASE, getRouteParams } from '../contentApi';
 import { getQortalBridgeDiagnostics, hasQortalBridge, requestQortal } from '../qortalClient';
 import { formatBytes } from '../contentApi';
@@ -24,13 +24,16 @@ interface PublishPlan {
 }
 
 interface PublishRow extends PublishResource {
-  status: 'pending' | 'publishing' | 'published' | 'failed';
+  status: 'pending' | 'publishing' | 'published' | 'failed' | 'skipped';
   message: string;
 }
 
-type PublishMode = 'demo' | 'cms-json' | 'full';
+type PublishMode = 'demo' | 'cms-json' | 'images' | 'documents' | 'audio' | 'video' | 'selected' | 'full';
 type PublishSource = 'bundled' | 'folder';
 type FolderFileMap = Map<string, File>;
+type PublishHistory = Record<string, { published_at: string; service: string; identifier: string; local_path: string; bytes?: number }>;
+
+const PUBLISH_HISTORY_KEY = 'wp-to-qortal-migration-publish-history-v1';
 
 async function fetchJson<T>(path: string): Promise<T> {
   const response = await fetch(`${CONTENT_BASE}/${path}`);
@@ -104,7 +107,43 @@ function createRows(plan: PublishPlan, mode: PublishMode): PublishRow[] {
     return toRows([...(firstImage ? [firstImage] : []), ...plan.resources.posts, ...plan.resources.pages, ...coreIndexes]);
   }
 
+  if (mode === 'images') {
+    return toRows(plan.resources.media.filter((resource) => resource.type === 'image'));
+  }
+
+  if (mode === 'documents') {
+    return toRows(plan.resources.media.filter((resource) => resource.type === 'document' || resource.type === 'file'));
+  }
+
+  if (mode === 'audio') {
+    return toRows(plan.resources.media.filter((resource) => resource.type === 'audio'));
+  }
+
+  if (mode === 'video') {
+    return toRows(plan.resources.media.filter((resource) => resource.type === 'video'));
+  }
+
+  if (mode === 'selected') {
+    return toRows(plan.resources.media);
+  }
+
   return toRows([...plan.resources.posts, ...plan.resources.pages, ...plan.resources.indexes, ...plan.resources.media]);
+}
+
+function resourceKey(name: string, resource: Pick<PublishResource, 'service' | 'identifier'>) {
+  return `${name}:${resource.service}:${resource.identifier}`;
+}
+
+function loadPublishHistory(): PublishHistory {
+  try {
+    return JSON.parse(localStorage.getItem(PUBLISH_HISTORY_KEY) || '{}') as PublishHistory;
+  } catch {
+    return {};
+  }
+}
+
+function savePublishHistory(history: PublishHistory) {
+  localStorage.setItem(PUBLISH_HISTORY_KEY, JSON.stringify(history));
 }
 
 export function PublisherPage({ initialName = '', onBack }: { initialName?: string; onBack?: () => void }) {
@@ -117,6 +156,9 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   const [plan, setPlan] = useState<PublishPlan | null>(null);
   const [mode, setMode] = useState<PublishMode>('cms-json');
   const [rows, setRows] = useState<PublishRow[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [skipExisting, setSkipExisting] = useState(true);
+  const [history, setHistory] = useState<PublishHistory>(() => loadPublishHistory());
   const [error, setError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const hasBridge = hasQortalBridge();
@@ -137,7 +179,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       readFolderJson<PublishPlan>(folderFiles, 'publish-log/publish-plan.json')
         .then((loadedPlan) => {
           setPlan(loadedPlan);
-          setRows(createRows(loadedPlan, mode));
+          applyRows(createRows(loadedPlan, mode), mode);
           setError(null);
         })
         .catch((loadError: Error) => setError(loadError.message));
@@ -147,10 +189,14 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
     fetchJson<PublishPlan>('publish-log/publish-plan.json')
       .then((loadedPlan) => {
         setPlan(loadedPlan);
-        setRows(createRows(loadedPlan, mode));
+        applyRows(createRows(loadedPlan, mode), mode);
       })
       .catch((loadError: Error) => setError(loadError.message));
   }, [folderFiles, mode, source]);
+
+  useEffect(() => {
+    if (plan) applyRows(createRows(plan, mode), mode);
+  }, [qortalName]);
 
   function selectImportFolder(event: React.ChangeEvent<HTMLInputElement>) {
     const selectedFiles = Array.from(event.target.files || []);
@@ -166,18 +212,79 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
 
   function changeMode(nextMode: PublishMode) {
     setMode(nextMode);
-    if (plan) setRows(createRows(plan, nextMode));
+    if (plan) applyRows(createRows(plan, nextMode), nextMode);
+  }
+
+  function applyRows(nextRows: PublishRow[], nextMode: PublishMode) {
+    const rowsWithHistory = nextRows.map((row) => {
+      const key = resourceKey(qortalName, row);
+      return history[key]
+        ? { ...row, status: 'published' as const, message: 'Published earlier' }
+        : row;
+    });
+    setRows(rowsWithHistory);
+    setSelectedIds(nextMode === 'selected'
+      ? new Set()
+      : new Set(rowsWithHistory.filter((row) => row.status !== 'published').map((row) => row.identifier)));
   }
 
   const summary = useMemo(() => {
     const bytes = rows.reduce((sum, row) => sum + (row.bytes || 0), 0);
     return {
       count: rows.length,
+      selected: rows.filter((row) => selectedIds.has(row.identifier) && row.status !== 'published').length,
       bytes,
       published: rows.filter((row) => row.status === 'published').length,
       failed: rows.filter((row) => row.status === 'failed').length
     };
-  }, [rows]);
+  }, [rows, selectedIds]);
+
+  function toggleRow(identifier: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(identifier)) next.delete(identifier);
+      else next.add(identifier);
+      return next;
+    });
+  }
+
+  function selectAllRows() {
+    setSelectedIds(new Set(rows.filter((row) => row.status !== 'published').map((row) => row.identifier)));
+  }
+
+  function clearSelectedRows() {
+    setSelectedIds(new Set());
+  }
+
+  function markHistoryPublished(publishedRows: PublishRow[]) {
+    const nextHistory = { ...history };
+    const publishedAt = new Date().toISOString();
+    for (const row of publishedRows) {
+      nextHistory[resourceKey(qortalName, row)] = {
+        published_at: publishedAt,
+        service: row.service,
+        identifier: row.identifier,
+        local_path: row.local_path,
+        bytes: row.bytes
+      };
+    }
+    setHistory(nextHistory);
+    savePublishHistory(nextHistory);
+  }
+
+  async function qdnResourceExists(resource: PublishRow) {
+    try {
+      await requestQortal({
+        action: 'FETCH_QDN_RESOURCE',
+        service: resource.service,
+        name: qortalName,
+        identifier: resource.identifier
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
   async function createPublishResourcePayload(resource: PublishRow) {
     if (resource.service === 'DOCUMENT' || resource.service === 'JSON') {
@@ -228,7 +335,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   }
 
   async function publishAll() {
-    const activeRows = rows.filter((row) => row.status !== 'published');
+    const activeRows = rows.filter((row) => selectedIds.has(row.identifier) && row.status !== 'published');
     if (!activeRows.length) return;
 
     setIsPublishing(true);
@@ -241,20 +348,40 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
 
     try {
       const resources = [];
+      const alreadyPublishedRows: PublishRow[] = [];
+      const publishRows: PublishRow[] = [];
       for (const row of activeRows) {
+        if (skipExisting && await qdnResourceExists(row)) {
+          alreadyPublishedRows.push(row);
+          continue;
+        }
         resources.push(await createPublishResourcePayload(row));
+        publishRows.push(row);
       }
 
-      await requestQortal({
-        action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
-        resources
-      });
+      if (resources.length) {
+        await requestQortal({
+          action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+          resources
+        });
+      }
+
+      markHistoryPublished([...alreadyPublishedRows, ...publishRows]);
 
       setRows((current) =>
-        current.map((row) => activeRows.some((active) => active.identifier === row.identifier)
-          ? { ...row, status: 'published', message: 'Published in batch' }
-          : row)
+        current.map((row) => alreadyPublishedRows.some((active) => active.identifier === row.identifier)
+          ? { ...row, status: 'published', message: 'Already in QDN' }
+          : publishRows.some((active) => active.identifier === row.identifier)
+            ? { ...row, status: 'published', message: resources.length ? 'Published in batch' : 'Already in QDN' }
+            : activeRows.some((active) => active.identifier === row.identifier)
+              ? { ...row, status: 'skipped', message: 'Skipped' }
+              : row)
       );
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        for (const row of activeRows) next.delete(row.identifier);
+        return next;
+      });
     } catch (publishError) {
       const message = (publishError as Error).message;
       setRows((current) =>
@@ -295,7 +422,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
               onChange={selectImportFolder}
             />
           </label>
-          <button type="button" disabled={!hasBridge || isPublishing || !qortalName.trim() || rows.length === 0} onClick={publishAll}>
+          <button type="button" disabled={!hasBridge || isPublishing || !qortalName.trim() || summary.selected === 0} onClick={publishAll}>
             <Send size={17} />
             Publish selected set
           </button>
@@ -307,19 +434,43 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
           <button type="button" className={mode === 'cms-json' ? 'active' : ''} onClick={() => changeMode('cms-json')}>
             CMS JSON
           </button>
+          <button type="button" className={mode === 'images' ? 'active' : ''} onClick={() => changeMode('images')}>
+            Images
+          </button>
+          <button type="button" className={mode === 'documents' ? 'active' : ''} onClick={() => changeMode('documents')}>
+            Documents
+          </button>
+          <button type="button" className={mode === 'audio' ? 'active' : ''} onClick={() => changeMode('audio')}>
+            Audio
+          </button>
+          <button type="button" className={mode === 'video' ? 'active' : ''} onClick={() => changeMode('video')}>
+            Video
+          </button>
+          <button type="button" className={mode === 'selected' ? 'active' : ''} onClick={() => changeMode('selected')}>
+            Selected media
+          </button>
           <button type="button" className={mode === 'full' ? 'active' : ''} onClick={() => changeMode('full')}>
             Full media
           </button>
         </div>
+        <div className="publisher-toolbar">
+          <label className="publisher-toggle">
+            <input type="checkbox" checked={skipExisting} onChange={(event) => setSkipExisting(event.target.checked)} />
+            Skip already published
+          </label>
+          <button type="button" onClick={selectAllRows} disabled={rows.length === 0}>Select all</button>
+          <button type="button" onClick={clearSelectedRows} disabled={selectedIds.size === 0}>Clear</button>
+        </div>
         <div className="publisher-summary">
           <span>{summary.count} resources</span>
+          <span>{summary.selected} selected</span>
           <span>{formatBytes(summary.bytes)}</span>
           <span>{summary.published} published</span>
           <span>{summary.failed} failed</span>
           <span>{source === 'folder' ? 'local folder' : 'bundled files'}</span>
         </div>
         <p className="publisher-note">
-          Select your local wp-qortal-import folder first. Demo publishes a small smoke-test set. CMS JSON publishes imported posts, pages, and indexes. Full media publishes every planned resource, including downloaded media files.
+          Select your local wp-qortal-import folder first. Use Images, Documents, Audio, Video, or Selected media to publish large media in small batches.
         </p>
         {!hasBridge && (
           <p className="publisher-warning">
@@ -333,10 +484,13 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       <section className="publisher-list">
         {rows.map((row) => (
           <article key={row.identifier} className="publisher-row">
+            <button type="button" className="row-check" onClick={() => toggleRow(row.identifier)} disabled={row.status === 'published'}>
+              {selectedIds.has(row.identifier) ? <SquareCheckBig size={19} /> : <Square size={19} />}
+            </button>
             <div>
               <strong>{row.identifier}</strong>
               <span>
-                {row.service} · {row.type} · {row.local_path}
+                {row.service} · {row.type} · {formatBytes(row.bytes)} · {row.local_path}
               </span>
             </div>
             <div className="publisher-status">
