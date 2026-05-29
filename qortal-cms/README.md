@@ -15,6 +15,8 @@ This is the separate Qortal-native CMS/Q-App. It is not the WordPress migrator.
 - Publishes posts and CMS indexes to QDN.
 - Publishes local computer media files to QDN and stores them in `cms-media-index`.
 - Attaches published media items to posts.
+- Adds QDN/Q-Tube video links to posts.
+- Renders attached videos through a lazy-load player.
 - Has a comments-ready model where Qortal users can publish their own comment resource.
 - Leaves imported-content adoption as a staged view for the next iteration.
 
@@ -51,6 +53,15 @@ IMAGE / cms-media-<filename>-<suffix>
 AUDIO / cms-media-<filename>-<suffix>
 VIDEO / cms-media-<filename>-<suffix>
 FILE  / cms-media-<filename>-<suffix>
+```
+
+Posts can also reference external QDN video resources without copying them:
+
+```text
+qortal://VIDEO/<name>/<identifier>
+/arbitrary/VIDEO/<name>/<identifier>
+qortal://APP/Q-Tube/video/<name>/<identifier>
+qortal://use-embed/VIDEO?name=<name>&identifier=<identifier>&service=VIDEO
 ```
 
 ## Development
@@ -105,8 +116,6 @@ Other users see read-only mode and can only read content and use comment control
 
 - Imported Content view that reads migrator `cr-qdn-manifest` and adopts selected posts into CMS indexes.
 - Rich text editor media insertion modal.
-- QDN video URI and Q-Tube share link parser.
-- Lazy loaded embedded video player.
 - Comment moderation and owner-side comments index sync.
 - Page editor.
 - Category/tag management modals.

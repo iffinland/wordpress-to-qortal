@@ -35,6 +35,7 @@ export interface CmsPost extends CmsPostIndexItem {
   content_html: string;
   featured_image: QdnRef | null;
   media: QdnRef[];
+  videos?: CmsVideoEmbed[];
   comments_enabled: boolean;
   author: {
     name: string;
@@ -55,6 +56,15 @@ export interface CmsComment {
     name: string;
     address: string;
   };
+  qdn: QdnRef;
+}
+
+export interface CmsVideoEmbed {
+  id: string;
+  title: string;
+  source: 'qdn' | 'qtube' | 'bridge';
+  source_url: string;
+  created_at: string;
   qdn: QdnRef;
 }
 

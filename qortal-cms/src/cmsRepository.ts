@@ -86,6 +86,7 @@ function createSampleDataset(ownerName: string): CmsDataset {
     content_html: '<p>This is a local draft. Open the editor, change the content, and publish through Qortal UI dev mode.</p>',
     featured_image: null,
     media: [],
+    videos: [],
     comments_enabled: true,
     author: { name: ownerName || 'local-owner', address: '' }
   };

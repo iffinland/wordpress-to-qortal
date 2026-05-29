@@ -10,6 +10,7 @@ interface QortalRequestPayload {
   filename?: string;
   title?: string;
   description?: string;
+  build?: boolean;
   resources?: Array<{
     service: string;
     name?: string;
@@ -107,4 +108,25 @@ export function toBase64(value: string): string {
 
 export function createQdnUrl(service: string, name: string, identifier: string) {
   return `/arbitrary/${encodeURIComponent(service)}/${encodeURIComponent(name)}/${encodeURIComponent(identifier)}`;
+}
+
+export interface QdnResourceStatus {
+  status: string;
+  localChunkCount?: number;
+  totalChunkCount?: number;
+  percentLoaded?: number;
+}
+
+export async function getQdnResourceStatus(service: string, name: string, identifier: string, build = false): Promise<QdnResourceStatus | null> {
+  const response = await tryRequestQortal<QdnResourceStatus | string>({
+    action: 'GET_QDN_RESOURCE_STATUS',
+    service,
+    name,
+    identifier,
+    build
+  });
+
+  if (!response) return null;
+  if (typeof response === 'string') return { status: response };
+  return response;
 }

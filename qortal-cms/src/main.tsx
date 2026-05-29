@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { CheckCircle2, Edit3, Eye, FileText, Filter, Image, Link, Lock, MessageSquare, Paperclip, Plus, RefreshCcw, Save, Search, Send, Settings, Tags, Trash2, Upload, User, XCircle } from 'lucide-react';
+import { CheckCircle2, Edit3, Eye, FileText, Filter, Image, Link, Lock, MessageSquare, Paperclip, Play, Plus, RefreshCcw, Save, Search, Send, Settings, Tags, Trash2, Upload, User, Video, XCircle } from 'lucide-react';
 import { RichTextEditor } from './RichTextEditor';
 import {
   CATEGORIES_IDENTIFIER,
@@ -27,8 +27,9 @@ import {
   slugify,
   toPostIndexItem
 } from './cmsRepository';
-import { hasQortalBridge } from './qortalClient';
-import type { CmsComment, CmsDataset, CmsMediaItem, CmsPost, CmsPostIndexItem, CmsStatus, QdnRef, ViewerIdentity } from './types';
+import { getQdnResourceStatus, hasQortalBridge } from './qortalClient';
+import { parseVideoLink } from './videoLinks';
+import type { CmsComment, CmsDataset, CmsMediaItem, CmsPost, CmsPostIndexItem, CmsStatus, CmsVideoEmbed, QdnRef, ViewerIdentity } from './types';
 import './styles.css';
 
 type Section = 'dashboard' | 'posts' | 'media' | 'imported' | 'settings';
@@ -88,6 +89,7 @@ function emptyPost(ownerName: string, ownerAddress: string): CmsPost {
     content_html: '<p></p>',
     featured_image: null,
     media: [],
+    videos: [],
     comments_enabled: true,
     author: { name: ownerName || 'local-owner', address: ownerAddress }
   };
@@ -191,6 +193,41 @@ function TermInput({
   );
 }
 
+function LazyVideoEmbed({ video }: { video: CmsVideoEmbed }) {
+  const [active, setActive] = useState(false);
+  const [status, setStatus] = useState('Not loaded');
+  const url = qdnLink(video.qdn);
+
+  async function loadVideo() {
+    setStatus('Checking QDN status...');
+    const qdnStatus = await getQdnResourceStatus(video.qdn.service, video.qdn.name || '', video.qdn.identifier, true);
+    if (qdnStatus?.status) {
+      const percent = qdnStatus.percentLoaded !== undefined ? ` ${qdnStatus.percentLoaded}%` : '';
+      setStatus(`${qdnStatus.status}${percent}`);
+    } else {
+      setStatus('Loading from QDN...');
+    }
+    setActive(true);
+  }
+
+  return (
+    <article className="video-embed-card">
+      <div>
+        <strong>{video.title}</strong>
+        <span>{video.source} · {video.qdn.name} · {video.qdn.identifier}</span>
+      </div>
+      {active ? (
+        <video controls preload="metadata" src={url} />
+      ) : (
+        <button className="video-load-button" type="button" onClick={loadVideo}>
+          <Play size={18} /> Load video
+        </button>
+      )}
+      <small>{status}</small>
+    </article>
+  );
+}
+
 function App() {
   const qdnName = getQdnNameFromLocation();
   const [section, setSection] = useState<Section>('posts');
@@ -205,6 +242,8 @@ function App() {
   const [commentDraft, setCommentDraft] = useState('');
   const [mediaTitleDraft, setMediaTitleDraft] = useState('');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
+  const [videoLinkDraft, setVideoLinkDraft] = useState('');
+  const [videoTitleDraft, setVideoTitleDraft] = useState('');
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -542,6 +581,38 @@ function App() {
     setStatus('Media removed from current post. Save draft or publish to persist.');
   }
 
+  function addVideoEmbedToPost() {
+    if (!selectedPost) return;
+    const parsed = parseVideoLink(videoLinkDraft);
+    if (!parsed) {
+      setError('Paste a valid qortal://VIDEO, /arbitrary/VIDEO, qortal://APP/Q-Tube/video, or qortal://use-embed/VIDEO link.');
+      return;
+    }
+
+    parsed.title = videoTitleDraft.trim() || parsed.title;
+    const exists = (selectedPost.videos || []).some((video) => sameQdnRef(video.qdn, parsed.qdn));
+    if (exists) {
+      setError('This video is already attached to the post.');
+      return;
+    }
+
+    const nextPost = { ...selectedPost, videos: [...(selectedPost.videos || []), parsed] };
+    setSelectedPost(nextPost);
+    setDraft(createDraft(nextPost));
+    setVideoLinkDraft('');
+    setVideoTitleDraft('');
+    setError(null);
+    setStatus('Video attached to current post. Save draft or publish to persist.');
+  }
+
+  function removeVideoEmbedFromPost(video: CmsVideoEmbed) {
+    if (!selectedPost) return;
+    const nextPost = { ...selectedPost, videos: (selectedPost.videos || []).filter((item) => item.id !== video.id) };
+    setSelectedPost(nextPost);
+    setDraft(createDraft(nextPost));
+    setStatus('Video removed from current post. Save draft or publish to persist.');
+  }
+
   return (
     <main className="cms-shell">
       <aside className="sidebar">
@@ -696,6 +767,16 @@ function App() {
                     </div>
                   </section>
                 )}
+                {(selectedPost.videos || []).length > 0 && (
+                  <section className="attachments-panel">
+                    <div className="panel-title"><Video size={18} /><h3>Videos</h3><span>{(selectedPost.videos || []).length}</span></div>
+                    <div className="video-embed-list">
+                      {(selectedPost.videos || []).map((video) => (
+                        <LazyVideoEmbed key={video.id} video={video} />
+                      ))}
+                    </div>
+                  </section>
+                )}
               </article>
             )}
 
@@ -720,6 +801,22 @@ function App() {
                     ))}
                   </div>
                 )}
+                {(selectedPost.videos || []).length > 0 && (
+                  <div className="attached-media-box">
+                    <strong>Attached videos</strong>
+                    {(selectedPost.videos || []).map((video) => (
+                      <button key={video.id} type="button" onClick={() => removeVideoEmbedFromPost(video)}>
+                        <Trash2 size={15} /> {video.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="video-link-box">
+                  <strong>Add QDN or Q-Tube video</strong>
+                  <input value={videoTitleDraft} onChange={(event) => setVideoTitleDraft(event.target.value)} placeholder="Optional video title" />
+                  <textarea value={videoLinkDraft} onChange={(event) => setVideoLinkDraft(event.target.value)} placeholder="qortal://VIDEO/name/identifier&#10;qortal://APP/Q-Tube/video/name/identifier&#10;/arbitrary/VIDEO/name/identifier" />
+                  <button type="button" className="icon-command" onClick={addVideoEmbedToPost}><Video size={16} /> Add video link</button>
+                </div>
                 <RichTextEditor value={draft.content_html} onChange={(content_html) => setDraft({ ...draft, content_html })} />
                 <div className="action-row">
                   <button className="icon-command" onClick={saveDraftLocal}><Save size={16} /> Save local draft</button>

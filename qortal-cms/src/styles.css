@@ -509,7 +509,9 @@ button {
 .media-uploader,
 .media-list,
 .attached-media-box,
-.attachment-list {
+.attachment-list,
+.video-embed-list,
+.video-link-box {
   display: grid;
   gap: 10px;
 }
@@ -629,6 +631,69 @@ button {
   border-radius: 6px;
   color: #33423d;
   background: #fff;
+  font-weight: 800;
+}
+
+.video-link-box {
+  padding: 12px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #f8faf8;
+}
+
+.video-link-box input,
+.video-link-box textarea {
+  width: 100%;
+  border: 1px solid #d7dfda;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.video-link-box input {
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.video-link-box textarea {
+  min-height: 86px;
+  padding: 10px;
+  resize: vertical;
+}
+
+.video-embed-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #f8faf8;
+}
+
+.video-embed-card span,
+.video-embed-card small {
+  color: #6d7b76;
+  font-size: 12px;
+}
+
+.video-embed-card video {
+  width: 100%;
+  max-height: 520px;
+  border-radius: 8px;
+  background: #111;
+}
+
+.video-load-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 6px;
+  color: #12201c;
+  background: #9fcbbd;
   font-weight: 800;
 }
 
