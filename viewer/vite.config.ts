@@ -61,6 +61,7 @@ function qortalContentPlugin(): Plugin {
 }
 
 export default {
+  base: './',
   plugins: [react(), qortalContentPlugin()],
   server: {
     port: 5174
