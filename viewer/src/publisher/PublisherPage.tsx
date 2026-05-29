@@ -179,21 +179,12 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
     };
   }, [rows]);
 
-  function updateRow(identifier: string, patch: Partial<PublishRow>) {
-    setRows((current) =>
-      current.map((row) => (row.identifier === identifier ? { ...row, ...patch } : row))
-    );
-  }
-
-  async function publishResource(resource: PublishRow) {
-    updateRow(resource.identifier, { status: 'publishing', message: '' });
-
+  async function createPublishResourcePayload(resource: PublishRow) {
     if (resource.service === 'DOCUMENT' || resource.service === 'JSON') {
       const content = source === 'folder'
         ? await readLocalFileText(resource.local_path)
         : await fetch(`${CONTENT_BASE}/${resource.local_path}`).then((response) => response.text());
-      await requestQortal({
-        action: 'PUBLISH_QDN_RESOURCE',
+      return {
         name: qortalName,
         service: resource.service,
         identifier: resource.identifier,
@@ -201,9 +192,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
         encoding: 'base64',
         title: resourceTitle(resource),
         description: `WordPress to Qortal demo resource: ${resource.identifier}`
-      });
-      updateRow(resource.identifier, { status: 'published', message: 'Published' });
-      return;
+      };
     }
 
     const filename = resource.local_path.split('/').pop() || resource.identifier;
@@ -215,8 +204,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
           return new File([blob], filename, { type: blob.type || 'application/octet-stream' });
         });
 
-    await requestQortal({
-      action: 'PUBLISH_QDN_RESOURCE',
+    return {
       name: qortalName,
       service: resource.service,
       identifier: resource.identifier,
@@ -224,8 +212,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       filename,
       title: resourceTitle(resource),
       description: `WordPress to Qortal demo media: ${resource.identifier}`
-    });
-    updateRow(resource.identifier, { status: 'published', message: 'Published' });
+    };
   }
 
   function readLocalFile(localPath: string): File {
@@ -241,19 +228,41 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   }
 
   async function publishAll() {
+    const activeRows = rows.filter((row) => row.status !== 'published');
+    if (!activeRows.length) return;
+
     setIsPublishing(true);
     setError(null);
+    setRows((current) =>
+      current.map((row) => activeRows.some((active) => active.identifier === row.identifier)
+        ? { ...row, status: 'publishing', message: 'Queued in batch' }
+        : row)
+    );
 
-    for (const row of rows) {
-      try {
-        await publishResource(row);
-      } catch (publishError) {
-        updateRow(row.identifier, {
-          status: 'failed',
-          message: (publishError as Error).message
-        });
-        break;
+    try {
+      const resources = [];
+      for (const row of activeRows) {
+        resources.push(await createPublishResourcePayload(row));
       }
+
+      await requestQortal({
+        action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+        resources
+      });
+
+      setRows((current) =>
+        current.map((row) => activeRows.some((active) => active.identifier === row.identifier)
+          ? { ...row, status: 'published', message: 'Published in batch' }
+          : row)
+      );
+    } catch (publishError) {
+      const message = (publishError as Error).message;
+      setRows((current) =>
+        current.map((row) => activeRows.some((active) => active.identifier === row.identifier)
+          ? { ...row, status: 'failed', message }
+          : row)
+      );
+      setError(message);
     }
 
     setIsPublishing(false);

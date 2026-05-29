@@ -10,6 +10,7 @@ interface QortalRequestPayload {
   filename?: string;
   title?: string;
   description?: string;
+  resources?: Array<Record<string, unknown>>;
 }
 
 declare global {
