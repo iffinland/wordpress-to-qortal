@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { CheckCircle2, Copy, Download, Edit3, Eye, FileText, Filter, Image, Link, Lock, MessageSquare, Paperclip, Play, Plus, RefreshCcw, Save, Search, Send, Settings, Tags, Trash2, Upload, User, Video, XCircle } from 'lucide-react';
+import { CheckCircle2, Coins, Copy, Download, Edit3, Eye, FileText, Filter, Heart, Image, Link, Lock, MessageSquare, Paperclip, Play, Plus, RefreshCcw, Save, Search, Send, Settings, Share2, Tags, Trash2, Upload, User, Video, XCircle } from 'lucide-react';
 import { RichTextEditor } from './RichTextEditor';
 import {
   CATEGORIES_IDENTIFIER,
@@ -29,7 +29,7 @@ import {
   slugify,
   toPostIndexItem
 } from './cmsRepository';
-import { getQdnResourceStatus, getQdnResourceUrl, hasQortalBridge } from './qortalClient';
+import { getQdnResourceStatus, getQdnResourceUrl, hasQortalBridge, requestQortal, toBase64, tryRequestQortal } from './qortalClient';
 import { parseVideoLink } from './videoLinks';
 import type { CmsComment, CmsDataset, CmsMediaItem, CmsPost, CmsPostIndexItem, CmsStatus, CmsVideoEmbed, QdnRef, ViewerIdentity } from './types';
 import './styles.css';
@@ -56,6 +56,18 @@ function decodeText(value = '') {
 
 function stripHtml(value: string) {
   return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function shortHash(value: string) {
+  let hash = 5381;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 33) ^ value.charCodeAt(index);
+  }
+  return Math.abs(hash >>> 0).toString(36);
+}
+
+function safeIdPart(value = '') {
+  return value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 28) || 'item';
 }
 
 function createDraft(post: CmsPost): DraftState {
@@ -414,6 +426,13 @@ function App() {
   const [videoLinkDraft, setVideoLinkDraft] = useState('');
   const [videoTitleDraft, setVideoTitleDraft] = useState('');
   const [coauthorAddressDraft, setCoauthorAddressDraft] = useState('');
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+  const [tipOpen, setTipOpen] = useState(false);
+  const [tipAmount, setTipAmount] = useState('');
+  const [tipBalance, setTipBalance] = useState<number | null>(null);
+  const [tipRecipient, setTipRecipient] = useState('');
+  const [tipError, setTipError] = useState('');
+  const [tipSending, setTipSending] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -462,6 +481,15 @@ function App() {
     return canManageContent ? posts : posts.filter((post) => post.status === 'published');
   }, [canManageContent, dataset?.posts]);
 
+  useEffect(() => {
+    if (!selectedPost || !identity?.bridgeAvailable) return;
+    fetchPostLikeCount(selectedPost.id).then((count) => {
+      setLikeCounts((current) => ({ ...current, [selectedPost.id]: count }));
+    }).catch(() => {
+      setLikeCounts((current) => ({ ...current, [selectedPost.id]: current[selectedPost.id] || 0 }));
+    });
+  }, [identity?.bridgeAvailable, selectedPost?.id]);
+
   const filteredPosts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     return visiblePosts.filter((post) => {
@@ -484,6 +512,58 @@ function App() {
     } catch (openError) {
       setError((openError as Error).message);
     } finally {
+      setStatus('');
+    }
+  }
+
+  async function fetchPostLikeCount(postId: string) {
+    const response = await tryRequestQortal<unknown[]>({
+      action: 'SEARCH_QDN_RESOURCES',
+      service: 'DOCUMENT',
+      mode: 'ALL',
+      identifier: `cms-like-${shortHash(postId)}-`,
+      prefix: true,
+      limit: 100,
+      offset: 0,
+      reverse: true,
+      includeMetadata: false,
+      excludeBlocked: true
+    });
+    return Array.isArray(response) ? response.length : 0;
+  }
+
+  async function likeSelectedPost() {
+    if (!selectedPost || !identity?.name || !identity.address) {
+      setStatus('A logged-in Qortal name is required to like posts.');
+      return;
+    }
+    const identifier = `cms-like-${shortHash(selectedPost.id)}-${safeIdPart(identity.name || identity.address)}`;
+    const payload = {
+      id: identifier,
+      identifier,
+      post_id: selectedPost.id,
+      post_identifier: selectedPost.qdn.identifier,
+      author_name: identity.name,
+      author_address: identity.address,
+      created_at: new Date().toISOString()
+    };
+
+    try {
+      setStatus('Publishing like...');
+      await requestQortal({
+        action: 'PUBLISH_QDN_RESOURCE',
+        name: identity.name,
+        service: 'DOCUMENT',
+        identifier,
+        data64: toBase64(JSON.stringify(payload, null, 2)),
+        encoding: 'base64',
+        title: `Like on ${selectedPost.title}`.slice(0, 55),
+        description: 'CMS post like'
+      });
+      setLikeCounts((current) => ({ ...current, [selectedPost.id]: (current[selectedPost.id] || 0) + 1 }));
+      setStatus('Post liked.');
+    } catch (likeError) {
+      setError((likeError as Error).message);
       setStatus('');
     }
   }
@@ -767,6 +847,83 @@ function App() {
     setStatus(copied ? 'Post QDN URI copied.' : 'Unable to copy QDN URI.');
   }
 
+  function postShareUrl() {
+    if (!selectedPost || !dataset) return window.location.href;
+    const url = new URL(window.location.href);
+    url.searchParams.set('name', qdnName || dataset.manifest.owner_name);
+    url.searchParams.set('post', selectedPost.slug || selectedPost.id);
+    return url.toString();
+  }
+
+  async function shareSelectedPost() {
+    if (!selectedPost) return;
+    const shareData = {
+      title: selectedPost.title,
+      text: stripHtml(selectedPost.excerpt || selectedPost.content_html).slice(0, 180),
+      url: postShareUrl()
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setStatus('Share sheet opened.');
+        return;
+      }
+      await copyText(shareData.url);
+      setStatus('Post link copied.');
+    } catch {
+      setStatus('Share cancelled.');
+    }
+  }
+
+  async function openTipModal() {
+    if (!selectedPost) return;
+    setTipOpen(true);
+    setTipAmount('');
+    setTipError('');
+    setTipBalance(null);
+    setTipRecipient('');
+
+    try {
+      const [balance, nameData] = await Promise.all([
+        tryRequestQortal<number>({ action: 'GET_WALLET_BALANCE', coin: 'QORT' }),
+        selectedPost.author.name ? tryRequestQortal<{ owner?: string }>({ action: 'GET_NAME_DATA', name: selectedPost.author.name }) : Promise.resolve(null)
+      ]);
+      setTipBalance(typeof balance === 'number' ? balance : null);
+      setTipRecipient(nameData?.owner || selectedPost.author.address || '');
+    } catch {
+      setTipError('Unable to load wallet or recipient data.');
+    }
+  }
+
+  async function sendTip() {
+    const amount = Number(tipAmount);
+    if (!tipRecipient) {
+      setTipError('Recipient wallet address is unavailable.');
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setTipError('Enter a QORT amount greater than 0.');
+      return;
+    }
+    if (typeof tipBalance === 'number' && amount > tipBalance) {
+      setTipError('Entered amount is higher than your wallet balance.');
+      return;
+    }
+
+    try {
+      setTipSending(true);
+      setTipError('');
+      await requestQortal({ action: 'SEND_COIN', coin: 'QORT', recipient: tipRecipient, amount });
+      setTipOpen(false);
+      setTipAmount('');
+      setStatus('Tip sent.');
+    } catch (tipSendError) {
+      setTipError((tipSendError as Error).message || 'Tip transfer failed.');
+    } finally {
+      setTipSending(false);
+    }
+  }
+
   function openPostQdnResource() {
     if (!selectedPost) return;
     const url = qdnLink(selectedPost.qdn);
@@ -1025,14 +1182,6 @@ function App() {
                 <div className="post-meta"><span>{selectedPost.status}</span><span>{new Date(selectedPost.updated_at).toLocaleString()}</span>{selectedPost.qdn.name && <a href={qdnLink(selectedPost.qdn)} target="_blank" rel="noreferrer">QDN resource</a>}</div>
                 <h2>{decodeText(selectedPost.title)}</h2>
                 {selectedPost.excerpt && <p className="summary">{decodeText(selectedPost.excerpt)}</p>}
-                <div className="quick-actions post-quick-actions" aria-label="Post quick actions">
-                  <button type="button" disabled={!selectedPost.qdn.name} onClick={openPostQdnResource} title="Open QDN resource"><Link size={16} /><span>Open</span></button>
-                  <button type="button" disabled={!selectedPost.qdn.name} onClick={() => void copyPostQdnUri()} title="Copy QDN URI"><Copy size={16} /><span>Copy</span></button>
-                  {canManageContent && <button type="button" onClick={() => setEditorMode('edit')} title="Edit post"><Edit3 size={16} /><span>Edit</span></button>}
-                  {canManageContent && <button type="button" onClick={() => publishPost('draft')} title="Save QDN draft"><Save size={16} /><span>Draft</span></button>}
-                  {canManageContent && <button type="button" onClick={() => publishPost('published')} title="Publish post"><Send size={16} /><span>Publish</span></button>}
-                  <button type="button" onClick={scrollToComments} title="Comments"><MessageSquare size={16} /><span>{commentsForPost.length}</span></button>
-                </div>
                 <div className="term-display">
                   <div>
                     <strong>Categories</strong>
@@ -1059,6 +1208,13 @@ function App() {
                     </div>
                   </section>
                 )}
+                <div className="quick-actions post-quick-actions" aria-label="Post quick actions">
+                  <button type="button" onClick={() => void likeSelectedPost()} title="Like post"><Heart size={16} /><span>{likeCounts[selectedPost.id] || 0}</span></button>
+                  <button type="button" onClick={() => void shareSelectedPost()} title="Share post"><Share2 size={16} /><span>Share</span></button>
+                  <button type="button" onClick={() => void copyPostQdnUri()} disabled={!selectedPost.qdn.name} title="Copy QDN URI"><Link size={16} /><span>Copy</span></button>
+                  <button type="button" onClick={() => void openTipModal()} title="Send tip"><Coins size={16} /><span>Tip</span></button>
+                  <button type="button" onClick={scrollToComments} title="Comments"><MessageSquare size={16} /><span>{commentsForPost.length}</span></button>
+                </div>
               </article>
             )}
 
@@ -1122,6 +1278,22 @@ function App() {
           </>
         ) : (
           <div className="placeholder"><FileText size={24} /><strong>No post selected</strong><span>{canManageContent ? 'Create a new post or select an existing one.' : 'Select a published post to read.'}</span></div>
+        )}
+
+        {tipOpen && selectedPost && (
+          <div className="modal-backdrop" role="presentation" onClick={() => !tipSending && setTipOpen(false)}>
+            <div className="tip-modal" role="dialog" aria-modal="true" aria-label="Send tip" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-title">
+                <strong>Send tip</strong>
+                <button type="button" disabled={tipSending} onClick={() => setTipOpen(false)}><XCircle size={18} /> Close</button>
+              </div>
+              <div className="tip-info"><span>Wallet balance</span><strong>{tipBalance === null ? 'Loading...' : `${tipBalance.toFixed(8)} QORT`}</strong></div>
+              <div className="tip-info"><span>Recipient</span><strong>{selectedPost.author.name || 'Unknown author'}</strong><small>{tipRecipient || 'Wallet address unavailable'}</small></div>
+              <label className="tip-amount">Amount<input type="number" min="0" step="0.00000001" value={tipAmount} onChange={(event) => setTipAmount(event.target.value)} placeholder="0.00000000" /></label>
+              {tipError && <p className="preview-error">{tipError}</p>}
+              <button type="button" className="icon-command primary" disabled={tipSending} onClick={() => void sendTip()}><Coins size={16} /> {tipSending ? 'Sending...' : 'Send tip'}</button>
+            </div>
+          </div>
         )}
       </section>
     </main>

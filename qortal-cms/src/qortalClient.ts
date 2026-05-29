@@ -12,6 +12,16 @@ interface QortalRequestPayload {
   description?: string;
   build?: boolean;
   path?: string;
+  coin?: string;
+  recipient?: string;
+  amount?: number;
+  mode?: string;
+  prefix?: boolean;
+  limit?: number;
+  offset?: number;
+  reverse?: boolean;
+  includeMetadata?: boolean;
+  excludeBlocked?: boolean;
   resources?: Array<{
     service: string;
     name?: string;

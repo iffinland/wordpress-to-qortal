@@ -348,8 +348,8 @@ button {
 }
 
 .post-quick-actions {
-  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
-  margin: 14px 0 16px;
+  grid-template-columns: repeat(5, 1fr);
+  margin: 20px 0 0;
 }
 
 .video-actions {
@@ -1050,6 +1050,51 @@ button {
   border-radius: 6px;
   color: #1d2825;
   background: #fff;
+}
+
+.tip-modal {
+  display: grid;
+  gap: 14px;
+  width: min(420px, 94vw);
+  padding: 16px;
+  border: 1px solid #d7dfda;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgb(12 23 19 / 26%);
+}
+
+.tip-info {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #f8faf8;
+}
+
+.tip-info span,
+.tip-info small {
+  color: #6d7b76;
+  font-size: 12px;
+}
+
+.tip-info small {
+  overflow-wrap: anywhere;
+}
+
+.tip-amount {
+  display: grid;
+  gap: 6px;
+  color: #4f5d58;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.tip-amount input {
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid #d7dfda;
+  border-radius: 6px;
 }
 
 .app-message {
