@@ -9,9 +9,9 @@ export const CATEGORIES_IDENTIFIER = 'cms-categories';
 export const TAGS_IDENTIFIER = 'cms-tags';
 export const MEDIA_INDEX_IDENTIFIER = 'cms-media-index';
 export const COMMENTS_INDEX_IDENTIFIER = 'cms-comments-index';
+export const CMS_POST_IDENTIFIER_PREFIX = 'cms-post-';
 
 const LOCAL_STORAGE_KEY = 'qortal-cms-local-dataset-v1';
-const OWNER_STORAGE_KEY = 'qortal-cms-owner-name-v1';
 
 function nowIso() {
   return new Date().toISOString();
@@ -27,7 +27,7 @@ export function slugify(value: string) {
 }
 
 export function createPostIdentifier(slug: string) {
-  return `cms-post-${slug}-${Date.now().toString(36)}`.slice(0, 64);
+  return `${CMS_POST_IDENTIFIER_PREFIX}${slug}-${Date.now().toString(36)}`.slice(0, 64);
 }
 
 export function createCommentIdentifier(postId: string) {
@@ -39,13 +39,21 @@ export function createMediaIdentifier(filename: string) {
 }
 
 export function getQdnNameFromLocation() {
-  const fromSearch = readNameFromParams(window.location.search);
-  const fromHash = readNameFromParams(window.location.hash.includes('?') ? window.location.hash.slice(window.location.hash.indexOf('?')) : '');
-  const fromPath = readNameFromPath(window.location.pathname);
-  const fromStorage = localStorage.getItem(OWNER_STORAGE_KEY) || '';
-  const name = fromSearch || fromHash || fromPath || import.meta.env.VITE_QDN_NAME || fromStorage || '';
-  if (name) localStorage.setItem(OWNER_STORAGE_KEY, name);
-  return name;
+  const locations = collectLocationHints();
+  for (const location of locations) {
+    const name = readNameFromParams(location.search)
+      || readNameFromParams(location.hash.includes('?') ? location.hash.slice(location.hash.indexOf('?')) : '')
+      || readNameFromPath(location.pathname)
+      || readNameFromText(location.href);
+    if (name) return name;
+  }
+
+  const qortalWindow = window as Window & { _qdnBase?: string; _qdnName?: string; _qdnResource?: { name?: string } };
+  return qortalWindow._qdnName
+    || qortalWindow._qdnResource?.name
+    || readNameFromText(qortalWindow._qdnBase || '')
+    || import.meta.env.VITE_QDN_NAME
+    || '';
 }
 
 function safeDecode(value = '') {
@@ -62,6 +70,28 @@ function readNameFromParams(value: string) {
   return params.get('name') || params.get('qdnName') || params.get('appName') || '';
 }
 
+function collectLocationHints() {
+  const hints: Array<Pick<Location, 'href' | 'pathname' | 'search' | 'hash'>> = [window.location];
+  try {
+    if (window.parent && window.parent !== window) hints.push(window.parent.location);
+  } catch {
+    // Cross-frame location access is not always allowed.
+  }
+  try {
+    if (window.top && window.top !== window) hints.push(window.top.location);
+  } catch {
+    // Cross-frame location access is not always allowed.
+  }
+  if (document.referrer) {
+    try {
+      hints.push(new URL(document.referrer));
+    } catch {
+      // Ignore non-standard referrer values.
+    }
+  }
+  return hints;
+}
+
 function readNameFromPath(pathname: string) {
   const parts = pathname.split('/').filter(Boolean).map(safeDecode);
   for (let index = 0; index < parts.length; index += 1) {
@@ -76,6 +106,21 @@ function readNameFromPath(pathname: string) {
     return parts[appIndex + 1];
   }
 
+  return '';
+}
+
+function readNameFromText(value: string) {
+  if (!value) return '';
+  const patterns = [
+    /\/arbitrary\/(?:APP|WEBSITE)\/([^/?#]+)/i,
+    /\/(?:APP|WEBSITE)\/([^/?#]+)/i,
+    /qortal:\/\/(?:APP|WEBSITE)\/([^/?#]+)/i,
+    /[?&](?:name|qdnName|appName)=([^&#]+)/i
+  ];
+  for (const pattern of patterns) {
+    const match = value.match(pattern);
+    if (match?.[1]) return safeDecode(match[1]);
+  }
   return '';
 }
 
@@ -142,6 +187,7 @@ function createSampleDataset(ownerName: string): CmsDataset {
     published_at: null,
     qdn: { service: 'DOCUMENT', identifier: createPostIdentifier('welcome-to-qortal-cms'), name: ownerName },
     content_html: '<p>This is a local draft. Open the editor, change the content, and publish through Qortal UI dev mode.</p>',
+    site_owner_name: ownerName,
     featured_image: null,
     media: [],
     videos: [],
@@ -232,7 +278,6 @@ export async function loadQdnDataset(ownerName: string): Promise<CmsDataset | nu
 
   try {
     const manifest = await fetchQdnResource<CmsManifest>('DOCUMENT', ownerName, MANIFEST_IDENTIFIER);
-    localStorage.setItem(OWNER_STORAGE_KEY, ownerName);
     const mediaRef = manifest.entrypoints.media_index || { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER, name: ownerName };
     manifest.entrypoints.media_index = mediaRef;
     manifest.entrypoints.comments_index ||= { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER, name: ownerName };
@@ -248,7 +293,8 @@ export async function loadQdnDataset(ownerName: string): Promise<CmsDataset | nu
       fetchQdnResource<CmsComment[]>(manifest.entrypoints.comments_index.service, ownerName, manifest.entrypoints.comments_index.identifier)
         .catch(() => [])
     ]);
-    return { manifest, posts, pages, categories, tags, media, comments, local_posts: {} };
+    const discoveredPosts = await discoverCmsPosts(ownerName).catch(() => []);
+    return { manifest, posts: mergePostIndexes(posts, discoveredPosts), pages, categories, tags, media, comments, local_posts: {} };
   } catch {
     return null;
   }
@@ -289,6 +335,68 @@ export async function loadPost(ref: QdnRef, fallback?: CmsPost): Promise<CmsPost
     throw new Error('Post has no QDN name and no local fallback.');
   }
   return fetchQdnResource<CmsPost>(ref.service, ref.name, ref.identifier);
+}
+
+interface SearchQdnResourceResult {
+  name?: string;
+  service?: string;
+  identifier?: string;
+}
+
+function isCmsPost(value: unknown): value is CmsPost {
+  return Boolean(
+    value &&
+    typeof value === 'object' &&
+    (value as CmsPost).schema === 'qortal-cms/post@1' &&
+    (value as CmsPost).id &&
+    (value as CmsPost).qdn
+  );
+}
+
+function sameSitePost(post: CmsPost, ownerName: string, resourceName = '') {
+  const normalizedOwner = normalizeQortalName(ownerName);
+  if (!normalizedOwner) return true;
+  return normalizeQortalName(post.site_owner_name || '') === normalizedOwner
+    || normalizeQortalName(post.qdn.name || '') === normalizedOwner
+    || normalizeQortalName(resourceName) === normalizedOwner;
+}
+
+function mergePostIndexes(existing: CmsPostIndexItem[], discovered: CmsPostIndexItem[]) {
+  const byId = new Map<string, CmsPostIndexItem>();
+  for (const item of [...existing, ...discovered]) {
+    const previous = byId.get(item.id);
+    if (!previous || new Date(item.updated_at).getTime() >= new Date(previous.updated_at).getTime()) {
+      byId.set(item.id, item);
+    }
+  }
+  return [...byId.values()].sort((left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime());
+}
+
+export async function discoverCmsPosts(ownerName: string): Promise<CmsPostIndexItem[]> {
+  if (!hasQortalBridge()) return [];
+  const results = await requestQortal({
+    action: 'SEARCH_QDN_RESOURCES',
+    service: 'DOCUMENT',
+    identifier: CMS_POST_IDENTIFIER_PREFIX,
+    prefix: true,
+    mode: 'ALL',
+    reverse: true,
+    limit: 100,
+    offset: 0
+  }) as SearchQdnResourceResult[];
+
+  const posts: CmsPostIndexItem[] = [];
+  for (const result of Array.isArray(results) ? results : []) {
+    if (!result.name || !result.identifier) continue;
+    try {
+      const post = await fetchQdnResource<CmsPost>(result.service || 'DOCUMENT', result.name, result.identifier);
+      if (!isCmsPost(post) || !sameSitePost(post, ownerName, result.name)) continue;
+      posts.push(toPostIndexItem({ ...post, qdn: { ...post.qdn, name: result.name, identifier: result.identifier, service: post.qdn.service || 'DOCUMENT' } }));
+    } catch {
+      // Ignore malformed or unavailable resources.
+    }
+  }
+  return posts;
 }
 
 export async function publishJsonResource<T>(name: string, ref: QdnRef, data: T, title: string, description: string) {

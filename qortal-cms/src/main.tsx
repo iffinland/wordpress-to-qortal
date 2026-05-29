@@ -690,7 +690,9 @@ function App() {
 
   function startNewPost() {
     if (!dataset || !identity) return;
-    const post = emptyPost(qdnName || dataset.manifest.owner_name, identity.address);
+    const siteOwnerName = dataset.manifest.owner_name || qdnName || identity.name;
+    const post = emptyPost(identity.name || siteOwnerName, identity.address);
+    post.site_owner_name = siteOwnerName;
     setSelectedIndex(toPostIndexItem(post));
     setSelectedPost(post);
     setDraft(createDraft(post));
@@ -705,8 +707,10 @@ function App() {
     const categoryResult = termsFromText(draft.categoryText, dataset.categories);
     const tagResult = termsFromText(draft.tagText, dataset.tags);
     const updatedAt = new Date().toISOString();
+    const siteOwnerName = dataset.manifest.owner_name || qdnName || identity.name;
     const post: CmsPost = {
       ...selectedPost,
+      site_owner_name: siteOwnerName,
       title: draft.title,
       slug,
       excerpt: draft.excerpt,
@@ -719,7 +723,7 @@ function App() {
       published_at: (statusOverride || draft.status) === 'published' ? selectedPost.published_at || updatedAt : selectedPost.published_at,
       qdn: {
         ...selectedPost.qdn,
-        name: qdnName || dataset.manifest.owner_name,
+        name: selectedPost.qdn.name || identity.name || siteOwnerName,
         identifier: selectedPost.qdn.identifier || createPostIdentifier(slug)
       },
       author: selectedPost.author.name ? selectedPost.author : { name: identity.name, address: identity.address }
@@ -731,7 +735,7 @@ function App() {
       : [index, ...dataset.posts];
     const nextDataset: CmsDataset = {
       ...dataset,
-      manifest: { ...dataset.manifest, updated_at: updatedAt, owner_name: qdnName || dataset.manifest.owner_name, owner_address: dataset.manifest.owner_address || identity.address },
+      manifest: { ...dataset.manifest, updated_at: updatedAt, owner_name: siteOwnerName, owner_address: dataset.manifest.owner_address || identity.address },
       posts,
       categories: categoryResult.terms,
       tags: tagResult.terms,
@@ -760,72 +764,60 @@ function App() {
     const applied = applyDraft(statusOverride);
     if (!applied) return;
 
-    const ownerName = qdnName || dataset.manifest.owner_name || identity.name;
-    if (!ownerName) {
-      setError('Missing owner Qortal name. Open with ?name=<QortalName>.');
+    const siteOwnerName = dataset.manifest.owner_name || qdnName || identity.name;
+    const publishName = isSysop ? siteOwnerName : identity.name;
+    if (!siteOwnerName || !publishName) {
+      setError('Missing Qortal name. Publishing requires a logged-in Qortal account with a registered name.');
       return;
     }
+    const postToPublish: CmsPost = {
+      ...applied.post,
+      site_owner_name: siteOwnerName,
+      qdn: { ...applied.post.qdn, service: 'DOCUMENT', name: publishName }
+    };
+    const postIndex = toPostIndexItem(postToPublish);
+    const posts = applied.nextDataset.posts.some((item) => item.id === postIndex.id)
+      ? applied.nextDataset.posts.map((item) => item.id === postIndex.id ? postIndex : item)
+      : [postIndex, ...applied.nextDataset.posts];
+    const nextDataset: CmsDataset = {
+      ...applied.nextDataset,
+      manifest: { ...applied.nextDataset.manifest, owner_name: siteOwnerName, owner_address: applied.nextDataset.manifest.owner_address || identity.address },
+      posts,
+      local_posts: { ...(applied.nextDataset.local_posts || {}), [postToPublish.id]: postToPublish }
+    };
 
     setError(null);
     try {
-      setStatus(`${applied.post.status === 'published' ? 'Publishing post' : 'Saving QDN draft'} and updating CMS indexes...`);
-      await publishJsonResources(ownerName, [
+      setStatus(`${postToPublish.status === 'published' ? 'Publishing post' : 'Saving QDN draft'}${isSysop ? ' and updating CMS indexes' : ''}...`);
+      const publishItems: Parameters<typeof publishJsonResources>[1] = [
         {
-          ref: applied.post.qdn,
-          data: applied.post,
-          title: applied.post.title,
-          description: stripHtml(applied.post.excerpt || applied.post.content_html).slice(0, 4000)
-        },
-        {
-          ref: { service: 'DOCUMENT', identifier: POSTS_INDEX_IDENTIFIER },
-          data: applied.nextDataset.posts,
-          title: 'CMS posts index',
-          description: 'Qortal CMS posts index'
-        },
-        {
-          ref: { service: 'DOCUMENT', identifier: PAGES_INDEX_IDENTIFIER },
-          data: applied.nextDataset.pages,
-          title: 'CMS pages index',
-          description: 'Qortal CMS pages index'
-        },
-        {
-          ref: { service: 'DOCUMENT', identifier: CATEGORIES_IDENTIFIER },
-          data: applied.nextDataset.categories,
-          title: 'CMS categories',
-          description: 'Qortal CMS categories'
-        },
-        {
-          ref: { service: 'DOCUMENT', identifier: TAGS_IDENTIFIER },
-          data: applied.nextDataset.tags,
-          title: 'CMS tags',
-          description: 'Qortal CMS tags'
-        },
-        {
-          ref: { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER },
-          data: applied.nextDataset.media,
-          title: 'CMS media index',
-          description: 'Qortal CMS media index'
-        },
-        {
-          ref: { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER },
-          data: applied.nextDataset.comments,
-          title: 'CMS comments index',
-          description: 'Qortal CMS comments index'
-        },
-        {
-          ref: { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER },
-          data: applied.nextDataset.manifest,
-          title: 'CMS manifest',
-          description: 'Qortal CMS manifest'
+          ref: postToPublish.qdn,
+          data: postToPublish,
+          title: postToPublish.title,
+          description: stripHtml(postToPublish.excerpt || postToPublish.content_html).slice(0, 4000)
         }
-      ]);
+      ];
 
-      setDataset(applied.nextDataset);
-      setSelectedPost(applied.post);
-      setSelectedIndex(toPostIndexItem(applied.post));
-      saveLocalDataset(applied.nextDataset);
-      setDraft(createDraft(applied.post));
-      setStatus(applied.post.status === 'published' ? 'Published to QDN.' : 'Draft saved to QDN.');
+      if (isSysop) {
+        publishItems.push(
+          { ref: { service: 'DOCUMENT', identifier: POSTS_INDEX_IDENTIFIER }, data: nextDataset.posts, title: 'CMS posts index', description: 'Qortal CMS posts index' },
+          { ref: { service: 'DOCUMENT', identifier: PAGES_INDEX_IDENTIFIER }, data: nextDataset.pages, title: 'CMS pages index', description: 'Qortal CMS pages index' },
+          { ref: { service: 'DOCUMENT', identifier: CATEGORIES_IDENTIFIER }, data: nextDataset.categories, title: 'CMS categories', description: 'Qortal CMS categories' },
+          { ref: { service: 'DOCUMENT', identifier: TAGS_IDENTIFIER }, data: nextDataset.tags, title: 'CMS tags', description: 'Qortal CMS tags' },
+          { ref: { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER }, data: nextDataset.media, title: 'CMS media index', description: 'Qortal CMS media index' },
+          { ref: { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER }, data: nextDataset.comments, title: 'CMS comments index', description: 'Qortal CMS comments index' },
+          { ref: { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER }, data: nextDataset.manifest, title: 'CMS manifest', description: 'Qortal CMS manifest' }
+        );
+      }
+
+      await publishJsonResources(publishName, publishItems);
+
+      setDataset(nextDataset);
+      setSelectedPost(postToPublish);
+      setSelectedIndex(postIndex);
+      saveLocalDataset(nextDataset);
+      setDraft(createDraft(postToPublish));
+      setStatus(postToPublish.status === 'published' ? 'Published to QDN.' : 'Draft saved to QDN.');
     } catch (publishError) {
       setError(readableError(publishError, 'Qortal publish failed. Check that the logged-in account owns the publish target name.'));
       setStatus('');
@@ -1739,7 +1731,7 @@ function App() {
             <div className="import-settings">
               <label>
                 Importer owner name
-                <input value={importOwnerName} onChange={(event) => setImportOwnerName(event.target.value)} placeholder="developer iffi" />
+                <input value={importOwnerName} onChange={(event) => setImportOwnerName(event.target.value)} placeholder="Qortal name that published the migrator manifest" />
               </label>
               <label>
                 Manifest identifier
