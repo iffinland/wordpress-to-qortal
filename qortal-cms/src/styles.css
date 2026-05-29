@@ -663,6 +663,7 @@ button {
 .video-link-box,
 .imported-panel,
 .import-settings,
+.import-batch-toolbar,
 .imported-list {
   display: grid;
   gap: 10px;
@@ -700,26 +701,62 @@ button {
   padding: 0 10px;
 }
 
-.imported-list button {
-  display: grid;
-  gap: 5px;
-  width: 100%;
-  padding: 11px;
-  text-align: left;
+.import-batch-toolbar {
+  grid-template-columns: 1fr repeat(3, auto);
+  align-items: center;
+  padding: 10px;
   border: 1px solid #dce4df;
   border-radius: 8px;
-  color: #1d2825;
+  background: #f7faf8;
+}
+
+.import-batch-toolbar span {
+  color: #51605b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.imported-row {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
   background: #fff;
 }
 
-.imported-list button.selected {
+.imported-row input {
+  width: 18px;
+  height: 18px;
+}
+
+.imported-row button {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  border: 0;
+  color: #1d2825;
+  background: transparent;
+}
+
+.imported-row.selected {
   border-color: #7caf9f;
   background: #e8f4ee;
 }
 
-.imported-list span {
+.imported-row span {
   color: #6d7b76;
   font-size: 12px;
+}
+
+@media (max-width: 860px) {
+  .import-batch-toolbar {
+    grid-template-columns: 1fr;
+  }
 }
 
 .import-summary {

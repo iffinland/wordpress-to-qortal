@@ -36,6 +36,7 @@ import './styles.css';
 
 type Section = 'dashboard' | 'posts' | 'media' | 'imported' | 'settings';
 type EditorMode = 'preview' | 'edit';
+const IMPORT_BATCH_LIMIT = 10;
 
 interface ImportedIndexItem {
   type: 'post';
@@ -490,6 +491,7 @@ function App() {
   const [importedTags, setImportedTags] = useState<ImportedTerm[]>([]);
   const [selectedImportedPost, setSelectedImportedPost] = useState<ImportedPost | null>(null);
   const [selectedImportedIndex, setSelectedImportedIndex] = useState<ImportedIndexItem | null>(null);
+  const [selectedImportedIds, setSelectedImportedIds] = useState<number[]>([]);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -917,6 +919,7 @@ function App() {
       setImportedTags(tags);
       setSelectedImportedPost(null);
       setSelectedImportedIndex(null);
+      setSelectedImportedIds([]);
       setStatus(`Imported content loaded: ${posts.length} posts.`);
     } catch (importError) {
       setError((importError as Error).message);
@@ -940,7 +943,7 @@ function App() {
     setError(null);
     try {
       setStatus('Loading imported post preview...');
-      const post = await fetchQdnResource<ImportedPost>(ref.service, ownerName, ref.identifier);
+      const post = await fetchQdnResource<ImportedPost>(ref.service, ref.name || ownerName, ref.identifier);
       setSelectedImportedPost(post);
       setSelectedImportedIndex(index);
       setStatus('Imported post loaded.');
@@ -956,6 +959,76 @@ function App() {
       .filter(Boolean) as string[];
   }
 
+  function buildCmsPostFromImported(
+    importedPost: ImportedPost,
+    baseCategories: CmsDataset['categories'],
+    baseTags: CmsDataset['tags'],
+    ownerName: string,
+    author: ViewerIdentity,
+    now: string,
+    existing?: CmsPostIndexItem
+  ) {
+    const categoryNames = importedTermNames(importedPost.categories || [], importedCategories);
+    const tagNames = importedTermNames(importedPost.tags || [], importedTags);
+    const categoryResult = termsFromText(categoryNames.join(', '), baseCategories);
+    const tagResult = termsFromText(tagNames.join(', '), baseTags);
+    const slug = slugify(importedPost.slug || importedPost.title);
+    const post: CmsPost = {
+      schema: 'qortal-cms/post@1',
+      id: `wp-${importedPost.source_id}`,
+      type: 'post',
+      title: decodeText(importedPost.title),
+      slug,
+      status: 'draft',
+      excerpt: importedPost.excerpt_text || stripHtml(importedPost.excerpt || '').slice(0, 500),
+      category_ids: categoryResult.ids,
+      tag_ids: tagResult.ids,
+      created_at: importedPost.date || now,
+      updated_at: now,
+      published_at: null,
+      qdn: existing?.qdn || { service: 'DOCUMENT', identifier: createPostIdentifier(slug), name: ownerName },
+      content_html: `${importedPost.content_html || ''}<hr/><p><small>Imported from WordPress source ID ${importedPost.source_id}. Original URL: <a href="${importedPost.old_url}" target="_blank" rel="noreferrer">${importedPost.old_url}</a></small></p>`,
+      featured_image: null,
+      media: [],
+      videos: [],
+      comments_enabled: true,
+      author: { name: author.name || ownerName, address: author.address }
+    };
+
+    return { post, categories: categoryResult.terms, tags: tagResult.terms, index: toPostIndexItem(post) };
+  }
+
+  async function fetchImportedPost(index: ImportedIndexItem, ownerName: string) {
+    const ref = importedPostRef(index);
+    if (!ref) {
+      throw new Error(`Imported post resource missing from manifest: ${index.title}`);
+    }
+    return fetchQdnResource<ImportedPost>(ref.service, ref.name || ownerName, ref.identifier);
+  }
+
+  function toggleImportedSelection(sourceId: number) {
+    setSelectedImportedIds((current) => {
+      if (current.includes(sourceId)) {
+        return current.filter((id) => id !== sourceId);
+      }
+      if (current.length >= IMPORT_BATCH_LIMIT) {
+        setStatus(`Batch limit is ${IMPORT_BATCH_LIMIT} imported posts at once.`);
+        return current;
+      }
+      return [...current, sourceId];
+    });
+  }
+
+  function selectVisibleImportedPosts() {
+    if (!dataset) return;
+    const ids = importedPosts
+      .filter((post) => !dataset.posts.some((item) => item.id === `wp-${post.source_id}`))
+      .slice(0, IMPORT_BATCH_LIMIT)
+      .map((post) => post.source_id);
+    setSelectedImportedIds(ids);
+    setStatus(ids.length ? `${ids.length} imported posts selected.` : 'No unadopted imported posts to select.');
+  }
+
   async function adoptImportedPost() {
     if (!dataset || !identity || !canManageContent || !selectedImportedPost) return;
     const ownerName = qdnName || dataset.manifest.owner_name || identity.name;
@@ -964,35 +1037,9 @@ function App() {
       return;
     }
 
-    const categoryNames = importedTermNames(selectedImportedPost.categories || [], importedCategories);
-    const tagNames = importedTermNames(selectedImportedPost.tags || [], importedTags);
-    const categoryResult = termsFromText(categoryNames.join(', '), dataset.categories);
-    const tagResult = termsFromText(tagNames.join(', '), dataset.tags);
     const existing = dataset.posts.find((post) => post.id === `wp-${selectedImportedPost.source_id}`);
     const now = new Date().toISOString();
-    const slug = slugify(selectedImportedPost.slug || selectedImportedPost.title);
-    const post: CmsPost = {
-      schema: 'qortal-cms/post@1',
-      id: `wp-${selectedImportedPost.source_id}`,
-      type: 'post',
-      title: decodeText(selectedImportedPost.title),
-      slug,
-      status: 'draft',
-      excerpt: selectedImportedPost.excerpt_text || stripHtml(selectedImportedPost.excerpt || '').slice(0, 500),
-      category_ids: categoryResult.ids,
-      tag_ids: tagResult.ids,
-      created_at: selectedImportedPost.date || now,
-      updated_at: now,
-      published_at: null,
-      qdn: existing?.qdn || { service: 'DOCUMENT', identifier: createPostIdentifier(slug), name: ownerName },
-      content_html: `${selectedImportedPost.content_html || ''}<hr/><p><small>Imported from WordPress source ID ${selectedImportedPost.source_id}. Original URL: <a href="${selectedImportedPost.old_url}" target="_blank" rel="noreferrer">${selectedImportedPost.old_url}</a></small></p>`,
-      featured_image: null,
-      media: [],
-      videos: [],
-      comments_enabled: true,
-      author: { name: identity.name || ownerName, address: identity.address }
-    };
-    const index = toPostIndexItem(post);
+    const { post, categories, tags, index } = buildCmsPostFromImported(selectedImportedPost, dataset.categories, dataset.tags, ownerName, identity, now, existing);
     const posts = existing
       ? dataset.posts.map((item) => item.id === index.id ? index : item)
       : [index, ...dataset.posts];
@@ -1000,8 +1047,8 @@ function App() {
       ...dataset,
       manifest: { ...dataset.manifest, updated_at: now, owner_name: ownerName, owner_address: dataset.manifest.owner_address || identity.address },
       posts,
-      categories: categoryResult.terms,
-      tags: tagResult.terms,
+      categories,
+      tags,
       local_posts: { ...(dataset.local_posts || {}), [post.id]: post }
     };
 
@@ -1024,6 +1071,87 @@ function App() {
       setStatus('Imported post adopted as CMS draft.');
     } catch (adoptError) {
       setError((adoptError as Error).message);
+      setStatus('');
+    }
+  }
+
+  async function adoptSelectedImportedPosts() {
+    if (!dataset || !identity || !canManageContent || selectedImportedIds.length === 0) return;
+    const ownerName = qdnName || dataset.manifest.owner_name || identity.name;
+    if (!ownerName) {
+      setError('Missing owner Qortal name.');
+      return;
+    }
+
+    const selectedIndexes = importedPosts
+      .filter((post) => selectedImportedIds.includes(post.source_id))
+      .filter((post) => !dataset.posts.some((item) => item.id === `wp-${post.source_id}`))
+      .slice(0, IMPORT_BATCH_LIMIT);
+
+    if (selectedIndexes.length === 0) {
+      setStatus('Selected imported posts are already adopted.');
+      return;
+    }
+
+    setError(null);
+    try {
+      setStatus(`Preparing ${selectedIndexes.length} imported posts...`);
+      const now = new Date().toISOString();
+      const importedIndexes: CmsPostIndexItem[] = [];
+      let categories = [...dataset.categories];
+      let tags = [...dataset.tags];
+      const localPosts = { ...(dataset.local_posts || {}) };
+      const publishItems: Parameters<typeof publishJsonResources>[1] = [];
+      let firstPost: CmsPost | null = null;
+
+      for (const indexItem of selectedIndexes) {
+        const importedPost = selectedImportedPost?.source_id === indexItem.source_id
+          ? selectedImportedPost
+          : await fetchImportedPost(indexItem, ownerName);
+        const built = buildCmsPostFromImported(importedPost, categories, tags, ownerName, identity, now);
+        importedIndexes.push(built.index);
+        categories = built.categories;
+        tags = built.tags;
+        localPosts[built.post.id] = built.post;
+        if (!firstPost) firstPost = built.post;
+        publishItems.push({
+          ref: built.post.qdn,
+          data: built.post,
+          title: built.post.title,
+          description: stripHtml(built.post.excerpt || built.post.content_html).slice(0, 4000)
+        });
+      }
+
+      const nextDataset: CmsDataset = {
+        ...dataset,
+        manifest: { ...dataset.manifest, updated_at: now, owner_name: ownerName, owner_address: dataset.manifest.owner_address || identity.address },
+        posts: [...importedIndexes, ...dataset.posts],
+        categories,
+        tags,
+        local_posts: localPosts
+      };
+
+      setStatus(`Publishing ${selectedIndexes.length} imported CMS drafts...`);
+      await publishJsonResources(ownerName, [
+        ...publishItems,
+        { ref: { service: 'DOCUMENT', identifier: POSTS_INDEX_IDENTIFIER }, data: nextDataset.posts, title: 'CMS posts index', description: 'Qortal CMS posts index' },
+        { ref: { service: 'DOCUMENT', identifier: CATEGORIES_IDENTIFIER }, data: nextDataset.categories, title: 'CMS categories', description: 'Qortal CMS categories' },
+        { ref: { service: 'DOCUMENT', identifier: TAGS_IDENTIFIER }, data: nextDataset.tags, title: 'CMS tags', description: 'Qortal CMS tags' },
+        { ref: { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER }, data: nextDataset.manifest, title: 'CMS manifest', description: 'Qortal CMS manifest' }
+      ]);
+
+      setDataset(nextDataset);
+      if (firstPost) {
+        setSelectedPost(firstPost);
+        setSelectedIndex(toPostIndexItem(firstPost));
+        setDraft(createDraft(firstPost));
+        setEditorMode('preview');
+      }
+      setSelectedImportedIds([]);
+      saveLocalDataset(nextDataset);
+      setStatus(`${selectedIndexes.length} imported posts adopted as CMS drafts.`);
+    } catch (batchError) {
+      setError((batchError as Error).message);
       setStatus('');
     }
   }
@@ -1333,14 +1461,35 @@ function App() {
               <button className="icon-command primary" type="button" onClick={loadImportedManifest}><RefreshCcw size={16} /> Load imported content</button>
             </div>
 
+            {importedPosts.length > 0 && (
+              <div className="import-batch-toolbar">
+                <span>{selectedImportedIds.length} selected · max {IMPORT_BATCH_LIMIT}</span>
+                <button className="icon-command" type="button" onClick={selectVisibleImportedPosts}><CheckCircle2 size={15} /> Select next drafts</button>
+                <button className="icon-command" type="button" onClick={() => setSelectedImportedIds([])} disabled={selectedImportedIds.length === 0}><XCircle size={15} /> Clear</button>
+                <button className="icon-command primary" type="button" onClick={adoptSelectedImportedPosts} disabled={!canManageContent || selectedImportedIds.length === 0}>
+                  <Download size={15} /> Adopt selected
+                </button>
+              </div>
+            )}
+
             <div className="imported-list">
               {importedPosts.map((post) => {
                 const adopted = dataset.posts.some((item) => item.id === `wp-${post.source_id}`);
+                const checked = selectedImportedIds.includes(post.source_id);
                 return (
-                  <button key={post.source_id} className={selectedImportedIndex?.source_id === post.source_id ? 'selected' : ''} onClick={() => previewImportedPost(post)}>
-                    <strong>{decodeText(post.title)}</strong>
-                    <span>{post.date ? new Date(post.date).toLocaleDateString() : 'no date'} · {adopted ? 'adopted' : 'not adopted'}</span>
-                  </button>
+                  <article key={post.source_id} className={selectedImportedIndex?.source_id === post.source_id ? 'imported-row selected' : 'imported-row'}>
+                    <input
+                      aria-label={`Select ${decodeText(post.title)}`}
+                      type="checkbox"
+                      checked={checked}
+                      disabled={adopted}
+                      onChange={() => toggleImportedSelection(post.source_id)}
+                    />
+                    <button type="button" onClick={() => previewImportedPost(post)}>
+                      <strong>{decodeText(post.title)}</strong>
+                      <span>{post.date ? new Date(post.date).toLocaleDateString() : 'no date'} · {adopted ? 'adopted' : 'not adopted'}</span>
+                    </button>
+                  </article>
                 );
               })}
               {importedPosts.length === 0 && <div className="placeholder"><Tags size={22} /><strong>No imported content loaded</strong><span>Load a migrator QDN manifest to review WordPress posts.</span></div>}
