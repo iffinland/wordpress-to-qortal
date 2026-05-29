@@ -125,6 +125,17 @@ function stripHtml(value: string) {
   return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+function readableError(value: unknown, fallback = 'Unexpected Qortal error.') {
+  if (value instanceof Error && value.message.trim()) return value.message;
+  if (typeof value === 'string' && value.trim()) return value;
+  try {
+    const serialized = JSON.stringify(value);
+    return serialized && serialized !== '{}' ? serialized : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function shortHash(value: string) {
   let hash = 5381;
   for (let index = 0; index < value.length; index += 1) {
@@ -816,7 +827,7 @@ function App() {
       setDraft(createDraft(applied.post));
       setStatus(applied.post.status === 'published' ? 'Published to QDN.' : 'Draft saved to QDN.');
     } catch (publishError) {
-      setError((publishError as Error).message);
+      setError(readableError(publishError, 'Qortal publish failed. Check that the logged-in account owns the publish target name.'));
       setStatus('');
     }
   }
@@ -1431,7 +1442,7 @@ function App() {
       setMediaTitleDraft('');
       setStatus('Media published to QDN.');
     } catch (mediaError) {
-      setError((mediaError as Error).message);
+      setError(readableError(mediaError, 'Qortal media publish failed. Check that the logged-in account owns the publish target name.'));
       setStatus('');
     }
   }
