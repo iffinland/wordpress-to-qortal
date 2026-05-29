@@ -11,6 +11,7 @@ export const MEDIA_INDEX_IDENTIFIER = 'cms-media-index';
 export const COMMENTS_INDEX_IDENTIFIER = 'cms-comments-index';
 
 const LOCAL_STORAGE_KEY = 'qortal-cms-local-dataset-v1';
+const OWNER_STORAGE_KEY = 'qortal-cms-owner-name-v1';
 
 function nowIso() {
   return new Date().toISOString();
@@ -38,8 +39,44 @@ export function createMediaIdentifier(filename: string) {
 }
 
 export function getQdnNameFromLocation() {
-  const params = new URLSearchParams(window.location.search);
-  return params.get('name') || params.get('qdnName') || import.meta.env.VITE_QDN_NAME || '';
+  const fromSearch = readNameFromParams(window.location.search);
+  const fromHash = readNameFromParams(window.location.hash.includes('?') ? window.location.hash.slice(window.location.hash.indexOf('?')) : '');
+  const fromPath = readNameFromPath(window.location.pathname);
+  const fromStorage = localStorage.getItem(OWNER_STORAGE_KEY) || '';
+  const name = fromSearch || fromHash || fromPath || import.meta.env.VITE_QDN_NAME || fromStorage || '';
+  if (name) localStorage.setItem(OWNER_STORAGE_KEY, name);
+  return name;
+}
+
+function safeDecode(value = '') {
+  try {
+    return decodeURIComponent(value.replace(/\+/g, ' '));
+  } catch {
+    return value;
+  }
+}
+
+function readNameFromParams(value: string) {
+  if (!value) return '';
+  const params = new URLSearchParams(value.startsWith('?') ? value : `?${value}`);
+  return params.get('name') || params.get('qdnName') || params.get('appName') || '';
+}
+
+function readNameFromPath(pathname: string) {
+  const parts = pathname.split('/').filter(Boolean).map(safeDecode);
+  for (let index = 0; index < parts.length; index += 1) {
+    const current = parts[index].toUpperCase();
+    if ((current === 'APP' || current === 'WEBSITE') && parts[index + 1]) {
+      return parts[index + 1];
+    }
+  }
+
+  const appIndex = parts.findIndex((part) => part.toLowerCase() === 'app');
+  if (appIndex >= 0 && parts[appIndex + 1] && parts[appIndex + 1].toUpperCase() !== 'APP') {
+    return parts[appIndex + 1];
+  }
+
+  return '';
 }
 
 export function normalizeQortalName(value = '') {
@@ -183,6 +220,7 @@ export async function loadDataset(ownerName: string): Promise<CmsDataset> {
 
   try {
     const manifest = await fetchQdnResource<CmsManifest>('DOCUMENT', ownerName, MANIFEST_IDENTIFIER);
+    localStorage.setItem(OWNER_STORAGE_KEY, ownerName);
     const mediaRef = manifest.entrypoints.media_index || { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER, name: ownerName };
     manifest.entrypoints.media_index = mediaRef;
     manifest.entrypoints.comments_index ||= { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER, name: ownerName };
