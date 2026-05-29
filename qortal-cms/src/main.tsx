@@ -523,6 +523,7 @@ function App() {
   const [selectedImportedIndex, setSelectedImportedIndex] = useState<ImportedIndexItem | null>(null);
   const [selectedImportedIds, setSelectedImportedIds] = useState<number[]>([]);
   const [publicDetailOpen, setPublicDetailOpen] = useState(false);
+  const [forcePublicView, setForcePublicView] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -1467,7 +1468,7 @@ function App() {
     setStatus('Video removed from current post. Save draft or publish to persist.');
   }
 
-  if (!canManageContent) {
+  if (!canManageContent || forcePublicView) {
     return (
       <main className="public-shell">
         <header className="public-header">
@@ -1479,6 +1480,11 @@ function App() {
           <div className="public-status">
             <span>{identity.name ? `Viewing as ${identity.name}` : 'Read-only visitor'}</span>
             <span className={identity.bridgeAvailable ? 'ok' : 'muted'}>{identity.bridgeAvailable ? 'Qortal bridge available' : 'Browser preview'}</span>
+            {canManageContent && (
+              <button className="icon-command" type="button" onClick={() => setForcePublicView(false)}>
+                <Settings size={16} /> Back to backend
+              </button>
+            )}
           </div>
         </header>
 
@@ -1606,6 +1612,7 @@ function App() {
         </div>
 
         <nav className="nav-list">
+          <button onClick={() => setForcePublicView(true)}><Eye size={17} /> View site</button>
           <button className={section === 'dashboard' ? 'active' : ''} onClick={() => setSection('dashboard')}><Eye size={17} /> Dashboard</button>
           <button className={section === 'posts' ? 'active' : ''} onClick={() => setSection('posts')}><FileText size={17} /> Posts</button>
           <button className={section === 'media' ? 'active' : ''} onClick={() => setSection('media')}><Image size={17} /> Media</button>
