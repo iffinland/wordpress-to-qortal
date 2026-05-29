@@ -11,6 +11,7 @@ interface QortalRequestPayload {
   title?: string;
   description?: string;
   build?: boolean;
+  path?: string;
   resources?: Array<{
     service: string;
     name?: string;
@@ -108,6 +109,19 @@ export function toBase64(value: string): string {
 
 export function createQdnUrl(service: string, name: string, identifier: string) {
   return `/arbitrary/${encodeURIComponent(service)}/${encodeURIComponent(name)}/${encodeURIComponent(identifier)}`;
+}
+
+export async function getQdnResourceUrl(service: string, name: string, identifier: string, path?: string): Promise<string> {
+  const response = await tryRequestQortal<string>({
+    action: 'GET_QDN_RESOURCE_URL',
+    service,
+    name,
+    identifier,
+    path
+  });
+
+  if (response) return response;
+  return createQdnUrl(service, name, identifier);
 }
 
 export interface QdnResourceStatus {

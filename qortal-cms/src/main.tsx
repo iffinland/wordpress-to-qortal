@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { CheckCircle2, Edit3, Eye, FileText, Filter, Image, Link, Lock, MessageSquare, Paperclip, Play, Plus, RefreshCcw, Save, Search, Send, Settings, Tags, Trash2, Upload, User, Video, XCircle } from 'lucide-react';
+import { CheckCircle2, Download, Edit3, Eye, FileText, Filter, Image, Link, Lock, MessageSquare, Paperclip, Play, Plus, RefreshCcw, Save, Search, Send, Settings, Tags, Trash2, Upload, User, Video, XCircle } from 'lucide-react';
 import { RichTextEditor } from './RichTextEditor';
 import {
   CATEGORIES_IDENTIFIER,
@@ -27,7 +27,7 @@ import {
   slugify,
   toPostIndexItem
 } from './cmsRepository';
-import { getQdnResourceStatus, hasQortalBridge } from './qortalClient';
+import { getQdnResourceStatus, getQdnResourceUrl, hasQortalBridge } from './qortalClient';
 import { parseVideoLink } from './videoLinks';
 import type { CmsComment, CmsDataset, CmsMediaItem, CmsPost, CmsPostIndexItem, CmsStatus, CmsVideoEmbed, QdnRef, ViewerIdentity } from './types';
 import './styles.css';
@@ -225,6 +225,154 @@ function LazyVideoEmbed({ video }: { video: CmsVideoEmbed }) {
       )}
       <small>{status}</small>
     </article>
+  );
+}
+
+function isTextMedia(item: CmsMediaItem) {
+  const filename = item.filename.toLowerCase();
+  return item.mime_type.startsWith('text/') || filename.endsWith('.md') || filename.endsWith('.txt');
+}
+
+function downloadResource(url: string, filename: string) {
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.rel = 'noopener noreferrer';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function MediaAttachmentViewer({ items }: { items: CmsMediaItem[] }) {
+  const [urlsById, setUrlsById] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(false);
+  const [previewItem, setPreviewItem] = useState<CmsMediaItem | null>(null);
+  const [previewText, setPreviewText] = useState('');
+  const [previewError, setPreviewError] = useState('');
+  const [previewLoading, setPreviewLoading] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    async function resolveUrls() {
+      setLoading(true);
+      const entries = await Promise.all(items.map(async (item) => {
+        if (!item.qdn.name) return [item.id, ''] as const;
+        try {
+          const url = await getQdnResourceUrl(item.qdn.service, item.qdn.name, item.qdn.identifier, item.filename);
+          return [item.id, url] as const;
+        } catch {
+          return [item.id, qdnLink(item.qdn)] as const;
+        }
+      }));
+
+      if (!active) return;
+      setUrlsById(Object.fromEntries(entries));
+      setLoading(false);
+    }
+
+    if (items.length > 0) {
+      void resolveUrls();
+    } else {
+      setUrlsById({});
+      setLoading(false);
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [items]);
+
+  useEffect(() => {
+    if (!previewItem || !isTextMedia(previewItem)) return;
+    const url = urlsById[previewItem.id];
+
+    if (!url) {
+      if (!loading) setPreviewError('Unable to resolve QDN resource URL.');
+      return;
+    }
+
+    let active = true;
+
+    async function loadTextPreview() {
+      setPreviewLoading(true);
+      setPreviewError('');
+      setPreviewText('');
+
+      try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`Unable to load file: ${response.status}`);
+        const text = await response.text();
+        if (active) setPreviewText(text);
+      } catch (error) {
+        if (active) setPreviewError((error as Error).message || 'Unable to load file preview.');
+      } finally {
+        if (active) setPreviewLoading(false);
+      }
+    }
+
+    void loadTextPreview();
+
+    return () => {
+      active = false;
+    };
+  }, [loading, previewItem, urlsById]);
+
+  if (items.length === 0) return null;
+
+  return (
+    <section className="attachments-panel">
+      <div className="panel-title"><Paperclip size={18} /><h3>Attachments</h3><span>{items.length}</span></div>
+      <div className="attachment-list">
+        {items.map((item) => {
+          const url = urlsById[item.id];
+          const canPreviewText = isTextMedia(item);
+
+          return (
+            <article key={item.id} className={item.type === 'image' ? 'attachment-card image-attachment' : 'attachment-card'}>
+              {item.type === 'image' && url ? <img src={url} alt="" loading="lazy" /> : <FileText size={18} />}
+              <div>
+                <strong>{item.title}</strong>
+                <small>{item.type} · {item.filename} · {formatBytes(item.bytes)}</small>
+              </div>
+              <div className="attachment-actions">
+                {url ? (
+                  <>
+                    {(item.type === 'image' || canPreviewText) && (
+                      <button type="button" onClick={() => setPreviewItem(item)}><Eye size={15} /> View</button>
+                    )}
+                    <a href={url} target="_blank" rel="noreferrer"><Link size={15} /> Open</a>
+                    <button type="button" onClick={() => downloadResource(url, item.filename)}><Download size={15} /> Download</button>
+                  </>
+                ) : (
+                  <span>{loading ? 'Loading...' : 'Unavailable'}</span>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      {previewItem && (
+        <div className="modal-backdrop" role="presentation" onClick={() => setPreviewItem(null)}>
+          <div className="media-preview-modal" role="dialog" aria-modal="true" aria-label="Attachment preview" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-title">
+              <strong>{previewItem.filename}</strong>
+              <button type="button" onClick={() => setPreviewItem(null)}><XCircle size={18} /> Close</button>
+            </div>
+            {previewItem.type === 'image' ? (
+              <img className="media-preview-image" src={urlsById[previewItem.id]} alt="" />
+            ) : previewLoading ? (
+              <p>Loading preview...</p>
+            ) : previewError ? (
+              <p className="preview-error">{previewError}</p>
+            ) : (
+              <pre className="text-file-preview">{previewText}</pre>
+            )}
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -753,20 +901,7 @@ function App() {
                   </div>
                 </div>
                 <div className="content-preview" dangerouslySetInnerHTML={{ __html: selectedPost.content_html }} />
-                {selectedMediaItems.length > 0 && (
-                  <section className="attachments-panel">
-                    <div className="panel-title"><Paperclip size={18} /><h3>Attachments</h3><span>{selectedMediaItems.length}</span></div>
-                    <div className="attachment-list">
-                      {selectedMediaItems.map((item) => (
-                        <a key={item.id} href={qdnLink(item.qdn)} target="_blank" rel="noreferrer" className={item.type === 'image' ? 'image-attachment' : ''}>
-                          {item.type === 'image' ? <img src={qdnLink(item.qdn)} alt="" loading="lazy" /> : <FileText size={16} />}
-                          <span>{item.title}</span>
-                          <small>{item.type} · {formatBytes(item.bytes)}</small>
-                        </a>
-                      ))}
-                    </div>
-                  </section>
-                )}
+                <MediaAttachmentViewer items={selectedMediaItems} />
                 {(selectedPost.videos || []).length > 0 && (
                   <section className="attachments-panel">
                     <div className="panel-title"><Video size={18} /><h3>Videos</h3><span>{(selectedPost.videos || []).length}</span></div>

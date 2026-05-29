@@ -15,6 +15,7 @@ This is the separate Qortal-native CMS/Q-App. It is not the WordPress migrator.
 - Publishes posts and CMS indexes to QDN.
 - Publishes local computer media files to QDN and stores them in `cms-media-index`.
 - Attaches published media items to posts.
+- Opens attached media through Qortal's resolved QDN resource URLs, with image and TXT/MD previews.
 - Adds QDN/Q-Tube video links to posts.
 - Renders attached videos through a lazy-load player.
 - Has a comments-ready model where Qortal users can publish their own comment resource.
