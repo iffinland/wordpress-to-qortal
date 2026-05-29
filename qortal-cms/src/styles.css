@@ -339,6 +339,62 @@ button {
   text-decoration: none;
 }
 
+.quick-actions {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #f7f9f8;
+}
+
+.post-quick-actions {
+  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
+  margin: 14px 0 16px;
+}
+
+.video-actions {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.quick-actions button,
+.quick-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 46px;
+  padding: 0 10px;
+  border: 0;
+  border-right: 1px solid #e4ebe7;
+  color: #33423d;
+  background: transparent;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.quick-actions button:last-child,
+.quick-actions a:last-child {
+  border-right: 0;
+}
+
+.quick-actions button:hover,
+.quick-actions a:hover {
+  background: #dceee7;
+}
+
+.quick-actions button:active,
+.quick-actions a:active {
+  transform: scale(0.96);
+}
+
+.quick-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
 .term-display {
   display: grid;
   gap: 12px;

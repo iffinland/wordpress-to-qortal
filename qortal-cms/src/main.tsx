@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { CheckCircle2, Download, Edit3, Eye, FileText, Filter, Image, Link, Lock, MessageSquare, Paperclip, Play, Plus, RefreshCcw, Save, Search, Send, Settings, Tags, Trash2, Upload, User, Video, XCircle } from 'lucide-react';
+import { CheckCircle2, Copy, Download, Edit3, Eye, FileText, Filter, Image, Link, Lock, MessageSquare, Paperclip, Play, Plus, RefreshCcw, Save, Search, Send, Settings, Tags, Trash2, Upload, User, Video, XCircle } from 'lucide-react';
 import { RichTextEditor } from './RichTextEditor';
 import {
   CATEGORIES_IDENTIFIER,
@@ -223,6 +223,11 @@ function LazyVideoEmbed({ video }: { video: CmsVideoEmbed }) {
           <Play size={18} /> Load video
         </button>
       )}
+      <div className="quick-actions video-actions">
+        <button type="button" onClick={loadVideo} title="Load video"><Play size={16} /><span>Load</span></button>
+        <a href={url} target="_blank" rel="noreferrer" title="Open QDN video"><Link size={16} /><span>Open</span></a>
+        <button type="button" onClick={() => void copyText(toQortalUri(video.qdn))} title="Copy QDN URI"><Copy size={16} /><span>Copy</span></button>
+      </div>
       <small>{status}</small>
     </article>
   );
@@ -241,6 +246,20 @@ function downloadResource(url: string, filename: string) {
   document.body.appendChild(link);
   link.click();
   link.remove();
+}
+
+function toQortalUri(ref: QdnRef) {
+  return ref.name ? `qortal://${ref.service}/${ref.name}/${ref.identifier}` : '';
+}
+
+async function copyText(value: string) {
+  if (!value) return false;
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function MediaAttachmentViewer({ items }: { items: CmsMediaItem[] }) {
@@ -673,6 +692,22 @@ function App() {
   const selectedMediaItems = selectedPost ? selectedPost.media.map((ref) => findMediaItem(dataset.media, ref)).filter(Boolean) as CmsMediaItem[] : [];
   const ownerTarget = qdnName || dataset.manifest.owner_name || 'not set';
 
+  async function copyPostQdnUri() {
+    if (!selectedPost) return;
+    const copied = await copyText(toQortalUri(selectedPost.qdn));
+    setStatus(copied ? 'Post QDN URI copied.' : 'Unable to copy QDN URI.');
+  }
+
+  function openPostQdnResource() {
+    if (!selectedPost) return;
+    const url = qdnLink(selectedPost.qdn);
+    if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
+  function scrollToComments() {
+    document.getElementById('post-comments')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   async function publishMediaFile() {
     if (!dataset || !identity || !isOwner || !mediaFile) return;
     if (!hasQortalBridge()) {
@@ -886,6 +921,14 @@ function App() {
                 <div className="post-meta"><span>{selectedPost.status}</span><span>{new Date(selectedPost.updated_at).toLocaleString()}</span>{selectedPost.qdn.name && <a href={qdnLink(selectedPost.qdn)} target="_blank" rel="noreferrer">QDN resource</a>}</div>
                 <h2>{decodeText(selectedPost.title)}</h2>
                 {selectedPost.excerpt && <p className="summary">{decodeText(selectedPost.excerpt)}</p>}
+                <div className="quick-actions post-quick-actions" aria-label="Post quick actions">
+                  <button type="button" disabled={!selectedPost.qdn.name} onClick={openPostQdnResource} title="Open QDN resource"><Link size={16} /><span>Open</span></button>
+                  <button type="button" disabled={!selectedPost.qdn.name} onClick={() => void copyPostQdnUri()} title="Copy QDN URI"><Copy size={16} /><span>Copy</span></button>
+                  {isOwner && <button type="button" onClick={() => setEditorMode('edit')} title="Edit post"><Edit3 size={16} /><span>Edit</span></button>}
+                  {isOwner && <button type="button" onClick={() => publishPost('draft')} title="Save QDN draft"><Save size={16} /><span>Draft</span></button>}
+                  {isOwner && <button type="button" onClick={() => publishPost('published')} title="Publish post"><Send size={16} /><span>Publish</span></button>}
+                  <button type="button" onClick={scrollToComments} title="Comments"><MessageSquare size={16} /><span>{commentsForPost.length}</span></button>
+                </div>
                 <div className="term-display">
                   <div>
                     <strong>Categories</strong>
@@ -961,7 +1004,7 @@ function App() {
               </div>
             )}
 
-            <section className="comments-panel">
+            <section id="post-comments" className="comments-panel">
               <div className="panel-title"><MessageSquare size={18} /><h3>Comments</h3><span>{commentsForPost.length}</span></div>
               {selectedPost.comments_enabled ? (
                 <>
