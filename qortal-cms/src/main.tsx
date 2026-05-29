@@ -522,6 +522,7 @@ function App() {
   const [selectedImportedPost, setSelectedImportedPost] = useState<ImportedPost | null>(null);
   const [selectedImportedIndex, setSelectedImportedIndex] = useState<ImportedIndexItem | null>(null);
   const [selectedImportedIds, setSelectedImportedIds] = useState<number[]>([]);
+  const [publicDetailOpen, setPublicDetailOpen] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -1264,6 +1265,26 @@ function App() {
   const selectedTagNames = selectedPost?.tag_ids.map((id) => dataset.tags.find((term) => term.id === id)?.name).filter(Boolean) || [];
   const selectedMediaItems = selectedPost ? selectedPost.media.map((ref) => findMediaItem(dataset.media, ref)).filter(Boolean) as CmsMediaItem[] : [];
   const ownerTarget = qdnName || dataset.manifest.owner_name || 'not set';
+  const publicPosts = dataset.posts.filter((post) => post.status === 'published').slice(0, 8);
+  const publicSelectedPost = selectedPost?.status === 'published' ? selectedPost : null;
+
+  function cmsTermNames(ids: string[], terms: CmsDataset['categories']) {
+    return ids.map((id) => terms.find((term) => term.id === id)?.name).filter(Boolean) as string[];
+  }
+
+  function publicExcerpt(post: CmsPostIndexItem) {
+    return decodeText(stripHtml(post.excerpt || '')).slice(0, 500);
+  }
+
+  function formatDate(value: string) {
+    return value ? new Date(value).toLocaleDateString() : 'No date';
+  }
+
+  async function openPublicPost(index: CmsPostIndexItem) {
+    await openPost(index);
+    setPublicDetailOpen(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 
   async function copyPostQdnUri() {
     if (!selectedPost) return;
@@ -1444,6 +1465,135 @@ function App() {
     setSelectedPost(nextPost);
     setDraft(createDraft(nextPost));
     setStatus('Video removed from current post. Save draft or publish to persist.');
+  }
+
+  if (!canManageContent) {
+    return (
+      <main className="public-shell">
+        <header className="public-header">
+          <div>
+            <p className="eyebrow">Qortal CMS</p>
+            <h1>{dataset.manifest.title}</h1>
+            <span>{publicPosts.length} published posts · owner {ownerTarget}</span>
+          </div>
+          <div className="public-status">
+            <span>{identity.name ? `Viewing as ${identity.name}` : 'Read-only visitor'}</span>
+            <span className={identity.bridgeAvailable ? 'ok' : 'muted'}>{identity.bridgeAvailable ? 'Qortal bridge available' : 'Browser preview'}</span>
+          </div>
+        </header>
+
+        {error && <div className="public-alert">{error}</div>}
+
+        {!publicDetailOpen || !publicSelectedPost ? (
+          <section className="public-home">
+            <div className="public-section-title">
+              <h2>Latest Posts</h2>
+              <span>Showing 8 newest published posts</span>
+            </div>
+            <div className="public-post-grid">
+              {publicPosts.map((post) => {
+                const categoryNames = cmsTermNames(post.category_ids, dataset.categories);
+                const tagNames = cmsTermNames(post.tag_ids, dataset.tags);
+                return (
+                  <article key={post.id} className="public-post-card">
+                    <div className="public-card-meta">
+                      <span>{formatDate(post.published_at || post.created_at)}</span>
+                      <span>{post.type}</span>
+                    </div>
+                    <h3>{decodeText(post.title)}</h3>
+                    <div className="public-term-stack">
+                      <div><strong>Categories</strong><div className="chip-row">{categoryNames.length ? categoryNames.map((name) => <span key={name}>{name}</span>) : <em>None</em>}</div></div>
+                      <div><strong>Tags</strong><div className="chip-row">{tagNames.length ? tagNames.map((name) => <span key={name}>{name}</span>) : <em>None</em>}</div></div>
+                    </div>
+                    <p>{publicExcerpt(post) || 'No excerpt available.'}</p>
+                    <button className="icon-command primary" type="button" onClick={() => void openPublicPost(post)}>
+                      <Eye size={16} /> Read more
+                    </button>
+                  </article>
+                );
+              })}
+              {publicPosts.length === 0 && <div className="placeholder"><FileText size={22} /><strong>No published posts yet</strong><span>Published CMS posts will appear here for visitors.</span></div>}
+            </div>
+          </section>
+        ) : (
+          <section className="public-detail">
+            <button className="icon-command public-back" type="button" onClick={() => setPublicDetailOpen(false)}>
+              <FileText size={16} /> Back to posts
+            </button>
+            <article className="public-article">
+              <div className="post-meta">
+                <span>{formatDate(publicSelectedPost.published_at || publicSelectedPost.created_at)}</span>
+                <span>{publicSelectedPost.author.name}</span>
+                {publicSelectedPost.qdn.name && <a href={qdnLink(publicSelectedPost.qdn)} target="_blank" rel="noreferrer">QDN resource</a>}
+              </div>
+              <h2>{decodeText(publicSelectedPost.title)}</h2>
+              {publicSelectedPost.excerpt && <p className="summary">{decodeText(publicSelectedPost.excerpt)}</p>}
+              <div className="term-display">
+                <div>
+                  <strong>Categories</strong>
+                  <div className="chip-row">
+                    {selectedCategoryNames.length ? selectedCategoryNames.map((name) => <span key={name}>{name}</span>) : <em>None</em>}
+                  </div>
+                </div>
+                <div>
+                  <strong>Tags</strong>
+                  <div className="chip-row">
+                    {selectedTagNames.length ? selectedTagNames.map((name) => <span key={name}>{name}</span>) : <em>None</em>}
+                  </div>
+                </div>
+              </div>
+              <div className="content-preview" dangerouslySetInnerHTML={{ __html: publicSelectedPost.content_html }} />
+              <MediaAttachmentViewer items={selectedMediaItems} />
+              {(publicSelectedPost.videos || []).length > 0 && (
+                <section className="attachments-panel">
+                  <div className="panel-title"><Video size={18} /><h3>Videos</h3><span>{(publicSelectedPost.videos || []).length}</span></div>
+                  <div className="video-embed-list">
+                    {(publicSelectedPost.videos || []).map((video) => (
+                      <LazyVideoEmbed key={video.id} video={video} />
+                    ))}
+                  </div>
+                </section>
+              )}
+              <div className="quick-actions post-quick-actions" aria-label="Post quick actions">
+                <button type="button" onClick={() => void likeSelectedPost()} title="Like post"><Heart size={16} /><span>{likeCounts[publicSelectedPost.id] || 0}</span></button>
+                <button type="button" onClick={() => void shareSelectedPost()} title="Share post"><Share2 size={16} /><span>Share</span></button>
+                <button type="button" onClick={() => void copyPostQdnUri()} disabled={!publicSelectedPost.qdn.name} title="Copy QDN URI"><Link size={16} /><span>Copy</span></button>
+                <button type="button" onClick={() => void openTipModal()} title="Send tip"><Coins size={16} /><span>Tip</span></button>
+                <button type="button" onClick={scrollToComments} title="Comments"><MessageSquare size={16} /><span>{commentsForPost.length}</span></button>
+              </div>
+            </article>
+
+            <section id="post-comments" className="comments-panel public-comments">
+              <div className="panel-title"><MessageSquare size={18} /><h3>Comments</h3><span>{commentsForPost.length}</span></div>
+              {publicSelectedPost.comments_enabled ? (
+                <>
+                  {commentsForPost.map((comment) => (
+                    <article key={comment.id} className="comment-card"><strong>{comment.author.name}</strong><span>{new Date(comment.updated_at).toLocaleString()}</span><div dangerouslySetInnerHTML={{ __html: comment.body_html }} />{identity.name === comment.author.name && <button className="text-button">Edit own comment ready</button>}</article>
+                  ))}
+                  <div className="comment-box"><RichTextEditor value={commentDraft} onChange={setCommentDraft} /><button className="icon-command" disabled={!canComment} onClick={publishComment}><Send size={16} /> Publish comment</button>{!canComment && <small>Commenting requires Qortal UI, a logged-in Qortal name, and comments enabled for this post.</small>}</div>
+                </>
+              ) : <p className="muted-text"><Lock size={16} /> Comments are disabled for this post.</p>}
+            </section>
+          </section>
+        )}
+
+        {tipOpen && (
+          <div className="modal-backdrop" role="presentation" onClick={() => setTipOpen(false)}>
+            <div className="media-preview-modal tip-modal" role="dialog" aria-modal="true" aria-label="Send QORT tip" onClick={(event) => event.stopPropagation()}>
+              <div className="modal-title">
+                <strong>Send QORT Tip</strong>
+                <button type="button" onClick={() => setTipOpen(false)}><XCircle size={18} /> Close</button>
+              </div>
+              <label>Recipient<input value={tipRecipient} readOnly /></label>
+              <label>Amount<input value={tipAmount} onChange={(event) => setTipAmount(event.target.value)} placeholder="0.1" inputMode="decimal" /></label>
+              {typeof tipBalance === 'number' && <small>Available balance: {tipBalance} QORT</small>}
+              {tipError && <p className="preview-error">{tipError}</p>}
+              <button className="icon-command primary" type="button" disabled={tipSending} onClick={sendTip}><Coins size={16} /> {tipSending ? 'Sending...' : 'Send tip'}</button>
+            </div>
+          </div>
+        )}
+      </main>
+    );
   }
 
   return (
