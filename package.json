@@ -27,7 +27,8 @@
     "check": "npm run validate:media && npm run migration:build",
     "dump:sample": "node src/dump.js --sample && node src/convertRaw.js",
     "inspect": "node src/inspect.js",
-    "package:migration": "node scripts/createMigrationPackage.js"
+    "package:migration": "node scripts/createMigrationPackage.js",
+    "package:zip": "node scripts/createMigrationZip.js"
   },
   "engines": {
     "node": ">=18"

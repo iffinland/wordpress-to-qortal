@@ -52,6 +52,17 @@ select {
   text-transform: uppercase;
 }
 
+.version-line {
+  margin: -8px 0 14px;
+  color: #c4d2cd;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.publisher-header .version-line {
+  color: #63746c;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

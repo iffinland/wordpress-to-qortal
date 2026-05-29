@@ -4,6 +4,7 @@ import { CalendarDays, ExternalLink, FileText, Image, Link, Play, Search, Send, 
 import { createContentSource, formatBytes, getRouteParams, rewriteHtmlMedia, type ContentSource } from './contentApi';
 import { PublisherPage } from './publisher/PublisherPage';
 import type { ContentItem, IndexItem, MediaMap, Term } from './types';
+import { APP_VERSION } from './version';
 import './styles.css';
 
 interface LoadedData {
@@ -126,6 +127,7 @@ function ViewerApp({ onPublish }: { onPublish: () => void }) {
         <header className="sidebar-header">
           <p className="eyebrow">WordPress to Qortal</p>
           <h1>Migration Preview</h1>
+          <p className="version-line">Version {APP_VERSION}</p>
           <div className="summary-grid">
             <span>{data.posts.length} posts</span>
             <span>{data.pages.length} pages</span>

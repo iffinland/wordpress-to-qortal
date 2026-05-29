@@ -3,6 +3,7 @@ import { ArrowLeft, CheckCircle2, Play, Send, XCircle } from 'lucide-react';
 import { CONTENT_BASE, getRouteParams } from '../contentApi';
 import { getQortalBridgeDiagnostics, hasQortalBridge, requestQortal } from '../qortalClient';
 import { formatBytes } from '../contentApi';
+import { APP_VERSION } from '../version';
 
 interface PublishResource {
   type: string;
@@ -199,6 +200,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
         )}
         <p className="eyebrow">WordPress to Qortal</p>
         <h1>Migration Publisher</h1>
+        <p className="version-line">Version {APP_VERSION}</p>
         <div className="publisher-controls">
           <label>
             Qortal name

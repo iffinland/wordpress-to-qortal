@@ -1,5 +1,7 @@
 # Quickstart: WordPress to Qortal Migrator
 
+Current version: `0.1.0`
+
 This tool imports WordPress content to your computer, converts it to Qortal-friendly JSON, and helps publish the migrated resources to QDN.
 
 It is a migration tool. It is not the long-term Qortal CMS.
@@ -188,10 +190,22 @@ Create a clean copy for sharing:
 npm run package:migration
 ```
 
+Create a zip file for sharing:
+
+```bash
+npm run package:zip
+```
+
 The copy is written to:
 
 ```text
 release/wordpress-to-qortal-migrator/
+```
+
+The zip file is written to:
+
+```text
+release/wordpress-to-qortal-migrator-v0.1.0.zip
 ```
 
 That release copy does not include `node_modules`, `.env`, generated import data, or the future CMS folder.

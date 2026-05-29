@@ -1,4 +1,4 @@
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 const root = process.cwd();
@@ -35,6 +35,9 @@ async function copyPath(relativePath) {
 }
 
 async function main() {
+  const packageJson = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+  const version = packageJson.version;
+
   await rm(packageDir, { recursive: true, force: true });
   await mkdir(packageDir, { recursive: true });
 
@@ -43,9 +46,14 @@ async function main() {
   }
 
   await writeFile(
+    path.join(packageDir, 'VERSION.txt'),
+    `wordpress-to-qortal-migrator ${version}\n`
+  );
+
+  await writeFile(
     path.join(releaseRoot, 'README.txt'),
     [
-      'WordPress to Qortal Migrator package',
+      `WordPress to Qortal Migrator package v${version}`,
       '',
       'Open QUICKSTART.md first.',
       'Run npm install before using the tool.',

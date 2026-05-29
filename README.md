@@ -1,5 +1,7 @@
 # WordPress to Qortal Migrator
 
+Current version: `0.1.0`
+
 This package imports WordPress content, converts it to Qortal-friendly JSON, and provides a local Migration Preview/Publisher for publishing migrated resources to QDN.
 
 This is the migration package. The future interactive Qortal CMS/Q-App should be a separate package.
@@ -175,6 +177,18 @@ release/wordpress-to-qortal-migrator/
 ```
 
 It excludes `node_modules`, `.env`, generated import data, and the separate future CMS folder.
+
+Create a zip file for sharing:
+
+```bash
+npm run package:zip
+```
+
+The zip file is written to:
+
+```text
+release/wordpress-to-qortal-migrator-v0.1.0.zip
+```
 
 ## More Documentation
 
