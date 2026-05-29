@@ -660,19 +660,24 @@ button {
 .attached-media-box,
 .attachment-list,
 .video-embed-list,
-.video-link-box {
+.video-link-box,
+.imported-panel,
+.import-settings,
+.imported-list {
   display: grid;
   gap: 10px;
 }
 
-.media-uploader {
+.media-uploader,
+.import-settings {
   padding: 12px;
   border: 1px solid #dce4df;
   border-radius: 8px;
   background: #fff;
 }
 
-.media-uploader label {
+.media-uploader label,
+.import-settings label {
   display: grid;
   gap: 6px;
   color: #4f5d58;
@@ -680,7 +685,8 @@ button {
   font-weight: 800;
 }
 
-.media-uploader input {
+.media-uploader input,
+.import-settings input {
   width: 100%;
   min-height: 38px;
   border: 1px solid #d7dfda;
@@ -689,8 +695,52 @@ button {
 }
 
 .media-uploader input[type="text"],
-.media-uploader input:not([type]) {
+.media-uploader input:not([type]),
+.import-settings input {
   padding: 0 10px;
+}
+
+.imported-list button {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  padding: 11px;
+  text-align: left;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  color: #1d2825;
+  background: #fff;
+}
+
+.imported-list button.selected {
+  border-color: #7caf9f;
+  background: #e8f4ee;
+}
+
+.imported-list span {
+  color: #6d7b76;
+  font-size: 12px;
+}
+
+.import-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.import-summary > div {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #f8faf8;
+}
+
+.import-summary span {
+  color: #6d7b76;
+  font-size: 12px;
 }
 
 .media-row {

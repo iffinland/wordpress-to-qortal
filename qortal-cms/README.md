@@ -20,6 +20,8 @@ This is the separate Qortal-native CMS/Q-App. It is not the WordPress migrator.
 - Publishes local computer media files to QDN and stores them in `cms-media-index`.
 - Attaches published media items to posts.
 - Opens attached media through Qortal's resolved QDN resource URLs, with image and TXT/MD previews.
+- Loads migrator QDN manifests from the Imported view.
+- Previews imported WordPress posts and adopts them into CMS drafts.
 - Adds QDN/Q-Tube video links to posts.
 - Renders attached videos through a lazy-load player.
 - Has a comments-ready model where Qortal users can publish their own comment resource.
@@ -121,9 +123,19 @@ Coauthors are detected by wallet address from `cms-manifest.coauthors`. Other us
 
 Coauthors are stored in `cms-manifest` as wallet addresses. A coauthor can create and edit CMS content, publish posts, and publish media from the CMS interface. Only the SysOp owner can add or remove coauthors.
 
+## Imported Content
+
+The Imported view reads a migrator manifest such as:
+
+```text
+DOCUMENT / cr-qdn-manifest
+```
+
+After loading the manifest, a SysOp or coauthor can preview a WordPress post and adopt it into the CMS as a draft. The original migrator resources are left untouched; CMS adoption creates a separate CMS post and updates CMS indexes.
+
 ## Next Iterations
 
-- Imported Content view that reads migrator `cr-qdn-manifest` and adopts selected posts into CMS indexes.
+- Batch imported-content adoption.
 - Rich text editor media insertion modal.
 - Comment moderation and owner-side comments index sync.
 - Page editor.
