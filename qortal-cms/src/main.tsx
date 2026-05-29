@@ -56,6 +56,13 @@ interface ImportedTerm {
   slug: string;
 }
 
+interface ImportedAttachment {
+  title?: string;
+  source_url?: string;
+  media_type?: string;
+  mime_type?: string;
+}
+
 interface ImportedPost {
   type: 'post';
   source_id: number;
@@ -70,9 +77,21 @@ interface ImportedPost {
   content_html: string;
   categories: number[];
   tags: number[];
-  attachments?: Array<{ title?: string; source_url?: string; media_type?: string; mime_type?: string }>;
+  attachments?: ImportedAttachment[];
   import?: { importer_version?: string; imported_at?: string };
 }
+
+interface ImportedMediaMapItem {
+  type: 'image' | 'audio' | 'video' | 'document' | 'file';
+  local_path: string;
+  qdn_service?: string;
+  qdn_identifier?: string | null;
+  mime_type?: string;
+  title?: string;
+  bytes?: number;
+}
+
+type ImportedMediaMap = Record<string, ImportedMediaMapItem>;
 
 interface ImportedQdnManifest {
   version: string;
@@ -202,6 +221,16 @@ function sameQdnRef(left: QdnRef, right: QdnRef) {
 
 function findMediaItem(media: CmsMediaItem[], ref: QdnRef) {
   return media.find((item) => sameQdnRef(item.qdn, ref)) || null;
+}
+
+function mergeMediaItems(existing: CmsMediaItem[], incoming: CmsMediaItem[]) {
+  const next = [...existing];
+  for (const item of incoming) {
+    if (!next.some((current) => sameQdnRef(current.qdn, item.qdn))) {
+      next.push(item);
+    }
+  }
+  return next;
 }
 
 function formatBytes(bytes: number) {
@@ -489,6 +518,7 @@ function App() {
   const [importedPosts, setImportedPosts] = useState<ImportedIndexItem[]>([]);
   const [importedCategories, setImportedCategories] = useState<ImportedTerm[]>([]);
   const [importedTags, setImportedTags] = useState<ImportedTerm[]>([]);
+  const [importedMediaMap, setImportedMediaMap] = useState<ImportedMediaMap>({});
   const [selectedImportedPost, setSelectedImportedPost] = useState<ImportedPost | null>(null);
   const [selectedImportedIndex, setSelectedImportedIndex] = useState<ImportedIndexItem | null>(null);
   const [selectedImportedIds, setSelectedImportedIds] = useState<number[]>([]);
@@ -907,16 +937,21 @@ function App() {
       const postsRef = withQdnName(manifest.entrypoints.posts_index, ownerName);
       const categoriesRef = withQdnName(manifest.entrypoints.categories, ownerName);
       const tagsRef = withQdnName(manifest.entrypoints.tags, ownerName);
-      const [posts, categories, tags] = await Promise.all([
+      const mediaMapRef = manifest.entrypoints.media_map ? withQdnName(manifest.entrypoints.media_map, ownerName) : null;
+      const [posts, categories, tags, mediaMap] = await Promise.all([
         fetchQdnResource<ImportedIndexItem[]>(postsRef.service, postsRef.name || ownerName, postsRef.identifier),
         fetchQdnResource<ImportedTerm[]>(categoriesRef.service, categoriesRef.name || ownerName, categoriesRef.identifier).catch(() => []),
-        fetchQdnResource<ImportedTerm[]>(tagsRef.service, tagsRef.name || ownerName, tagsRef.identifier).catch(() => [])
+        fetchQdnResource<ImportedTerm[]>(tagsRef.service, tagsRef.name || ownerName, tagsRef.identifier).catch(() => []),
+        mediaMapRef
+          ? fetchQdnResource<ImportedMediaMap>(mediaMapRef.service, mediaMapRef.name || ownerName, mediaMapRef.identifier).catch(() => ({}))
+          : Promise.resolve({})
       ]);
 
       setImportedManifest(manifest);
       setImportedPosts(posts);
       setImportedCategories(categories);
       setImportedTags(tags);
+      setImportedMediaMap(mediaMap);
       setSelectedImportedPost(null);
       setSelectedImportedIndex(null);
       setSelectedImportedIds([]);
@@ -959,6 +994,50 @@ function App() {
       .filter(Boolean) as string[];
   }
 
+  function importedMediaRef(mediaItem: ImportedMediaMapItem, ownerName: string): QdnRef | null {
+    const pathRef = importedManifest?.resources.by_path?.[mediaItem.local_path];
+    if (pathRef) return withQdnName(pathRef, ownerName);
+    if (mediaItem.qdn_service && mediaItem.qdn_identifier) {
+      return { service: mediaItem.qdn_service, identifier: mediaItem.qdn_identifier, name: ownerName };
+    }
+    return null;
+  }
+
+  function attachmentMediaItem(attachment: ImportedAttachment) {
+    if (!attachment.source_url) return null;
+    return importedMediaMap[attachment.source_url] || null;
+  }
+
+  function importedAttachmentSummary(post: ImportedPost, ownerName: string) {
+    return (post.attachments || []).map((attachment) => {
+      const mediaItem = attachmentMediaItem(attachment);
+      const qdn = mediaItem ? importedMediaRef(mediaItem, ownerName) : null;
+      return { attachment, mediaItem, qdn };
+    });
+  }
+
+  function toCmsMediaType(value: ImportedMediaMapItem['type']) {
+    if (value === 'image' || value === 'audio' || value === 'video' || value === 'document') return value;
+    return 'file';
+  }
+
+  function cmsMediaFromImported(mediaItem: ImportedMediaMapItem, qdn: QdnRef, ownerName: string, author: ViewerIdentity, now: string): CmsMediaItem {
+    const filename = mediaItem.local_path.split('/').pop() || `${qdn.identifier}.bin`;
+    return {
+      schema: 'qortal-cms/media@1',
+      id: `imported-media-${shortHash(`${qdn.service}:${qdn.name || ownerName}:${qdn.identifier}`)}`,
+      type: toCmsMediaType(mediaItem.type),
+      title: mediaItem.title || filename,
+      filename,
+      mime_type: mediaItem.mime_type || '',
+      bytes: mediaItem.bytes || 0,
+      created_at: now,
+      updated_at: now,
+      author: { name: author.name || ownerName, address: author.address },
+      qdn
+    };
+  }
+
   function buildCmsPostFromImported(
     importedPost: ImportedPost,
     baseCategories: CmsDataset['categories'],
@@ -973,6 +1052,22 @@ function App() {
     const categoryResult = termsFromText(categoryNames.join(', '), baseCategories);
     const tagResult = termsFromText(tagNames.join(', '), baseTags);
     const slug = slugify(importedPost.slug || importedPost.title);
+    const importedMedia = importedAttachmentSummary(importedPost, ownerName)
+      .filter((item): item is { attachment: ImportedAttachment; mediaItem: ImportedMediaMapItem; qdn: QdnRef } => Boolean(item.mediaItem && item.qdn));
+    const attachedMedia = importedMedia
+      .filter((item) => item.mediaItem.type !== 'video')
+      .map((item) => item.qdn);
+    const videos: CmsVideoEmbed[] = importedMedia
+      .filter((item) => item.mediaItem.type === 'video')
+      .map((item) => ({
+        id: `imported-video-${shortHash(item.qdn.identifier)}`,
+        title: item.attachment.title || item.mediaItem.title || item.mediaItem.local_path.split('/').pop() || 'Imported video',
+        source: 'qdn',
+        source_url: toQortalUri(item.qdn),
+        created_at: now,
+        qdn: item.qdn
+      }));
+    const mediaItems = importedMedia.map((item) => cmsMediaFromImported(item.mediaItem, item.qdn, ownerName, author, now));
     const post: CmsPost = {
       schema: 'qortal-cms/post@1',
       id: `wp-${importedPost.source_id}`,
@@ -988,14 +1083,14 @@ function App() {
       published_at: null,
       qdn: existing?.qdn || { service: 'DOCUMENT', identifier: createPostIdentifier(slug), name: ownerName },
       content_html: `${importedPost.content_html || ''}<hr/><p><small>Imported from WordPress source ID ${importedPost.source_id}. Original URL: <a href="${importedPost.old_url}" target="_blank" rel="noreferrer">${importedPost.old_url}</a></small></p>`,
-      featured_image: null,
-      media: [],
-      videos: [],
+      featured_image: mediaItems.find((item) => item.type === 'image')?.qdn || null,
+      media: attachedMedia,
+      videos,
       comments_enabled: true,
       author: { name: author.name || ownerName, address: author.address }
     };
 
-    return { post, categories: categoryResult.terms, tags: tagResult.terms, index: toPostIndexItem(post) };
+    return { post, categories: categoryResult.terms, tags: tagResult.terms, mediaItems, index: toPostIndexItem(post) };
   }
 
   async function fetchImportedPost(index: ImportedIndexItem, ownerName: string) {
@@ -1039,7 +1134,7 @@ function App() {
 
     const existing = dataset.posts.find((post) => post.id === `wp-${selectedImportedPost.source_id}`);
     const now = new Date().toISOString();
-    const { post, categories, tags, index } = buildCmsPostFromImported(selectedImportedPost, dataset.categories, dataset.tags, ownerName, identity, now, existing);
+    const { post, categories, tags, mediaItems, index } = buildCmsPostFromImported(selectedImportedPost, dataset.categories, dataset.tags, ownerName, identity, now, existing);
     const posts = existing
       ? dataset.posts.map((item) => item.id === index.id ? index : item)
       : [index, ...dataset.posts];
@@ -1049,6 +1144,7 @@ function App() {
       posts,
       categories,
       tags,
+      media: mergeMediaItems(dataset.media, mediaItems),
       local_posts: { ...(dataset.local_posts || {}), [post.id]: post }
     };
 
@@ -1060,6 +1156,7 @@ function App() {
         { ref: { service: 'DOCUMENT', identifier: POSTS_INDEX_IDENTIFIER }, data: nextDataset.posts, title: 'CMS posts index', description: 'Qortal CMS posts index' },
         { ref: { service: 'DOCUMENT', identifier: CATEGORIES_IDENTIFIER }, data: nextDataset.categories, title: 'CMS categories', description: 'Qortal CMS categories' },
         { ref: { service: 'DOCUMENT', identifier: TAGS_IDENTIFIER }, data: nextDataset.tags, title: 'CMS tags', description: 'Qortal CMS tags' },
+        { ref: { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER }, data: nextDataset.media, title: 'CMS media index', description: 'Qortal CMS media index' },
         { ref: { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER }, data: nextDataset.manifest, title: 'CMS manifest', description: 'Qortal CMS manifest' }
       ]);
       setDataset(nextDataset);
@@ -1101,6 +1198,7 @@ function App() {
       let categories = [...dataset.categories];
       let tags = [...dataset.tags];
       const localPosts = { ...(dataset.local_posts || {}) };
+      let media = [...dataset.media];
       const publishItems: Parameters<typeof publishJsonResources>[1] = [];
       let firstPost: CmsPost | null = null;
 
@@ -1112,6 +1210,7 @@ function App() {
         importedIndexes.push(built.index);
         categories = built.categories;
         tags = built.tags;
+        media = mergeMediaItems(media, built.mediaItems);
         localPosts[built.post.id] = built.post;
         if (!firstPost) firstPost = built.post;
         publishItems.push({
@@ -1128,6 +1227,7 @@ function App() {
         posts: [...importedIndexes, ...dataset.posts],
         categories,
         tags,
+        media,
         local_posts: localPosts
       };
 
@@ -1137,6 +1237,7 @@ function App() {
         { ref: { service: 'DOCUMENT', identifier: POSTS_INDEX_IDENTIFIER }, data: nextDataset.posts, title: 'CMS posts index', description: 'Qortal CMS posts index' },
         { ref: { service: 'DOCUMENT', identifier: CATEGORIES_IDENTIFIER }, data: nextDataset.categories, title: 'CMS categories', description: 'Qortal CMS categories' },
         { ref: { service: 'DOCUMENT', identifier: TAGS_IDENTIFIER }, data: nextDataset.tags, title: 'CMS tags', description: 'Qortal CMS tags' },
+        { ref: { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER }, data: nextDataset.media, title: 'CMS media index', description: 'Qortal CMS media index' },
         { ref: { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER }, data: nextDataset.manifest, title: 'CMS manifest', description: 'Qortal CMS manifest' }
       ]);
 
@@ -1569,6 +1670,26 @@ function App() {
               <div><strong>{selectedImportedPost.import?.importer_version || '0.1.0'}</strong><span>importer</span></div>
               <div><strong>{selectedImportedIndex && dataset.posts.some((item) => item.id === `wp-${selectedImportedIndex.source_id}`) ? 'yes' : 'no'}</strong><span>adopted</span></div>
             </div>
+            {(selectedImportedPost.attachments || []).length > 0 && (
+              <section className="attachments-panel">
+                <div className="panel-title"><Paperclip size={18} /><h3>Imported Attachments</h3><span>{selectedImportedPost.attachments?.length || 0}</span></div>
+                <div className="imported-attachment-list">
+                  {importedAttachmentSummary(selectedImportedPost, importOwnerName || ownerTarget).map(({ attachment, mediaItem, qdn }) => (
+                    <div key={attachment.source_url || attachment.title} className="imported-attachment-row">
+                      <div>
+                        <strong>{attachment.title || mediaItem?.title || mediaItem?.local_path?.split('/').pop() || 'Imported media'}</strong>
+                        <span>{mediaItem?.type || attachment.media_type || 'file'} · {mediaItem?.local_path || attachment.source_url}</span>
+                      </div>
+                      {qdn ? (
+                        <a className="icon-command" href={qdnLink(qdn)} target="_blank" rel="noreferrer"><Link size={15} /> Open QDN</a>
+                      ) : (
+                        <span className="muted">not published</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
             <div className="content-preview" dangerouslySetInnerHTML={{ __html: selectedImportedPost.content_html }} />
             {canManageContent && (
               <div className="action-row">

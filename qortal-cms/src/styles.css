@@ -753,8 +753,40 @@ button {
   font-size: 12px;
 }
 
+.imported-attachment-list {
+  display: grid;
+  gap: 8px;
+}
+
+.imported-attachment-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.imported-attachment-row div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.imported-attachment-row span {
+  overflow-wrap: anywhere;
+  color: #6d7b76;
+  font-size: 12px;
+}
+
 @media (max-width: 860px) {
   .import-batch-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .imported-attachment-row {
     grid-template-columns: 1fr;
   }
 }
