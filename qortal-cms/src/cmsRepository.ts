@@ -212,7 +212,8 @@ function ensureManifestShape(manifest: CmsManifest, ownerName: string): CmsManif
     title: manifest.title || (owner ? `${owner} CMS` : 'Qortal CMS'),
     tagline: manifest.tagline || '',
     owner_name: owner,
-    coauthors: normalizedCoauthors,
+    owner_address: ownerChanged ? '' : manifest.owner_address || '',
+    coauthors: ownerChanged ? [] : normalizedCoauthors,
     entrypoints: {
       posts_index: entrypoints.posts_index || { service: 'DOCUMENT', identifier: POSTS_INDEX_IDENTIFIER, name: owner },
       pages_index: entrypoints.pages_index || { service: 'DOCUMENT', identifier: PAGES_INDEX_IDENTIFIER, name: owner },
