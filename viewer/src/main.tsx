@@ -33,7 +33,8 @@ function termNames(ids: number[], terms: Term[]): string[] {
 
 function App() {
   const params = getRouteParams();
-  const [tool, setTool] = useState<ToolMode>(params.get('tool') === 'publish' ? 'publish' : 'viewer');
+  const initialTool = params.get('tool') === 'viewer' || params.get('source') === 'qdn' ? 'viewer' : 'publish';
+  const [tool, setTool] = useState<ToolMode>(initialTool);
 
   if (tool === 'publish') {
     return <PublisherPage initialName={params.get('name') || params.get('qdnName') || ''} onBack={() => setTool('viewer')} />;

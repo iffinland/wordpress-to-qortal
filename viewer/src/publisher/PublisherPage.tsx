@@ -112,7 +112,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   const routeName = params.get('name') || params.get('qdnName') || '';
   const resolvedInitialName = initialName || routeName || import.meta.env.VITE_QDN_NAME || '';
   const [qortalName, setQortalName] = useState(resolvedInitialName);
-  const [source, setSource] = useState<PublishSource>('bundled');
+  const [source, setSource] = useState<PublishSource>('folder');
   const [folderFiles, setFolderFiles] = useState<FolderFileMap | null>(null);
   const [plan, setPlan] = useState<PublishPlan | null>(null);
   const [mode, setMode] = useState<PublishMode>('cms-json');
@@ -286,7 +286,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
               onChange={selectImportFolder}
             />
           </label>
-          <button type="button" disabled={!hasBridge || isPublishing || !qortalName.trim()} onClick={publishAll}>
+          <button type="button" disabled={!hasBridge || isPublishing || !qortalName.trim() || rows.length === 0} onClick={publishAll}>
             <Send size={17} />
             Publish selected set
           </button>
@@ -310,7 +310,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
           <span>{source === 'folder' ? 'local folder' : 'bundled files'}</span>
         </div>
         <p className="publisher-note">
-          Demo publishes a small smoke-test set. CMS JSON publishes imported posts, pages, and indexes. Full media publishes every planned resource, including downloaded media files.
+          Select your local wp-qortal-import folder first. Demo publishes a small smoke-test set. CMS JSON publishes imported posts, pages, and indexes. Full media publishes every planned resource, including downloaded media files.
         </p>
         {!hasBridge && (
           <p className="publisher-warning">
