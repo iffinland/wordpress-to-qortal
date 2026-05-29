@@ -381,6 +381,7 @@ function App() {
             <strong>{identity.name || 'No Qortal name detected'}</strong>
             <span>{isOwner ? 'Owner controls enabled' : 'Read-only mode'}</span>
             <small>Owner target: {ownerTarget}</small>
+            {identity.names.length > 1 && <small>Detected names: {identity.names.join(', ')}</small>}
           </div>
         </div>
       </aside>

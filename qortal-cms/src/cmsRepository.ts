@@ -116,30 +116,44 @@ export function toPostIndexItem(post: CmsPost): CmsPostIndexItem {
 
 export async function getViewerIdentity(ownerName: string): Promise<ViewerIdentity> {
   const bridgeAvailable = hasQortalBridge();
-  const account = await tryRequestQortal<{ address?: string }>({ action: 'GET_USER_ACCOUNT' });
+  const account = await tryRequestQortal<{ address?: string; name?: string; primaryName?: string }>({ action: 'GET_USER_ACCOUNT' });
   const address = account?.address || '';
-  let name = '';
+  const discoveredNames = new Set<string>();
+
+  if (account?.name) discoveredNames.add(account.name);
+  if (account?.primaryName) discoveredNames.add(account.primaryName);
 
   const names = address
     ? await tryRequestQortal<Array<{ name?: string }> | string[]>({ action: 'GET_ACCOUNT_NAMES', address })
     : null;
 
-  if (Array.isArray(names) && names.length > 0) {
-    const first = names[0];
-    name = typeof first === 'string' ? first : first.name || '';
+  if (Array.isArray(names)) {
+    for (const item of names) {
+      const nextName = typeof item === 'string' ? item : item.name || '';
+      if (nextName) discoveredNames.add(nextName);
+    }
   }
 
+  const primaryName = address
+    ? await tryRequestQortal<string>({ action: 'GET_PRIMARY_NAME', address })
+    : null;
+  if (primaryName) discoveredNames.add(primaryName);
+
   const devName = new URLSearchParams(window.location.search).get('viewerName') || '';
-  if (!name && devName) name = devName;
+  if (devName) discoveredNames.add(devName);
 
   const normalizedOwner = normalizeQortalName(ownerName);
-  const normalizedViewer = normalizeQortalName(name);
+  const allNames = [...discoveredNames].filter(Boolean);
+  const matchingOwnerName = allNames.find((nextName) => normalizeQortalName(nextName) === normalizedOwner) || '';
+  const displayName = matchingOwnerName || allNames[0] || '';
 
   return {
     address,
-    name,
+    name: displayName,
+    names: allNames,
+    ownerTarget: ownerName,
     bridgeAvailable,
-    role: normalizedOwner && normalizedViewer === normalizedOwner ? 'owner' : 'reader'
+    role: normalizedOwner && Boolean(matchingOwnerName) ? 'owner' : 'reader'
   };
 }
 

@@ -87,6 +87,8 @@ export interface CmsDataset {
 export interface ViewerIdentity {
   address: string;
   name: string;
+  names: string[];
+  ownerTarget: string;
   role: CmsRole;
   bridgeAvailable: boolean;
 }
