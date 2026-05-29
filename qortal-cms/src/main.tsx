@@ -15,6 +15,7 @@ import {
   createEmptyManifest,
   createMediaItem,
   createPostIdentifier,
+  createSiteId,
   getQdnNameFromLocation,
   getViewerIdentity,
   loadDataset,
@@ -161,7 +162,7 @@ function createDraft(post: CmsPost): DraftState {
   };
 }
 
-function emptyPost(ownerName: string, ownerAddress: string): CmsPost {
+function emptyPost(ownerName: string, ownerAddress: string, siteId: string, siteName: string): CmsPost {
   const created = new Date().toISOString();
   const slug = `new-post-${Date.now().toString(36)}`;
   return {
@@ -177,8 +178,10 @@ function emptyPost(ownerName: string, ownerAddress: string): CmsPost {
     created_at: created,
     updated_at: created,
     published_at: null,
-    qdn: { service: 'DOCUMENT', identifier: createPostIdentifier(slug), name: ownerName },
+    qdn: { service: 'DOCUMENT', identifier: createPostIdentifier(slug, siteId), name: ownerName },
     content_html: '<p></p>',
+    cms_site_id: siteId,
+    cms_site_name: siteName,
     featured_image: null,
     media: [],
     videos: [],
@@ -517,6 +520,8 @@ function App() {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [videoLinkDraft, setVideoLinkDraft] = useState('');
   const [videoTitleDraft, setVideoTitleDraft] = useState('');
+  const [siteTitleDraft, setSiteTitleDraft] = useState('');
+  const [siteTaglineDraft, setSiteTaglineDraft] = useState('');
   const [coauthorAddressDraft, setCoauthorAddressDraft] = useState('');
   const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
   const [tipOpen, setTipOpen] = useState(false);
@@ -569,6 +574,8 @@ function App() {
     const viewerIdentity = await getViewerIdentity(ownerName, loadedDataset.manifest);
     setDataset(loadedDataset);
     setIdentity(viewerIdentity);
+    setSiteTitleDraft(loadedDataset.manifest.title);
+    setSiteTaglineDraft(loadedDataset.manifest.tagline || '');
     const first = loadedDataset.posts[0] || null;
     setSelectedIndex(first);
     if (first) {
@@ -578,6 +585,12 @@ function App() {
     }
     setStatus('');
   }
+
+  useEffect(() => {
+    if (!dataset) return;
+    setSiteTitleDraft(dataset.manifest.title);
+    setSiteTaglineDraft(dataset.manifest.tagline || '');
+  }, [dataset?.manifest.site_id]);
 
   async function safeLoadPost(index: CmsPostIndexItem, data = dataset): Promise<CmsPost> {
     const fallback = data?.local_posts?.[index.id];
@@ -691,8 +704,7 @@ function App() {
   function startNewPost() {
     if (!dataset || !identity) return;
     const cmsSiteName = dataset.manifest.owner_name || qdnName || identity.name;
-    const post = emptyPost(identity.name || cmsSiteName, identity.address);
-    post.cms_site_name = cmsSiteName;
+    const post = emptyPost(identity.name || cmsSiteName, identity.address, dataset.manifest.site_id, cmsSiteName);
     setSelectedIndex(toPostIndexItem(post));
     setSelectedPost(post);
     setDraft(createDraft(post));
@@ -710,6 +722,7 @@ function App() {
     const cmsSiteName = dataset.manifest.owner_name || qdnName || identity.name;
     const post: CmsPost = {
       ...selectedPost,
+      cms_site_id: dataset.manifest.site_id,
       cms_site_name: cmsSiteName,
       title: draft.title,
       slug,
@@ -724,7 +737,7 @@ function App() {
       qdn: {
         ...selectedPost.qdn,
         name: selectedPost.qdn.name || identity.name || cmsSiteName,
-        identifier: selectedPost.qdn.identifier || createPostIdentifier(slug)
+        identifier: selectedPost.qdn.identifier || createPostIdentifier(slug, dataset.manifest.site_id)
       },
       author: selectedPost.author.name && selectedPost.id !== 'sample-post' ? selectedPost.author : { name: identity.name, address: identity.address }
     };
@@ -772,6 +785,7 @@ function App() {
     }
     const postToPublish: CmsPost = {
       ...applied.post,
+      cms_site_id: dataset.manifest.site_id,
       cms_site_name: cmsSiteName,
       qdn: { ...applied.post.qdn, service: 'DOCUMENT', name: publishName }
     };
@@ -862,8 +876,9 @@ function App() {
   function initLocalSite() {
     const ownerName = qdnName || identity?.name || 'local-owner';
     const ownerAddress = identity?.address || '';
+    const manifest = createEmptyManifest(ownerName, ownerAddress);
     const nextDataset = {
-      manifest: createEmptyManifest(ownerName, ownerAddress),
+      manifest,
       posts: [],
       pages: [],
       categories: [],
@@ -877,6 +892,8 @@ function App() {
     setSelectedIndex(null);
     setSelectedPost(null);
     setDraft(null);
+    setSiteTitleDraft(manifest.title);
+    setSiteTaglineDraft(manifest.tagline || '');
     setStatus('Local CMS dataset initialized.');
   }
 
@@ -886,6 +903,33 @@ function App() {
     if (!hasQortalBridge()) throw new Error('Qortal bridge is not available. Open through Qortal UI dev mode.');
 
     await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER, name: ownerName }, nextDataset.manifest, 'CMS manifest', 'Qortal CMS manifest');
+  }
+
+  async function saveSiteIdentity() {
+    if (!dataset || !identity || !isSysop) return;
+    const title = siteTitleDraft.trim() || dataset.manifest.title || 'Qortal CMS';
+    const tagline = siteTaglineDraft.trim();
+    const nextManifest = {
+      ...dataset.manifest,
+      site_id: dataset.manifest.site_id || createSiteId(dataset.manifest.owner_name || title),
+      title,
+      tagline,
+      owner_address: dataset.manifest.owner_address || identity.address,
+      updated_at: new Date().toISOString()
+    };
+    const nextDataset = { ...dataset, manifest: nextManifest };
+
+    setError(null);
+    try {
+      setStatus('Publishing site identity...');
+      await publishManifestUpdate(nextDataset);
+      setDataset(nextDataset);
+      saveLocalDataset(nextDataset);
+      setStatus('Site identity saved.');
+    } catch (siteError) {
+      setError((siteError as Error).message);
+      setStatus('');
+    }
   }
 
   async function addCoauthor() {
@@ -1066,6 +1110,7 @@ function App() {
     baseCategories: CmsDataset['categories'],
     baseTags: CmsDataset['tags'],
     ownerName: string,
+    siteId: string,
     author: ViewerIdentity,
     now: string,
     existing?: CmsPostIndexItem
@@ -1101,11 +1146,12 @@ function App() {
       excerpt: importedPost.excerpt_text || stripHtml(importedPost.excerpt || '').slice(0, 500),
       category_ids: categoryResult.ids,
       tag_ids: tagResult.ids,
+      cms_site_id: siteId,
       cms_site_name: ownerName,
       created_at: importedPost.date || now,
       updated_at: now,
       published_at: null,
-      qdn: existing?.qdn || { service: 'DOCUMENT', identifier: createPostIdentifier(slug), name: ownerName },
+      qdn: existing?.qdn || { service: 'DOCUMENT', identifier: createPostIdentifier(slug, siteId), name: ownerName },
       content_html: `${importedPost.content_html || ''}<hr/><p><small>Imported from WordPress source ID ${importedPost.source_id}. Original URL: <a href="${importedPost.old_url}" target="_blank" rel="noreferrer">${importedPost.old_url}</a></small></p>`,
       featured_image: mediaItems.find((item) => item.type === 'image')?.qdn || null,
       media: attachedMedia,
@@ -1158,7 +1204,7 @@ function App() {
 
     const existing = dataset.posts.find((post) => post.id === `wp-${selectedImportedPost.source_id}`);
     const now = new Date().toISOString();
-    const { post, categories, tags, mediaItems, index } = buildCmsPostFromImported(selectedImportedPost, dataset.categories, dataset.tags, ownerName, identity, now, existing);
+    const { post, categories, tags, mediaItems, index } = buildCmsPostFromImported(selectedImportedPost, dataset.categories, dataset.tags, ownerName, dataset.manifest.site_id, identity, now, existing);
     const posts = existing
       ? dataset.posts.map((item) => item.id === index.id ? index : item)
       : [index, ...dataset.posts];
@@ -1230,7 +1276,7 @@ function App() {
         const importedPost = selectedImportedPost?.source_id === indexItem.source_id
           ? selectedImportedPost
           : await fetchImportedPost(indexItem, ownerName);
-        const built = buildCmsPostFromImported(importedPost, categories, tags, ownerName, identity, now);
+        const built = buildCmsPostFromImported(importedPost, categories, tags, ownerName, dataset.manifest.site_id, identity, now);
         importedIndexes.push(built.index);
         categories = built.categories;
         tags = built.tags;
@@ -1497,6 +1543,7 @@ function App() {
           <div>
             <p className="eyebrow">Qortal CMS</p>
             <h1>{dataset.manifest.title}</h1>
+            {dataset.manifest.tagline && <p className="public-tagline">{dataset.manifest.tagline}</p>}
             <span>{publicPosts.length} published posts · owner {ownerTarget}</span>
           </div>
           <div className="public-status">
@@ -1630,6 +1677,7 @@ function App() {
         <div className="brand-block">
           <p>Qortal CMS</p>
           <h1>{dataset.manifest.title}</h1>
+          {dataset.manifest.tagline && <small>{dataset.manifest.tagline}</small>}
           <span>Version {CMS_VERSION}</span>
         </div>
 
@@ -1786,8 +1834,32 @@ function App() {
             <p><strong>Owner name:</strong> {dataset.manifest.owner_name || qdnName || 'not set'}</p>
             <p><strong>Owner address:</strong> {dataset.manifest.owner_address || 'not set'}</p>
             <p><strong>Your role:</strong> {identity.role}</p>
+            <p><strong>Site ID:</strong> {dataset.manifest.site_id}</p>
             <p><strong>Manifest:</strong> DOCUMENT / {MANIFEST_IDENTIFIER}</p>
             <p><strong>Posts index:</strong> DOCUMENT / {POSTS_INDEX_IDENTIFIER}</p>
+
+            <section className="site-identity-panel">
+              <div className="panel-title"><Settings size={18} /><h3>Site Identity</h3><span>{dataset.manifest.site_id}</span></div>
+              <div className="site-identity-form">
+                <label>
+                  Site title
+                  <input value={siteTitleDraft} onChange={(event) => setSiteTitleDraft(event.target.value)} placeholder="My Qortal site" disabled={!isSysop} />
+                </label>
+                <label>
+                  Tagline
+                  <textarea value={siteTaglineDraft} onChange={(event) => setSiteTaglineDraft(event.target.value)} placeholder="Short public description" disabled={!isSysop} rows={3} />
+                </label>
+                <label>
+                  Stable site ID
+                  <input value={dataset.manifest.site_id} readOnly />
+                </label>
+                {isSysop ? (
+                  <button className="icon-command primary" type="button" onClick={saveSiteIdentity}><Save size={16} /> Save site identity</button>
+                ) : (
+                  <small>Only the SysOp owner can change site title, tagline, and identity metadata.</small>
+                )}
+              </div>
+            </section>
 
             <section className="coauthor-panel">
               <div className="panel-title"><User size={18} /><h3>Coauthors</h3><span>{dataset.manifest.coauthors.length}</span></div>

@@ -65,6 +65,15 @@ button {
   color: #c4d2cd;
 }
 
+.brand-block small,
+.public-tagline {
+  display: block;
+  margin: 0 0 8px;
+  color: #d9e4e0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .nav-list {
   display: grid;
   gap: 6px;
@@ -1140,6 +1149,7 @@ button {
   word-break: break-word;
 }
 
+.site-identity-panel,
 .coauthor-panel {
   display: grid;
   gap: 12px;
@@ -1150,7 +1160,8 @@ button {
 }
 
 .coauthor-list,
-.coauthor-form {
+.coauthor-form,
+.site-identity-form {
   display: grid;
   gap: 8px;
 }
@@ -1175,14 +1186,16 @@ button {
 }
 
 .coauthor-row button,
-.coauthor-form button {
+.coauthor-form button,
+.site-identity-form button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
 }
 
-.coauthor-form label {
+.coauthor-form label,
+.site-identity-form label {
   display: grid;
   gap: 6px;
   color: #4f5d58;
@@ -1190,7 +1203,9 @@ button {
   font-weight: 800;
 }
 
-.coauthor-form input {
+.coauthor-form input,
+.site-identity-form input,
+.site-identity-form textarea {
   width: 100%;
   min-height: 38px;
   padding: 0 10px;
@@ -1198,6 +1213,12 @@ button {
   border-radius: 6px;
   color: #1d2825;
   background: #fff;
+}
+
+.site-identity-form textarea {
+  min-height: 78px;
+  padding: 10px;
+  resize: vertical;
 }
 
 .tip-modal {

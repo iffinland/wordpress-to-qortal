@@ -32,6 +32,7 @@ export interface CmsPostIndexItem {
 
 export interface CmsPost extends CmsPostIndexItem {
   schema: 'qortal-cms/post@1';
+  cms_site_id?: string;
   cms_site_name?: string;
   site_owner_name?: string;
   content_html: string;
@@ -91,7 +92,9 @@ export interface CmsMediaItem {
 
 export interface CmsManifest {
   schema: 'qortal-cms/manifest@1';
+  site_id: string;
   title: string;
+  tagline: string;
   owner_name: string;
   owner_address: string;
   coauthors: string[];

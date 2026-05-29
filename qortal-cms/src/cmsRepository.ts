@@ -26,8 +26,30 @@ export function slugify(value: string) {
     .slice(0, 72) || `item-${Date.now().toString(36)}`;
 }
 
-export function createPostIdentifier(slug: string) {
-  return `${CMS_POST_IDENTIFIER_PREFIX}${slug}-${Date.now().toString(36)}`.slice(0, 64);
+function compactHash(value: string) {
+  let hash = 5381;
+  for (let index = 0; index < value.length; index += 1) {
+    hash = (hash * 33) ^ value.charCodeAt(index);
+  }
+  return Math.abs(hash >>> 0).toString(36);
+}
+
+function safeIdentifierPart(value = '') {
+  return value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 24) || 'site';
+}
+
+export function createSiteId(seed = '') {
+  const input = `${seed}:${Date.now()}:${Math.random()}`;
+  return `site-${compactHash(input).slice(0, 8)}`;
+}
+
+function createLegacySiteId(seed = '') {
+  return `site-${compactHash(seed || 'qortal-cms').slice(0, 8)}`;
+}
+
+export function createPostIdentifier(slug: string, siteId = '') {
+  const sitePart = siteId ? `${safeIdentifierPart(siteId)}-` : '';
+  return `${CMS_POST_IDENTIFIER_PREFIX}${sitePart}${slug}-${Date.now().toString(36)}`.slice(0, 64);
 }
 
 export function createCommentIdentifier(postId: string) {
@@ -149,9 +171,12 @@ export function principalMatches(value: string, viewer: { address?: string; name
 }
 
 export function createEmptyManifest(ownerName: string, ownerAddress = ''): CmsManifest {
+  const title = ownerName ? `${ownerName} CMS` : 'Qortal CMS';
   return {
     schema: 'qortal-cms/manifest@1',
-    title: 'Qortal CMS',
+    site_id: createSiteId(ownerName || title),
+    title,
+    tagline: 'A Qortal-native publishing site.',
     owner_name: ownerName,
     owner_address: ownerAddress,
     coauthors: [],
@@ -168,8 +193,31 @@ export function createEmptyManifest(ownerName: string, ownerAddress = ''): CmsMa
   };
 }
 
+function ensureManifestShape(manifest: CmsManifest, ownerName: string): CmsManifest {
+  const normalizedCoauthors = normalizeAddressList(manifest.coauthors || []);
+  const owner = manifest.owner_name || ownerName;
+  const entrypoints = manifest.entrypoints || {};
+  return {
+    ...manifest,
+    site_id: manifest.site_id || createLegacySiteId(owner || manifest.title),
+    title: manifest.title || (owner ? `${owner} CMS` : 'Qortal CMS'),
+    tagline: manifest.tagline || '',
+    owner_name: owner,
+    coauthors: normalizedCoauthors,
+    entrypoints: {
+      posts_index: entrypoints.posts_index || { service: 'DOCUMENT', identifier: POSTS_INDEX_IDENTIFIER, name: owner },
+      pages_index: entrypoints.pages_index || { service: 'DOCUMENT', identifier: PAGES_INDEX_IDENTIFIER, name: owner },
+      categories: entrypoints.categories || { service: 'DOCUMENT', identifier: CATEGORIES_IDENTIFIER, name: owner },
+      tags: entrypoints.tags || { service: 'DOCUMENT', identifier: TAGS_IDENTIFIER, name: owner },
+      media_index: entrypoints.media_index || { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER, name: owner },
+      comments_index: entrypoints.comments_index || { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER, name: owner }
+    }
+  };
+}
+
 function createSampleDataset(ownerName: string): CmsDataset {
   const created = nowIso();
+  const manifest = createEmptyManifest(ownerName);
   const category: CmsTerm = { id: 'cat-news', name: 'News', slug: 'news', created_at: created, updated_at: created };
   const tag: CmsTerm = { id: 'tag-qortal', name: 'Qortal', slug: 'qortal', created_at: created, updated_at: created };
   const post: CmsPost = {
@@ -185,8 +233,9 @@ function createSampleDataset(ownerName: string): CmsDataset {
     created_at: created,
     updated_at: created,
     published_at: null,
-    qdn: { service: 'DOCUMENT', identifier: createPostIdentifier('welcome-to-qortal-cms'), name: ownerName },
+    qdn: { service: 'DOCUMENT', identifier: createPostIdentifier('welcome-to-qortal-cms', manifest.site_id), name: ownerName },
     content_html: '<p>This is a local draft. Open the editor, change the content, and publish through Qortal UI dev mode.</p>',
+    cms_site_id: manifest.site_id,
     cms_site_name: ownerName,
     featured_image: null,
     media: [],
@@ -196,7 +245,7 @@ function createSampleDataset(ownerName: string): CmsDataset {
   };
 
   return {
-    manifest: createEmptyManifest(ownerName),
+    manifest,
     posts: [toPostIndexItem(post)],
     pages: [],
     categories: [category],
@@ -277,11 +326,8 @@ export async function loadQdnDataset(ownerName: string): Promise<CmsDataset | nu
   }
 
   try {
-    const manifest = await fetchQdnResource<CmsManifest>('DOCUMENT', ownerName, MANIFEST_IDENTIFIER);
-    const mediaRef = manifest.entrypoints.media_index || { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER, name: ownerName };
-    manifest.entrypoints.media_index = mediaRef;
-    manifest.entrypoints.comments_index ||= { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER, name: ownerName };
-    manifest.coauthors = normalizeAddressList(manifest.coauthors || []);
+    const manifest = ensureManifestShape(await fetchQdnResource<CmsManifest>('DOCUMENT', ownerName, MANIFEST_IDENTIFIER), ownerName);
+    const mediaRef = manifest.entrypoints.media_index;
 
     const [posts, pages, categories, tags, media, comments] = await Promise.all([
       fetchQdnResource<CmsPostIndexItem[]>(manifest.entrypoints.posts_index.service, ownerName, manifest.entrypoints.posts_index.identifier),
@@ -293,7 +339,7 @@ export async function loadQdnDataset(ownerName: string): Promise<CmsDataset | nu
       fetchQdnResource<CmsComment[]>(manifest.entrypoints.comments_index.service, ownerName, manifest.entrypoints.comments_index.identifier)
         .catch(() => [])
     ]);
-    const discoveredPosts = await discoverCmsPosts(ownerName).catch(() => []);
+    const discoveredPosts = await discoverCmsPosts(ownerName, manifest.site_id).catch(() => []);
     return { manifest, posts: mergePostIndexes(posts, discoveredPosts), pages, categories, tags, media, comments, local_posts: {} };
   } catch {
     return null;
@@ -311,10 +357,14 @@ export function loadLocalDataset(ownerName: string): CmsDataset {
     try {
       const parsed = JSON.parse(stored) as CmsDataset;
       parsed.media ||= [];
-      parsed.manifest.entrypoints.media_index ||= { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER, name: ownerName };
-      parsed.manifest.entrypoints.comments_index ||= { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER, name: ownerName };
-      parsed.manifest.coauthors = normalizeAddressList(parsed.manifest.coauthors || []);
+      parsed.manifest = ensureManifestShape(parsed.manifest, ownerName);
       parsed.comments ||= [];
+      if (parsed.local_posts) {
+        parsed.local_posts = Object.fromEntries(Object.entries(parsed.local_posts).map(([id, post]) => [
+          id,
+          { ...post, cms_site_id: post.cms_site_id || parsed.manifest.site_id, cms_site_name: post.cms_site_name || parsed.manifest.owner_name }
+        ]));
+      }
       return parsed;
     } catch {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
@@ -353,7 +403,11 @@ function isCmsPost(value: unknown): value is CmsPost {
   );
 }
 
-function sameSitePost(post: CmsPost, ownerName: string, resourceName = '') {
+function sameSitePost(post: CmsPost, ownerName: string, resourceName = '', siteId = '') {
+  if (siteId && post.cms_site_id) {
+    return post.cms_site_id === siteId;
+  }
+
   const normalizedOwner = normalizeQortalName(ownerName);
   if (!normalizedOwner) return true;
   return normalizeQortalName(post.cms_site_name || post.site_owner_name || '') === normalizedOwner
@@ -372,7 +426,7 @@ function mergePostIndexes(existing: CmsPostIndexItem[], discovered: CmsPostIndex
   return [...byId.values()].sort((left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime());
 }
 
-export async function discoverCmsPosts(ownerName: string): Promise<CmsPostIndexItem[]> {
+export async function discoverCmsPosts(ownerName: string, siteId = ''): Promise<CmsPostIndexItem[]> {
   if (!hasQortalBridge()) return [];
   const results = await requestQortal({
     action: 'SEARCH_QDN_RESOURCES',
@@ -390,7 +444,7 @@ export async function discoverCmsPosts(ownerName: string): Promise<CmsPostIndexI
     if (!result.name || !result.identifier) continue;
     try {
       const post = await fetchQdnResource<CmsPost>(result.service || 'DOCUMENT', result.name, result.identifier);
-      if (!isCmsPost(post) || !sameSitePost(post, ownerName, result.name)) continue;
+      if (!isCmsPost(post) || !sameSitePost(post, ownerName, result.name, siteId)) continue;
       posts.push(toPostIndexItem({ ...post, qdn: { ...post.qdn, name: result.name, identifier: result.identifier, service: post.qdn.service || 'DOCUMENT' } }));
     } catch {
       // Ignore malformed or unavailable resources.
