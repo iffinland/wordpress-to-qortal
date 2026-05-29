@@ -58,6 +58,25 @@ export interface CmsComment {
   qdn: QdnRef;
 }
 
+export type CmsMediaType = 'image' | 'audio' | 'video' | 'document' | 'file';
+
+export interface CmsMediaItem {
+  schema: 'qortal-cms/media@1';
+  id: string;
+  type: CmsMediaType;
+  title: string;
+  filename: string;
+  mime_type: string;
+  bytes: number;
+  created_at: string;
+  updated_at: string;
+  author: {
+    name: string;
+    address: string;
+  };
+  qdn: QdnRef;
+}
+
 export interface CmsManifest {
   schema: 'qortal-cms/manifest@1';
   title: string;
@@ -70,6 +89,7 @@ export interface CmsManifest {
     pages_index: QdnRef;
     categories: QdnRef;
     tags: QdnRef;
+    media_index: QdnRef;
     comments_index: QdnRef;
   };
 }
@@ -80,6 +100,7 @@ export interface CmsDataset {
   pages: CmsPostIndexItem[];
   categories: CmsTerm[];
   tags: CmsTerm[];
+  media: CmsMediaItem[];
   comments: CmsComment[];
   local_posts?: Record<string, CmsPost>;
 }

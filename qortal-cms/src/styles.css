@@ -505,6 +505,133 @@ button {
   margin-top: 12px;
 }
 
+.media-library,
+.media-uploader,
+.media-list,
+.attached-media-box,
+.attachment-list {
+  display: grid;
+  gap: 10px;
+}
+
+.media-uploader {
+  padding: 12px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.media-uploader label {
+  display: grid;
+  gap: 6px;
+  color: #4f5d58;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.media-uploader input {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #d7dfda;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.media-uploader input[type="text"],
+.media-uploader input:not([type]) {
+  padding: 0 10px;
+}
+
+.media-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.media-thumb {
+  width: 58px;
+  height: 58px;
+  object-fit: cover;
+  border: 1px solid #dce4df;
+  border-radius: 6px;
+  background: #eef2ee;
+}
+
+.media-row strong {
+  display: block;
+}
+
+.media-row span,
+.attachment-list small {
+  color: #6d7b76;
+  font-size: 12px;
+}
+
+.media-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.attachments-panel {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #edf1ee;
+}
+
+.attachment-list a {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid #dce4df;
+  border-radius: 6px;
+  color: #1d2825;
+  text-decoration: none;
+  background: #f8faf8;
+}
+
+.attachment-list a.image-attachment {
+  grid-template-columns: 56px 1fr auto;
+  min-height: 62px;
+}
+
+.attachment-list img {
+  width: 46px;
+  height: 46px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.attached-media-box {
+  padding: 12px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #f8faf8;
+}
+
+.attached-media-box button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid #cfd9d4;
+  border-radius: 6px;
+  color: #33423d;
+  background: #fff;
+  font-weight: 800;
+}
+
 .text-button {
   justify-content: flex-start;
   min-height: auto;

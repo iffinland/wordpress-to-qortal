@@ -1,5 +1,5 @@
 import { createQdnUrl, fetchQdnResource, hasQortalBridge, requestQortal, toBase64, tryRequestQortal } from './qortalClient';
-import type { CmsComment, CmsDataset, CmsManifest, CmsPost, CmsPostIndexItem, CmsTerm, QdnRef, ViewerIdentity } from './types';
+import type { CmsComment, CmsDataset, CmsManifest, CmsMediaItem, CmsMediaType, CmsPost, CmsPostIndexItem, CmsTerm, QdnRef, ViewerIdentity } from './types';
 
 export const CMS_VERSION = '0.1.0';
 export const MANIFEST_IDENTIFIER = 'cms-manifest';
@@ -7,6 +7,7 @@ export const POSTS_INDEX_IDENTIFIER = 'cms-posts-index';
 export const PAGES_INDEX_IDENTIFIER = 'cms-pages-index';
 export const CATEGORIES_IDENTIFIER = 'cms-categories';
 export const TAGS_IDENTIFIER = 'cms-tags';
+export const MEDIA_INDEX_IDENTIFIER = 'cms-media-index';
 export const COMMENTS_INDEX_IDENTIFIER = 'cms-comments-index';
 
 const LOCAL_STORAGE_KEY = 'qortal-cms-local-dataset-v1';
@@ -32,6 +33,10 @@ export function createCommentIdentifier(postId: string) {
   return `cms-comment-${postId.slice(0, 24)}-${Date.now().toString(36)}`.slice(0, 64);
 }
 
+export function createMediaIdentifier(filename: string) {
+  return `cms-media-${slugify(filename)}-${Date.now().toString(36)}`.slice(0, 64);
+}
+
 export function getQdnNameFromLocation() {
   const params = new URLSearchParams(window.location.search);
   return params.get('name') || params.get('qdnName') || import.meta.env.VITE_QDN_NAME || '';
@@ -54,6 +59,7 @@ export function createEmptyManifest(ownerName: string, ownerAddress = ''): CmsMa
       pages_index: { service: 'DOCUMENT', identifier: PAGES_INDEX_IDENTIFIER, name: ownerName },
       categories: { service: 'DOCUMENT', identifier: CATEGORIES_IDENTIFIER, name: ownerName },
       tags: { service: 'DOCUMENT', identifier: TAGS_IDENTIFIER, name: ownerName },
+      media_index: { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER, name: ownerName },
       comments_index: { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER, name: ownerName }
     }
   };
@@ -90,6 +96,7 @@ function createSampleDataset(ownerName: string): CmsDataset {
     pages: [],
     categories: [category],
     tags: [tag],
+    media: [],
     comments: [],
     local_posts: {
       [post.id]: post
@@ -164,15 +171,20 @@ export async function loadDataset(ownerName: string): Promise<CmsDataset> {
 
   try {
     const manifest = await fetchQdnResource<CmsManifest>('DOCUMENT', ownerName, MANIFEST_IDENTIFIER);
-    const [posts, pages, categories, tags, comments] = await Promise.all([
+    const mediaRef = manifest.entrypoints.media_index || { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER, name: ownerName };
+    manifest.entrypoints.media_index = mediaRef;
+
+    const [posts, pages, categories, tags, media, comments] = await Promise.all([
       fetchQdnResource<CmsPostIndexItem[]>(manifest.entrypoints.posts_index.service, ownerName, manifest.entrypoints.posts_index.identifier),
       fetchQdnResource<CmsPostIndexItem[]>(manifest.entrypoints.pages_index.service, ownerName, manifest.entrypoints.pages_index.identifier),
       fetchQdnResource<CmsTerm[]>(manifest.entrypoints.categories.service, ownerName, manifest.entrypoints.categories.identifier),
       fetchQdnResource<CmsTerm[]>(manifest.entrypoints.tags.service, ownerName, manifest.entrypoints.tags.identifier),
+      fetchQdnResource<CmsMediaItem[]>(mediaRef.service, ownerName, mediaRef.identifier)
+        .catch(() => []),
       fetchQdnResource<CmsComment[]>(manifest.entrypoints.comments_index.service, ownerName, manifest.entrypoints.comments_index.identifier)
         .catch(() => [])
     ]);
-    return { manifest, posts, pages, categories, tags, comments, local_posts: {} };
+    return { manifest, posts, pages, categories, tags, media, comments, local_posts: {} };
   } catch {
     return loadLocalDataset(ownerName);
   }
@@ -182,7 +194,10 @@ export function loadLocalDataset(ownerName: string): CmsDataset {
   const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
   if (stored) {
     try {
-      return JSON.parse(stored) as CmsDataset;
+      const parsed = JSON.parse(stored) as CmsDataset;
+      parsed.media ||= [];
+      parsed.manifest.entrypoints.media_index ||= { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER, name: ownerName };
+      return parsed;
     } catch {
       localStorage.removeItem(LOCAL_STORAGE_KEY);
     }
@@ -223,6 +238,78 @@ export interface JsonPublishItem<T = unknown> {
   title: string;
   description: string;
   filename?: string;
+}
+
+export function mediaTypeForFile(file: File): CmsMediaType {
+  if (file.type.startsWith('image/')) return 'image';
+  if (file.type.startsWith('audio/')) return 'audio';
+  if (file.type.startsWith('video/')) return 'video';
+  if (file.type === 'application/pdf' || file.type.includes('document')) return 'document';
+  return 'file';
+}
+
+export function mediaServiceForType(type: CmsMediaType) {
+  if (type === 'image') return 'IMAGE';
+  if (type === 'audio') return 'AUDIO';
+  if (type === 'video') return 'VIDEO';
+  return 'FILE';
+}
+
+export function createMediaItem(file: File, ownerName: string, ownerAddress: string): CmsMediaItem {
+  const created = nowIso();
+  const type = mediaTypeForFile(file);
+  return {
+    schema: 'qortal-cms/media@1',
+    id: `media-${Date.now().toString(36)}`,
+    type,
+    title: file.name.replace(/\.[^.]+$/, ''),
+    filename: file.name,
+    mime_type: file.type || 'application/octet-stream',
+    bytes: file.size,
+    created_at: created,
+    updated_at: created,
+    author: { name: ownerName, address: ownerAddress },
+    qdn: {
+      service: mediaServiceForType(type),
+      identifier: createMediaIdentifier(file.name),
+      name: ownerName
+    }
+  };
+}
+
+export async function publishMediaWithIndex(name: string, file: File, mediaItem: CmsMediaItem, mediaIndex: CmsMediaItem[], manifest: CmsManifest) {
+  await requestQortal({
+    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+    resources: [
+      {
+        name,
+        service: mediaItem.qdn.service,
+        identifier: mediaItem.qdn.identifier,
+        title: mediaItem.title,
+        description: `CMS media file: ${mediaItem.filename}`,
+        filename: mediaItem.filename,
+        file
+      },
+      {
+        name,
+        service: manifest.entrypoints.media_index.service,
+        identifier: manifest.entrypoints.media_index.identifier,
+        title: 'CMS media index',
+        description: 'Qortal CMS media index',
+        filename: 'cms-media-index.json',
+        data64: toBase64(JSON.stringify(mediaIndex, null, 2))
+      },
+      {
+        name,
+        service: 'DOCUMENT',
+        identifier: MANIFEST_IDENTIFIER,
+        title: 'CMS manifest',
+        description: 'Qortal CMS manifest',
+        filename: 'cms-manifest.json',
+        data64: toBase64(JSON.stringify(manifest, null, 2))
+      }
+    ]
+  });
 }
 
 export async function publishJsonResources(name: string, items: JsonPublishItem[]) {

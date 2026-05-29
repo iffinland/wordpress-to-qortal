@@ -13,8 +13,10 @@ This is the separate Qortal-native CMS/Q-App. It is not the WordPress migrator.
 - Shows read-only mode to everyone else.
 - Creates and edits posts with a rich text editor.
 - Publishes posts and CMS indexes to QDN.
+- Publishes local computer media files to QDN and stores them in `cms-media-index`.
+- Attaches published media items to posts.
 - Has a comments-ready model where Qortal users can publish their own comment resource.
-- Leaves media library and imported-content adoption as staged views for the next iteration.
+- Leaves imported-content adoption as a staged view for the next iteration.
 
 ## Resource Identifiers
 
@@ -26,6 +28,7 @@ DOCUMENT / cms-posts-index
 DOCUMENT / cms-pages-index
 DOCUMENT / cms-categories
 DOCUMENT / cms-tags
+DOCUMENT / cms-media-index
 DOCUMENT / cms-comments-index
 ```
 
@@ -39,6 +42,15 @@ Each comment is a separate resource under the commenter's own Qortal name:
 
 ```text
 DOCUMENT / cms-comment-<post-id>-<suffix>
+```
+
+Media files are separate QDN resources under the owner name:
+
+```text
+IMAGE / cms-media-<filename>-<suffix>
+AUDIO / cms-media-<filename>-<suffix>
+VIDEO / cms-media-<filename>-<suffix>
+FILE  / cms-media-<filename>-<suffix>
 ```
 
 ## Development
@@ -91,8 +103,10 @@ Other users see read-only mode and can only read content and use comment control
 
 ## Next Iterations
 
-- Media upload and editor insertion.
 - Imported Content view that reads migrator `cr-qdn-manifest` and adopts selected posts into CMS indexes.
+- Rich text editor media insertion modal.
+- QDN video URI and Q-Tube share link parser.
+- Lazy loaded embedded video player.
 - Comment moderation and owner-side comments index sync.
 - Page editor.
 - Category/tag management modals.

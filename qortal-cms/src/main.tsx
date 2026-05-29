@@ -1,17 +1,19 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { CheckCircle2, Edit3, Eye, FileText, Filter, Image, Lock, MessageSquare, Plus, RefreshCcw, Save, Search, Send, Settings, Tags, User, XCircle } from 'lucide-react';
+import { CheckCircle2, Edit3, Eye, FileText, Filter, Image, Link, Lock, MessageSquare, Paperclip, Plus, RefreshCcw, Save, Search, Send, Settings, Tags, Trash2, Upload, User, XCircle } from 'lucide-react';
 import { RichTextEditor } from './RichTextEditor';
 import {
   CATEGORIES_IDENTIFIER,
   CMS_VERSION,
   COMMENTS_INDEX_IDENTIFIER,
   MANIFEST_IDENTIFIER,
+  MEDIA_INDEX_IDENTIFIER,
   PAGES_INDEX_IDENTIFIER,
   POSTS_INDEX_IDENTIFIER,
   TAGS_IDENTIFIER,
   createCommentIdentifier,
   createEmptyManifest,
+  createMediaItem,
   createPostIdentifier,
   getQdnNameFromLocation,
   getViewerIdentity,
@@ -19,13 +21,14 @@ import {
   loadPost,
   publishJsonResource,
   publishJsonResources,
+  publishMediaWithIndex,
   qdnLink,
   saveLocalDataset,
   slugify,
   toPostIndexItem
 } from './cmsRepository';
 import { hasQortalBridge } from './qortalClient';
-import type { CmsComment, CmsDataset, CmsPost, CmsPostIndexItem, CmsStatus, ViewerIdentity } from './types';
+import type { CmsComment, CmsDataset, CmsMediaItem, CmsPost, CmsPostIndexItem, CmsStatus, QdnRef, ViewerIdentity } from './types';
 import './styles.css';
 
 type Section = 'dashboard' | 'posts' | 'media' | 'imported' | 'settings';
@@ -131,6 +134,26 @@ function termsFromText(value: string, existing: CmsDataset['categories']) {
   return { ids, terms: nextTerms };
 }
 
+function sameQdnRef(left: QdnRef, right: QdnRef) {
+  return left.service === right.service && left.name === right.name && left.identifier === right.identifier;
+}
+
+function findMediaItem(media: CmsMediaItem[], ref: QdnRef) {
+  return media.find((item) => sameQdnRef(item.qdn, ref)) || null;
+}
+
+function formatBytes(bytes: number) {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = bytes;
+  let index = 0;
+  while (size >= 1024 && index < units.length - 1) {
+    size /= 1024;
+    index += 1;
+  }
+  return `${size.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
 function TermInput({
   label,
   value,
@@ -180,6 +203,8 @@ function App() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<CmsStatus | 'all'>('all');
   const [commentDraft, setCommentDraft] = useState('');
+  const [mediaTitleDraft, setMediaTitleDraft] = useState('');
+  const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -300,6 +325,7 @@ function App() {
       posts,
       categories: categoryResult.terms,
       tags: tagResult.terms,
+      media: dataset.media,
       local_posts: { ...(dataset.local_posts || {}), [post.id]: post }
     };
     return { post, nextDataset };
@@ -363,6 +389,12 @@ function App() {
           data: applied.nextDataset.tags,
           title: 'CMS tags',
           description: 'Qortal CMS tags'
+        },
+        {
+          ref: { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER },
+          data: applied.nextDataset.media,
+          title: 'CMS media index',
+          description: 'Qortal CMS media index'
         },
         {
           ref: { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER },
@@ -435,6 +467,7 @@ function App() {
       categories: [],
       tags: [],
       comments: [],
+      media: [],
       local_posts: {}
     };
     setDataset(nextDataset);
@@ -450,7 +483,64 @@ function App() {
 
   const selectedCategoryNames = selectedPost?.category_ids.map((id) => dataset.categories.find((term) => term.id === id)?.name).filter(Boolean) || [];
   const selectedTagNames = selectedPost?.tag_ids.map((id) => dataset.tags.find((term) => term.id === id)?.name).filter(Boolean) || [];
+  const selectedMediaItems = selectedPost ? selectedPost.media.map((ref) => findMediaItem(dataset.media, ref)).filter(Boolean) as CmsMediaItem[] : [];
   const ownerTarget = qdnName || dataset.manifest.owner_name || 'not set';
+
+  async function publishMediaFile() {
+    if (!dataset || !identity || !isOwner || !mediaFile) return;
+    if (!hasQortalBridge()) {
+      setError('Qortal bridge is not available. Open this CMS through Qortal UI dev mode to publish media.');
+      return;
+    }
+    const ownerName = qdnName || dataset.manifest.owner_name || identity.name;
+    if (!ownerName) {
+      setError('Missing owner Qortal name. Open with ?name=<QortalName>.');
+      return;
+    }
+
+    const mediaItem = createMediaItem(mediaFile, ownerName, identity.address);
+    mediaItem.title = mediaTitleDraft.trim() || mediaItem.title;
+    const updatedManifest = {
+      ...dataset.manifest,
+      updated_at: new Date().toISOString(),
+      owner_name: ownerName,
+      owner_address: dataset.manifest.owner_address || identity.address
+    };
+    const nextMedia = [mediaItem, ...dataset.media];
+
+    setError(null);
+    try {
+      setStatus('Publishing media and updating media index...');
+      await publishMediaWithIndex(ownerName, mediaFile, mediaItem, nextMedia, updatedManifest);
+      const nextDataset = { ...dataset, manifest: updatedManifest, media: nextMedia };
+      setDataset(nextDataset);
+      saveLocalDataset(nextDataset);
+      setMediaFile(null);
+      setMediaTitleDraft('');
+      setStatus('Media published to QDN.');
+    } catch (mediaError) {
+      setError((mediaError as Error).message);
+      setStatus('');
+    }
+  }
+
+  function attachMediaToPost(mediaItem: CmsMediaItem) {
+    if (!selectedPost) return;
+    const exists = selectedPost.media.some((ref) => sameQdnRef(ref, mediaItem.qdn));
+    if (exists) return;
+    const nextPost = { ...selectedPost, media: [...selectedPost.media, mediaItem.qdn] };
+    setSelectedPost(nextPost);
+    setDraft(createDraft(nextPost));
+    setStatus('Media attached to current post. Save draft or publish to persist.');
+  }
+
+  function removeMediaFromPost(mediaItem: CmsMediaItem) {
+    if (!selectedPost) return;
+    const nextPost = { ...selectedPost, media: selectedPost.media.filter((ref) => !sameQdnRef(ref, mediaItem.qdn)) };
+    setSelectedPost(nextPost);
+    setDraft(createDraft(nextPost));
+    setStatus('Media removed from current post. Save draft or publish to persist.');
+  }
 
   return (
     <main className="cms-shell">
@@ -493,7 +583,7 @@ function App() {
           <div className="metric-grid">
             <div><strong>{visiblePosts.length}</strong><span>{isOwner ? 'visible posts' : 'published posts'}</span></div>
             <div><strong>{dataset.posts.filter((post) => post.status === 'draft').length}</strong><span>drafts</span></div>
-            <div><strong>{dataset.comments.length}</strong><span>comments</span></div>
+            <div><strong>{dataset.media.length}</strong><span>media</span></div>
             <div><strong>{identity.bridgeAvailable ? 'Ready' : 'Offline'}</strong><span>bridge</span></div>
           </div>
         )}
@@ -513,7 +603,47 @@ function App() {
           </>
         )}
 
-        {section === 'media' && <div className="placeholder"><Image size={22} /><strong>Media library planned.</strong><span>Upload, QDN media index, and editor insertion controls will live here.</span></div>}
+        {section === 'media' && (
+          <div className="media-library">
+            {isOwner && (
+              <div className="media-uploader">
+                <label>
+                  Media file
+                  <input type="file" onChange={(event) => setMediaFile(event.target.files?.[0] || null)} />
+                </label>
+                <label>
+                  Title
+                  <input value={mediaTitleDraft} onChange={(event) => setMediaTitleDraft(event.target.value)} placeholder={mediaFile?.name || 'Media title'} />
+                </label>
+                <button className="icon-command primary" disabled={!mediaFile} onClick={publishMediaFile}><Upload size={16} /> Publish media</button>
+              </div>
+            )}
+
+            <div className="media-list">
+              {dataset.media.map((item) => {
+                const isAttached = selectedPost?.media.some((ref) => sameQdnRef(ref, item.qdn));
+                return (
+                  <article key={item.id} className="media-row">
+                    {item.type === 'image' && <img className="media-thumb" src={qdnLink(item.qdn)} alt="" loading="lazy" />}
+                    <div>
+                      <strong>{item.title}</strong>
+                      <span>{item.type} · {item.filename} · {formatBytes(item.bytes)}</span>
+                    </div>
+                    <div className="media-actions">
+                      <a className="icon-command" href={qdnLink(item.qdn)} target="_blank" rel="noreferrer"><Link size={15} /> Open</a>
+                      {isOwner && selectedPost && (
+                        <button className="icon-command" onClick={() => isAttached ? removeMediaFromPost(item) : attachMediaToPost(item)}>
+                          <Paperclip size={15} /> {isAttached ? 'Detach' : 'Attach'}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+              {dataset.media.length === 0 && <div className="placeholder"><Image size={22} /><strong>No media yet</strong><span>Publish images, audio, video, PDFs, or files from your computer.</span></div>}
+            </div>
+          </div>
+        )}
         {section === 'imported' && <div className="placeholder"><Tags size={22} /><strong>Imported Content planned.</strong><span>This view will read migrator manifests and adopt selected posts into the CMS index.</span></div>}
         {section === 'settings' && <div className="settings-list"><p><strong>Owner name:</strong> {dataset.manifest.owner_name || qdnName || 'not set'}</p><p><strong>Manifest:</strong> DOCUMENT / {MANIFEST_IDENTIFIER}</p><p><strong>Posts index:</strong> DOCUMENT / {POSTS_INDEX_IDENTIFIER}</p><button className="icon-command" onClick={initLocalSite}><RefreshCcw size={16} /> Reset local dataset</button></div>}
       </section>
@@ -552,6 +682,20 @@ function App() {
                   </div>
                 </div>
                 <div className="content-preview" dangerouslySetInnerHTML={{ __html: selectedPost.content_html }} />
+                {selectedMediaItems.length > 0 && (
+                  <section className="attachments-panel">
+                    <div className="panel-title"><Paperclip size={18} /><h3>Attachments</h3><span>{selectedMediaItems.length}</span></div>
+                    <div className="attachment-list">
+                      {selectedMediaItems.map((item) => (
+                        <a key={item.id} href={qdnLink(item.qdn)} target="_blank" rel="noreferrer" className={item.type === 'image' ? 'image-attachment' : ''}>
+                          {item.type === 'image' ? <img src={qdnLink(item.qdn)} alt="" loading="lazy" /> : <FileText size={16} />}
+                          <span>{item.title}</span>
+                          <small>{item.type} · {formatBytes(item.bytes)}</small>
+                        </a>
+                      ))}
+                    </div>
+                  </section>
+                )}
               </article>
             )}
 
@@ -566,6 +710,16 @@ function App() {
                 </div>
                 <label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as CmsStatus })}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label>
                 <label className="check-line"><input type="checkbox" checked={draft.comments_enabled} onChange={(event) => setDraft({ ...draft, comments_enabled: event.target.checked })} /> Comments enabled</label>
+                {selectedMediaItems.length > 0 && (
+                  <div className="attached-media-box">
+                    <strong>Attached media</strong>
+                    {selectedMediaItems.map((item) => (
+                      <button key={item.id} type="button" onClick={() => removeMediaFromPost(item)}>
+                        <Trash2 size={15} /> {item.title}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <RichTextEditor value={draft.content_html} onChange={(content_html) => setDraft({ ...draft, content_html })} />
                 <div className="action-row">
                   <button className="icon-command" onClick={saveDraftLocal}><Save size={16} /> Save local draft</button>
