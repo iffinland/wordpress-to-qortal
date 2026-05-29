@@ -1,5 +1,5 @@
 export type CmsStatus = 'draft' | 'published' | 'archived';
-export type CmsRole = 'owner' | 'reader';
+export type CmsRole = 'sysop' | 'coauthor' | 'reader';
 
 export interface QdnRef {
   service: string;
@@ -92,6 +92,7 @@ export interface CmsManifest {
   title: string;
   owner_name: string;
   owner_address: string;
+  coauthors: string[];
   version: string;
   updated_at: string;
   entrypoints: {

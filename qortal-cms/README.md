@@ -9,7 +9,9 @@ This is the separate Qortal-native CMS/Q-App. It is not the WordPress migrator.
 - Reads a CMS dataset from QDN through `cms-manifest`.
 - Falls back to a local browser dataset when QDN resources do not exist yet.
 - Detects the logged-in Qortal name when Qortal UI exposes `qortalRequest`.
-- Shows editor and publish controls only to the owner name.
+- Treats the owner name as SysOp.
+- Lets the SysOp add coauthors by wallet address from Settings.
+- Shows editor and publish controls to SysOp and coauthors.
 - Shows read-only mode to everyone else.
 - Creates and edits posts with a rich text editor.
 - Provides a Discussion Boards-inspired rich text tools modal for headings, lists, code, quotes, links, and color.
@@ -101,9 +103,9 @@ qortal-cms/dist/
 
 That folder is the first thing to publish as a Qortal `WEBSITE`/Q-App shell. The content itself is stored in separate QDN resources.
 
-## Owner Mode
+## Roles
 
-Owner controls are enabled when the logged-in Qortal name equals the `name` query parameter or the owner name in `cms-manifest`.
+SysOp controls are enabled when the logged-in Qortal name equals the `name` query parameter or the owner name in `cms-manifest`.
 
 Examples:
 
@@ -111,9 +113,13 @@ Examples:
 http://localhost:5180/?name=developer%20iffi
 ```
 
-If the logged-in Qortal name is `developer iffi`, edit and publish controls are visible.
+If the logged-in Qortal name is `developer iffi`, SysOp controls are visible.
 
-Other users see read-only mode and can only read content and use comment controls where available.
+Coauthors are detected by wallet address from `cms-manifest.coauthors`. Other users see read-only mode and can only read content and use comment controls where available.
+
+## Coauthors
+
+Coauthors are stored in `cms-manifest` as wallet addresses. A coauthor can create and edit CMS content, publish posts, and publish media from the CMS interface. Only the SysOp owner can add or remove coauthors.
 
 ## Next Iterations
 

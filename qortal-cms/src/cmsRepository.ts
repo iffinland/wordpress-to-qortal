@@ -46,12 +46,21 @@ export function normalizeQortalName(value = '') {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
 }
 
+export function normalizeQortalAddress(value = '') {
+  return value.trim();
+}
+
+export function normalizeAddressList(addresses: string[] = []) {
+  return [...new Set(addresses.map(normalizeQortalAddress).filter(Boolean))];
+}
+
 export function createEmptyManifest(ownerName: string, ownerAddress = ''): CmsManifest {
   return {
     schema: 'qortal-cms/manifest@1',
     title: 'Qortal CMS',
     owner_name: ownerName,
     owner_address: ownerAddress,
+    coauthors: [],
     version: CMS_VERSION,
     updated_at: nowIso(),
     entrypoints: {
@@ -122,7 +131,7 @@ export function toPostIndexItem(post: CmsPost): CmsPostIndexItem {
   };
 }
 
-export async function getViewerIdentity(ownerName: string): Promise<ViewerIdentity> {
+export async function getViewerIdentity(ownerName: string, manifest?: CmsManifest): Promise<ViewerIdentity> {
   const bridgeAvailable = hasQortalBridge();
   const account = await tryRequestQortal<{ address?: string; name?: string; primaryName?: string }>({ action: 'GET_USER_ACCOUNT' });
   const address = account?.address || '';
@@ -154,6 +163,8 @@ export async function getViewerIdentity(ownerName: string): Promise<ViewerIdenti
   const allNames = [...discoveredNames].filter(Boolean);
   const matchingOwnerName = allNames.find((nextName) => normalizeQortalName(nextName) === normalizedOwner) || '';
   const displayName = matchingOwnerName || allNames[0] || '';
+  const isSysop = normalizedOwner && Boolean(matchingOwnerName);
+  const isCoauthor = Boolean(address && normalizeAddressList(manifest?.coauthors || []).includes(address));
 
   return {
     address,
@@ -161,7 +172,7 @@ export async function getViewerIdentity(ownerName: string): Promise<ViewerIdenti
     names: allNames,
     ownerTarget: ownerName,
     bridgeAvailable,
-    role: normalizedOwner && Boolean(matchingOwnerName) ? 'owner' : 'reader'
+    role: isSysop ? 'sysop' : isCoauthor ? 'coauthor' : 'reader'
   };
 }
 
@@ -174,6 +185,8 @@ export async function loadDataset(ownerName: string): Promise<CmsDataset> {
     const manifest = await fetchQdnResource<CmsManifest>('DOCUMENT', ownerName, MANIFEST_IDENTIFIER);
     const mediaRef = manifest.entrypoints.media_index || { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER, name: ownerName };
     manifest.entrypoints.media_index = mediaRef;
+    manifest.entrypoints.comments_index ||= { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER, name: ownerName };
+    manifest.coauthors = normalizeAddressList(manifest.coauthors || []);
 
     const [posts, pages, categories, tags, media, comments] = await Promise.all([
       fetchQdnResource<CmsPostIndexItem[]>(manifest.entrypoints.posts_index.service, ownerName, manifest.entrypoints.posts_index.identifier),
@@ -198,6 +211,9 @@ export function loadLocalDataset(ownerName: string): CmsDataset {
       const parsed = JSON.parse(stored) as CmsDataset;
       parsed.media ||= [];
       parsed.manifest.entrypoints.media_index ||= { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER, name: ownerName };
+      parsed.manifest.entrypoints.comments_index ||= { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER, name: ownerName };
+      parsed.manifest.coauthors = normalizeAddressList(parsed.manifest.coauthors || []);
+      parsed.comments ||= [];
       return parsed;
     } catch {
       localStorage.removeItem(LOCAL_STORAGE_KEY);

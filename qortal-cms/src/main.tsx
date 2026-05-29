@@ -19,6 +19,8 @@ import {
   getViewerIdentity,
   loadDataset,
   loadPost,
+  normalizeAddressList,
+  normalizeQortalAddress,
   publishJsonResource,
   publishJsonResources,
   publishMediaWithIndex,
@@ -411,6 +413,7 @@ function App() {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [videoLinkDraft, setVideoLinkDraft] = useState('');
   const [videoTitleDraft, setVideoTitleDraft] = useState('');
+  const [coauthorAddressDraft, setCoauthorAddressDraft] = useState('');
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -424,7 +427,7 @@ function App() {
   async function boot() {
     setStatus('Loading CMS dataset...');
     const loadedDataset = await loadDataset(qdnName);
-    const viewerIdentity = await getViewerIdentity(qdnName || loadedDataset.manifest.owner_name);
+    const viewerIdentity = await getViewerIdentity(qdnName || loadedDataset.manifest.owner_name, loadedDataset.manifest);
     setDataset(loadedDataset);
     setIdentity(viewerIdentity);
     const first = loadedDataset.posts[0] || null;
@@ -447,7 +450,8 @@ function App() {
     }
   }
 
-  const isOwner = identity?.role === 'owner';
+  const isSysop = identity?.role === 'sysop';
+  const canManageContent = identity?.role === 'sysop' || identity?.role === 'coauthor';
   const canComment = Boolean(identity?.bridgeAvailable && identity.name && selectedPost?.comments_enabled);
   const commentsForPost = useMemo(() => {
     return (dataset?.comments || []).filter((comment) => comment.post_id === selectedPost?.id && comment.status === 'published');
@@ -455,8 +459,8 @@ function App() {
 
   const visiblePosts = useMemo(() => {
     const posts = dataset?.posts || [];
-    return isOwner ? posts : posts.filter((post) => post.status === 'published');
-  }, [dataset?.posts, isOwner]);
+    return canManageContent ? posts : posts.filter((post) => post.status === 'published');
+  }, [canManageContent, dataset?.posts]);
 
   const filteredPosts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
@@ -548,7 +552,7 @@ function App() {
   }
 
   async function publishPost(statusOverride?: CmsStatus) {
-    if (!dataset || !identity || !isOwner) return;
+    if (!dataset || !identity || !canManageContent) return;
     if (!hasQortalBridge()) {
       setError('Qortal bridge is not available. Open this CMS through Qortal UI dev mode to publish.');
       return;
@@ -684,6 +688,71 @@ function App() {
     setStatus('Local CMS dataset initialized.');
   }
 
+  async function publishManifestUpdate(nextDataset: CmsDataset) {
+    const ownerName = qdnName || nextDataset.manifest.owner_name || identity?.name || '';
+    if (!ownerName) throw new Error('Missing owner Qortal name.');
+    if (!hasQortalBridge()) throw new Error('Qortal bridge is not available. Open through Qortal UI dev mode.');
+
+    await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER, name: ownerName }, nextDataset.manifest, 'CMS manifest', 'Qortal CMS manifest');
+  }
+
+  async function addCoauthor() {
+    if (!dataset || !identity || !isSysop) return;
+    const address = normalizeQortalAddress(coauthorAddressDraft);
+    if (!address) {
+      setError('Enter a wallet address before adding a coauthor.');
+      return;
+    }
+    if (address === identity.address) {
+      setError('The SysOp address does not need to be added as a coauthor.');
+      return;
+    }
+
+    const nextManifest = {
+      ...dataset.manifest,
+      owner_address: dataset.manifest.owner_address || identity.address,
+      coauthors: normalizeAddressList([...(dataset.manifest.coauthors || []), address]),
+      updated_at: new Date().toISOString()
+    };
+    const nextDataset = { ...dataset, manifest: nextManifest };
+
+    setError(null);
+    try {
+      setStatus('Publishing coauthor registry...');
+      await publishManifestUpdate(nextDataset);
+      setDataset(nextDataset);
+      saveLocalDataset(nextDataset);
+      setCoauthorAddressDraft('');
+      setStatus('Coauthor added.');
+    } catch (coauthorError) {
+      setError((coauthorError as Error).message);
+      setStatus('');
+    }
+  }
+
+  async function removeCoauthor(address: string) {
+    if (!dataset || !identity || !isSysop) return;
+    const normalized = normalizeQortalAddress(address);
+    const nextManifest = {
+      ...dataset.manifest,
+      coauthors: normalizeAddressList(dataset.manifest.coauthors || []).filter((item) => item !== normalized),
+      updated_at: new Date().toISOString()
+    };
+    const nextDataset = { ...dataset, manifest: nextManifest };
+
+    setError(null);
+    try {
+      setStatus('Publishing coauthor registry...');
+      await publishManifestUpdate(nextDataset);
+      setDataset(nextDataset);
+      saveLocalDataset(nextDataset);
+      setStatus('Coauthor removed.');
+    } catch (coauthorError) {
+      setError((coauthorError as Error).message);
+      setStatus('');
+    }
+  }
+
   if (error && !dataset) return <div className="app-message error"><XCircle />{error}</div>;
   if (!dataset || !identity) return <div className="app-message"><RefreshCcw className="spin" />Loading Qortal CMS...</div>;
 
@@ -709,7 +778,7 @@ function App() {
   }
 
   async function publishMediaFile() {
-    if (!dataset || !identity || !isOwner || !mediaFile) return;
+    if (!dataset || !identity || !canManageContent || !mediaFile) return;
     if (!hasQortalBridge()) {
       setError('Qortal bridge is not available. Open this CMS through Qortal UI dev mode to publish media.');
       return;
@@ -817,7 +886,7 @@ function App() {
           <User size={17} />
           <div>
             <strong>{identity.name || 'No Qortal name detected'}</strong>
-            <span>{isOwner ? 'Owner controls enabled' : 'Read-only mode'}</span>
+            <span>{isSysop ? 'SysOp controls enabled' : canManageContent ? 'Coauthor controls enabled' : 'Read-only mode'}</span>
             <small>Owner target: {ownerTarget}</small>
             {identity.names.length > 1 && <small>Detected names: {identity.names.join(', ')}</small>}
           </div>
@@ -830,12 +899,12 @@ function App() {
             <p className="eyebrow">Content</p>
             <h2>{section === 'posts' ? 'Posts' : section.charAt(0).toUpperCase() + section.slice(1)}</h2>
           </div>
-          {isOwner && <button className="icon-command primary" onClick={startNewPost}><Plus size={17} /> New</button>}
+          {canManageContent && <button className="icon-command primary" onClick={startNewPost}><Plus size={17} /> New</button>}
         </div>
 
         {section === 'dashboard' && (
           <div className="metric-grid">
-            <div><strong>{visiblePosts.length}</strong><span>{isOwner ? 'visible posts' : 'published posts'}</span></div>
+            <div><strong>{visiblePosts.length}</strong><span>{canManageContent ? 'visible posts' : 'published posts'}</span></div>
             <div><strong>{dataset.posts.filter((post) => post.status === 'draft').length}</strong><span>drafts</span></div>
             <div><strong>{dataset.media.length}</strong><span>media</span></div>
             <div><strong>{identity.bridgeAvailable ? 'Ready' : 'Offline'}</strong><span>bridge</span></div>
@@ -859,7 +928,7 @@ function App() {
 
         {section === 'media' && (
           <div className="media-library">
-            {isOwner && (
+            {canManageContent && (
               <div className="media-uploader">
                 <label>
                   Media file
@@ -885,7 +954,7 @@ function App() {
                     </div>
                     <div className="media-actions">
                       <a className="icon-command" href={qdnLink(item.qdn)} target="_blank" rel="noreferrer"><Link size={15} /> Open</a>
-                      {isOwner && selectedPost && (
+                      {canManageContent && selectedPost && (
                         <button className="icon-command" onClick={() => isAttached ? removeMediaFromPost(item) : attachMediaToPost(item)}>
                           <Paperclip size={15} /> {isAttached ? 'Detach' : 'Attach'}
                         </button>
@@ -899,7 +968,42 @@ function App() {
           </div>
         )}
         {section === 'imported' && <div className="placeholder"><Tags size={22} /><strong>Imported Content planned.</strong><span>This view will read migrator manifests and adopt selected posts into the CMS index.</span></div>}
-        {section === 'settings' && <div className="settings-list"><p><strong>Owner name:</strong> {dataset.manifest.owner_name || qdnName || 'not set'}</p><p><strong>Manifest:</strong> DOCUMENT / {MANIFEST_IDENTIFIER}</p><p><strong>Posts index:</strong> DOCUMENT / {POSTS_INDEX_IDENTIFIER}</p><button className="icon-command" onClick={initLocalSite}><RefreshCcw size={16} /> Reset local dataset</button></div>}
+        {section === 'settings' && (
+          <div className="settings-list">
+            <p><strong>Owner name:</strong> {dataset.manifest.owner_name || qdnName || 'not set'}</p>
+            <p><strong>Owner address:</strong> {dataset.manifest.owner_address || 'not set'}</p>
+            <p><strong>Your role:</strong> {identity.role}</p>
+            <p><strong>Manifest:</strong> DOCUMENT / {MANIFEST_IDENTIFIER}</p>
+            <p><strong>Posts index:</strong> DOCUMENT / {POSTS_INDEX_IDENTIFIER}</p>
+
+            <section className="coauthor-panel">
+              <div className="panel-title"><User size={18} /><h3>Coauthors</h3><span>{dataset.manifest.coauthors.length}</span></div>
+              <div className="coauthor-list">
+                {dataset.manifest.coauthors.map((address) => (
+                  <div key={address} className="coauthor-row">
+                    <span>{address}</span>
+                    {isSysop && <button type="button" onClick={() => removeCoauthor(address)}><Trash2 size={15} /> Remove</button>}
+                  </div>
+                ))}
+                {dataset.manifest.coauthors.length === 0 && <small>No coauthors added yet.</small>}
+              </div>
+
+              {isSysop ? (
+                <div className="coauthor-form">
+                  <label>
+                    Wallet address
+                    <input value={coauthorAddressDraft} onChange={(event) => setCoauthorAddressDraft(event.target.value)} placeholder="Qortal wallet address" />
+                  </label>
+                  <button className="icon-command primary" type="button" onClick={addCoauthor}><Plus size={16} /> Add coauthor</button>
+                </div>
+              ) : (
+                <small>Only the SysOp owner can add or remove coauthors.</small>
+              )}
+            </section>
+
+            <button className="icon-command" onClick={initLocalSite}><RefreshCcw size={16} /> Reset local dataset</button>
+          </div>
+        )}
       </section>
 
       <section className="workspace">
@@ -913,7 +1017,7 @@ function App() {
           <>
             <div className="editor-tabs">
               <button className={editorMode === 'preview' ? 'active' : ''} onClick={() => setEditorMode('preview')}><Eye size={16} /> Preview</button>
-              {isOwner && <button className={editorMode === 'edit' ? 'active' : ''} onClick={() => setEditorMode('edit')}><Edit3 size={16} /> Edit</button>}
+              {canManageContent && <button className={editorMode === 'edit' ? 'active' : ''} onClick={() => setEditorMode('edit')}><Edit3 size={16} /> Edit</button>}
             </div>
 
             {editorMode === 'preview' && (
@@ -924,9 +1028,9 @@ function App() {
                 <div className="quick-actions post-quick-actions" aria-label="Post quick actions">
                   <button type="button" disabled={!selectedPost.qdn.name} onClick={openPostQdnResource} title="Open QDN resource"><Link size={16} /><span>Open</span></button>
                   <button type="button" disabled={!selectedPost.qdn.name} onClick={() => void copyPostQdnUri()} title="Copy QDN URI"><Copy size={16} /><span>Copy</span></button>
-                  {isOwner && <button type="button" onClick={() => setEditorMode('edit')} title="Edit post"><Edit3 size={16} /><span>Edit</span></button>}
-                  {isOwner && <button type="button" onClick={() => publishPost('draft')} title="Save QDN draft"><Save size={16} /><span>Draft</span></button>}
-                  {isOwner && <button type="button" onClick={() => publishPost('published')} title="Publish post"><Send size={16} /><span>Publish</span></button>}
+                  {canManageContent && <button type="button" onClick={() => setEditorMode('edit')} title="Edit post"><Edit3 size={16} /><span>Edit</span></button>}
+                  {canManageContent && <button type="button" onClick={() => publishPost('draft')} title="Save QDN draft"><Save size={16} /><span>Draft</span></button>}
+                  {canManageContent && <button type="button" onClick={() => publishPost('published')} title="Publish post"><Send size={16} /><span>Publish</span></button>}
                   <button type="button" onClick={scrollToComments} title="Comments"><MessageSquare size={16} /><span>{commentsForPost.length}</span></button>
                 </div>
                 <div className="term-display">
@@ -958,7 +1062,7 @@ function App() {
               </article>
             )}
 
-            {editorMode === 'edit' && isOwner && (
+            {editorMode === 'edit' && canManageContent && (
               <div className="edit-pane">
                 <label>Title<input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value, slug: slugify(event.target.value) })} /></label>
                 <label>Slug<input value={draft.slug} onChange={(event) => setDraft({ ...draft, slug: event.target.value })} /></label>
@@ -1017,7 +1121,7 @@ function App() {
             </section>
           </>
         ) : (
-          <div className="placeholder"><FileText size={24} /><strong>No post selected</strong><span>{isOwner ? 'Create a new post or select an existing one.' : 'Select a published post to read.'}</span></div>
+          <div className="placeholder"><FileText size={24} /><strong>No post selected</strong><span>{canManageContent ? 'Create a new post or select an existing one.' : 'Select a published post to read.'}</span></div>
         )}
       </section>
     </main>
