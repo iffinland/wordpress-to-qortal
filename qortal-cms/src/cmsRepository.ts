@@ -217,6 +217,29 @@ export async function publishJsonResource<T>(name: string, ref: QdnRef, data: T,
   });
 }
 
+export interface JsonPublishItem<T = unknown> {
+  ref: QdnRef;
+  data: T;
+  title: string;
+  description: string;
+  filename?: string;
+}
+
+export async function publishJsonResources(name: string, items: JsonPublishItem[]) {
+  await requestQortal({
+    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+    resources: items.map((item) => ({
+      name,
+      service: item.ref.service,
+      identifier: item.ref.identifier,
+      title: item.title,
+      description: item.description,
+      filename: item.filename || `${item.ref.identifier}.json`,
+      data64: toBase64(JSON.stringify(item.data, null, 2))
+    }))
+  });
+}
+
 export function qdnLink(ref: QdnRef) {
   return ref.name ? createQdnUrl(ref.service, ref.name, ref.identifier) : '';
 }

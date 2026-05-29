@@ -18,6 +18,7 @@ import {
   loadDataset,
   loadPost,
   publishJsonResource,
+  publishJsonResources,
   qdnLink,
   saveLocalDataset,
   slugify,
@@ -274,16 +275,51 @@ function App() {
 
     setError(null);
     try {
-      setStatus('Publishing post...');
-      await publishJsonResource(ownerName, applied.post.qdn, applied.post, applied.post.title, stripHtml(applied.post.excerpt || applied.post.content_html).slice(0, 4000));
-
-      setStatus('Updating CMS indexes...');
-      await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: POSTS_INDEX_IDENTIFIER }, applied.nextDataset.posts, 'CMS posts index', 'Qortal CMS posts index');
-      await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: PAGES_INDEX_IDENTIFIER }, applied.nextDataset.pages, 'CMS pages index', 'Qortal CMS pages index');
-      await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: CATEGORIES_IDENTIFIER }, applied.nextDataset.categories, 'CMS categories', 'Qortal CMS categories');
-      await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: TAGS_IDENTIFIER }, applied.nextDataset.tags, 'CMS tags', 'Qortal CMS tags');
-      await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER }, applied.nextDataset.comments, 'CMS comments index', 'Qortal CMS comments index');
-      await publishJsonResource(ownerName, { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER }, applied.nextDataset.manifest, 'CMS manifest', 'Qortal CMS manifest');
+      setStatus('Publishing post and CMS indexes...');
+      await publishJsonResources(ownerName, [
+        {
+          ref: applied.post.qdn,
+          data: applied.post,
+          title: applied.post.title,
+          description: stripHtml(applied.post.excerpt || applied.post.content_html).slice(0, 4000)
+        },
+        {
+          ref: { service: 'DOCUMENT', identifier: POSTS_INDEX_IDENTIFIER },
+          data: applied.nextDataset.posts,
+          title: 'CMS posts index',
+          description: 'Qortal CMS posts index'
+        },
+        {
+          ref: { service: 'DOCUMENT', identifier: PAGES_INDEX_IDENTIFIER },
+          data: applied.nextDataset.pages,
+          title: 'CMS pages index',
+          description: 'Qortal CMS pages index'
+        },
+        {
+          ref: { service: 'DOCUMENT', identifier: CATEGORIES_IDENTIFIER },
+          data: applied.nextDataset.categories,
+          title: 'CMS categories',
+          description: 'Qortal CMS categories'
+        },
+        {
+          ref: { service: 'DOCUMENT', identifier: TAGS_IDENTIFIER },
+          data: applied.nextDataset.tags,
+          title: 'CMS tags',
+          description: 'Qortal CMS tags'
+        },
+        {
+          ref: { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER },
+          data: applied.nextDataset.comments,
+          title: 'CMS comments index',
+          description: 'Qortal CMS comments index'
+        },
+        {
+          ref: { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER },
+          data: applied.nextDataset.manifest,
+          title: 'CMS manifest',
+          description: 'Qortal CMS manifest'
+        }
+      ]);
 
       setDataset(applied.nextDataset);
       setSelectedPost(applied.post);

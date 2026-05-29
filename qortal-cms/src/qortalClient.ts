@@ -10,6 +10,16 @@ interface QortalRequestPayload {
   filename?: string;
   title?: string;
   description?: string;
+  resources?: Array<{
+    service: string;
+    name?: string;
+    identifier: string;
+    data64?: string;
+    file?: File;
+    filename?: string;
+    title?: string;
+    description?: string;
+  }>;
 }
 
 declare global {
