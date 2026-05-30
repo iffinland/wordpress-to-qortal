@@ -81,6 +81,13 @@ interface ImportedPost {
   categories: number[];
   tags: number[];
   attachments?: ImportedAttachment[];
+  media?: {
+    images?: string[];
+    audio?: string[];
+    video?: string[];
+    documents?: string[];
+    embeds?: string[];
+  };
   import?: { importer_version?: string; imported_at?: string };
 }
 
@@ -1073,7 +1080,23 @@ function App() {
   }
 
   function importedAttachmentSummary(post: ImportedPost, ownerName: string) {
-    return (post.attachments || []).map((attachment) => {
+    const attachments: ImportedAttachment[] = [...(post.attachments || [])];
+    const knownUrls = new Set(attachments.map((attachment) => attachment.source_url).filter(Boolean));
+    const extractedMedia = [
+      ...((post.media?.images || []).map((source_url) => ({ source_url, media_type: 'image' }))),
+      ...((post.media?.audio || []).map((source_url) => ({ source_url, media_type: 'audio' }))),
+      ...((post.media?.video || []).map((source_url) => ({ source_url, media_type: 'video' }))),
+      ...((post.media?.documents || []).map((source_url) => ({ source_url, media_type: 'document' })))
+    ];
+
+    for (const attachment of extractedMedia) {
+      if (!knownUrls.has(attachment.source_url)) {
+        attachments.push(attachment);
+        knownUrls.add(attachment.source_url);
+      }
+    }
+
+    return attachments.map((attachment) => {
       const mediaItem = attachmentMediaItem(attachment);
       const qdn = mediaItem ? importedMediaRef(mediaItem, ownerName) : null;
       return { attachment, mediaItem, qdn };
