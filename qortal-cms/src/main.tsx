@@ -1103,6 +1103,65 @@ function App() {
     });
   }
 
+  function rewriteImportedHtml(post: ImportedPost, ownerName: string) {
+    const parser = new DOMParser();
+    const document = parser.parseFromString(post.content_html || '', 'text/html');
+
+    function resolveImportedQdnUrl(value: string | null) {
+      if (!value) return '';
+      const mediaItem = importedMediaMap[value];
+      const qdn = mediaItem ? importedMediaRef(mediaItem, ownerName) : null;
+      return qdn ? qdnLink(qdn) : '';
+    }
+
+    function resolveImportedUrl(value: string | null) {
+      if (!value) return '';
+      return resolveImportedQdnUrl(value) || value;
+    }
+
+    for (const image of Array.from(document.querySelectorAll('img'))) {
+      image.setAttribute('src', resolveImportedUrl(image.getAttribute('src') || image.getAttribute('data-lazy-src')));
+      image.removeAttribute('srcset');
+      image.removeAttribute('sizes');
+      image.removeAttribute('data-lazy-src');
+      image.setAttribute('loading', 'lazy');
+    }
+
+    for (const source of Array.from(document.querySelectorAll('source[srcset]'))) {
+      source.removeAttribute('srcset');
+    }
+
+    for (const media of Array.from(document.querySelectorAll('audio[src], video[src], source[src]'))) {
+      media.setAttribute('src', resolveImportedUrl(media.getAttribute('src')));
+    }
+
+    for (const link of Array.from(document.querySelectorAll('a[href]'))) {
+      link.setAttribute('href', resolveImportedUrl(link.getAttribute('href')));
+    }
+
+    const inlineVideoUrls = (post.media?.video || [])
+      .map((sourceUrl) => resolveImportedQdnUrl(sourceUrl))
+      .filter((sourceUrl) => sourceUrl !== '');
+    const frames = Array.from(document.querySelectorAll('iframe'));
+    for (let index = 0; index < frames.length && index < inlineVideoUrls.length; index += 1) {
+      const video = document.createElement('video');
+      video.setAttribute('controls', '');
+      video.setAttribute('preload', 'none');
+      video.setAttribute('playsinline', '');
+      video.setAttribute('src', inlineVideoUrls[index]);
+      video.setAttribute('class', 'qdn-inline-video');
+      const wrapper = frames[index].parentElement;
+      if (wrapper?.children.length === 1) wrapper.replaceWith(video);
+      else frames[index].replaceWith(video);
+    }
+
+    return document.body.innerHTML;
+  }
+
+  function standaloneVideosForPost(post: CmsPost) {
+    return (post.videos || []).filter((video) => !post.content_html.includes(qdnLink(video.qdn)));
+  }
+
   function toCmsMediaType(value: ImportedMediaMapItem['type']) {
     if (value === 'image' || value === 'audio' || value === 'video' || value === 'document') return value;
     return 'file';
@@ -1172,7 +1231,7 @@ function App() {
       updated_at: now,
       published_at: null,
       qdn: existing?.qdn || { service: 'DOCUMENT', identifier: createPostIdentifier(slug, siteId), name: ownerName },
-      content_html: `${importedPost.content_html || ''}<hr/><p><small>Imported from WordPress source ID ${importedPost.source_id}. Original URL: <a href="${importedPost.old_url}" target="_blank" rel="noreferrer">${importedPost.old_url}</a></small></p>`,
+      content_html: `${rewriteImportedHtml(importedPost, ownerName)}<hr/><p><small>Imported from WordPress source ID ${importedPost.source_id}. Original URL: <a href="${importedPost.old_url}" target="_blank" rel="noreferrer">${importedPost.old_url}</a></small></p>`,
       featured_image: mediaItems.find((item) => item.type === 'image')?.qdn || null,
       media: attachedMedia,
       videos,
@@ -1639,11 +1698,11 @@ function App() {
               </div>
               <div className="content-preview" dangerouslySetInnerHTML={{ __html: publicSelectedPost.content_html }} />
               <MediaAttachmentViewer items={selectedMediaItems} />
-              {(publicSelectedPost.videos || []).length > 0 && (
+              {standaloneVideosForPost(publicSelectedPost).length > 0 && (
                 <section className="attachments-panel">
-                  <div className="panel-title"><Video size={18} /><h3>Videos</h3><span>{(publicSelectedPost.videos || []).length}</span></div>
+                  <div className="panel-title"><Video size={18} /><h3>Videos</h3><span>{standaloneVideosForPost(publicSelectedPost).length}</span></div>
                   <div className="video-embed-list">
-                    {(publicSelectedPost.videos || []).map((video) => (
+                    {standaloneVideosForPost(publicSelectedPost).map((video) => (
                       <LazyVideoEmbed key={video.id} video={video} />
                     ))}
                   </div>
@@ -1946,9 +2005,9 @@ function App() {
               <div><strong>{selectedImportedPost.import?.importer_version || '0.1.0'}</strong><span>importer</span></div>
               <div><strong>{selectedImportedIndex && dataset.posts.some((item) => item.id === `wp-${selectedImportedIndex.source_id}`) ? 'yes' : 'no'}</strong><span>adopted</span></div>
             </div>
-            {(selectedImportedPost.attachments || []).length > 0 && (
+            {importedAttachmentSummary(selectedImportedPost, importOwnerName || ownerTarget).length > 0 && (
               <section className="attachments-panel">
-                <div className="panel-title"><Paperclip size={18} /><h3>Imported Attachments</h3><span>{selectedImportedPost.attachments?.length || 0}</span></div>
+                <div className="panel-title"><Paperclip size={18} /><h3>Imported Attachments</h3><span>{importedAttachmentSummary(selectedImportedPost, importOwnerName || ownerTarget).length}</span></div>
                 <div className="imported-attachment-list">
                   {importedAttachmentSummary(selectedImportedPost, importOwnerName || ownerTarget).map(({ attachment, mediaItem, qdn }) => (
                     <div key={attachment.source_url || attachment.title} className="imported-attachment-row">
@@ -1966,7 +2025,7 @@ function App() {
                 </div>
               </section>
             )}
-            <div className="content-preview" dangerouslySetInnerHTML={{ __html: selectedImportedPost.content_html }} />
+            <div className="content-preview" dangerouslySetInnerHTML={{ __html: rewriteImportedHtml(selectedImportedPost, importOwnerName || ownerTarget) }} />
             {canManageContent && (
               <div className="action-row">
                 <button className="icon-command primary" type="button" onClick={adoptImportedPost}><Plus size={16} /> Adopt into CMS draft</button>
@@ -2001,11 +2060,11 @@ function App() {
                 </div>
                 <div className="content-preview" dangerouslySetInnerHTML={{ __html: selectedPost.content_html }} />
                 <MediaAttachmentViewer items={selectedMediaItems} />
-                {(selectedPost.videos || []).length > 0 && (
+                {standaloneVideosForPost(selectedPost).length > 0 && (
                   <section className="attachments-panel">
-                    <div className="panel-title"><Video size={18} /><h3>Videos</h3><span>{(selectedPost.videos || []).length}</span></div>
+                    <div className="panel-title"><Video size={18} /><h3>Videos</h3><span>{standaloneVideosForPost(selectedPost).length}</span></div>
                     <div className="video-embed-list">
-                      {(selectedPost.videos || []).map((video) => (
+                      {standaloneVideosForPost(selectedPost).map((video) => (
                         <LazyVideoEmbed key={video.id} video={video} />
                       ))}
                     </div>

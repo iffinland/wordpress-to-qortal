@@ -474,6 +474,14 @@ button {
   height: auto;
 }
 
+.content-preview video,
+.content-preview audio {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 14px 0;
+}
+
 .edit-pane {
   display: grid;
   gap: 13px;
