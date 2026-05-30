@@ -2002,7 +2002,7 @@ function App() {
             </div>
             <div className="import-summary">
               <div><strong>{selectedImportedPost.attachments?.length || 0}</strong><span>attachments</span></div>
-              <div><strong>{selectedImportedPost.import?.importer_version || '0.1.0'}</strong><span>importer</span></div>
+              <div><strong>{selectedImportedPost.import?.importer_version || '0.1.1'}</strong><span>importer</span></div>
               <div><strong>{selectedImportedIndex && dataset.posts.some((item) => item.id === `wp-${selectedImportedIndex.source_id}`) ? 'yes' : 'no'}</strong><span>adopted</span></div>
             </div>
             {importedAttachmentSummary(selectedImportedPost, importOwnerName || ownerTarget).length > 0 && (

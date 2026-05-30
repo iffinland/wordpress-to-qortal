@@ -246,7 +246,7 @@ async function main() {
   }
 
   const log = {
-    version: '0.1.0',
+    version: '0.1.1',
     generated_at: new Date().toISOString(),
     mode: 'dry-run',
     qortal_name: config.qortalName,

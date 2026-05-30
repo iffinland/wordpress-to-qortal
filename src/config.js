@@ -120,6 +120,6 @@ export function loadConfig() {
     qortalNodeUrl,
     qortalApiKey,
     qortalApiKeyFile,
-    importerVersion: '0.1.0'
+    importerVersion: '0.1.1'
   };
 }

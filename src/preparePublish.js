@@ -111,7 +111,7 @@ function createQdnManifest({ posts, pages, indexes, media, linkedOnly }) {
   }
 
   return {
-    version: '0.1.0',
+    version: '0.1.1',
     generated_at: new Date().toISOString(),
     qdn_name: null,
     entrypoints: {
@@ -160,7 +160,7 @@ async function main() {
   });
 
   const plan = {
-    version: '0.1.0',
+    version: '0.1.1',
     generated_at: new Date().toISOString(),
     qdn_name: null,
     note: 'Set the publishing Qortal name before implementing the publish command.',
