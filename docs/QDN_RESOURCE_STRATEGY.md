@@ -1,6 +1,6 @@
 # QDN Resource Strategy
 
-This document defines the publishing strategy for migrated WordPress datasets. It is intentionally conservative: the importer prepares resources and logs, while real QDN publishing currently happens through the browser-based Migration Publisher inside Qortal UI dev mode.
+This document defines the publishing strategy for migrated WordPress datasets. It is intentionally conservative: the importer prepares resources and logs, while real QDN publishing happens through a small Migration Publisher Q-App opened inside Qortal UI.
 
 ## Goals
 
@@ -148,19 +148,38 @@ loads local content.
 
 loads `DOCUMENT/<QortalName>/cr-qdn-manifest` first and then resolves all indexes, posts, pages, and media through that manifest.
 
-The current Migration Publisher is:
+Local development can open the Migration Publisher with:
 
 ```text
 /?tool=publish&name=<QortalName>
 ```
 
-It is intentionally browser/Qortal UI based. It uses `qortalRequest({ action: 'PUBLISH_QDN_RESOURCE', ... })` so Qortal UI handles account signing. The Node.js CLI does not ask for or store a private key.
+The normal production workflow builds a small Q-App ZIP:
+
+```bash
+npm run package:migration-qapp
+```
+
+The ZIP is published to Qortal as an `APP` or `WEBSITE`. Inside Qortal UI, the user selects the local `wp-qortal-import` folder. The Q-App reads local files through the browser folder picker and delegates signing and publishing to Qortal UI. The Node.js CLI does not ask for or store a private key.
+
+Selected resources are sent with:
+
+```text
+qortalRequest({ action: 'PUBLISH_MULTIPLE_QDN_RESOURCES', resources: [...] })
+```
 
 Publisher modes:
 
 - `Demo` publishes one small smoke-test set.
 - `CMS JSON` publishes imported posts, pages, indexes, and one image for basic media testing.
+- `Images` publishes images only.
+- `Documents` publishes PDFs and other document/file resources.
+- `Audio` publishes audio only.
+- `Video` publishes video only.
+- `Selected media` exposes checkboxes for manual batches.
 - `Full media` publishes every planned resource, including all downloaded media files.
+
+The publisher keeps local browser history and supports `Skip already published`. When enabled, it checks QDN and avoids uploading an existing `NAME + SERVICE + IDENTIFIER` resource again.
 
 ## External Linked Media
 
@@ -188,7 +207,7 @@ Current behavior:
 - `npm run publish -- --dry-run` validates the generated publish plan.
 - `npm run publish -- --dry-run --check-node` also checks node status and temporary upload space.
 - Real CLI publishing intentionally fails until a safe direct-node publishing path is confirmed.
-- Real QDN publishing is available through the Migration Publisher in Qortal UI dev mode.
+- Real QDN publishing is available through the Migration Publisher Q-App in Qortal UI.
 
 The Qortal node API can build unsigned ARBITRARY transactions through `/arbitrary/...` endpoints. A browser Q-App normally uses `qortalRequest({ action: 'PUBLISH_QDN_RESOURCE', ... })`, which delegates signing and publishing to Qortal UI. A Node.js CLI publisher must therefore either integrate a safe signing path or hand publishing off to a Qortal UI/Q-App workflow.
 

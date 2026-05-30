@@ -1,8 +1,6 @@
 # Roadmap
 
-This repository is the WordPress importer and migration preparation tool.
-
-The future Qortal CMS/Q-App should live in a separate repository or project directory. The importer is only needed for migration; the CMS is the long-term authoring and publishing interface.
+This repository contains the WordPress importer, the Migration Publisher Q-App, and a separate Qortal CMS project directory. The importer is only needed for migration; the CMS is the long-term authoring and publishing interface.
 
 ## Importer Scope
 
@@ -40,19 +38,33 @@ npm run prepare-import
 - Keep improving QDN publish preparation logs.
 - Keep browser-based QDN publishing in the Migration Publisher until direct node publishing is ready.
 
+## Current Migration Publisher
+
+The small Migration Publisher Q-App:
+
+- reads the local `wp-qortal-import` folder through a browser folder picker
+- publishes selected resources through Qortal UI
+- supports grouped multi-resource confirmations
+- separates JSON, images, documents, audio, and video
+- supports manual media selection
+- skips QDN resources that already exist
+
 ## Separate CMS/Q-App Scope
 
-The future CMS should be a separate TypeScript Qortal Q-App.
+The CMS is a separate TypeScript Qortal Q-App.
 
 It should be responsible for:
 
 - reading QDN-published post/page index resources
 - rendering posts and pages
-- owner-authenticated post/page creation
+- SysOp and coauthor post creation
 - rich text editing
 - media selection and upload
 - category and tag management
 - QDN publish/update flows
+- imported WordPress content adoption
+- public reader frontend
+- comments, likes, shares, and QORT tips
 
 The CMS should reuse proven Qortal patterns from existing projects, especially:
 

@@ -33,7 +33,9 @@
     "inspect": "node src/inspect.js",
     "package:migration": "node scripts/createMigrationPackage.js",
     "package:zip": "node scripts/createMigrationZip.js",
-    "package:migration-qapp": "node scripts/createMigrationQappZip.js"
+    "package:migration-qapp": "node scripts/createMigrationQappZip.js",
+    "package:cms-qapp": "node scripts/createCmsQappZip.js",
+    "package:tester-bundle": "node scripts/createTesterBundle.js"
   },
   "engines": {
     "node": ">=18"

@@ -9,8 +9,10 @@ This is the separate Qortal-native CMS/Q-App. It is not the WordPress migrator.
 - Reads a CMS dataset from QDN through `cms-manifest`.
 - Falls back to a local browser dataset when QDN resources do not exist yet.
 - Detects the logged-in Qortal name when Qortal UI exposes `qortalRequest`.
-- Treats the owner name as SysOp.
-- Lets the SysOp add coauthors by wallet address from Settings.
+- Treats the Qortal name that publishes the CMS as SysOp.
+- Generates a stable site ID for each CMS installation.
+- Lets the SysOp edit the public site title and tagline.
+- Lets the SysOp add coauthors by wallet address or Qortal name from Settings.
 - Shows editor and publish controls to SysOp and coauthors.
 - Shows read-only mode to everyone else.
 - Creates and edits posts with a rich text editor.
@@ -25,7 +27,7 @@ This is the separate Qortal-native CMS/Q-App. It is not the WordPress migrator.
 - Adds QDN/Q-Tube video links to posts.
 - Renders attached videos through a lazy-load player.
 - Has a comments-ready model where Qortal users can publish their own comment resource.
-- Leaves imported-content adoption as a staged view for the next iteration.
+- Adopts one imported post or up to 10 selected posts into CMS drafts.
 
 ## Resource Identifiers
 
@@ -44,7 +46,7 @@ DOCUMENT / cms-comments-index
 Each post is a separate resource:
 
 ```text
-DOCUMENT / cms-post-<slug>-<suffix>
+DOCUMENT / cms-post-<site-id>-<slug>-<suffix>
 ```
 
 Each comment is a separate resource under the commenter's own Qortal name:
@@ -85,12 +87,6 @@ Open:
 http://localhost:5180/?name=YourQortalName
 ```
 
-For the current local test name:
-
-```text
-http://localhost:5180/?name=developer%20iffi
-```
-
 ## Build
 
 ```bash
@@ -103,25 +99,29 @@ The static Q-App build is written to:
 qortal-cms/dist/
 ```
 
-That folder is the first thing to publish as a Qortal `WEBSITE`/Q-App shell. The content itself is stored in separate QDN resources.
+Create a Qortal-ready CMS ZIP from the repository root:
+
+```bash
+npm run package:cms-qapp
+```
+
+Publish this file as a Qortal `APP` or `WEBSITE`:
+
+```text
+release/qortal-cms-app-v0.1.0.zip
+```
+
+The app shell is separate from the content. CMS content is stored in separate QDN resources.
 
 ## Roles
 
-SysOp controls are enabled when the logged-in Qortal name equals the `name` query parameter or the owner name in `cms-manifest`.
+SysOp controls are enabled when the logged-in Qortal name matches the Qortal name that publishes the CMS manifest.
 
-Examples:
-
-```text
-http://localhost:5180/?name=developer%20iffi
-```
-
-If the logged-in Qortal name is `developer iffi`, SysOp controls are visible.
-
-Coauthors are detected by wallet address from `cms-manifest.coauthors`. Other users see read-only mode and can only read content and use comment controls where available.
+Coauthors are detected from `cms-manifest.coauthors` by wallet address or Qortal name. Other users see the public visitor frontend and can use reader/comment controls where available.
 
 ## Coauthors
 
-Coauthors are stored in `cms-manifest` as wallet addresses. A coauthor can create and edit CMS content, publish posts, and publish media from the CMS interface. Only the SysOp owner can add or remove coauthors.
+Coauthors are stored in `cms-manifest`. A coauthor can create and edit CMS content, publish posts under their own Qortal name, and publish media from the CMS interface. Only the SysOp owner can add or remove coauthors.
 
 ## Imported Content
 

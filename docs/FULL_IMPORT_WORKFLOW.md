@@ -77,7 +77,7 @@ After media has been downloaded, run the stricter media validation:
 npm run validate:media
 ```
 
-Prepare the resource plan before implementing or running QDN publishing:
+Prepare the resource plan before QDN publishing:
 
 ```bash
 npm run prepare-publish
@@ -99,27 +99,32 @@ http://localhost:5174/
 
 Use the preview to check imported posts, pages, media, tags, and categories before publishing.
 
-## 5. Publish Through Qortal UI Dev Mode
+## 5. Build and Publish the Migration Publisher Q-App
 
-Open the publisher inside Qortal UI dev mode:
+Build the small Migration Publisher ZIP:
+
+```bash
+npm run package:migration-qapp
+```
+
+Publish this file to Qortal as an `APP` or `WEBSITE`:
 
 ```text
-http://localhost:5174/?tool=publish&name=YourQortalName
+release/wordpress-to-qortal-migration-app-v0.1.0.zip
 ```
+
+Open the published app inside Qortal UI. Select the local `wp-qortal-import` folder. The Q-App stays small; imported data remains on the user's computer until selected resources are published to QDN.
 
 Use the publish modes in this order:
 
 1. `Demo` for a small smoke test.
 2. `CMS JSON` for posts, pages, indexes, and the QDN manifest.
-3. `Full media` for every planned media resource.
+3. `Images`, `Documents`, `Audio`, `Video`, or `Selected media` for manageable media batches.
+4. `Full media` only when intentionally publishing every remaining planned resource.
 
-QDN read test:
+Keep `Skip already published` enabled. The publisher checks QDN before uploading and skips resources that already exist. A selected batch uses one grouped Qortal UI confirmation request.
 
-```text
-http://localhost:5174/?source=qdn&name=YourQortalName
-```
-
-The browser publisher requires Qortal UI's `qortalRequest` bridge. It will not publish from a normal browser tab.
+The publisher requires Qortal UI's `qortalRequest` bridge. It will not publish from a normal browser tab.
 
 ## 6. Output
 

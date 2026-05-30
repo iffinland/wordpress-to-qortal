@@ -2,18 +2,18 @@
 
 Current version: `0.1.0`
 
-This tool imports WordPress content to your computer, converts it to Qortal-friendly JSON, and helps publish the migrated resources to QDN.
+This Node.js tool downloads WordPress content to your computer, converts it to Qortal-friendly JSON, downloads selected media, and prepares a QDN publish plan.
 
-It is a migration tool. It is not the long-term Qortal CMS.
+The Migration Publisher and Qortal CMS are separate Q-Apps. Imported content stays on your computer until the Migration Publisher sends selected resources to QDN.
 
 ## 1. Install Requirements
 
-Install these first:
+Install:
 
 - Node.js 18 or newer
 - npm
-- Qortal UI, if you want to publish to QDN
-- access to a WordPress account or a public WordPress REST API
+- Qortal Core and Qortal UI for QDN publishing
+- WordPress REST API access or a supported WordPress login
 
 Check Node.js:
 
@@ -22,27 +22,14 @@ node --version
 npm --version
 ```
 
-## 2. Install The Tool
-
-From the project folder:
+## 2. Install the Importer
 
 ```bash
 npm install
-```
-
-This installs the importer and the Migration Preview/Publisher app.
-
-## 3. Create `.env`
-
-Copy the example file:
-
-```bash
 cp .env.example .env
 ```
 
-Edit `.env`.
-
-Small first test:
+Edit `.env`. Start with a small import:
 
 ```env
 WORDPRESS_BASE_URL=https://example.com
@@ -77,142 +64,25 @@ WORDPRESS_APP_PASSWORD=
 WORDPRESS_PASSWORD=your-normal-password
 ```
 
-Keep `.env` private. Never publish it to GitHub.
+Keep `.env` private.
 
-## 4. Check WordPress Access
+## 3. Import and Convert
+
+Check access:
 
 ```bash
 npm run inspect
 ```
 
-If this works, continue.
-
-If it returns `401 Unauthorized`, the WordPress site requires login. Configure either Application Password mode or session mode in `.env`.
-
-## 5. Import And Convert Content
-
-Run the full local import:
+Run the local import:
 
 ```bash
 npm run prepare-import
-```
-
-This runs:
-
-- `dump` - downloads raw WordPress JSON
-- `convert` - creates Qortal-friendly JSON
-- `plan-media` - checks planned media downloads
-- `download-media` - downloads selected media files
-- `validate` - checks the generated files
-
-Then run the strict media check:
-
-```bash
 npm run validate:media
-```
-
-## 6. Prepare QDN Resource Plan
-
-```bash
 npm run prepare-publish
 ```
 
 This creates:
-
-```text
-wp-qortal-import/publish-log/publish-plan.json
-wp-qortal-import/converted/qdn-manifest.json
-```
-
-No QDN publishing happens in this step.
-
-## 7. Preview The Migration Locally
-
-Start the Migration Preview/Publisher:
-
-```bash
-npm run migration:dev
-```
-
-Open:
-
-```text
-http://localhost:5174/
-```
-
-Use this page to review imported posts, pages, images, videos, documents, categories, and tags.
-
-## 8. Publish To QDN
-
-QDN publishing currently runs through Qortal UI dev mode because the browser needs Qortal UI's `qortalRequest` bridge.
-
-Open this URL inside Qortal UI dev mode:
-
-```text
-http://localhost:5174/?tool=publish&name=YourQortalName
-```
-
-Replace `YourQortalName` with your registered Qortal name.
-
-Publisher modes:
-
-- `Demo` publishes one small smoke-test set.
-- `CMS JSON` publishes imported posts, pages, and indexes, plus one image for basic media testing.
-- `Full media` publishes every planned resource, including all downloaded media.
-
-Recommended order:
-
-1. Publish `Demo`.
-2. Check that QDN mode can read the result.
-3. Publish `CMS JSON`.
-4. Publish `Full media` only after the small tests work.
-
-QDN read test:
-
-```text
-http://localhost:5174/?source=qdn&name=YourQortalName
-```
-
-## 9. Useful Commands
-
-```bash
-npm run inspect
-npm run prepare-import
-npm run validate:media
-npm run prepare-publish
-npm run migration:dev
-npm run check
-```
-
-Create a clean copy for sharing:
-
-```bash
-npm run package:migration
-```
-
-Create a zip file for sharing:
-
-```bash
-npm run package:zip
-```
-
-The copy is written to:
-
-```text
-release/wordpress-to-qortal-migrator/
-```
-
-The zip file is written to:
-
-```text
-release/wordpress-to-qortal-migrator-v0.1.0.zip
-```
-
-That release copy does not include `node_modules`, `.env`, generated import data, or the future CMS folder.
-
-## 10. Output Folders
-
-Generated data is written to:
 
 ```text
 wp-qortal-import/
@@ -223,4 +93,77 @@ wp-qortal-import/
 └── publish-log/
 ```
 
-Do not publish this folder to a public repository unless you are certain the imported content may be shared.
+## 4. Optional Local Preview
+
+For local development or review:
+
+```bash
+npm run migration:dev
+```
+
+Open:
+
+```text
+http://localhost:5174/?tool=viewer
+```
+
+This local URL is only for preview and development. Normal QDN publishing uses the small Migration Publisher Q-App.
+
+## 5. Build the Migration Publisher Q-App
+
+```bash
+npm run package:migration-qapp
+```
+
+This creates:
+
+```text
+release/wordpress-to-qortal-migration-app-v0.1.0.zip
+```
+
+Publish that small ZIP to Qortal as an `APP` or `WEBSITE`. Do not place `wp-qortal-import` inside the Q-App ZIP.
+
+Open the published app inside Qortal UI:
+
+1. Select your local `wp-qortal-import` folder.
+2. Confirm the Qortal name.
+3. Keep `Skip already published` enabled.
+4. Publish `Demo`.
+5. Publish `CMS JSON`.
+6. Publish media gradually.
+
+Publisher media modes:
+
+- `Images`
+- `Documents`
+- `Audio`
+- `Video`
+- `Selected media`
+- `Full media`
+
+Each resource row has a checkbox. Large migrations should be uploaded in small batches. Existing QDN resources are skipped automatically when `Skip already published` is enabled.
+
+## 6. Load Content in Qortal CMS
+
+In the Qortal CMS backend, open `Imported` and enter:
+
+```text
+Importer owner name: <Qortal name used by Migration Publisher>
+Manifest identifier: cr-qdn-manifest
+```
+
+Click `Load imported content`, preview a post, adopt it as a CMS draft, review attachments, and publish it through the CMS.
+
+## 7. Useful Commands
+
+```bash
+npm run inspect
+npm run prepare-import
+npm run validate:media
+npm run prepare-publish
+npm run migration:dev
+npm run package:migration-qapp
+npm run package:tester-bundle
+```
+
+See `TESTER_GUIDE.md` for the complete tester workflow.

@@ -9,6 +9,7 @@ const pathsToCopy = [
   '.env.example',
   'README.md',
   'QUICKSTART.md',
+  'TESTER_GUIDE.md',
   'ROADMAP.md',
   'package.json',
   'package-lock.json',
@@ -44,6 +45,13 @@ async function main() {
   for (const relativePath of pathsToCopy) {
     await copyPath(relativePath);
   }
+
+  const releasePackageJsonPath = path.join(packageDir, 'package.json');
+  const releasePackageJson = JSON.parse(await readFile(releasePackageJsonPath, 'utf8'));
+  for (const scriptName of ['cms:dev', 'cms:build', 'cms:preview', 'check:cms', 'package:cms-qapp', 'package:tester-bundle']) {
+    delete releasePackageJson.scripts[scriptName];
+  }
+  await writeFile(releasePackageJsonPath, `${JSON.stringify(releasePackageJson, null, 2)}\n`);
 
   await writeFile(
     path.join(packageDir, 'VERSION.txt'),
