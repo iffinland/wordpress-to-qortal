@@ -173,7 +173,26 @@ function safeIdPart(value = '') {
   return value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 28) || 'item';
 }
 
-function createDraft(post: CmsPost): DraftState {
+function termNamesFromIds(ids: string[], terms: CmsDataset['categories']) {
+  const byId = new Map(terms.map((term) => [term.id, term]));
+
+  return ids.map((id) => {
+    let currentId = id;
+    const visited = new Set<string>();
+
+    while (!visited.has(currentId)) {
+      visited.add(currentId);
+      const term = byId.get(currentId);
+      if (!term) return currentId;
+      if (!byId.has(term.name)) return term.name;
+      currentId = term.name;
+    }
+
+    return byId.get(currentId)?.name || id;
+  });
+}
+
+function createDraft(post: CmsPost, categories: CmsDataset['categories'] = [], tags: CmsDataset['tags'] = []): DraftState {
   return {
     title: decodeText(post.title),
     slug: post.slug,
@@ -181,8 +200,8 @@ function createDraft(post: CmsPost): DraftState {
     content_html: post.content_html,
     status: post.status,
     comments_enabled: post.comments_enabled,
-    categoryText: post.category_ids.join(', '),
-    tagText: post.tag_ids.join(', ')
+    categoryText: termNamesFromIds(post.category_ids, categories).join(', '),
+    tagText: termNamesFromIds(post.tag_ids, tags).join(', ')
   };
 }
 
@@ -603,7 +622,7 @@ function App() {
     if (first) {
       const post = await safeLoadPost(first, loadedDataset);
       setSelectedPost(post);
-      setDraft(createDraft(post));
+      setDraft(createDraft(post, loadedDataset.categories, loadedDataset.tags));
     }
     setStatus('');
   }
@@ -662,7 +681,7 @@ function App() {
       const post = await safeLoadPost(index, dataset);
       setSelectedIndex(index);
       setSelectedPost(post);
-      setDraft(createDraft(post));
+      setDraft(createDraft(post, dataset.categories, dataset.tags));
       setEditorMode('preview');
     } catch (openError) {
       setError((openError as Error).message);
@@ -729,7 +748,7 @@ function App() {
     const post = emptyPost(identity.name || cmsSiteName, identity.address, dataset.manifest.site_id, cmsSiteName);
     setSelectedIndex(toPostIndexItem(post));
     setSelectedPost(post);
-    setDraft(createDraft(post));
+    setDraft(createDraft(post, dataset.categories, dataset.tags));
     setEditorMode('edit');
     setSection('posts');
     setStatus('New post draft created.');
@@ -852,7 +871,7 @@ function App() {
       setSelectedPost(postToPublish);
       setSelectedIndex(postIndex);
       saveLocalDataset(nextDataset);
-      setDraft(createDraft(postToPublish));
+      setDraft(createDraft(postToPublish, nextDataset.categories, nextDataset.tags));
       setStatus(postToPublish.status === 'published' ? 'Published to QDN.' : 'Draft saved to QDN.');
     } catch (publishError) {
       setError(readableError(publishError, 'Qortal publish failed. Check that the logged-in account owns the publish target name.'));
@@ -1329,7 +1348,7 @@ function App() {
       setDataset(nextDataset);
       setSelectedPost(post);
       setSelectedIndex(index);
-      setDraft(createDraft(post));
+      setDraft(createDraft(post, nextDataset.categories, nextDataset.tags));
       setEditorMode('preview');
       saveLocalDataset(nextDataset);
       setStatus('Imported post adopted as CMS draft.');
@@ -1412,7 +1431,7 @@ function App() {
       if (firstPost) {
         setSelectedPost(firstPost);
         setSelectedIndex(toPostIndexItem(firstPost));
-        setDraft(createDraft(firstPost));
+        setDraft(createDraft(firstPost, nextDataset.categories, nextDataset.tags));
         setEditorMode('preview');
       }
       setSelectedImportedIds([]);
@@ -1592,25 +1611,25 @@ function App() {
   }
 
   function attachMediaToPost(mediaItem: CmsMediaItem) {
-    if (!selectedPost) return;
+    if (!selectedPost || !dataset) return;
     const exists = selectedPost.media.some((ref) => sameQdnRef(ref, mediaItem.qdn));
     if (exists) return;
     const nextPost = { ...selectedPost, media: [...selectedPost.media, mediaItem.qdn] };
     setSelectedPost(nextPost);
-    setDraft(createDraft(nextPost));
+    setDraft(createDraft(nextPost, dataset.categories, dataset.tags));
     setStatus('Media attached to current post. Save draft or publish to persist.');
   }
 
   function removeMediaFromPost(mediaItem: CmsMediaItem) {
-    if (!selectedPost) return;
+    if (!selectedPost || !dataset) return;
     const nextPost = { ...selectedPost, media: selectedPost.media.filter((ref) => !sameQdnRef(ref, mediaItem.qdn)) };
     setSelectedPost(nextPost);
-    setDraft(createDraft(nextPost));
+    setDraft(createDraft(nextPost, dataset.categories, dataset.tags));
     setStatus('Media removed from current post. Save draft or publish to persist.');
   }
 
   function addVideoEmbedToPost() {
-    if (!selectedPost) return;
+    if (!selectedPost || !dataset) return;
     const parsed = parseVideoLink(videoLinkDraft);
     if (!parsed) {
       setError('Paste a valid qortal://VIDEO, /arbitrary/VIDEO, qortal://APP/Q-Tube/video, or qortal://use-embed/VIDEO link.');
@@ -1626,7 +1645,7 @@ function App() {
 
     const nextPost = { ...selectedPost, videos: [...(selectedPost.videos || []), parsed] };
     setSelectedPost(nextPost);
-    setDraft(createDraft(nextPost));
+    setDraft(createDraft(nextPost, dataset.categories, dataset.tags));
     setVideoLinkDraft('');
     setVideoTitleDraft('');
     setError(null);
@@ -1634,10 +1653,10 @@ function App() {
   }
 
   function removeVideoEmbedFromPost(video: CmsVideoEmbed) {
-    if (!selectedPost) return;
+    if (!selectedPost || !dataset) return;
     const nextPost = { ...selectedPost, videos: (selectedPost.videos || []).filter((item) => item.id !== video.id) };
     setSelectedPost(nextPost);
-    setDraft(createDraft(nextPost));
+    setDraft(createDraft(nextPost, dataset.categories, dataset.tags));
     setStatus('Video removed from current post. Save draft or publish to persist.');
   }
 
