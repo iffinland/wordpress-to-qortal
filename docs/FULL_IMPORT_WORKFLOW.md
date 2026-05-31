@@ -110,7 +110,7 @@ npm run package:migration-qapp
 Publish this file to Qortal as an `APP` or `WEBSITE`:
 
 ```text
-release/wordpress-to-qortal-migration-app-v0.1.2.zip
+release/wordpress-to-qortal-migration-app-v0.1.3.zip
 ```
 
 Open the published app inside Qortal UI. Select the local `wp-qortal-import` folder. The Q-App stays small; imported data remains on the user's computer until selected resources are published to QDN.
@@ -123,6 +123,7 @@ Use the publish modes in this order:
 4. `Full media` only when intentionally publishing every remaining planned resource.
 
 Keep `Skip already published` enabled. The publisher checks QDN before uploading and skips resources that already exist. A selected batch uses one grouped Qortal UI confirmation request.
+The Migration Publisher shows batch preparation and completion through a progress bar. Green rows are already published or already present in QDN. Orange rows are queued for the grouped Qortal confirmation.
 
 The publisher requires Qortal UI's `qortalRequest` bridge. It will not publish from a normal browser tab.
 

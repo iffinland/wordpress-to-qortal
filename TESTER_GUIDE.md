@@ -1,12 +1,12 @@
 # WordPress to Qortal Toolkit: Tester Guide
 
-Version: `0.1.2`
+Version: `0.1.3`
 
 This package contains three separate tools:
 
-1. `wordpress-to-qortal-migrator-v0.1.2.zip` - a local Node.js importer.
-2. `wordpress-to-qortal-migration-app-v0.1.2.zip` - a small Qortal Migration Publisher Q-App.
-3. `qortal-cms-app-v0.1.2.zip` - the Qortal-native CMS Q-App.
+1. `wordpress-to-qortal-migrator-v0.1.3.zip` - a local Node.js importer.
+2. `wordpress-to-qortal-migration-app-v0.1.3.zip` - a small Qortal Migration Publisher Q-App.
+3. `qortal-cms-app-v0.1.3.zip` - the Qortal-native CMS Q-App.
 
 The imported WordPress dataset stays on your own computer. Do not place a multi-gigabyte media folder inside a Q-App ZIP.
 
@@ -26,7 +26,7 @@ Install:
 Extract:
 
 ```text
-wordpress-to-qortal-migrator-v0.1.2.zip
+wordpress-to-qortal-migrator-v0.1.3.zip
 ```
 
 Open a terminal inside the extracted folder:
@@ -84,7 +84,7 @@ wp-qortal-import/
 Publish this ZIP to Qortal as an `APP` or `WEBSITE`:
 
 ```text
-wordpress-to-qortal-migration-app-v0.1.2.zip
+wordpress-to-qortal-migration-app-v0.1.3.zip
 ```
 
 Open the published Migration Publisher inside Qortal UI.
@@ -108,13 +108,14 @@ Media modes:
 Each row has a checkbox. For a slow connection, publish a few files at a time. The publisher checks QDN before uploading and skips resources that already exist.
 
 The publisher uses grouped QDN publishing. A selected batch is sent to Qortal UI as one multi-resource confirmation request.
+The progress bar shows batch preparation and completion. Green statuses indicate resources already published or found in QDN. Orange `Queued in batch` statuses are waiting for the grouped Qortal confirmation.
 
 ## Part 3: Publish and Configure the CMS
 
 Publish this ZIP to Qortal as an `APP` or `WEBSITE`:
 
 ```text
-qortal-cms-app-v0.1.2.zip
+qortal-cms-app-v0.1.3.zip
 ```
 
 The Qortal name that publishes the CMS becomes the SysOp owner. Each CMS installation receives its own stable site ID.

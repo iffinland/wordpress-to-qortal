@@ -1,6 +1,6 @@
 # Quickstart: WordPress to Qortal Migrator
 
-Current version: `0.1.2`
+Current version: `0.1.3`
 
 This Node.js tool downloads WordPress content to your computer, converts it to Qortal-friendly JSON, downloads selected media, and prepares a QDN publish plan.
 
@@ -118,7 +118,7 @@ npm run package:migration-qapp
 This creates:
 
 ```text
-release/wordpress-to-qortal-migration-app-v0.1.2.zip
+release/wordpress-to-qortal-migration-app-v0.1.3.zip
 ```
 
 Publish that small ZIP to Qortal as an `APP` or `WEBSITE`. Do not place `wp-qortal-import` inside the Q-App ZIP.
@@ -142,6 +142,7 @@ Publisher media modes:
 - `Full media`
 
 Each resource row has a checkbox. Large migrations should be uploaded in small batches. Existing QDN resources are skipped automatically when `Skip already published` is enabled.
+The progress bar shows preparation and completion for the selected batch. Green statuses are complete or already present in QDN. Orange rows are queued for the grouped Qortal confirmation.
 
 ## 6. Load Content in Qortal CMS
 

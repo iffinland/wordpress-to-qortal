@@ -1,7 +1,7 @@
 import { createQdnUrl, fetchQdnResource, hasQortalBridge, requestQortal, toBase64, tryRequestQortal } from './qortalClient';
 import type { CmsComment, CmsDataset, CmsManifest, CmsMediaItem, CmsMediaType, CmsPost, CmsPostIndexItem, CmsTerm, QdnRef, ViewerIdentity } from './types';
 
-export const CMS_VERSION = '0.1.2';
+export const CMS_VERSION = '0.1.3';
 export const MANIFEST_IDENTIFIER = 'cms-manifest';
 export const POSTS_INDEX_IDENTIFIER = 'cms-posts-index';
 export const PAGES_INDEX_IDENTIFIER = 'cms-pages-index';
