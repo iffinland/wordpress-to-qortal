@@ -18,7 +18,7 @@ import {
   createSiteId,
   getQdnNameFromLocation,
   getViewerIdentity,
-  loadDataset,
+  loadLocalDataset,
   loadQdnDataset,
   loadPost,
   normalizeAddressList,
@@ -637,6 +637,17 @@ function MediaAttachmentViewer({ items }: { items: CmsMediaItem[] }) {
   );
 }
 
+function createFallbackIdentity(ownerName: string): ViewerIdentity {
+  return {
+    address: '',
+    name: '',
+    names: [],
+    ownerTarget: ownerName,
+    role: 'reader',
+    bridgeAvailable: hasQortalBridge()
+  };
+}
+
 function App() {
   const qdnName = getQdnNameFromLocation();
   const [section, setSection] = useState<Section>('posts');
@@ -688,23 +699,29 @@ function App() {
 
   async function boot() {
     setStatus('Loading CMS dataset...');
-    const initialIdentity = await getViewerIdentity(qdnName);
-    const ownerCandidates = (qdnName ? [qdnName] : initialIdentity.names).map((name) => name.trim()).filter(Boolean);
-    const uniqueOwnerCandidates = [...new Set(ownerCandidates.map((name) => normalizePrincipal(name)))];
-    const ownerCandidateByNormalized = new Map(ownerCandidates.map((name) => [normalizePrincipal(name), name]));
+    setError(null);
+    let initialIdentity: ViewerIdentity | null = null;
     let loadedDataset: CmsDataset | null = null;
 
-    for (const normalizedName of uniqueOwnerCandidates) {
-      const candidate = ownerCandidateByNormalized.get(normalizedName) || normalizedName;
-      loadedDataset = await loadQdnDataset(candidate);
-      if (loadedDataset) break;
+    if (qdnName) {
+      loadedDataset = await loadQdnDataset(qdnName);
+    } else {
+      initialIdentity = await getViewerIdentity('').catch(() => createFallbackIdentity(''));
+      const ownerCandidates = initialIdentity.names.map((name) => name.trim()).filter(Boolean);
+      const uniqueOwnerCandidates = [...new Set(ownerCandidates.map((name) => normalizePrincipal(name)))];
+      const ownerCandidateByNormalized = new Map(ownerCandidates.map((name) => [normalizePrincipal(name), name]));
+
+      for (const normalizedName of uniqueOwnerCandidates) {
+        const candidate = ownerCandidateByNormalized.get(normalizedName) || normalizedName;
+        loadedDataset = await loadQdnDataset(candidate);
+        if (loadedDataset) break;
+      }
     }
 
-    loadedDataset ||= await loadDataset(qdnName || initialIdentity.name);
-    const ownerName = qdnName || loadedDataset.manifest.owner_name || initialIdentity.name;
-    const viewerIdentity = await getViewerIdentity(ownerName, loadedDataset.manifest);
+    loadedDataset ||= loadLocalDataset(qdnName || initialIdentity?.name || '');
+    const ownerName = qdnName || loadedDataset.manifest.owner_name || initialIdentity?.name || '';
     setDataset(loadedDataset);
-    setIdentity(viewerIdentity);
+    setIdentity(initialIdentity || createFallbackIdentity(ownerName));
     setSiteTitleDraft(loadedDataset.manifest.title);
     setSiteTaglineDraft(loadedDataset.manifest.tagline || '');
     const linkedSlug = sharedPostSlug();
@@ -713,13 +730,23 @@ function App() {
       : null;
     const initialPost = linkedPost || loadedDataset.posts[0] || null;
     setSelectedIndex(initialPost);
-    if (initialPost) {
-      const post = await safeLoadPost(initialPost, loadedDataset);
-      setSelectedPost(post);
-      setDraft(createDraft(post, loadedDataset.categories, loadedDataset.tags));
-      setPublicDetailOpen(Boolean(linkedPost));
-    }
+    setPublicDetailOpen(Boolean(linkedPost));
     setStatus('');
+
+    void getViewerIdentity(ownerName, loadedDataset.manifest)
+      .then(setIdentity)
+      .catch(() => {});
+
+    if (initialPost) {
+      void safeLoadPost(initialPost, loadedDataset)
+        .then((post) => {
+          setSelectedPost(post);
+          setDraft(createDraft(post, loadedDataset.categories, loadedDataset.tags));
+        })
+        .catch((openError: Error) => {
+          setError(openError.message);
+        });
+    }
   }
 
   useEffect(() => {

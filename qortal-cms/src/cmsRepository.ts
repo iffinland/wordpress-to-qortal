@@ -290,9 +290,12 @@ export async function getViewerIdentity(ownerName: string, manifest?: CmsManifes
   if (account?.name) discoveredNames.add(account.name);
   if (account?.primaryName) discoveredNames.add(account.primaryName);
 
-  const names = address
-    ? await tryRequestQortal<Array<{ name?: string }> | string[]>({ action: 'GET_ACCOUNT_NAMES', address })
-    : null;
+  const [names, primaryName] = address
+    ? await Promise.all([
+      tryRequestQortal<Array<{ name?: string }> | string[]>({ action: 'GET_ACCOUNT_NAMES', address }),
+      tryRequestQortal<string>({ action: 'GET_PRIMARY_NAME', address })
+    ])
+    : [null, null];
 
   if (Array.isArray(names)) {
     for (const item of names) {
@@ -301,9 +304,6 @@ export async function getViewerIdentity(ownerName: string, manifest?: CmsManifes
     }
   }
 
-  const primaryName = address
-    ? await tryRequestQortal<string>({ action: 'GET_PRIMARY_NAME', address })
-    : null;
   if (primaryName) discoveredNames.add(primaryName);
 
   const devName = new URLSearchParams(window.location.search).get('viewerName') || '';
@@ -336,10 +336,14 @@ export async function loadQdnDataset(ownerName: string): Promise<CmsDataset | nu
     const mediaRef = manifest.entrypoints.media_index;
 
     const [posts, pages, categories, tags, media, comments] = await Promise.all([
-      fetchQdnResource<CmsPostIndexItem[]>(manifest.entrypoints.posts_index.service, ownerName, manifest.entrypoints.posts_index.identifier),
-      fetchQdnResource<CmsPostIndexItem[]>(manifest.entrypoints.pages_index.service, ownerName, manifest.entrypoints.pages_index.identifier),
-      fetchQdnResource<CmsTerm[]>(manifest.entrypoints.categories.service, ownerName, manifest.entrypoints.categories.identifier),
-      fetchQdnResource<CmsTerm[]>(manifest.entrypoints.tags.service, ownerName, manifest.entrypoints.tags.identifier),
+      fetchQdnResource<CmsPostIndexItem[]>(manifest.entrypoints.posts_index.service, ownerName, manifest.entrypoints.posts_index.identifier)
+        .catch(() => []),
+      fetchQdnResource<CmsPostIndexItem[]>(manifest.entrypoints.pages_index.service, ownerName, manifest.entrypoints.pages_index.identifier)
+        .catch(() => []),
+      fetchQdnResource<CmsTerm[]>(manifest.entrypoints.categories.service, ownerName, manifest.entrypoints.categories.identifier)
+        .catch(() => []),
+      fetchQdnResource<CmsTerm[]>(manifest.entrypoints.tags.service, ownerName, manifest.entrypoints.tags.identifier)
+        .catch(() => []),
       fetchQdnResource<CmsMediaItem[]>(mediaRef.service, ownerName, mediaRef.identifier)
         .catch(() => []),
       fetchQdnResource<CmsComment[]>(manifest.entrypoints.comments_index.service, ownerName, manifest.entrypoints.comments_index.identifier)

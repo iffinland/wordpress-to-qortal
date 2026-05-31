@@ -42,6 +42,25 @@ declare global {
   var qortalRequest: ((payload: QortalRequestPayload) => Promise<unknown>) | undefined;
 }
 
+const OPTIONAL_REQUEST_TIMEOUT_MS = 5_000;
+const QDN_READ_TIMEOUT_MS = 12_000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      }
+    );
+  });
+}
+
 function findQortalRequest(): ((payload: QortalRequestPayload) => Promise<unknown>) | null {
   if (typeof window === 'undefined') return null;
 
@@ -81,36 +100,60 @@ export async function requestQortal(payload: QortalRequestPayload) {
   return bridge(payload);
 }
 
-export async function tryRequestQortal<T>(payload: QortalRequestPayload): Promise<T | null> {
+export async function tryRequestQortal<T>(payload: QortalRequestPayload, timeoutMs = OPTIONAL_REQUEST_TIMEOUT_MS): Promise<T | null> {
   const bridge = findQortalRequest();
   if (!bridge) return null;
 
   try {
-    return await bridge(payload) as T;
+    return await withTimeout(
+      bridge(payload) as Promise<T>,
+      timeoutMs,
+      `Qortal request timed out: ${payload.action}`
+    );
   } catch {
     return null;
   }
 }
 
-export async function fetchQdnResource<T>(service: string, name: string, identifier: string): Promise<T> {
+export async function fetchQdnResource<T>(service: string, name: string, identifier: string, timeoutMs = QDN_READ_TIMEOUT_MS): Promise<T> {
   const bridge = findQortalRequest();
+  const resourceLabel = `${service}/${name}/${identifier}`;
 
   if (bridge) {
-    const response = await bridge({
-      action: 'FETCH_QDN_RESOURCE',
-      service,
-      name,
-      identifier
-    });
+    const response = await withTimeout(
+      bridge({
+        action: 'FETCH_QDN_RESOURCE',
+        service,
+        name,
+        identifier
+      }),
+      timeoutMs,
+      `Timed out loading QDN resource ${resourceLabel}`
+    );
     return typeof response === 'string' ? (JSON.parse(response) as T) : (response as T);
   }
 
   const nodeUrl = (import.meta.env.VITE_QORTAL_NODE_URL || 'http://localhost:12391').replace(/\/+$/, '');
-  const response = await fetch(`${nodeUrl}/arbitrary/${encodeURIComponent(service)}/${encodeURIComponent(name)}/${encodeURIComponent(identifier)}`);
-  if (!response.ok) {
-    throw new Error(`Unable to fetch QDN resource ${service}/${name}/${identifier}: ${response.status}`);
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(
+      `${nodeUrl}/arbitrary/${encodeURIComponent(service)}/${encodeURIComponent(name)}/${encodeURIComponent(identifier)}`,
+      { signal: controller.signal }
+    );
+    if (!response.ok) {
+      throw new Error(`Unable to fetch QDN resource ${resourceLabel}: ${response.status}`);
+    }
+    return response.json() as Promise<T>;
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`Timed out loading QDN resource ${resourceLabel}`);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
-  return response.json() as Promise<T>;
 }
 
 export function toBase64(value: string): string {
