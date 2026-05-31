@@ -1766,7 +1766,6 @@ function App() {
           </div>
           <div className="public-status">
             <span>{identity.name ? `Viewing as ${identity.name}` : 'Read-only visitor'}</span>
-            <span className={identity.bridgeAvailable ? 'ok' : 'muted'}>{identity.bridgeAvailable ? 'Qortal bridge available' : 'Browser preview'}</span>
             {canManageContent && (
               <button className="icon-command" type="button" onClick={() => setForcePublicView(false)}>
                 <Settings size={16} /> Back to backend
