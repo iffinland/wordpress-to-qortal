@@ -176,6 +176,12 @@ function buildPostPageLink(appName: string, post: Pick<CmsPostIndexItem, 'slug' 
   return `qortal://APP/${encodeURIComponent(appName)}#/posts/${encodeURIComponent(postSlug)}`;
 }
 
+function publishedAtForPost(post: CmsPost, status: CmsStatus, updatedAt: string) {
+  if (status !== 'published') return post.published_at;
+  if (post.id.startsWith('wp-')) return post.created_at || post.published_at || updatedAt;
+  return post.published_at || updatedAt;
+}
+
 function shortHash(value: string) {
   let hash = 5381;
   for (let index = 0; index < value.length; index += 1) {
@@ -794,7 +800,7 @@ function App() {
       tag_ids: tagResult.ids,
       comments_enabled: draft.comments_enabled,
       updated_at: updatedAt,
-      published_at: (statusOverride || draft.status) === 'published' ? selectedPost.published_at || updatedAt : selectedPost.published_at,
+      published_at: publishedAtForPost(selectedPost, statusOverride || draft.status, updatedAt),
       qdn: {
         ...selectedPost.qdn,
         name: selectedPost.qdn.name || identity.name || cmsSiteName,
@@ -1286,7 +1292,7 @@ function App() {
       cms_site_name: ownerName,
       created_at: importedPost.date || now,
       updated_at: now,
-      published_at: null,
+      published_at: importedPost.date || null,
       qdn: existing?.qdn || { service: 'DOCUMENT', identifier: createPostIdentifier(slug, siteId), name: ownerName },
       content_html: `${rewriteImportedHtml(importedPost, ownerName)}<hr/><p><small>Imported from WordPress source ID ${importedPost.source_id}. Original URL: <a href="${importedPost.old_url}" target="_blank" rel="noreferrer">${importedPost.old_url}</a></small></p>`,
       featured_image: mediaItems.find((item) => item.type === 'image')?.qdn || null,
