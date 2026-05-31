@@ -32,6 +32,14 @@ type PublishMode = 'demo' | 'cms-json' | 'images' | 'documents' | 'audio' | 'vid
 type PublishSource = 'bundled' | 'folder';
 type FolderFileMap = Map<string, File>;
 type PublishHistory = Record<string, { published_at: string; service: string; identifier: string; local_path: string; bytes?: number }>;
+type PublishProgressPhase = 'idle' | 'preparing' | 'confirming' | 'completed' | 'failed';
+
+interface PublishProgress {
+  phase: PublishProgressPhase;
+  total: number;
+  prepared: number;
+  completed: number;
+}
 
 const PUBLISH_HISTORY_KEY = 'wp-to-qortal-migration-publish-history-v1';
 
@@ -161,6 +169,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   const [history, setHistory] = useState<PublishHistory>(() => loadPublishHistory());
   const [error, setError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [progress, setProgress] = useState<PublishProgress>({ phase: 'idle', total: 0, prepared: 0, completed: 0 });
   const hasBridge = hasQortalBridge();
   const bridgeDiagnostics = getQortalBridgeDiagnostics();
   const folderPickerProps = {
@@ -238,6 +247,18 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       failed: rows.filter((row) => row.status === 'failed').length
     };
   }, [rows, selectedIds]);
+
+  const progressPercent = progress.total
+    ? Math.round(((progress.phase === 'completed' ? progress.completed : progress.prepared) / progress.total) * 100)
+    : 0;
+
+  function progressLabel() {
+    if (progress.phase === 'preparing') return 'Preparing resources';
+    if (progress.phase === 'confirming') return 'Waiting for Qortal confirmation';
+    if (progress.phase === 'completed') return 'Batch completed';
+    if (progress.phase === 'failed') return 'Batch failed';
+    return '';
+  }
 
   function toggleRow(identifier: string) {
     setSelectedIds((current) => {
@@ -340,6 +361,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
 
     setIsPublishing(true);
     setError(null);
+    setProgress({ phase: 'preparing', total: activeRows.length, prepared: 0, completed: 0 });
     setRows((current) =>
       current.map((row) => activeRows.some((active) => active.identifier === row.identifier)
         ? { ...row, status: 'publishing', message: 'Queued in batch' }
@@ -350,16 +372,19 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       const resources = [];
       const alreadyPublishedRows: PublishRow[] = [];
       const publishRows: PublishRow[] = [];
-      for (const row of activeRows) {
+      for (const [index, row] of activeRows.entries()) {
         if (skipExisting && await qdnResourceExists(row)) {
           alreadyPublishedRows.push(row);
+          setProgress({ phase: 'preparing', total: activeRows.length, prepared: index + 1, completed: alreadyPublishedRows.length });
           continue;
         }
         resources.push(await createPublishResourcePayload(row));
         publishRows.push(row);
+        setProgress({ phase: 'preparing', total: activeRows.length, prepared: index + 1, completed: alreadyPublishedRows.length });
       }
 
       if (resources.length) {
+        setProgress({ phase: 'confirming', total: activeRows.length, prepared: activeRows.length, completed: alreadyPublishedRows.length });
         await requestQortal({
           action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
           resources
@@ -382,6 +407,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
         for (const row of activeRows) next.delete(row.identifier);
         return next;
       });
+      setProgress({ phase: 'completed', total: activeRows.length, prepared: activeRows.length, completed: activeRows.length });
     } catch (publishError) {
       const message = (publishError as Error).message;
       setRows((current) =>
@@ -390,6 +416,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
           : row)
       );
       setError(message);
+      setProgress((current) => ({ ...current, phase: 'failed' }));
     }
 
     setIsPublishing(false);
@@ -469,6 +496,17 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
           <span>{summary.failed} failed</span>
           <span>{source === 'folder' ? 'local folder' : 'bundled files'}</span>
         </div>
+        {progress.phase !== 'idle' && (
+          <div className={`publisher-progress ${progress.phase}`}>
+            <div className="publisher-progress-label">
+              <strong>{progressLabel()}</strong>
+              <span>{progressPercent}% · {progress.phase === 'completed' ? progress.completed : progress.prepared} / {progress.total}</span>
+            </div>
+            <div className="publisher-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
+              <span style={{ width: `${progressPercent}%` }} />
+            </div>
+          </div>
+        )}
         <p className="publisher-note">
           Select your local wp-qortal-import folder first. Use Images, Documents, Audio, Video, or Selected media to publish large media in small batches.
         </p>
@@ -493,7 +531,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
                 {row.service} · {row.type} · {formatBytes(row.bytes)} · {row.local_path}
               </span>
             </div>
-            <div className="publisher-status">
+            <div className={`publisher-status ${row.status}`}>
               {row.status === 'published' && <CheckCircle2 size={18} />}
               {row.status === 'failed' && <XCircle size={18} />}
               {row.status === 'publishing' && <Play size={18} />}

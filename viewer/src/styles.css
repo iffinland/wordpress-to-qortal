@@ -491,6 +491,48 @@ select {
   font-size: 14px;
 }
 
+.publisher-progress {
+  display: grid;
+  gap: 7px;
+  margin-top: 14px;
+  padding: 10px;
+  border: 1px solid #dfe5df;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.publisher-progress-label {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  color: #4a5650;
+  font-size: 13px;
+}
+
+.publisher-progress-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 5px;
+  background: #e3e8e4;
+}
+
+.publisher-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #c47720;
+  transition: width 180ms ease;
+}
+
+.publisher-progress.completed .publisher-progress-track span {
+  background: #2e7d57;
+}
+
+.publisher-progress.failed .publisher-progress-track span {
+  background: #b64236;
+}
+
 .publisher-note {
   max-width: 980px;
   margin: 12px 0 0;
@@ -565,6 +607,21 @@ select {
   align-items: center;
   gap: 8px;
   color: #31423b;
+}
+
+.publisher-status.published {
+  color: #237348;
+  font-weight: 800;
+}
+
+.publisher-status.publishing {
+  color: #b86512;
+  font-weight: 800;
+}
+
+.publisher-status.failed {
+  color: #ad392f;
+  font-weight: 800;
 }
 
 @media (max-width: 980px) {
