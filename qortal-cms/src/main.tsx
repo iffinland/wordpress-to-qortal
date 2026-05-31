@@ -2136,7 +2136,6 @@ function App() {
         <div className="top-status">
           <span>{status || 'Ready'}</span>
           {error && <span className="error-text">{error}</span>}
-          <span className={identity.bridgeAvailable ? 'ok' : 'muted'}>{identity.bridgeAvailable ? 'Qortal bridge available' : 'Browser preview only'}</span>
         </div>
 
         {section === 'imported' && selectedImportedPost ? (
