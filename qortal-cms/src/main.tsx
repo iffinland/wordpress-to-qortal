@@ -176,6 +176,43 @@ function buildPostPageLink(appName: string, post: Pick<CmsPostIndexItem, 'slug' 
   return `qortal://APP/${encodeURIComponent(appName)}#/posts/${encodeURIComponent(postSlug)}`;
 }
 
+function videoDownloadFilename(value: string, fallback = 'video.mp4') {
+  try {
+    const filename = new URL(value, window.location.origin).pathname.split('/').pop();
+    return filename ? decodeURIComponent(filename) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function isMp4DownloadLink(link: HTMLAnchorElement) {
+  return /download\s+the\s+mp4/i.test(link.textContent || '') || /\.mp4(?:[?#]|$)/i.test(link.getAttribute('href') || '');
+}
+
+function markQdnVideoDownload(link: HTMLAnchorElement, qdnUrl: string, filename: string) {
+  link.setAttribute('href', qdnUrl);
+  link.setAttribute('download', filename);
+  link.removeAttribute('target');
+  link.setAttribute('rel', 'noreferrer');
+}
+
+function rewriteCmsVideoDownloadLinks(post: CmsPost) {
+  const qdnVideos = (post.videos || []).filter((video) => qdnLink(video.qdn));
+  if (qdnVideos.length === 0 || !post.content_html) return post.content_html;
+
+  const parser = new DOMParser();
+  const document = parser.parseFromString(post.content_html, 'text/html');
+  const downloadLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]')).filter(isMp4DownloadLink);
+
+  downloadLinks.forEach((link, index) => {
+    const video = qdnVideos[Math.min(index, qdnVideos.length - 1)];
+    const qdnUrl = qdnLink(video.qdn);
+    markQdnVideoDownload(link, qdnUrl, videoDownloadFilename(link.getAttribute('href') || '', `${video.qdn.identifier}.mp4`));
+  });
+
+  return document.body.innerHTML;
+}
+
 function publishedAtForPost(post: CmsPost, status: CmsStatus, updatedAt: string) {
   if (status !== 'published') return post.published_at;
   if (post.id.startsWith('wp-')) return post.created_at || post.published_at || updatedAt;
@@ -1198,8 +1235,13 @@ function App() {
       media.setAttribute('src', resolveImportedUrl(media.getAttribute('src')));
     }
 
-    for (const link of Array.from(document.querySelectorAll('a[href]'))) {
-      link.setAttribute('href', resolveImportedUrl(link.getAttribute('href')));
+    for (const link of Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'))) {
+      const originalUrl = link.getAttribute('href');
+      const qdnUrl = resolveImportedQdnUrl(originalUrl);
+      link.setAttribute('href', qdnUrl || originalUrl || '');
+      if (qdnUrl && isMp4DownloadLink(link)) {
+        markQdnVideoDownload(link, qdnUrl, videoDownloadFilename(originalUrl || ''));
+      }
     }
 
     const inlineVideoUrls = (post.media?.video || [])
@@ -1784,7 +1826,7 @@ function App() {
                   </div>
                 </div>
               </div>
-              <div className="content-preview" dangerouslySetInnerHTML={{ __html: publicSelectedPost.content_html }} />
+              <div className="content-preview" dangerouslySetInnerHTML={{ __html: rewriteCmsVideoDownloadLinks(publicSelectedPost) }} />
               <MediaAttachmentViewer items={selectedMediaItems} />
               {standaloneVideosForPost(publicSelectedPost).length > 0 && (
                 <section className="attachments-panel">
@@ -2146,7 +2188,7 @@ function App() {
                     </div>
                   </div>
                 </div>
-                <div className="content-preview" dangerouslySetInnerHTML={{ __html: selectedPost.content_html }} />
+                <div className="content-preview" dangerouslySetInnerHTML={{ __html: rewriteCmsVideoDownloadLinks(selectedPost) }} />
                 <MediaAttachmentViewer items={selectedMediaItems} />
                 {standaloneVideosForPost(selectedPost).length > 0 && (
                   <section className="attachments-panel">
