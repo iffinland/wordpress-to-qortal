@@ -206,10 +206,20 @@ function markWeb2CopyLinks(document: Document) {
   }
 }
 
+function removeWeb2VideoFallbackNotice(document: Document) {
+  const notice = 'video player not working? use these links to watch it somewhere else!';
+
+  for (const element of Array.from(document.body.querySelectorAll<HTMLElement>('p, div'))) {
+    if ((element.textContent || '').trim().toLowerCase() !== notice) continue;
+    element.remove();
+  }
+}
+
 function rewriteWeb2CopyLinks(html: string) {
   if (!html) return html;
   const parser = new DOMParser();
   const document = parser.parseFromString(html, 'text/html');
+  removeWeb2VideoFallbackNotice(document);
   markWeb2CopyLinks(document);
   return document.body.innerHTML;
 }
@@ -230,6 +240,7 @@ function rewriteCmsContentLinks(post: CmsPost) {
     });
   }
 
+  removeWeb2VideoFallbackNotice(document);
   markWeb2CopyLinks(document);
   return document.body.innerHTML;
 }
@@ -1281,6 +1292,7 @@ function App() {
       else frames[index].replaceWith(video);
     }
 
+    removeWeb2VideoFallbackNotice(document);
     markWeb2CopyLinks(document);
     return document.body.innerHTML;
   }
