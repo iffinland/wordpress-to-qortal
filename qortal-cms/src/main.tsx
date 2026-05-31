@@ -196,20 +196,41 @@ function markQdnVideoDownload(link: HTMLAnchorElement, qdnUrl: string, filename:
   link.setAttribute('rel', 'noreferrer');
 }
 
-function rewriteCmsVideoDownloadLinks(post: CmsPost) {
+function markWeb2CopyLinks(document: Document) {
+  for (const link of Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'))) {
+    const url = link.getAttribute('href') || '';
+    if (!/^https:\/\//i.test(url)) continue;
+    link.setAttribute('data-copy-web2-url', url);
+    link.setAttribute('title', 'Click to copy Web2 link');
+    link.removeAttribute('target');
+  }
+}
+
+function rewriteWeb2CopyLinks(html: string) {
+  if (!html) return html;
+  const parser = new DOMParser();
+  const document = parser.parseFromString(html, 'text/html');
+  markWeb2CopyLinks(document);
+  return document.body.innerHTML;
+}
+
+function rewriteCmsContentLinks(post: CmsPost) {
   const qdnVideos = (post.videos || []).filter((video) => qdnLink(video.qdn));
-  if (qdnVideos.length === 0 || !post.content_html) return post.content_html;
+  if (!post.content_html) return post.content_html;
 
   const parser = new DOMParser();
   const document = parser.parseFromString(post.content_html, 'text/html');
   const downloadLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]')).filter(isMp4DownloadLink);
 
-  downloadLinks.forEach((link, index) => {
-    const video = qdnVideos[Math.min(index, qdnVideos.length - 1)];
-    const qdnUrl = qdnLink(video.qdn);
-    markQdnVideoDownload(link, qdnUrl, videoDownloadFilename(link.getAttribute('href') || '', `${video.qdn.identifier}.mp4`));
-  });
+  if (qdnVideos.length > 0) {
+    downloadLinks.forEach((link, index) => {
+      const video = qdnVideos[Math.min(index, qdnVideos.length - 1)];
+      const qdnUrl = qdnLink(video.qdn);
+      markQdnVideoDownload(link, qdnUrl, videoDownloadFilename(link.getAttribute('href') || '', `${video.qdn.identifier}.mp4`));
+    });
+  }
 
+  markWeb2CopyLinks(document);
   return document.body.innerHTML;
 }
 
@@ -1260,6 +1281,7 @@ function App() {
       else frames[index].replaceWith(video);
     }
 
+    markWeb2CopyLinks(document);
     return document.body.innerHTML;
   }
 
@@ -1553,6 +1575,17 @@ function App() {
     setStatus(copied ? 'Post QDN URI copied.' : 'Unable to copy QDN URI.');
   }
 
+  async function copyWeb2Link(event: React.MouseEvent<HTMLElement>) {
+    const link = (event.target as Element).closest<HTMLAnchorElement>('a[data-copy-web2-url]');
+    const url = link?.dataset.copyWeb2Url;
+    if (!url) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    const copied = await copyText(url);
+    setStatus(copied ? 'Web2 link copied.' : 'Unable to copy Web2 link.');
+  }
+
   function postShareUrl() {
     if (!selectedPost || !dataset) return '';
     const appName = qdnName || dataset.manifest.owner_name;
@@ -1826,7 +1859,7 @@ function App() {
                   </div>
                 </div>
               </div>
-              <div className="content-preview" dangerouslySetInnerHTML={{ __html: rewriteCmsVideoDownloadLinks(publicSelectedPost) }} />
+              <div className="content-preview" onClick={(event) => void copyWeb2Link(event)} dangerouslySetInnerHTML={{ __html: rewriteCmsContentLinks(publicSelectedPost) }} />
               <MediaAttachmentViewer items={selectedMediaItems} />
               {standaloneVideosForPost(publicSelectedPost).length > 0 && (
                 <section className="attachments-panel">
@@ -1852,7 +1885,7 @@ function App() {
               {publicSelectedPost.comments_enabled ? (
                 <>
                   {commentsForPost.map((comment) => (
-                    <article key={comment.id} className="comment-card"><strong>{comment.author.name}</strong><span>{new Date(comment.updated_at).toLocaleString()}</span><div dangerouslySetInnerHTML={{ __html: comment.body_html }} />{identity.name === comment.author.name && <button className="text-button">Edit own comment ready</button>}</article>
+                    <article key={comment.id} className="comment-card"><strong>{comment.author.name}</strong><span>{new Date(comment.updated_at).toLocaleString()}</span><div onClick={(event) => void copyWeb2Link(event)} dangerouslySetInnerHTML={{ __html: rewriteWeb2CopyLinks(comment.body_html) }} />{identity.name === comment.author.name && <button className="text-button">Edit own comment ready</button>}</article>
                   ))}
                   <div className="comment-box"><RichTextEditor value={commentDraft} onChange={setCommentDraft} /><button className="icon-command" disabled={!canComment} onClick={publishComment}><Send size={16} /> Publish comment</button>{!canComment && <small>Commenting requires Qortal UI, a logged-in Qortal name, and comments enabled for this post.</small>}</div>
                 </>
@@ -2155,7 +2188,7 @@ function App() {
                 </div>
               </section>
             )}
-            <div className="content-preview" dangerouslySetInnerHTML={{ __html: rewriteImportedHtml(selectedImportedPost, importOwnerName || ownerTarget) }} />
+            <div className="content-preview" onClick={(event) => void copyWeb2Link(event)} dangerouslySetInnerHTML={{ __html: rewriteImportedHtml(selectedImportedPost, importOwnerName || ownerTarget) }} />
             {canManageContent && (
               <div className="action-row">
                 <button className="icon-command primary" type="button" onClick={adoptImportedPost}><Plus size={16} /> Adopt into CMS draft</button>
@@ -2188,7 +2221,7 @@ function App() {
                     </div>
                   </div>
                 </div>
-                <div className="content-preview" dangerouslySetInnerHTML={{ __html: rewriteCmsVideoDownloadLinks(selectedPost) }} />
+                <div className="content-preview" onClick={(event) => void copyWeb2Link(event)} dangerouslySetInnerHTML={{ __html: rewriteCmsContentLinks(selectedPost) }} />
                 <MediaAttachmentViewer items={selectedMediaItems} />
                 {standaloneVideosForPost(selectedPost).length > 0 && (
                   <section className="attachments-panel">
@@ -2261,7 +2294,7 @@ function App() {
               {selectedPost.comments_enabled ? (
                 <>
                   {commentsForPost.map((comment) => (
-                    <article key={comment.id} className="comment-card"><strong>{comment.author.name}</strong><span>{new Date(comment.updated_at).toLocaleString()}</span><div dangerouslySetInnerHTML={{ __html: comment.body_html }} />{identity.name === comment.author.name && <button className="text-button">Edit own comment ready</button>}</article>
+                    <article key={comment.id} className="comment-card"><strong>{comment.author.name}</strong><span>{new Date(comment.updated_at).toLocaleString()}</span><div onClick={(event) => void copyWeb2Link(event)} dangerouslySetInnerHTML={{ __html: rewriteWeb2CopyLinks(comment.body_html) }} />{identity.name === comment.author.name && <button className="text-button">Edit own comment ready</button>}</article>
                   ))}
                   <div className="comment-box"><RichTextEditor value={commentDraft} onChange={setCommentDraft} /><button className="icon-command" disabled={!canComment} onClick={publishComment}><Send size={16} /> Publish comment</button>{!canComment && <small>Commenting requires Qortal UI, a logged-in Qortal name, and comments enabled for this post.</small>}</div>
                 </>
