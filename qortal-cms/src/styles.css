@@ -1407,6 +1407,57 @@ button {
   font-size: 12px;
 }
 
+.public-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.public-pagination button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #cfd9d4;
+  border-radius: 6px;
+  color: #33423d;
+  background: #fff;
+  font-weight: 800;
+}
+
+.public-pagination button:hover:not(:disabled),
+.public-pagination button.active {
+  border-color: #527f71;
+  color: #fff;
+  background: #35695b;
+}
+
+.public-pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.public-page-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.public-page-numbers span {
+  min-width: 18px;
+  color: #6d7b76;
+  text-align: center;
+  font-weight: 800;
+}
+
 .public-back {
   margin-bottom: 14px;
 }

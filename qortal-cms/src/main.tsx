@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { CheckCircle2, Coins, Copy, Download, Edit3, Eye, FileText, Filter, Heart, Image, Link, Lock, MessageSquare, Paperclip, Play, Plus, RefreshCcw, Save, Search, Send, Settings, Share2, Tags, Trash2, Upload, User, Video, XCircle } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, Coins, Copy, Download, Edit3, Eye, FileText, Filter, Heart, Image, Link, Lock, MessageSquare, Paperclip, Play, Plus, RefreshCcw, Save, Search, Send, Settings, Share2, Tags, Trash2, Upload, User, Video, XCircle } from 'lucide-react';
 import { RichTextEditor } from './RichTextEditor';
 import {
   CATEGORIES_IDENTIFIER,
@@ -40,6 +40,7 @@ import './styles.css';
 type Section = 'dashboard' | 'posts' | 'media' | 'imported' | 'settings';
 type EditorMode = 'preview' | 'edit';
 const IMPORT_BATCH_LIMIT = 10;
+const PUBLIC_POSTS_PER_PAGE = 8;
 
 interface ImportedIndexItem {
   type: 'post';
@@ -142,6 +143,22 @@ function readableError(value: unknown, fallback = 'Unexpected Qortal error.') {
   } catch {
     return fallback;
   }
+}
+
+function paginationItems(currentPage: number, pageCount: number) {
+  const visiblePages = new Set([1, pageCount, currentPage - 1, currentPage, currentPage + 1]);
+  const pages = [...visiblePages].filter((page) => page >= 1 && page <= pageCount).sort((left, right) => left - right);
+  const items: Array<number | string> = [];
+
+  for (const page of pages) {
+    const previous = items[items.length - 1];
+    if (typeof previous === 'number' && page - previous > 1) {
+      items.push(`ellipsis-${previous}-${page}`);
+    }
+    items.push(page);
+  }
+
+  return items;
 }
 
 function shortHash(value: string) {
@@ -548,6 +565,7 @@ function App() {
   const [selectedImportedIndex, setSelectedImportedIndex] = useState<ImportedIndexItem | null>(null);
   const [selectedImportedIds, setSelectedImportedIds] = useState<number[]>([]);
   const [publicDetailOpen, setPublicDetailOpen] = useState(false);
+  const [publicPage, setPublicPage] = useState(1);
   const [forcePublicView, setForcePublicView] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -1413,7 +1431,10 @@ function App() {
   const selectedTagNames = selectedPost?.tag_ids.map((id) => dataset.tags.find((term) => term.id === id)?.name).filter(Boolean) || [];
   const selectedMediaItems = selectedPost ? selectedPost.media.map((ref) => findMediaItem(dataset.media, ref)).filter(Boolean) as CmsMediaItem[] : [];
   const ownerTarget = qdnName || dataset.manifest.owner_name || 'not set';
-  const publicPosts = dataset.posts.filter((post) => post.status === 'published').slice(0, 8);
+  const allPublicPosts = dataset.posts.filter((post) => post.status === 'published');
+  const publicPageCount = Math.max(1, Math.ceil(allPublicPosts.length / PUBLIC_POSTS_PER_PAGE));
+  const activePublicPage = Math.min(publicPage, publicPageCount);
+  const publicPosts = allPublicPosts.slice((activePublicPage - 1) * PUBLIC_POSTS_PER_PAGE, activePublicPage * PUBLIC_POSTS_PER_PAGE);
   const publicSelectedPost = selectedPost?.status === 'published' ? selectedPost : null;
 
   function cmsTermNames(ids: string[], terms: CmsDataset['categories']) {
@@ -1431,6 +1452,11 @@ function App() {
   async function openPublicPost(index: CmsPostIndexItem) {
     await openPost(index);
     setPublicDetailOpen(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function changePublicPage(nextPage: number) {
+    setPublicPage(Math.min(Math.max(nextPage, 1), publicPageCount));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -1623,7 +1649,7 @@ function App() {
             <p className="eyebrow">Qortal CMS</p>
             <h1>{dataset.manifest.title}</h1>
             {dataset.manifest.tagline && <p className="public-tagline">{dataset.manifest.tagline}</p>}
-            <span>{publicPosts.length} published posts · owner {ownerTarget}</span>
+            <span>{allPublicPosts.length} published posts · owner {ownerTarget}</span>
           </div>
           <div className="public-status">
             <span>{identity.name ? `Viewing as ${identity.name}` : 'Read-only visitor'}</span>
@@ -1642,7 +1668,7 @@ function App() {
           <section className="public-home">
             <div className="public-section-title">
               <h2>Latest Posts</h2>
-              <span>Showing 8 newest published posts</span>
+              <span>Page {activePublicPage} of {publicPageCount} · {allPublicPosts.length} published posts</span>
             </div>
             <div className="public-post-grid">
               {publicPosts.map((post) => {
@@ -1668,6 +1694,30 @@ function App() {
               })}
               {publicPosts.length === 0 && <div className="placeholder"><FileText size={22} /><strong>No published posts yet</strong><span>Published CMS posts will appear here for visitors.</span></div>}
             </div>
+            {publicPageCount > 1 && (
+              <nav className="public-pagination" aria-label="Published posts pagination">
+                <button type="button" onClick={() => changePublicPage(activePublicPage - 1)} disabled={activePublicPage === 1} title="Previous page">
+                  <ChevronLeft size={16} /> <span>Previous</span>
+                </button>
+                <div className="public-page-numbers">
+                  {paginationItems(activePublicPage, publicPageCount).map((item) => typeof item === 'number' ? (
+                      <button
+                        className={item === activePublicPage ? 'active' : ''}
+                        type="button"
+                        key={item}
+                        onClick={() => changePublicPage(item)}
+                        aria-label={`Page ${item}`}
+                        aria-current={item === activePublicPage ? 'page' : undefined}
+                      >
+                        {item}
+                      </button>
+                    ) : <span key={item} aria-hidden="true">...</span>)}
+                </div>
+                <button type="button" onClick={() => changePublicPage(activePublicPage + 1)} disabled={activePublicPage === publicPageCount} title="Next page">
+                  <span>Next</span> <ChevronRight size={16} />
+                </button>
+              </nav>
+            )}
           </section>
         ) : (
           <section className="public-detail">
