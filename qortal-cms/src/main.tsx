@@ -161,6 +161,21 @@ function paginationItems(currentPage: number, pageCount: number) {
   return items;
 }
 
+function sharedPostSlug() {
+  const match = window.location.hash.match(/^#\/posts\/([^/?#]+)/i);
+  if (!match?.[1]) return '';
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+function buildPostPageLink(appName: string, post: Pick<CmsPostIndexItem, 'slug' | 'id'>) {
+  const postSlug = post.slug || post.id;
+  return `qortal://APP/${encodeURIComponent(appName)}#/posts/${encodeURIComponent(postSlug)}`;
+}
+
 function shortHash(value: string) {
   let hash = 5381;
   for (let index = 0; index < value.length; index += 1) {
@@ -617,12 +632,17 @@ function App() {
     setIdentity(viewerIdentity);
     setSiteTitleDraft(loadedDataset.manifest.title);
     setSiteTaglineDraft(loadedDataset.manifest.tagline || '');
-    const first = loadedDataset.posts[0] || null;
-    setSelectedIndex(first);
-    if (first) {
-      const post = await safeLoadPost(first, loadedDataset);
+    const linkedSlug = sharedPostSlug();
+    const linkedPost = linkedSlug
+      ? loadedDataset.posts.find((post) => post.status === 'published' && (post.slug === linkedSlug || post.id === linkedSlug))
+      : null;
+    const initialPost = linkedPost || loadedDataset.posts[0] || null;
+    setSelectedIndex(initialPost);
+    if (initialPost) {
+      const post = await safeLoadPost(initialPost, loadedDataset);
       setSelectedPost(post);
       setDraft(createDraft(post, loadedDataset.categories, loadedDataset.tags));
+      setPublicDetailOpen(Boolean(linkedPost));
     }
     setStatus('');
   }
@@ -1486,30 +1506,23 @@ function App() {
   }
 
   function postShareUrl() {
-    if (!selectedPost || !dataset) return window.location.href;
-    const url = new URL(window.location.href);
-    url.searchParams.set('name', qdnName || dataset.manifest.owner_name);
-    url.searchParams.set('post', selectedPost.slug || selectedPost.id);
-    return url.toString();
+    if (!selectedPost || !dataset) return '';
+    const appName = qdnName || dataset.manifest.owner_name;
+    return appName ? buildPostPageLink(appName, selectedPost) : '';
   }
 
   async function shareSelectedPost() {
     if (!selectedPost) return;
-    const shareData = {
-      title: selectedPost.title,
-      text: stripHtml(selectedPost.excerpt || selectedPost.content_html).slice(0, 180),
-      url: postShareUrl()
-    };
+    const url = postShareUrl();
+    if (!url) {
+      setStatus('Post link is unavailable.');
+      return;
+    }
     try {
-      if (navigator.share) {
-        await navigator.share(shareData);
-        setStatus('Share sheet opened.');
-        return;
-      }
-      await copyText(shareData.url);
+      await copyText(url);
       setStatus('Post link copied.');
     } catch {
-      setStatus('Share cancelled.');
+      setStatus('Unable to copy post link.');
     }
   }
 
