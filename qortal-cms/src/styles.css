@@ -106,6 +106,23 @@ button {
   background: #9fcbbd;
 }
 
+.sidebar-version {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #c4d2cd;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sidebar-version strong {
+  color: #fff;
+}
+
 .identity-card {
   display: grid;
   grid-template-columns: auto 1fr;

@@ -1931,7 +1931,6 @@ function App() {
           <p>Qortal CMS</p>
           <h1>{dataset.manifest.title}</h1>
           {dataset.manifest.tagline && <small>{dataset.manifest.tagline}</small>}
-          <span>Version {CMS_VERSION}</span>
         </div>
 
         <nav className="nav-list">
@@ -1942,6 +1941,11 @@ function App() {
           <button className={section === 'imported' ? 'active' : ''} onClick={() => setSection('imported')}><Tags size={17} /> Imported</button>
           <button className={section === 'settings' ? 'active' : ''} onClick={() => setSection('settings')}><Settings size={17} /> Settings</button>
         </nav>
+
+        <div className="sidebar-version">
+          <span>CMS version</span>
+          <strong>v{CMS_VERSION}</strong>
+        </div>
 
         <div className="identity-card">
           <User size={17} />
