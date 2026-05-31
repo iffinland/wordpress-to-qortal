@@ -1,7 +1,7 @@
 import { createQdnUrl, fetchQdnResource, hasQortalBridge, requestQortal, toBase64, tryRequestQortal } from './qortalClient';
 import type { CmsComment, CmsDataset, CmsManifest, CmsMediaItem, CmsMediaType, CmsPost, CmsPostIndexItem, CmsTerm, QdnRef, ViewerIdentity } from './types';
 
-export const CMS_VERSION = '0.1.1';
+export const CMS_VERSION = '0.1.2';
 export const MANIFEST_IDENTIFIER = 'cms-manifest';
 export const POSTS_INDEX_IDENTIFIER = 'cms-posts-index';
 export const PAGES_INDEX_IDENTIFIER = 'cms-pages-index';
@@ -45,10 +45,6 @@ function safeIdentifierPart(value = '') {
 export function createSiteId(seed = '') {
   const input = `${seed}:${Date.now()}:${Math.random()}`;
   return `site-${compactHash(input).slice(0, 8)}`;
-}
-
-function createLegacySiteId(seed = '') {
-  return `site-${compactHash(seed || 'qortal-cms').slice(0, 8)}`;
 }
 
 export function createPostIdentifier(slug: string, siteId = '') {
@@ -208,7 +204,7 @@ function ensureManifestShape(manifest: CmsManifest, ownerName: string): CmsManif
   const entrypoints = manifest.entrypoints || {};
   return {
     ...manifest,
-    site_id: ownerChanged ? createSiteId(owner || manifest.title) : manifest.site_id || createLegacySiteId(owner || manifest.title),
+    site_id: ownerChanged ? createSiteId(owner || manifest.title) : manifest.site_id || createSiteId(owner || manifest.title),
     title: manifest.title || (owner ? `${owner} CMS` : 'Qortal CMS'),
     tagline: manifest.tagline || '',
     owner_name: owner,
@@ -349,8 +345,7 @@ export async function loadQdnDataset(ownerName: string): Promise<CmsDataset | nu
       fetchQdnResource<CmsComment[]>(manifest.entrypoints.comments_index.service, ownerName, manifest.entrypoints.comments_index.identifier)
         .catch(() => [])
     ]);
-    const discoveredPosts = await discoverCmsPosts(ownerName, manifest.site_id).catch(() => []);
-    return { manifest, posts: mergePostIndexes(posts, discoveredPosts), pages, categories, tags, media, comments, local_posts: {} };
+    return { manifest, posts, pages, categories, tags, media, comments, local_posts: {} };
   } catch {
     return null;
   }
@@ -362,7 +357,7 @@ export async function loadDataset(ownerName: string): Promise<CmsDataset> {
 }
 
 export function loadLocalDataset(ownerName: string): CmsDataset {
-  const stored = localStorage.getItem(localDatasetKey(ownerName)) || localStorage.getItem(LOCAL_STORAGE_KEY);
+  const stored = localStorage.getItem(localDatasetKey(ownerName));
   if (stored) {
     try {
       const parsed = JSON.parse(stored) as CmsDataset;
@@ -401,72 +396,6 @@ export async function loadPost(ref: QdnRef, fallback?: CmsPost): Promise<CmsPost
     throw new Error('Post has no QDN name and no local fallback.');
   }
   return fetchQdnResource<CmsPost>(ref.service, ref.name, ref.identifier);
-}
-
-interface SearchQdnResourceResult {
-  name?: string;
-  service?: string;
-  identifier?: string;
-}
-
-function isCmsPost(value: unknown): value is CmsPost {
-  return Boolean(
-    value &&
-    typeof value === 'object' &&
-    (value as CmsPost).schema === 'qortal-cms/post@1' &&
-    (value as CmsPost).id &&
-    (value as CmsPost).qdn
-  );
-}
-
-function sameSitePost(post: CmsPost, ownerName: string, resourceName = '', siteId = '') {
-  if (siteId && post.cms_site_id) {
-    return post.cms_site_id === siteId;
-  }
-
-  const normalizedOwner = normalizeQortalName(ownerName);
-  if (!normalizedOwner) return true;
-  return normalizeQortalName(post.cms_site_name || post.site_owner_name || '') === normalizedOwner
-    || normalizeQortalName(post.qdn.name || '') === normalizedOwner
-    || normalizeQortalName(resourceName) === normalizedOwner;
-}
-
-function mergePostIndexes(existing: CmsPostIndexItem[], discovered: CmsPostIndexItem[]) {
-  const byId = new Map<string, CmsPostIndexItem>();
-  for (const item of [...existing, ...discovered]) {
-    const previous = byId.get(item.id);
-    if (!previous || new Date(item.updated_at).getTime() >= new Date(previous.updated_at).getTime()) {
-      byId.set(item.id, item);
-    }
-  }
-  return [...byId.values()].sort((left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime());
-}
-
-export async function discoverCmsPosts(ownerName: string, siteId = ''): Promise<CmsPostIndexItem[]> {
-  if (!hasQortalBridge()) return [];
-  const results = await requestQortal({
-    action: 'SEARCH_QDN_RESOURCES',
-    service: 'DOCUMENT',
-    identifier: CMS_POST_IDENTIFIER_PREFIX,
-    prefix: true,
-    mode: 'ALL',
-    reverse: true,
-    limit: 100,
-    offset: 0
-  }) as SearchQdnResourceResult[];
-
-  const posts: CmsPostIndexItem[] = [];
-  for (const result of Array.isArray(results) ? results : []) {
-    if (!result.name || !result.identifier) continue;
-    try {
-      const post = await fetchQdnResource<CmsPost>(result.service || 'DOCUMENT', result.name, result.identifier);
-      if (!isCmsPost(post) || !sameSitePost(post, ownerName, result.name, siteId)) continue;
-      posts.push(toPostIndexItem({ ...post, qdn: { ...post.qdn, name: result.name, identifier: result.identifier, service: post.qdn.service || 'DOCUMENT' } }));
-    } catch {
-      // Ignore malformed or unavailable resources.
-    }
-  }
-  return posts;
 }
 
 export async function publishJsonResource<T>(name: string, ref: QdnRef, data: T, title: string, description: string) {

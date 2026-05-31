@@ -110,7 +110,7 @@ npm run package:migration-qapp
 Publish this file to Qortal as an `APP` or `WEBSITE`:
 
 ```text
-release/wordpress-to-qortal-migration-app-v0.1.1.zip
+release/wordpress-to-qortal-migration-app-v0.1.2.zip
 ```
 
 Open the published app inside Qortal UI. Select the local `wp-qortal-import` folder. The Q-App stays small; imported data remains on the user's computer until selected resources are published to QDN.
