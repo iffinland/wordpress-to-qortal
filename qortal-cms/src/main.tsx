@@ -507,13 +507,40 @@ function withQdnName(ref: QdnRef, name: string): QdnRef {
 }
 
 async function copyText(value: string) {
-  if (!value) return false;
+  if (!value.trim()) return false;
+
+  const textarea = document.createElement('textarea');
+  textarea.value = value;
+  textarea.setAttribute('readonly', '');
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  textarea.style.top = '0';
+  textarea.style.opacity = '0';
+  document.body.appendChild(textarea);
+  textarea.focus();
+  textarea.select();
+  textarea.setSelectionRange(0, textarea.value.length);
+
   try {
-    await navigator.clipboard.writeText(value);
-    return true;
+    if (document.execCommand('copy')) {
+      return true;
+    }
   } catch {
-    return false;
+    // Continue with the modern Clipboard API when the legacy fallback is blocked.
+  } finally {
+    document.body.removeChild(textarea);
   }
+
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    // The Clipboard API can be blocked inside a Qortal UI iframe.
+  }
+
+  return false;
 }
 
 function MediaAttachmentViewer({ items }: { items: CmsMediaItem[] }) {
@@ -1680,12 +1707,8 @@ function App() {
       setStatus('Post link is unavailable.');
       return;
     }
-    try {
-      await copyText(url);
-      setStatus('Post link copied.');
-    } catch {
-      setStatus('Unable to copy post link.');
-    }
+    const copied = await copyText(url);
+    setStatus(copied ? 'Post link copied.' : 'Unable to copy post link.');
   }
 
   async function openTipModal() {
