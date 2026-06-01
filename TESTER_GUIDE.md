@@ -1,12 +1,12 @@
 # WordPress to Qortal Toolkit: Tester Guide
 
-Version: `0.1.4`
+Version: `0.1.5`
 
 This package contains three separate tools:
 
-1. `wordpress-to-qortal-migrator-v0.1.4.zip` - a local Node.js importer.
-2. `wordpress-to-qortal-migration-app-v0.1.4.zip` - a small Qortal Migration Publisher Q-App.
-3. `qortal-cms-app-v0.1.4.zip` - the Qortal-native CMS Q-App.
+1. `wordpress-to-qortal-migrator-v0.1.5.zip` - a local Node.js importer.
+2. `wordpress-to-qortal-migration-app-v0.1.5.zip` - a small Qortal Migration Publisher Q-App.
+3. `qortal-cms-app-v0.1.5.zip` - the Qortal-native CMS Q-App.
 
 The imported WordPress dataset stays on your own computer. Do not place a multi-gigabyte media folder inside a Q-App ZIP.
 
@@ -26,7 +26,7 @@ Install:
 Extract:
 
 ```text
-wordpress-to-qortal-migrator-v0.1.4.zip
+wordpress-to-qortal-migrator-v0.1.5.zip
 ```
 
 Open a terminal inside the extracted folder:
@@ -84,7 +84,7 @@ wp-qortal-import/
 Publish this ZIP to Qortal as an `APP` or `WEBSITE`:
 
 ```text
-wordpress-to-qortal-migration-app-v0.1.4.zip
+wordpress-to-qortal-migration-app-v0.1.5.zip
 ```
 
 Open the published Migration Publisher inside Qortal UI.
@@ -115,7 +115,7 @@ The progress bar shows batch preparation and completion. Green statuses indicate
 Publish this ZIP to Qortal as an `APP` or `WEBSITE`:
 
 ```text
-qortal-cms-app-v0.1.4.zip
+qortal-cms-app-v0.1.5.zip
 ```
 
 The Qortal name that publishes the CMS becomes the SysOp owner. Each CMS installation receives its own stable site ID.

@@ -1,6 +1,6 @@
 {
   "name": "qortal-cms",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Qortal-native CMS Q-App for posts, publishing, and owner-managed editing.",
   "type": "module",
   "private": true,

@@ -1,6 +1,6 @@
 # WordPress to Qortal Toolkit
 
-Current version: `0.1.4`
+Current version: `0.1.5`
 
 This repository contains a WordPress migration toolkit and a separate Qortal-native CMS.
 

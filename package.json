@@ -1,6 +1,6 @@
 {
   "name": "wp-to-qortal",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "WordPress to Qortal migration importer and QDN publisher.",
   "type": "module",
   "private": true,
