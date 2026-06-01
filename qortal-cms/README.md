@@ -1,6 +1,6 @@
 # Qortal CMS
 
-Version: `0.1.3`
+Version: `0.1.4`
 
 This is the separate Qortal-native CMS/Q-App. It is not the WordPress migrator.
 
@@ -108,7 +108,7 @@ npm run package:cms-qapp
 Publish this file as a Qortal `APP` or `WEBSITE`:
 
 ```text
-release/qortal-cms-app-v0.1.3.zip
+release/qortal-cms-app-v0.1.4.zip
 ```
 
 The app shell is separate from the content. CMS content is stored in separate QDN resources.
