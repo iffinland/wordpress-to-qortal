@@ -176,13 +176,25 @@ function buildPostPageLink(appName: string, post: Pick<CmsPostIndexItem, 'slug' 
   return `qortal://APP/${encodeURIComponent(appName)}#/posts/${encodeURIComponent(postSlug)}`;
 }
 
+function cleanVideoDownloadFilename(value: string) {
+  const stem = value
+    .replace(/\.mp4$/i, '')
+    .replace(/^cr-media-/i, '')
+    .replace(/(?:-[a-f0-9]{8,})+$/i, '')
+    .replace(/^ep(?=\d)/i, '')
+    .replace(/[^a-z0-9._-]+/gi, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return `${stem || 'video'}.mp4`;
+}
+
 function videoDownloadFilename(value: string, fallback = 'video.mp4') {
   try {
     const filename = new URL(value, window.location.origin).pathname.split('/').pop();
     const decodedFilename = filename ? decodeURIComponent(filename) : '';
-    return /\.mp4$/i.test(decodedFilename) ? decodedFilename : fallback;
+    return cleanVideoDownloadFilename(/\.mp4$/i.test(decodedFilename) ? decodedFilename : fallback);
   } catch {
-    return fallback;
+    return cleanVideoDownloadFilename(fallback);
   }
 }
 
