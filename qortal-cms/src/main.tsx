@@ -14,8 +14,11 @@ import {
   createCommentIdentifier,
   createEmptyManifest,
   createMediaItem,
+  createOperatorIdentifier,
   createPostIdentifier,
   createSiteId,
+  createSubmissionIdentifier,
+  createSubmissionsIndexIdentifier,
   getQdnNameFromLocation,
   getViewerIdentity,
   loadLocalDataset,
@@ -30,17 +33,21 @@ import {
   qdnLink,
   saveLocalDataset,
   slugify,
+  sortPostsNewestFirst,
   toPostIndexItem
 } from './cmsRepository';
+import { cmsProfile, editorialAuthorName } from './cmsProfile';
 import { fetchQdnResource, getQdnResourceStatus, getQdnResourceUrl, hasQortalBridge, requestQortal, toBase64, tryRequestQortal } from './qortalClient';
 import { parseVideoLink } from './videoLinks';
-import type { CmsComment, CmsDataset, CmsMediaItem, CmsPost, CmsPostIndexItem, CmsStatus, CmsVideoEmbed, QdnRef, ViewerIdentity } from './types';
+import type { CmsComment, CmsDataset, CmsMediaItem, CmsPost, CmsPostIndexItem, CmsStatus, CmsSubmission, CmsTerm, CmsVideoEmbed, QdnRef, ViewerIdentity } from './types';
 import './styles.css';
 
-type Section = 'dashboard' | 'posts' | 'media' | 'imported' | 'settings';
+type Section = 'dashboard' | 'posts' | 'media' | 'imported' | 'submissions' | 'settings';
 type EditorMode = 'preview' | 'edit';
 const IMPORT_BATCH_LIMIT = 10;
 const PUBLIC_POSTS_PER_PAGE = 8;
+const DEFAULT_IMPORT_MANIFEST_IDENTIFIER =
+  cmsProfile.importManifestIdentifier;
 
 interface ImportedIndexItem {
   type: 'post';
@@ -107,9 +114,23 @@ type ImportedMediaMap = Record<string, ImportedMediaMapItem>;
 interface ImportedQdnManifest {
   version: string;
   generated_at: string;
+  profile_id?: string | null;
+  canonical_site_name?: string | null;
+  qdn_content_name?: string | null;
+  qdn_media_name?: string | null;
+  public_author?: string;
+  publisher_names?: string[];
+  coauthor_names?: string[];
+  publishers?: Array<{
+    name: string;
+    generated_at?: string | null;
+    summary?: Record<string, number>;
+  }>;
+  summary?: Record<string, number>;
   entrypoints: Record<string, QdnRef>;
   resources: {
     by_path?: Record<string, QdnRef>;
+    by_source_url?: Record<string, QdnRef>;
   };
 }
 
@@ -179,7 +200,7 @@ function buildPostPageLink(appName: string, post: Pick<CmsPostIndexItem, 'slug' 
 function cleanVideoDownloadFilename(value: string) {
   const stem = value
     .replace(/\.mp4$/i, '')
-    .replace(/^cr-media-/i, '')
+    .replace(/^[a-z0-9-]+-media-/i, '')
     .replace(/(?:-[a-f0-9]{8,})+$/i, '')
     .replace(/^ep(?=\d)/i, '')
     .replace(/[^a-z0-9._-]+/gi, '-')
@@ -343,7 +364,8 @@ function emptyPost(ownerName: string, ownerAddress: string, siteId: string, site
     media: [],
     videos: [],
     comments_enabled: true,
-    author: { name: ownerName || 'local-owner', address: ownerAddress }
+    author: { name: editorialAuthorName(ownerName || 'local-owner'), address: ownerAddress },
+    publisher: { name: ownerName || 'local-owner', address: ownerAddress }
   };
 }
 
@@ -388,6 +410,14 @@ function termsFromText(value: string, existing: CmsDataset['categories']) {
   return { ids, terms: nextTerms };
 }
 
+function mergeTerms(existing: CmsTerm[], incoming: CmsTerm[]) {
+  const bySlug = new Map(existing.map((term) => [term.slug, term]));
+  for (const term of incoming) {
+    if (!bySlug.has(term.slug)) bySlug.set(term.slug, term);
+  }
+  return [...bySlug.values()];
+}
+
 function sameQdnRef(left: QdnRef, right: QdnRef) {
   return left.service === right.service && left.name === right.name && left.identifier === right.identifier;
 }
@@ -404,6 +434,20 @@ function mergeMediaItems(existing: CmsMediaItem[], incoming: CmsMediaItem[]) {
     }
   }
   return next;
+}
+
+function manifestForPublisher(manifest: CmsDataset['manifest'], publisherName: string, canonicalSiteName: string) {
+  return {
+    ...manifest,
+    owner_name: publisherName,
+    canonical_site_name: canonicalSiteName,
+    entrypoints: Object.fromEntries(
+      Object.entries(manifest.entrypoints).map(([key, ref]) => [
+        key,
+        { ...ref, name: publisherName, identifier: createOperatorIdentifier(ref.identifier, manifest.site_id) }
+      ])
+    ) as CmsDataset['manifest']['entrypoints']
+  };
 }
 
 function formatBytes(bytes: number) {
@@ -700,7 +744,7 @@ function createFallbackIdentity(ownerName: string): ViewerIdentity {
 }
 
 function App() {
-  const qdnName = getQdnNameFromLocation();
+  const qdnName = getQdnNameFromLocation() || cmsProfile.ownerName;
   const [section, setSection] = useState<Section>('posts');
   const [editorMode, setEditorMode] = useState<EditorMode>('preview');
   const [dataset, setDataset] = useState<CmsDataset | null>(null);
@@ -725,8 +769,8 @@ function App() {
   const [tipRecipient, setTipRecipient] = useState('');
   const [tipError, setTipError] = useState('');
   const [tipSending, setTipSending] = useState(false);
-  const [importOwnerName, setImportOwnerName] = useState(qdnName);
-  const [importManifestIdentifier, setImportManifestIdentifier] = useState('cr-qdn-manifest');
+  const [importOwnerName, setImportOwnerName] = useState(cmsProfile.importOwnerName || qdnName);
+  const [importManifestIdentifier, setImportManifestIdentifier] = useState(DEFAULT_IMPORT_MANIFEST_IDENTIFIER);
   const [importedManifest, setImportedManifest] = useState<ImportedQdnManifest | null>(null);
   const [importedPosts, setImportedPosts] = useState<ImportedIndexItem[]>([]);
   const [importedCategories, setImportedCategories] = useState<ImportedTerm[]>([]);
@@ -735,6 +779,7 @@ function App() {
   const [selectedImportedPost, setSelectedImportedPost] = useState<ImportedPost | null>(null);
   const [selectedImportedIndex, setSelectedImportedIndex] = useState<ImportedIndexItem | null>(null);
   const [selectedImportedIds, setSelectedImportedIds] = useState<number[]>([]);
+  const [submissions, setSubmissions] = useState<CmsSubmission[]>([]);
   const [publicDetailOpen, setPublicDetailOpen] = useState(false);
   const [publicPage, setPublicPage] = useState(1);
   const [forcePublicView, setForcePublicView] = useState(false);
@@ -817,7 +862,10 @@ function App() {
   }
 
   const isSysop = identity?.role === 'sysop';
+  const isCoauthor = identity?.role === 'coauthor';
   const canManageContent = identity?.role === 'sysop' || identity?.role === 'coauthor';
+  const canAdoptImportedContent = Boolean(isSysop || (isCoauthor && cmsProfile.trustedCoauthorsCanAdoptImports));
+  const canManageMediaLibrary = Boolean(isSysop || (isCoauthor && cmsProfile.trustedCoauthorsCanPublishMedia));
   const canComment = Boolean(identity?.bridgeAvailable && identity.name && selectedPost?.comments_enabled);
   const commentsForPost = useMemo(() => {
     return (dataset?.comments || []).filter((comment) => comment.post_id === selectedPost?.id && comment.status === 'published');
@@ -953,13 +1001,16 @@ function App() {
         name: selectedPost.qdn.name || identity.name || cmsSiteName,
         identifier: selectedPost.qdn.identifier || createPostIdentifier(slug, dataset.manifest.site_id)
       },
-      author: selectedPost.author.name && selectedPost.id !== 'sample-post' ? selectedPost.author : { name: identity.name, address: identity.address }
+      author: selectedPost.author.name && selectedPost.id !== 'sample-post'
+        ? selectedPost.author
+        : { name: editorialAuthorName(identity.name), address: identity.address },
+      publisher: selectedPost.publisher || { name: identity.name, address: identity.address }
     };
     const index = toPostIndexItem(post);
     const exists = dataset.posts.some((item) => item.id === index.id);
-    const posts = exists
+    const posts = sortPostsNewestFirst(exists
       ? dataset.posts.map((item) => item.id === index.id ? index : item)
-      : [index, ...dataset.posts];
+      : [index, ...dataset.posts]);
     const nextDataset: CmsDataset = {
       ...dataset,
       manifest: { ...dataset.manifest, updated_at: updatedAt, owner_name: cmsSiteName, owner_address: dataset.manifest.owner_address || identity.address },
@@ -1001,12 +1052,20 @@ function App() {
       ...applied.post,
       cms_site_id: dataset.manifest.site_id,
       cms_site_name: cmsSiteName,
-      qdn: { ...applied.post.qdn, service: 'DOCUMENT', name: publishName }
+      qdn: {
+        ...applied.post.qdn,
+        service: 'DOCUMENT',
+        name: publishName,
+        identifier: isSysop
+          ? applied.post.qdn.identifier
+          : createPostIdentifier(applied.post.slug, dataset.manifest.site_id)
+      },
+      publisher: { name: publishName, address: identity.address }
     };
     const postIndex = toPostIndexItem(postToPublish);
-    const posts = applied.nextDataset.posts.some((item) => item.id === postIndex.id)
+    const posts = sortPostsNewestFirst(applied.nextDataset.posts.some((item) => item.id === postIndex.id)
       ? applied.nextDataset.posts.map((item) => item.id === postIndex.id ? postIndex : item)
-      : [postIndex, ...applied.nextDataset.posts];
+      : [postIndex, ...applied.nextDataset.posts]);
     const nextDataset: CmsDataset = {
       ...applied.nextDataset,
       manifest: { ...applied.nextDataset.manifest, owner_name: cmsSiteName, owner_address: applied.nextDataset.manifest.owner_address || identity.address },
@@ -1036,6 +1095,30 @@ function App() {
           { ref: { service: 'DOCUMENT', identifier: COMMENTS_INDEX_IDENTIFIER }, data: nextDataset.comments, title: 'CMS comments index', description: 'Qortal CMS comments index' },
           { ref: { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER }, data: nextDataset.manifest, title: 'CMS manifest', description: 'Qortal CMS manifest' }
         );
+      } else {
+        const submissionIndexIdentifier = createSubmissionsIndexIdentifier(dataset.manifest.site_id);
+        const submission: CmsSubmission = {
+          schema: 'qortal-cms/submission@1',
+          id: `submission-${Date.now().toString(36)}`,
+          site_id: dataset.manifest.site_id,
+          site_owner_name: cmsSiteName,
+          status: 'pending',
+          submitted_at: new Date().toISOString(),
+          submitted_by: { name: publishName, address: identity.address },
+          post: postToPublish,
+          categories: nextDataset.categories.filter((term) => postToPublish.category_ids.includes(term.id)),
+          tags: nextDataset.tags.filter((term) => postToPublish.tag_ids.includes(term.id)),
+          qdn: { service: 'DOCUMENT', identifier: createSubmissionIdentifier(postToPublish.id), name: publishName }
+        };
+        const existingSubmissions = await fetchQdnResource<QdnRef[]>('DOCUMENT', publishName, submissionIndexIdentifier).catch(() => []);
+        const submissionRefs = [
+          submission.qdn,
+          ...existingSubmissions.filter((ref) => ref.identifier !== submission.qdn.identifier)
+        ];
+        publishItems.push(
+          { ref: submission.qdn, data: submission, title: `CMS submission: ${postToPublish.title}`, description: 'CMS coauthor submission for SysOp review' },
+          { ref: { service: 'DOCUMENT', identifier: submissionIndexIdentifier, name: publishName }, data: submissionRefs, title: 'CMS submissions index', description: 'CMS coauthor submissions index' }
+        );
       }
 
       await publishJsonResources(publishName, publishItems);
@@ -1045,7 +1128,9 @@ function App() {
       setSelectedIndex(postIndex);
       saveLocalDataset(nextDataset);
       setDraft(createDraft(postToPublish, nextDataset.categories, nextDataset.tags));
-      setStatus(postToPublish.status === 'published' ? 'Published to QDN.' : 'Draft saved to QDN.');
+      setStatus(isSysop
+        ? (postToPublish.status === 'published' ? 'Published to QDN.' : 'Draft saved to QDN.')
+        : 'Post submitted to QDN for SysOp review.');
     } catch (publishError) {
       setError(readableError(publishError, 'Qortal publish failed. Check that the logged-in account owns the publish target name.'));
       setStatus('');
@@ -1083,6 +1168,87 @@ function App() {
       setStatus('Comment published. Owner-side comment index sync will be handled in the moderation workflow.');
     } catch (commentError) {
       setError((commentError as Error).message);
+      setStatus('');
+    }
+  }
+
+  async function loadCoauthorSubmissions() {
+    if (!dataset || !isSysop) return;
+    setError(null);
+    try {
+      setStatus('Loading coauthor submissions...');
+      const submissionIndexIdentifier = createSubmissionsIndexIdentifier(dataset.manifest.site_id);
+      const submissionRefs = (await Promise.all(
+        dataset.manifest.coauthors.map(async (coauthorName) => {
+          return fetchQdnResource<QdnRef[]>('DOCUMENT', coauthorName, submissionIndexIdentifier)
+            .catch(() => []);
+        })
+      )).flat();
+      const uniqueRefs = [...new Map(submissionRefs.map((ref) => [`${ref.name || ''}:${ref.service}:${ref.identifier}`, ref])).values()];
+      const loaded = await Promise.all(uniqueRefs.map(async (ref) => {
+        if (!ref.name) return null;
+        return fetchQdnResource<CmsSubmission>(ref.service, ref.name, ref.identifier).catch(() => null);
+      }));
+      const pending = loaded
+        .filter((submission): submission is CmsSubmission => Boolean(
+          submission
+          && submission.site_id === dataset.manifest.site_id
+          && !dataset.posts.some((post) => (
+            post.id === submission.post.id
+            && Date.parse(post.updated_at) >= Date.parse(submission.post.updated_at)
+          ))
+        ))
+        .sort((left, right) => Date.parse(right.submitted_at) - Date.parse(left.submitted_at));
+      const latestByPost = new Map<string, CmsSubmission>();
+      for (const submission of pending) {
+        if (!latestByPost.has(submission.post.id)) latestByPost.set(submission.post.id, submission);
+      }
+      const latest = [...latestByPost.values()];
+      setSubmissions(latest);
+      setStatus(`Loaded ${latest.length} coauthor submissions.`);
+    } catch (submissionError) {
+      setError(readableError(submissionError, 'Unable to load coauthor submissions.'));
+      setStatus('');
+    }
+  }
+
+  async function approveSubmission(submission: CmsSubmission) {
+    if (!dataset || !identity || !isSysop) return;
+    const ownerName = qdnName || dataset.manifest.owner_name || identity.name;
+    if (!ownerName) {
+      setError('Missing owner Qortal name.');
+      return;
+    }
+
+    const postIndex = toPostIndexItem(submission.post);
+    const now = new Date().toISOString();
+    const nextDataset: CmsDataset = {
+      ...dataset,
+      manifest: { ...dataset.manifest, updated_at: now, owner_name: ownerName, owner_address: dataset.manifest.owner_address || identity.address },
+      posts: sortPostsNewestFirst([
+        postIndex,
+        ...dataset.posts.filter((post) => post.id !== postIndex.id)
+      ]),
+      categories: mergeTerms(dataset.categories, submission.categories),
+      tags: mergeTerms(dataset.tags, submission.tags),
+      local_posts: { ...(dataset.local_posts || {}), [submission.post.id]: submission.post }
+    };
+
+    setError(null);
+    try {
+      setStatus(`Approving ${submission.post.title}...`);
+      await publishJsonResources(ownerName, [
+        { ref: { service: 'DOCUMENT', identifier: POSTS_INDEX_IDENTIFIER }, data: nextDataset.posts, title: 'CMS posts index', description: 'Qortal CMS posts index' },
+        { ref: { service: 'DOCUMENT', identifier: CATEGORIES_IDENTIFIER }, data: nextDataset.categories, title: 'CMS categories', description: 'Qortal CMS categories' },
+        { ref: { service: 'DOCUMENT', identifier: TAGS_IDENTIFIER }, data: nextDataset.tags, title: 'CMS tags', description: 'Qortal CMS tags' },
+        { ref: { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER }, data: nextDataset.manifest, title: 'CMS manifest', description: 'Qortal CMS manifest' }
+      ]);
+      setDataset(nextDataset);
+      saveLocalDataset(nextDataset);
+      setSubmissions((current) => current.filter((item) => item.qdn.identifier !== submission.qdn.identifier));
+      setStatus('Submission approved and added to the canonical site index.');
+    } catch (approvalError) {
+      setError(readableError(approvalError, 'Unable to approve submission.'));
       setStatus('');
     }
   }
@@ -1205,7 +1371,7 @@ function App() {
 
   async function loadImportedManifest() {
     const ownerName = (importOwnerName || qdnName || dataset?.manifest.owner_name || '').trim();
-    const identifier = importManifestIdentifier.trim() || 'cr-qdn-manifest';
+    const identifier = importManifestIdentifier.trim() || DEFAULT_IMPORT_MANIFEST_IDENTIFIER;
     if (!ownerName) {
       setError('Enter importer owner name before loading imported content.');
       return;
@@ -1236,11 +1402,17 @@ function App() {
       setSelectedImportedPost(null);
       setSelectedImportedIndex(null);
       setSelectedImportedIds([]);
-      setStatus(`Imported content loaded: ${posts.length} posts.`);
+      setStatus(`${manifest.publishers?.length ? 'Merged catalog' : 'Publisher manifest'} loaded: ${posts.length} posts.`);
     } catch (importError) {
       setError((importError as Error).message);
       setStatus('');
     }
+  }
+
+  function applyProfileCatalogPreset() {
+    setImportOwnerName(cmsProfile.importOwnerName || qdnName);
+    setImportManifestIdentifier(cmsProfile.importManifestIdentifier);
+    setStatus(`Applied ${cmsProfile.id} catalog preset.`);
   }
 
   function importedPostRef(index: ImportedIndexItem): QdnRef | null {
@@ -1275,7 +1447,9 @@ function App() {
       .filter(Boolean) as string[];
   }
 
-  function importedMediaRef(mediaItem: ImportedMediaMapItem, ownerName: string): QdnRef | null {
+  function importedMediaRef(mediaItem: ImportedMediaMapItem, ownerName: string, sourceUrl = ''): QdnRef | null {
+    const sourceRef = sourceUrl ? importedManifest?.resources.by_source_url?.[sourceUrl] : null;
+    if (sourceRef) return withQdnName(sourceRef, ownerName);
     const pathRef = importedManifest?.resources.by_path?.[mediaItem.local_path];
     if (pathRef) return withQdnName(pathRef, ownerName);
     if (mediaItem.qdn_service && mediaItem.qdn_identifier) {
@@ -1308,7 +1482,7 @@ function App() {
 
     return attachments.map((attachment) => {
       const mediaItem = attachmentMediaItem(attachment);
-      const qdn = mediaItem ? importedMediaRef(mediaItem, ownerName) : null;
+      const qdn = mediaItem ? importedMediaRef(mediaItem, ownerName, attachment.source_url) : null;
       return { attachment, mediaItem, qdn };
     });
   }
@@ -1320,7 +1494,7 @@ function App() {
     function resolveImportedQdnRef(value: string | null) {
       if (!value) return '';
       const mediaItem = importedMediaMap[value];
-      return mediaItem ? importedMediaRef(mediaItem, ownerName) : null;
+      return mediaItem ? importedMediaRef(mediaItem, ownerName, value) : null;
     }
 
     function resolveImportedQdnUrl(value: string | null) {
@@ -1458,7 +1632,8 @@ function App() {
       media: attachedMedia,
       videos,
       comments_enabled: true,
-      author: { name: author.name || ownerName, address: author.address }
+      author: { name: editorialAuthorName(importedManifest?.public_author || author.name || ownerName), address: author.address },
+      publisher: { name: ownerName, address: author.address }
     };
 
     return { post, categories: categoryResult.terms, tags: tagResult.terms, mediaItems, index: toPostIndexItem(post) };
@@ -1496,39 +1671,52 @@ function App() {
   }
 
   async function adoptImportedPost() {
-    if (!dataset || !identity || !canManageContent || !selectedImportedPost) return;
+    if (!dataset || !identity || !canAdoptImportedContent || !selectedImportedPost) return;
     const ownerName = qdnName || dataset.manifest.owner_name || identity.name;
-    if (!ownerName) {
+    const publishName = isSysop ? ownerName : identity.name;
+    if (!ownerName || !publishName) {
       setError('Missing owner Qortal name.');
       return;
     }
 
     const existing = dataset.posts.find((post) => post.id === `wp-${selectedImportedPost.source_id}`);
     const now = new Date().toISOString();
-    const { post, categories, tags, mediaItems, index } = buildCmsPostFromImported(selectedImportedPost, dataset.categories, dataset.tags, ownerName, dataset.manifest.site_id, identity, now, existing);
-    const posts = existing
+    const built = buildCmsPostFromImported(selectedImportedPost, dataset.categories, dataset.tags, ownerName, dataset.manifest.site_id, identity, now, existing);
+    const post = isSysop ? built.post : {
+      ...built.post,
+      qdn: { ...built.post.qdn, name: publishName },
+      publisher: { name: publishName, address: identity.address }
+    };
+    const index = toPostIndexItem(post);
+    const posts = sortPostsNewestFirst(existing
       ? dataset.posts.map((item) => item.id === index.id ? index : item)
-      : [index, ...dataset.posts];
+      : [index, ...dataset.posts]);
     const nextDataset: CmsDataset = {
       ...dataset,
       manifest: { ...dataset.manifest, updated_at: now, owner_name: ownerName, owner_address: dataset.manifest.owner_address || identity.address },
       posts,
-      categories,
-      tags,
-      media: mergeMediaItems(dataset.media, mediaItems),
+      categories: built.categories,
+      tags: built.tags,
+      media: mergeMediaItems(dataset.media, built.mediaItems),
       local_posts: { ...(dataset.local_posts || {}), [post.id]: post }
     };
+    const publishedManifest = isSysop
+      ? nextDataset.manifest
+      : manifestForPublisher(nextDataset.manifest, publishName, ownerName);
+    const publishedManifestIdentifier = isSysop
+      ? MANIFEST_IDENTIFIER
+      : createOperatorIdentifier(MANIFEST_IDENTIFIER, dataset.manifest.site_id);
 
     setError(null);
     try {
       setStatus('Adopting imported post as CMS draft...');
-      await publishJsonResources(ownerName, [
+      await publishJsonResources(publishName, [
         { ref: post.qdn, data: post, title: post.title, description: stripHtml(post.excerpt || post.content_html).slice(0, 4000) },
-        { ref: { service: 'DOCUMENT', identifier: POSTS_INDEX_IDENTIFIER }, data: nextDataset.posts, title: 'CMS posts index', description: 'Qortal CMS posts index' },
-        { ref: { service: 'DOCUMENT', identifier: CATEGORIES_IDENTIFIER }, data: nextDataset.categories, title: 'CMS categories', description: 'Qortal CMS categories' },
-        { ref: { service: 'DOCUMENT', identifier: TAGS_IDENTIFIER }, data: nextDataset.tags, title: 'CMS tags', description: 'Qortal CMS tags' },
-        { ref: { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER }, data: nextDataset.media, title: 'CMS media index', description: 'Qortal CMS media index' },
-        { ref: { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER }, data: nextDataset.manifest, title: 'CMS manifest', description: 'Qortal CMS manifest' }
+        { ref: publishedManifest.entrypoints.posts_index, data: nextDataset.posts, title: 'CMS posts index', description: 'Qortal CMS posts index' },
+        { ref: publishedManifest.entrypoints.categories, data: nextDataset.categories, title: 'CMS categories', description: 'Qortal CMS categories' },
+        { ref: publishedManifest.entrypoints.tags, data: nextDataset.tags, title: 'CMS tags', description: 'Qortal CMS tags' },
+        { ref: publishedManifest.entrypoints.media_index, data: nextDataset.media, title: 'CMS media index', description: 'Qortal CMS media index' },
+        { ref: { service: 'DOCUMENT', identifier: publishedManifestIdentifier }, data: publishedManifest, title: 'CMS manifest', description: 'Qortal CMS manifest' }
       ]);
       setDataset(nextDataset);
       setSelectedPost(post);
@@ -1536,7 +1724,7 @@ function App() {
       setDraft(createDraft(post, nextDataset.categories, nextDataset.tags));
       setEditorMode('preview');
       saveLocalDataset(nextDataset);
-      setStatus('Imported post adopted as CMS draft.');
+      setStatus(isSysop ? 'Imported post adopted as CMS draft.' : `Imported post adopted under trusted operator ${publishName}.`);
     } catch (adoptError) {
       setError((adoptError as Error).message);
       setStatus('');
@@ -1544,9 +1732,10 @@ function App() {
   }
 
   async function adoptSelectedImportedPosts() {
-    if (!dataset || !identity || !canManageContent || selectedImportedIds.length === 0) return;
+    if (!dataset || !identity || !canAdoptImportedContent || selectedImportedIds.length === 0) return;
     const ownerName = qdnName || dataset.manifest.owner_name || identity.name;
-    if (!ownerName) {
+    const publishName = isSysop ? ownerName : identity.name;
+    if (!ownerName || !publishName) {
       setError('Missing owner Qortal name.');
       return;
     }
@@ -1577,39 +1766,50 @@ function App() {
         const importedPost = selectedImportedPost?.source_id === indexItem.source_id
           ? selectedImportedPost
           : await fetchImportedPost(indexItem, ownerName);
-        const built = buildCmsPostFromImported(importedPost, categories, tags, ownerName, dataset.manifest.site_id, identity, now);
-        importedIndexes.push(built.index);
-        categories = built.categories;
-        tags = built.tags;
-        media = mergeMediaItems(media, built.mediaItems);
-        localPosts[built.post.id] = built.post;
-        if (!firstPost) firstPost = built.post;
+        const imported = buildCmsPostFromImported(importedPost, categories, tags, ownerName, dataset.manifest.site_id, identity, now);
+        const built = isSysop ? imported.post : {
+          ...imported.post,
+          qdn: { ...imported.post.qdn, name: publishName },
+          publisher: { name: publishName, address: identity.address }
+        };
+        importedIndexes.push(toPostIndexItem(built));
+        categories = imported.categories;
+        tags = imported.tags;
+        media = mergeMediaItems(media, imported.mediaItems);
+        localPosts[built.id] = built;
+        if (!firstPost) firstPost = built;
         publishItems.push({
-          ref: built.post.qdn,
-          data: built.post,
-          title: built.post.title,
-          description: stripHtml(built.post.excerpt || built.post.content_html).slice(0, 4000)
+          ref: built.qdn,
+          data: built,
+          title: built.title,
+          description: stripHtml(built.excerpt || built.content_html).slice(0, 4000)
         });
       }
 
       const nextDataset: CmsDataset = {
         ...dataset,
         manifest: { ...dataset.manifest, updated_at: now, owner_name: ownerName, owner_address: dataset.manifest.owner_address || identity.address },
-        posts: [...importedIndexes, ...dataset.posts],
+        posts: sortPostsNewestFirst([...importedIndexes, ...dataset.posts]),
         categories,
         tags,
         media,
         local_posts: localPosts
       };
+      const publishedManifest = isSysop
+        ? nextDataset.manifest
+        : manifestForPublisher(nextDataset.manifest, publishName, ownerName);
+      const publishedManifestIdentifier = isSysop
+        ? MANIFEST_IDENTIFIER
+        : createOperatorIdentifier(MANIFEST_IDENTIFIER, dataset.manifest.site_id);
 
       setStatus(`Publishing ${selectedIndexes.length} imported CMS drafts...`);
-      await publishJsonResources(ownerName, [
+      await publishJsonResources(publishName, [
         ...publishItems,
-        { ref: { service: 'DOCUMENT', identifier: POSTS_INDEX_IDENTIFIER }, data: nextDataset.posts, title: 'CMS posts index', description: 'Qortal CMS posts index' },
-        { ref: { service: 'DOCUMENT', identifier: CATEGORIES_IDENTIFIER }, data: nextDataset.categories, title: 'CMS categories', description: 'Qortal CMS categories' },
-        { ref: { service: 'DOCUMENT', identifier: TAGS_IDENTIFIER }, data: nextDataset.tags, title: 'CMS tags', description: 'Qortal CMS tags' },
-        { ref: { service: 'DOCUMENT', identifier: MEDIA_INDEX_IDENTIFIER }, data: nextDataset.media, title: 'CMS media index', description: 'Qortal CMS media index' },
-        { ref: { service: 'DOCUMENT', identifier: MANIFEST_IDENTIFIER }, data: nextDataset.manifest, title: 'CMS manifest', description: 'Qortal CMS manifest' }
+        { ref: publishedManifest.entrypoints.posts_index, data: nextDataset.posts, title: 'CMS posts index', description: 'Qortal CMS posts index' },
+        { ref: publishedManifest.entrypoints.categories, data: nextDataset.categories, title: 'CMS categories', description: 'Qortal CMS categories' },
+        { ref: publishedManifest.entrypoints.tags, data: nextDataset.tags, title: 'CMS tags', description: 'Qortal CMS tags' },
+        { ref: publishedManifest.entrypoints.media_index, data: nextDataset.media, title: 'CMS media index', description: 'Qortal CMS media index' },
+        { ref: { service: 'DOCUMENT', identifier: publishedManifestIdentifier }, data: publishedManifest, title: 'CMS manifest', description: 'Qortal CMS manifest' }
       ]);
 
       setDataset(nextDataset);
@@ -1621,7 +1821,9 @@ function App() {
       }
       setSelectedImportedIds([]);
       saveLocalDataset(nextDataset);
-      setStatus(`${selectedIndexes.length} imported posts adopted as CMS drafts.`);
+      setStatus(isSysop
+        ? `${selectedIndexes.length} imported posts adopted as CMS drafts.`
+        : `${selectedIndexes.length} imported posts adopted under trusted operator ${publishName}.`);
     } catch (batchError) {
       setError((batchError as Error).message);
       setStatus('');
@@ -1783,18 +1985,19 @@ function App() {
   }
 
   async function publishMediaFile() {
-    if (!dataset || !identity || !canManageContent || !mediaFile) return;
+    if (!dataset || !identity || !canManageMediaLibrary || !mediaFile) return;
     if (!hasQortalBridge()) {
       setError('Qortal bridge is not available. Open this CMS through Qortal UI dev mode to publish media.');
       return;
     }
     const ownerName = qdnName || dataset.manifest.owner_name || identity.name;
-    if (!ownerName) {
+    const publishName = isSysop ? ownerName : identity.name;
+    if (!ownerName || !publishName) {
       setError('Missing owner Qortal name. Open with ?name=<QortalName>.');
       return;
     }
 
-    const mediaItem = createMediaItem(mediaFile, ownerName, identity.address);
+    const mediaItem = createMediaItem(mediaFile, publishName, identity.address);
     mediaItem.title = mediaTitleDraft.trim() || mediaItem.title;
     const updatedManifest = {
       ...dataset.manifest,
@@ -1802,18 +2005,24 @@ function App() {
       owner_name: ownerName,
       owner_address: dataset.manifest.owner_address || identity.address
     };
+    const publishedManifest = isSysop
+      ? updatedManifest
+      : manifestForPublisher(updatedManifest, publishName, ownerName);
+    const publishedManifestIdentifier = isSysop
+      ? MANIFEST_IDENTIFIER
+      : createOperatorIdentifier(MANIFEST_IDENTIFIER, dataset.manifest.site_id);
     const nextMedia = [mediaItem, ...dataset.media];
 
     setError(null);
     try {
       setStatus('Publishing media and updating media index...');
-      await publishMediaWithIndex(ownerName, mediaFile, mediaItem, nextMedia, updatedManifest);
+      await publishMediaWithIndex(publishName, mediaFile, mediaItem, nextMedia, publishedManifest, publishedManifestIdentifier);
       const nextDataset = { ...dataset, manifest: updatedManifest, media: nextMedia };
       setDataset(nextDataset);
       saveLocalDataset(nextDataset);
       setMediaFile(null);
       setMediaTitleDraft('');
-      setStatus('Media published to QDN.');
+      setStatus(isSysop ? 'Media published to QDN.' : `Media published under trusted operator ${publishName}.`);
     } catch (mediaError) {
       setError(readableError(mediaError, 'Qortal media publish failed. Check that the logged-in account owns the publish target name.'));
       setStatus('');
@@ -1882,7 +2091,7 @@ function App() {
           </div>
           <div className="public-status">
             <span>{identity.name ? `Viewing as ${identity.name}` : 'Read-only visitor'}</span>
-            {canManageContent && (
+            {isSysop && (
               <button className="icon-command" type="button" onClick={() => setForcePublicView(false)}>
                 <Settings size={16} /> Back to backend
               </button>
@@ -2043,6 +2252,7 @@ function App() {
           <button className={section === 'posts' ? 'active' : ''} onClick={() => setSection('posts')}><FileText size={17} /> Posts</button>
           <button className={section === 'media' ? 'active' : ''} onClick={() => setSection('media')}><Image size={17} /> Media</button>
           <button className={section === 'imported' ? 'active' : ''} onClick={() => setSection('imported')}><Tags size={17} /> Imported</button>
+          {isSysop && <button className={section === 'submissions' ? 'active' : ''} onClick={() => setSection('submissions')}><Send size={17} /> Submissions</button>}
           <button className={section === 'settings' ? 'active' : ''} onClick={() => setSection('settings')}><Settings size={17} /> Settings</button>
         </nav>
 
@@ -2097,7 +2307,7 @@ function App() {
 
         {section === 'media' && (
           <div className="media-library">
-            {canManageContent && (
+            {canManageMediaLibrary && (
               <div className="media-uploader">
                 <label>
                   Media file
@@ -2110,6 +2320,8 @@ function App() {
                 <button className="icon-command primary" disabled={!mediaFile} onClick={publishMediaFile}><Upload size={16} /> Publish media</button>
               </div>
             )}
+            {!canManageMediaLibrary && canManageContent && <small>Canonical media uploads are managed by the SysOp. Attach existing library items to your submission.</small>}
+            {!isSysop && canManageMediaLibrary && <small>Trusted operator uploads are published under your Qortal name and retained for the Corbett Report catalog.</small>}
 
             <div className="media-list">
               {dataset.media.map((item) => {
@@ -2139,27 +2351,48 @@ function App() {
         {section === 'imported' && (
           <div className="imported-panel">
             <div className="import-settings">
+              {cmsProfile.id !== 'generic' && (
+                <div className="import-profile-summary">
+                  <strong>{cmsProfile.siteTitle || cmsProfile.id}</strong>
+                  <span>Canonical catalog: {cmsProfile.importOwnerName || 'not configured'} / {cmsProfile.importManifestIdentifier}</span>
+                  <span>Content: {cmsProfile.contentName || 'not configured'} · heavy media: {cmsProfile.mediaName || 'not configured'}</span>
+                  <button className="icon-command" type="button" onClick={applyProfileCatalogPreset}><Settings size={15} /> Use profile catalog</button>
+                </div>
+              )}
               <label>
                 Importer owner name
                 <input value={importOwnerName} onChange={(event) => setImportOwnerName(event.target.value)} placeholder="Qortal name that published the migrator manifest" />
               </label>
               <label>
                 Manifest identifier
-                <input value={importManifestIdentifier} onChange={(event) => setImportManifestIdentifier(event.target.value)} placeholder="cr-qdn-manifest" />
+                <input value={importManifestIdentifier} onChange={(event) => setImportManifestIdentifier(event.target.value)} placeholder={DEFAULT_IMPORT_MANIFEST_IDENTIFIER} />
               </label>
               <button className="icon-command primary" type="button" onClick={loadImportedManifest}><RefreshCcw size={16} /> Load imported content</button>
             </div>
+
+            {importedManifest && (
+              <div className="import-catalog-summary">
+                <strong>{importedManifest.publishers?.length ? 'Merged QDN catalog' : 'QDN publisher manifest'}</strong>
+                <span>Profile: {importedManifest.profile_id || 'not specified'}</span>
+                <span>Canonical site: {importedManifest.canonical_site_name || importOwnerName}</span>
+                <span>Public author: {importedManifest.public_author || cmsProfile.publicAuthorName || 'not specified'}</span>
+                <span>Publishers: {(importedManifest.publisher_names || importedManifest.publishers?.map((publisher) => publisher.name) || [importOwnerName]).join(', ')}</span>
+              </div>
+            )}
 
             {importedPosts.length > 0 && (
               <div className="import-batch-toolbar">
                 <span>{selectedImportedIds.length} selected · max {IMPORT_BATCH_LIMIT}</span>
                 <button className="icon-command" type="button" onClick={selectVisibleImportedPosts}><CheckCircle2 size={15} /> Select next drafts</button>
                 <button className="icon-command" type="button" onClick={() => setSelectedImportedIds([])} disabled={selectedImportedIds.length === 0}><XCircle size={15} /> Clear</button>
-                <button className="icon-command primary" type="button" onClick={adoptSelectedImportedPosts} disabled={!canManageContent || selectedImportedIds.length === 0}>
+                <button className="icon-command primary" type="button" onClick={adoptSelectedImportedPosts} disabled={!canAdoptImportedContent || selectedImportedIds.length === 0}>
                   <Download size={15} /> Adopt selected
                 </button>
               </div>
             )}
+
+            {!canAdoptImportedContent && <small>Only the SysOp can adopt migrated WordPress resources into the canonical CMS index.</small>}
+            {!isSysop && canAdoptImportedContent && <small>Trusted operator imports are published under your Qortal name and retained for the Corbett Report catalog.</small>}
 
             <div className="imported-list">
               {importedPosts.map((post) => {
@@ -2190,11 +2423,37 @@ function App() {
             </div>
           </div>
         )}
+        {section === 'submissions' && isSysop && (
+          <div className="submission-panel">
+            <div className="submission-toolbar">
+              <div>
+                <strong>Coauthor submissions</strong>
+                <span>Load signed QDN submissions from the coauthors configured in the CMS manifest.</span>
+              </div>
+              <button className="icon-command primary" type="button" onClick={loadCoauthorSubmissions}><RefreshCcw size={16} /> Refresh queue</button>
+            </div>
+            <div className="submission-list">
+              {submissions.map((submission) => (
+                <article className="submission-row" key={`${submission.qdn.name}:${submission.qdn.identifier}`}>
+                  <div>
+                    <strong>{decodeText(submission.post.title)}</strong>
+                    <span>{submission.post.status} · {submission.submitted_by.name} · {new Date(submission.submitted_at).toLocaleString()}</span>
+                  </div>
+                  <button className="icon-command primary" type="button" onClick={() => approveSubmission(submission)}><CheckCircle2 size={15} /> Approve</button>
+                </article>
+              ))}
+              {submissions.length === 0 && <div className="placeholder"><Send size={22} /><strong>No submissions loaded</strong><span>Refresh the queue after a coauthor publishes a post for review.</span></div>}
+            </div>
+          </div>
+        )}
         {section === 'settings' && (
           <div className="settings-list">
             <p><strong>Owner name:</strong> {dataset.manifest.owner_name || qdnName || 'not set'}</p>
             <p><strong>Owner address:</strong> {dataset.manifest.owner_address || 'not set'}</p>
             <p><strong>Your role:</strong> {identity.role}</p>
+            <p><strong>CMS profile:</strong> {cmsProfile.id}</p>
+            <p><strong>Public author:</strong> {cmsProfile.publicAuthorName || 'per post'}</p>
+            <p><strong>Migration catalog:</strong> {cmsProfile.importOwnerName || 'manual'} / {cmsProfile.importManifestIdentifier}</p>
             <p><strong>Site ID:</strong> {dataset.manifest.site_id}</p>
             <p><strong>Manifest:</strong> DOCUMENT / {MANIFEST_IDENTIFIER}</p>
             <p><strong>Posts index:</strong> DOCUMENT / {POSTS_INDEX_IDENTIFIER}</p>
@@ -2309,7 +2568,7 @@ function App() {
             <div className="content-preview" onClick={(event) => void handleContentLinkClick(event)} dangerouslySetInnerHTML={{ __html: rewriteImportedHtml(selectedImportedPost, importOwnerName || ownerTarget) }} />
             {canManageContent && (
               <div className="action-row">
-                <button className="icon-command primary" type="button" onClick={adoptImportedPost}><Plus size={16} /> Adopt into CMS draft</button>
+                <button className="icon-command primary" type="button" onClick={adoptImportedPost} disabled={!canAdoptImportedContent}><Plus size={16} /> Adopt into CMS draft</button>
               </div>
             )}
           </article>

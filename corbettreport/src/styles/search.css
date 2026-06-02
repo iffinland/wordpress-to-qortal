@@ -1,0 +1,87 @@
+.instant-search {
+  position: relative;
+  z-index: 20;
+}
+
+.instant-search label {
+  display: flex;
+  align-items: center;
+  width: 180px;
+  border: 2px solid #fff;
+}
+
+.instant-search input {
+  min-width: 0;
+  flex: 1;
+  padding: 8px;
+  border: 0;
+  outline: 0;
+  color: #fff;
+  background: transparent;
+}
+
+.instant-search svg {
+  margin-left: 8px;
+}
+
+.instant-search label button {
+  display: grid;
+  padding: 4px 6px;
+  border: 0;
+  color: #fff;
+  background: transparent;
+  place-items: center;
+}
+
+.search-results {
+  position: absolute;
+  top: calc(100% + 7px);
+  right: 0;
+  display: grid;
+  width: min(94vw, 460px);
+  border: 1px solid var(--cr-border);
+  color: #111;
+  background: #fff;
+  box-shadow: var(--cr-shadow);
+}
+
+.search-results button {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 0;
+  border-bottom: 1px solid var(--cr-border);
+  background: #fff;
+  text-align: left;
+}
+
+.search-results button:hover {
+  background: #f3f3ff;
+}
+
+.search-results small {
+  color: var(--cr-blue);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.search-results span,
+.search-results p {
+  overflow: hidden;
+  margin: 0;
+  color: var(--cr-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-results p {
+  padding: 16px;
+}
+
+mark {
+  padding: 1px 2px;
+  color: inherit;
+  background: #ffe485;
+}

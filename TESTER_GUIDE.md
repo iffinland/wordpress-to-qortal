@@ -40,6 +40,7 @@ Edit `.env`. Start with a small test:
 
 ```env
 WORDPRESS_BASE_URL=https://example.com
+MIGRATION_PROFILE=generic
 OUTPUT_DIR=./wp-qortal-import
 LIMIT_POSTS=5
 LIMIT_PAGES=5
@@ -137,7 +138,7 @@ Enter:
 
 ```text
 Importer owner name: <Qortal name used by Migration Publisher>
-Manifest identifier: cr-qdn-manifest
+Manifest identifier: wpq-qdn-manifest
 ```
 
 Click `Load imported content`.

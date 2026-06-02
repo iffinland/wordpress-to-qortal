@@ -66,17 +66,20 @@ async function main() {
   const mediaMap = (await readJsonOrIssue(path.join(convertedDir, 'media-map.json'), issues)) || {};
   const urlMap = (await readJsonOrIssue(path.join(convertedDir, 'url-map.json'), issues)) || {};
   const rawPosts = (await readJsonOrIssue(path.join(rawDir, 'wordpress-posts.json'), issues)) || [];
+  const contentFiles = new Set();
 
   for (const item of postsIndex) {
     if (!item.slug || !item.file || !item.source_id) {
       addIssue(issues, 'error', 'Post index item is missing slug, file, or source_id.', { item });
     }
+    validateIndexItem(item, contentFiles, issues);
   }
 
   for (const item of pagesIndex) {
     if (!item.slug || !item.file || !item.source_id) {
       addIssue(issues, 'error', 'Page index item is missing slug, file, or source_id.', { item });
     }
+    validateIndexItem(item, contentFiles, issues);
   }
 
   const knownCategoryIds = new Set(categories.map((item) => item.source_id));
@@ -151,6 +154,16 @@ async function main() {
   if (errors.length > 0) {
     process.exitCode = 1;
   }
+}
+
+function validateIndexItem(item, contentFiles, issues) {
+  if (!item.published_at) {
+    addIssue(issues, 'error', 'Content index item is missing published_at.', { item });
+  }
+  if (contentFiles.has(item.file)) {
+    addIssue(issues, 'error', 'Content index file path is duplicated.', { file: item.file });
+  }
+  contentFiles.add(item.file);
 }
 
 function isSameSiteUrl(url, baseUrl) {

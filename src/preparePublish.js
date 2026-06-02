@@ -18,38 +18,40 @@ function makeIdentifier(prefix, seed, slug = '') {
   return identifier.slice(0, IDENTIFIER_MAX_LENGTH).replace(/-+$/g, '');
 }
 
-function createContentResources(items, contentType) {
+function createContentResources(items, contentType, qdnContentName, resourcePrefix) {
   return items.map((item) => ({
     type: contentType,
     source_id: item.source_id,
     old_url: item.old_url,
     service: CONTENT_SERVICE,
-    identifier: makeIdentifier(`cr-${contentType}`, item.source_id, item.slug),
+    identifier: makeIdentifier(`${resourcePrefix}-${contentType}`, item.source_id, item.slug),
+    ...(qdnContentName ? { name: qdnContentName } : {}),
     local_path: `converted/${item.file}`,
     published: false
   }));
 }
 
-function createIndexResources() {
+function createIndexResources(qdnContentName, identifiers) {
   return [
-    ['qdn-manifest', 'converted/qdn-manifest.json'],
-    ['posts-index', 'converted/posts-index.json'],
-    ['pages-index', 'converted/pages-index.json'],
-    ['categories', 'converted/categories.json'],
-    ['tags', 'converted/tags.json'],
-    ['media-map', 'converted/media-map.json'],
-    ['url-map', 'converted/url-map.json'],
-    ['import-manifest', 'converted/import-manifest.json']
-  ].map(([name, localPath]) => ({
+    [identifiers.qdn_manifest, 'converted/qdn-manifest.json'],
+    [identifiers.posts_index, 'converted/posts-index.json'],
+    [identifiers.pages_index, 'converted/pages-index.json'],
+    [identifiers.categories, 'converted/categories.json'],
+    [identifiers.tags, 'converted/tags.json'],
+    [identifiers.media_map, 'converted/media-map.json'],
+    [identifiers.url_map, 'converted/url-map.json'],
+    [identifiers.import_manifest, 'converted/import-manifest.json']
+  ].map(([identifier, localPath]) => ({
     type: 'index',
     service: CONTENT_SERVICE,
-    identifier: `cr-${name}`,
+    identifier,
+    ...(qdnContentName ? { name: qdnContentName } : {}),
     local_path: localPath,
     published: false
   }));
 }
 
-function createMediaResources(mediaMap) {
+function createMediaResources(mediaMap, qdnContentName, qdnMediaName, resourcePrefix) {
   const resources = [];
   const linkedOnly = [];
 
@@ -64,12 +66,18 @@ function createMediaResources(mediaMap) {
     }
 
     const basename = path.basename(mediaItem.local_path, path.extname(mediaItem.local_path));
+    const useDedicatedMediaName = qdnMediaName && ['audio', 'video'].includes(mediaItem.type);
     resources.push({
       type: mediaItem.type,
       source_id: mediaItem.source_id || null,
       source_url: sourceUrl,
       service: mediaItem.qdn_service,
-      identifier: makeIdentifier('cr-media', sourceUrl, basename),
+      identifier: makeIdentifier(`${resourcePrefix}-media`, sourceUrl, basename),
+      ...(useDedicatedMediaName
+        ? { name: qdnMediaName }
+        : qdnContentName
+          ? { name: qdnContentName }
+          : {}),
       local_path: mediaItem.local_path,
       sha256: mediaItem.sha256,
       bytes: mediaItem.bytes || null,
@@ -80,7 +88,23 @@ function createMediaResources(mediaMap) {
   return { resources, linkedOnly };
 }
 
-function createQdnManifest({ posts, pages, indexes, media, linkedOnly }) {
+function createQdnManifest({
+  posts,
+  pages,
+  indexes,
+  media,
+  linkedOnly,
+  profileId,
+  resourcePrefix,
+  identifiers,
+  qdnName,
+  qdnSiteName,
+  qdnContentName,
+  qdnMediaName,
+  qortalPublisherNames,
+  qortalCoauthorNames,
+  publicAuthorName
+}) {
   const resources = [...posts, ...pages, ...indexes, ...media];
   const byPath = {};
   const byIdentifier = {};
@@ -90,7 +114,8 @@ function createQdnManifest({ posts, pages, indexes, media, linkedOnly }) {
     const qdn = {
       type: resource.type,
       service: resource.service,
-      identifier: resource.identifier
+      identifier: resource.identifier,
+      ...(resource.name || qdnName ? { name: resource.name || qdnName } : {})
     };
 
     if (resource.local_path) {
@@ -113,7 +138,16 @@ function createQdnManifest({ posts, pages, indexes, media, linkedOnly }) {
   return {
     version: '0.1.5',
     generated_at: new Date().toISOString(),
-    qdn_name: null,
+    profile_id: profileId,
+    identifier_prefix: resourcePrefix,
+    identifiers,
+    qdn_name: qdnName || null,
+    canonical_site_name: qdnSiteName || null,
+    qdn_content_name: qdnContentName || null,
+    qdn_media_name: qdnMediaName || null,
+    publisher_names: qortalPublisherNames,
+    coauthor_names: qortalCoauthorNames,
+    public_author: publicAuthorName,
     entrypoints: {
       posts_index: byPath['converted/posts-index.json'],
       pages_index: byPath['converted/pages-index.json'],
@@ -147,23 +181,47 @@ async function main() {
   const pagesIndex = await readJson(path.join(convertedDir, 'pages-index.json'));
   const mediaMap = await readJson(path.join(convertedDir, 'media-map.json'));
 
-  const posts = createContentResources(postsIndex, 'post');
-  const pages = createContentResources(pagesIndex, 'page');
-  const media = createMediaResources(mediaMap);
-  const indexes = createIndexResources();
+  const posts = createContentResources(postsIndex, 'post', config.qortalContentName, config.resourcePrefix);
+  const pages = createContentResources(pagesIndex, 'page', config.qortalContentName, config.resourcePrefix);
+  const media = createMediaResources(
+    mediaMap,
+    config.qortalContentName,
+    config.qortalMediaName,
+    config.resourcePrefix
+  );
+  const indexes = createIndexResources(config.qortalContentName, config.qdnIdentifiers);
   const qdnManifest = createQdnManifest({
     posts,
     pages,
     indexes,
     media: media.resources,
-    linkedOnly: media.linkedOnly
+    linkedOnly: media.linkedOnly,
+    profileId: config.profileId,
+    resourcePrefix: config.resourcePrefix,
+    identifiers: config.qdnIdentifiers,
+    qdnName: config.qortalName,
+    qdnSiteName: config.qortalSiteName,
+    qdnContentName: config.qortalContentName,
+    qdnMediaName: config.qortalMediaName,
+    qortalPublisherNames: config.qortalPublisherNames,
+    qortalCoauthorNames: config.qortalCoauthorNames,
+    publicAuthorName: config.publicAuthorName
   });
 
   const plan = {
     version: '0.1.5',
     generated_at: new Date().toISOString(),
-    qdn_name: null,
-    note: 'Set the publishing Qortal name before implementing the publish command.',
+    profile_id: config.profileId,
+    identifier_prefix: config.resourcePrefix,
+    identifiers: config.qdnIdentifiers,
+    qdn_name: config.qortalName || null,
+    canonical_site_name: config.qortalSiteName || null,
+    qdn_content_name: config.qortalContentName || null,
+    qdn_media_name: config.qortalMediaName || null,
+    publisher_names: config.qortalPublisherNames,
+    coauthor_names: config.qortalCoauthorNames,
+    public_author: config.publicAuthorName,
+    note: 'The browser publisher signs QDN writes through Qortal UI. Set QORTAL_NAME before preparation when exporting a collaborator manifest.',
     resources: {
       posts,
       pages,

@@ -1,0 +1,15 @@
+{
+  "id": "generic",
+  "resource_prefix": "wpq",
+  "public_author_name": "Site Author",
+  "qortal_name": "",
+  "qortal_site_name": "",
+  "qortal_content_name": "",
+  "qortal_media_name": "",
+  "qortal_publisher_names": [],
+  "qortal_coauthor_names": [],
+  "cms_site_title": "",
+  "cms_tagline": "",
+  "cms_trusted_coauthors_can_adopt_imports": false,
+  "cms_trusted_coauthors_can_publish_media": false
+}

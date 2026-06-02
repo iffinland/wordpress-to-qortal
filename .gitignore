@@ -1,7 +1,11 @@
 node_modules/
 .env
+profiles/*/.env
+workspaces/
 wp-qortal-import/
+wp-qortal-import-smoke-*/
 viewer/dist/
 qortal-cms/dist/
+corbettreport/dist/
 release/
 npm-debug.log*

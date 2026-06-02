@@ -739,10 +739,38 @@ button {
 .video-link-box,
 .imported-panel,
 .import-settings,
+.import-profile-summary,
+.import-catalog-summary,
 .import-batch-toolbar,
-.imported-list {
+.imported-list,
+.submission-panel,
+.submission-list {
   display: grid;
   gap: 10px;
+}
+
+.submission-toolbar,
+.submission-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.submission-toolbar div,
+.submission-row div {
+  display: grid;
+  gap: 5px;
+}
+
+.submission-toolbar span,
+.submission-row span {
+  color: #6d7b76;
+  font-size: 12px;
 }
 
 .media-uploader,
@@ -784,6 +812,24 @@ button {
   border: 1px solid #dce4df;
   border-radius: 8px;
   background: #f7faf8;
+}
+
+.import-profile-summary,
+.import-catalog-summary {
+  padding: 10px;
+  border: 1px solid #dce4df;
+  border-radius: 8px;
+  color: #51605b;
+  background: #f7faf8;
+}
+
+.import-profile-summary span,
+.import-catalog-summary span {
+  font-size: 12px;
+}
+
+.import-profile-summary .icon-command {
+  width: fit-content;
 }
 
 .import-batch-toolbar span {

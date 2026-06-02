@@ -1,5 +1,12 @@
 import { inspectPostHtml } from './utils/html.js';
-import { toPlainText, truncateText } from './utils/text.js';
+import { decodeHtmlText, toPlainText, truncateText } from './utils/text.js';
+
+function normalizeWordPressTimestamp(utcValue, fallbackValue) {
+  if (utcValue) {
+    return /(?:z|[+-]\d\d:\d\d)$/i.test(utcValue) ? utcValue : `${utcValue}Z`;
+  }
+  return fallbackValue || null;
+}
 
 export function safeFileName(value, fallback) {
   return (value || fallback)
@@ -10,7 +17,20 @@ export function safeFileName(value, fallback) {
     .replace(/^-+|-+$/g, '') || fallback;
 }
 
-export function convertPost(post, { wordpressBaseUrl, importerVersion }, attachments = []) {
+export function createContentFileName(item) {
+  const slug = safeFileName(item.slug, `${item.type}-${item.source_id}`);
+  return `${slug}--wp-${item.source_id}.json`;
+}
+
+export function createContentFilePath(item, folder) {
+  return `${folder}/${createContentFileName(item)}`;
+}
+
+export function convertPost(
+  post,
+  { wordpressBaseUrl, importerVersion, publicAuthorName = 'Site Author' },
+  attachments = []
+) {
   const contentHtml = post.content?.rendered || '';
   const htmlInspection = inspectPostHtml(contentHtml, wordpressBaseUrl);
 
@@ -19,10 +39,13 @@ export function convertPost(post, { wordpressBaseUrl, importerVersion }, attachm
     source: 'wordpress',
     source_id: post.id,
     old_url: post.link || null,
+    public_author: publicAuthorName,
     slug: post.slug,
-    title: post.title?.rendered || '',
+    title: decodeHtmlText(post.title?.rendered || ''),
     date: post.date || null,
+    published_at: normalizeWordPressTimestamp(post.date_gmt, post.date),
     modified: post.modified || null,
+    modified_at: normalizeWordPressTimestamp(post.modified_gmt, post.modified),
     status: post.status || null,
     excerpt: post.excerpt?.rendered || '',
     excerpt_text: toPlainText(post.excerpt?.rendered || ''),
@@ -54,7 +77,7 @@ export function convertPost(post, { wordpressBaseUrl, importerVersion }, attachm
   };
 }
 
-export function convertPage(page, { wordpressBaseUrl, importerVersion }) {
+export function convertPage(page, { wordpressBaseUrl, importerVersion, publicAuthorName = 'Site Author' }) {
   const contentHtml = page.content?.rendered || '';
   const htmlInspection = inspectPostHtml(contentHtml, wordpressBaseUrl);
 
@@ -63,10 +86,13 @@ export function convertPage(page, { wordpressBaseUrl, importerVersion }) {
     source: 'wordpress',
     source_id: page.id,
     old_url: page.link || null,
+    public_author: publicAuthorName,
     slug: page.slug,
-    title: page.title?.rendered || '',
+    title: decodeHtmlText(page.title?.rendered || ''),
     date: page.date || null,
+    published_at: normalizeWordPressTimestamp(page.date_gmt, page.date),
     modified: page.modified || null,
+    modified_at: normalizeWordPressTimestamp(page.modified_gmt, page.modified),
     status: page.status || null,
     excerpt: page.excerpt?.rendered || '',
     excerpt_text: toPlainText(page.excerpt?.rendered || ''),
@@ -99,7 +125,7 @@ export function convertCategory(category) {
     source_id: category.id,
     old_url: category.link || null,
     slug: category.slug,
-    name: category.name || '',
+    name: decodeHtmlText(category.name || ''),
     description: category.description || '',
     count: category.count || 0,
     parent: category.parent || 0,
@@ -114,7 +140,7 @@ export function convertTag(tag) {
     source_id: tag.id,
     old_url: tag.link || null,
     slug: tag.slug,
-    name: tag.name || '',
+    name: decodeHtmlText(tag.name || ''),
     description: tag.description || '',
     count: tag.count || 0,
     taxonomy: tag.taxonomy || 'post_tag'
@@ -129,7 +155,7 @@ export function convertMediaItem(mediaItem) {
     old_url: mediaItem.link || null,
     source_url: mediaItem.source_url || null,
     slug: mediaItem.slug,
-    title: mediaItem.title?.rendered || '',
+    title: decodeHtmlText(mediaItem.title?.rendered || ''),
     date: mediaItem.date || null,
     modified: mediaItem.modified || null,
     status: mediaItem.status || null,
@@ -143,12 +169,19 @@ export function createContentIndexItem(item, folder) {
     type: item.type,
     source_id: item.source_id,
     old_url: item.old_url,
+    public_author: item.public_author || 'Site Author',
     slug: item.slug,
     title: item.title,
     date: item.date,
+    published_at: item.published_at || item.date,
     modified: item.modified,
+    modified_at: item.modified_at || item.modified,
     status: item.status,
-    file: `${folder}/${safeFileName(item.slug, `${item.type}-${item.source_id}`)}.json`
+    summary: item.summary || '',
+    categories: item.categories || [],
+    tags: item.tags || [],
+    featured_media: item.featured_media || null,
+    file: createContentFilePath(item, folder)
   };
 }
 
@@ -282,7 +315,8 @@ export function createUrlMap({
       type: 'post',
       source_id: post.source_id,
       slug: post.slug,
-      file: `posts/${safeFileName(post.slug, `post-${post.source_id}`)}.json`,
+      qapp_route: `#/posts/${encodeURIComponent(post.slug)}`,
+      file: createContentFilePath(post, 'posts'),
       qdn_identifier: null,
       published: false
     });
@@ -293,7 +327,8 @@ export function createUrlMap({
       type: 'page',
       source_id: page.source_id,
       slug: page.slug,
-      file: `pages/${safeFileName(page.slug, `page-${page.source_id}`)}.json`,
+      qapp_route: `#/pages/${encodeURIComponent(page.slug)}`,
+      file: createContentFilePath(page, 'pages'),
       qdn_identifier: null,
       published: false
     });
@@ -304,6 +339,7 @@ export function createUrlMap({
       type: 'category',
       source_id: category.source_id,
       slug: category.slug,
+      qapp_route: `#/category/${encodeURIComponent(category.slug)}`,
       file: 'categories.json',
       qdn_identifier: null,
       published: false
@@ -315,6 +351,7 @@ export function createUrlMap({
       type: 'tag',
       source_id: tag.source_id,
       slug: tag.slug,
+      qapp_route: `#/tag/${encodeURIComponent(tag.slug)}`,
       file: 'tags.json',
       qdn_identifier: null,
       published: false

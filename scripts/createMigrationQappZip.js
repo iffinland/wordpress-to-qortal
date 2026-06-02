@@ -7,6 +7,11 @@ const viewerDir = path.join(root, 'viewer');
 const distDir = path.join(viewerDir, 'dist');
 const releaseDir = path.join(root, 'release');
 
+function readProfileId(argv) {
+  const inline = argv.find((arg) => arg.startsWith('--profile='));
+  return inline ? inline.slice('--profile='.length) : 'generic';
+}
+
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
     stdio: 'inherit',
@@ -20,9 +25,14 @@ function run(command, args, options = {}) {
 
 async function main() {
   const packageJson = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
-  const zipName = `wordpress-to-qortal-migration-app-v${packageJson.version}.zip`;
+  const profileId = readProfileId(process.argv.slice(2));
+  const profileSuffix = profileId === 'generic' ? '' : `-${profileId}`;
+  const zipName = `wordpress-to-qortal-migration-app${profileSuffix}-v${packageJson.version}.zip`;
 
-  run('npm', ['run', 'migration:build'], { cwd: root });
+  run('npm', ['run', 'migration:build'], {
+    cwd: root,
+    env: { ...process.env, MIGRATION_PROFILE: profileId }
+  });
 
   await mkdir(releaseDir, { recursive: true });
   await rm(path.join(releaseDir, zipName), { force: true });
@@ -31,6 +41,7 @@ async function main() {
   console.log('');
   console.log('Migration Q-App zip prepared:');
   console.log(path.join(releaseDir, zipName));
+  console.log(`Profile: ${profileId}`);
   console.log('');
   console.log('Publish this small zip in Qortal as APP or WEBSITE.');
   console.log('Inside the app, open Publish to QDN and select your local wp-qortal-import folder.');

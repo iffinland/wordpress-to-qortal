@@ -1,0 +1,153 @@
+@media (max-width: 760px) {
+  .top-strip {
+    min-height: 47px;
+    padding: 0;
+    background: linear-gradient(90deg, var(--cr-blue) 0 50%, var(--cr-red) 50% 100%);
+  }
+
+  .social-links,
+  .account-links a:first-child,
+  .account-links a:last-child,
+  .header-actions,
+  .main-nav {
+    display: none;
+  }
+
+  .account-links {
+    display: grid;
+    width: 50%;
+    grid-template-columns: 1fr;
+  }
+
+  .mobile-start-link {
+    display: grid;
+    width: 50%;
+    min-height: 47px;
+    color: #fff;
+    text-decoration: none;
+    place-items: center;
+  }
+
+  .account-links a {
+    display: grid;
+    min-height: 47px;
+    color: #fff;
+    place-items: center;
+  }
+
+  .brand-row {
+    display: flex;
+    min-height: 142px;
+    justify-content: center;
+    padding: 10px;
+  }
+
+  .start-button {
+    display: none;
+  }
+
+  .brand-logo img {
+    width: 164px;
+    height: 112px;
+  }
+
+  .mobile-controls {
+    display: flex;
+    min-height: 47px;
+    justify-content: center;
+    gap: 22px;
+    border-bottom: 1px solid var(--cr-blue);
+  }
+
+  .mobile-controls button {
+    border: 0;
+    color: var(--cr-blue);
+    background: transparent;
+  }
+
+  .mobile-search {
+    display: block;
+    padding: 10px;
+    border-bottom: 1px solid var(--cr-blue);
+  }
+
+  .instant-search.compact label {
+    width: 100%;
+  }
+
+  .search-results {
+    right: auto;
+    left: 0;
+    width: 100%;
+  }
+
+  .main-nav.open {
+    display: grid;
+    gap: 0;
+    min-height: auto;
+    border: 0;
+  }
+
+  .main-nav a {
+    padding: 13px 18px;
+    border-bottom: 1px solid #222;
+  }
+
+  .hero-feature {
+    display: none;
+  }
+
+  .home-section,
+  .documentary-section,
+  .category-page {
+    padding-bottom: 38px;
+  }
+
+  .section-band {
+    margin-bottom: 28px;
+    padding: 10px 24px;
+    font-size: 26px;
+    text-align: center;
+  }
+
+  .section-band::after {
+    width: 58px;
+    clip-path: polygon(34px 0, 100% 0, 100% 100%, 0 100%);
+  }
+
+  .post-grid {
+    grid-template-columns: 1fr;
+    gap: 38px;
+    padding: 0 10px;
+  }
+
+  .post-card {
+    min-height: 290px;
+  }
+
+  .older-entries {
+    padding: 0 10px;
+  }
+
+  .documentary-carousel {
+    min-height: 360px;
+    padding: 0 10px;
+  }
+
+  .documentary-carousel img {
+    height: 320px;
+  }
+
+  .page-shell,
+  .reserved-page {
+    padding: 30px 10px 50px;
+  }
+
+  .page-shell article {
+    padding: 20px;
+  }
+
+  .reserved-grid {
+    grid-template-columns: 1fr;
+  }
+}

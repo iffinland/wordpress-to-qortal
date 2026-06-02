@@ -57,7 +57,7 @@ function resolveResourcePath(outputDir, resource) {
 function qortalPayloadFor(resource, qortalName) {
   const basePayload = {
     action: 'PUBLISH_QDN_RESOURCE',
-    name: qortalName,
+    name: resource.name || qortalName,
     service: resource.service,
     identifier: resource.identifier
   };
@@ -191,7 +191,8 @@ async function main() {
   let nodeCheck = null;
 
   for (const resource of resources) {
-    const key = `${resource.service}:${config.qortalName}:${resource.identifier}`;
+    const resourceName = resource.name || config.qortalName;
+    const key = `${resource.service}:${resourceName}:${resource.identifier}`;
     if (seen.has(key)) {
       duplicateIdentifiers.push(key);
     }
@@ -212,6 +213,7 @@ async function main() {
       type: resource.type,
       service: resource.service,
       identifier: resource.identifier,
+      qortal_name: resourceName,
       local_path: resource.local_path,
       bytes: validation.bytes,
       qortal_payload: qortalPayloadFor(resource, config.qortalName),
@@ -248,6 +250,7 @@ async function main() {
   const log = {
     version: '0.1.5',
     generated_at: new Date().toISOString(),
+    profile_id: config.profileId,
     mode: 'dry-run',
     qortal_name: config.qortalName,
     qortal_node_url: config.qortalNodeUrl,

@@ -15,6 +15,7 @@ const pathsToCopy = [
   'package-lock.json',
   'scripts',
   'src',
+  'profiles/generic',
   'viewer',
   'fixtures',
   'docs'
@@ -26,11 +27,20 @@ async function copyPath(relativePath) {
     filter(source) {
       const normalized = source.split(path.sep).join('/');
       const parts = normalized.split('/');
+      const fileName = path.basename(normalized);
       return !parts.includes('node_modules')
         && !parts.includes('dist')
         && !normalized.endsWith('/.env')
         && !normalized.endsWith('/wp-qortal-import')
-        && !parts.includes('qortal-cms');
+        && !normalized.endsWith('/docs/FULL_IMPORT_WORKFLOW.md')
+        && !parts.includes('qortal-cms')
+        && ![
+          'createCmsQappZip.js',
+          'createCorbettReportQappZip.js',
+          'createMigrationPackage.js',
+          'createMigrationZip.js',
+          'createTesterBundle.js'
+        ].includes(fileName);
     }
   });
 }
@@ -48,7 +58,23 @@ async function main() {
 
   const releasePackageJsonPath = path.join(packageDir, 'package.json');
   const releasePackageJson = JSON.parse(await readFile(releasePackageJsonPath, 'utf8'));
-  for (const scriptName of ['cms:dev', 'cms:build', 'cms:preview', 'check:cms', 'package:cms-qapp', 'package:tester-bundle']) {
+  for (const scriptName of [
+    'cms:dev',
+    'cms:build',
+    'cms:preview',
+    'check:cms',
+    'package:cms-qapp',
+    'package:cms-qapp:generic',
+    'package:cms-qapp:corbettreport',
+    'package:corbettreport-qapp',
+    'package:migration',
+    'package:migration-qapp:corbettreport',
+    'package:zip',
+    'package:tester-bundle',
+    'corbettreport:dev',
+    'corbettreport:build',
+    'corbettreport:preview'
+  ]) {
     delete releasePackageJson.scripts[scriptName];
   }
   await writeFile(releasePackageJsonPath, `${JSON.stringify(releasePackageJson, null, 2)}\n`);

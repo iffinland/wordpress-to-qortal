@@ -2,7 +2,8 @@ import { fetchQdnResource } from './qortalClient';
 import type { ContentItem, IndexItem, MediaMap, QdnManifest, QdnResourceRef, Term } from './types';
 
 export const CONTENT_BASE = '/qortal-content';
-const QDN_MANIFEST_IDENTIFIER = 'cr-qdn-manifest';
+const DEFAULT_QDN_MANIFEST_IDENTIFIER =
+  import.meta.env.VITE_QDN_MANIFEST_IDENTIFIER || 'wpq-qdn-manifest';
 const QDN_MANIFEST_SERVICE = 'DOCUMENT';
 
 export type ContentSourceMode = 'local' | 'qdn';
@@ -71,7 +72,7 @@ export function createLocalContentSource(): ContentSource {
   };
 }
 
-export function createQdnContentSource(name: string): ContentSource {
+export function createQdnContentSource(name: string, manifestIdentifier = DEFAULT_QDN_MANIFEST_IDENTIFIER): ContentSource {
   let manifestPromise: Promise<QdnManifest> | null = null;
   let sourceUrlResources: Record<string, QdnResourceRef> = {};
 
@@ -79,7 +80,7 @@ export function createQdnContentSource(name: string): ContentSource {
     manifestPromise ??= fetchQdnResource<QdnManifest>({
       service: QDN_MANIFEST_SERVICE,
       name,
-      identifier: QDN_MANIFEST_IDENTIFIER
+      identifier: manifestIdentifier
     });
     return manifestPromise;
   };
@@ -87,7 +88,7 @@ export function createQdnContentSource(name: string): ContentSource {
   const loadByRef = async <T>(ref: QdnResourceRef) =>
     fetchQdnResource<T>({
       service: ref.service,
-      name,
+      name: ref.name || name,
       identifier: ref.identifier
     });
 
@@ -120,7 +121,7 @@ export function createQdnContentSource(name: string): ContentSource {
     resolveMediaUrl: (sourceUrl, mediaMap) => {
       const manifestRef = sourceUrlResources[sourceUrl];
       if (manifestRef?.service && manifestRef?.identifier) {
-        return `/arbitrary/${encodeURIComponent(manifestRef.service)}/${encodeURIComponent(name)}/${encodeURIComponent(manifestRef.identifier)}`;
+        return `/arbitrary/${encodeURIComponent(manifestRef.service)}/${encodeURIComponent(manifestRef.name || name)}/${encodeURIComponent(manifestRef.identifier)}`;
       }
 
       const media = mediaMap[sourceUrl];
@@ -136,12 +137,13 @@ export function createContentSource(): ContentSource {
   const params = getRouteParams();
   const source = params.get('source') || params.get('mode') || 'local';
   const qdnName = params.get('name') || params.get('qdnName') || import.meta.env.VITE_QDN_NAME || '';
+  const manifestIdentifier = params.get('manifestIdentifier') || DEFAULT_QDN_MANIFEST_IDENTIFIER;
 
   if (source.toLowerCase() === 'qdn') {
     if (!qdnName) {
       throw new Error('QDN mode requires ?source=qdn&name=<QortalName>.');
     }
-    return createQdnContentSource(qdnName);
+    return createQdnContentSource(qdnName, manifestIdentifier);
   }
 
   return createLocalContentSource();

@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import { existsSync, readFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { loadProfile } from './profile.js';
 
 dotenv.config();
 
@@ -63,7 +64,20 @@ function readPositiveInteger(name, fallback) {
   return parsed;
 }
 
+function readCsv(name) {
+  return (process.env[name] || '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function readCsvWithFallback(name, fallback = []) {
+  return process.env[name] === undefined ? fallback : readCsv(name);
+}
+
 export function loadConfig() {
+  const profile = loadProfile();
+  dotenv.config({ path: profile.envPath, override: false });
   const wordpressAuthMode =
     process.env.WORDPRESS_AUTH_MODE?.trim().toLowerCase() || 'application_password';
   const wordpressLoginUrl = process.env.WORDPRESS_LOGIN_URL?.trim() || '/login/';
@@ -80,7 +94,23 @@ export function loadConfig() {
       .filter(Boolean)
   );
   const mediaScope = process.env.MEDIA_SCOPE?.trim().toLowerCase() || 'library';
-  const qortalName = process.env.QORTAL_NAME?.trim() || '';
+  const qortalName = process.env.QORTAL_NAME?.trim() || profile.qortalName;
+  const qortalSiteName = process.env.QORTAL_SITE_NAME?.trim() || profile.qortalSiteName || qortalName;
+  const qortalContentName =
+    process.env.QORTAL_CONTENT_NAME?.trim() || profile.qortalContentName || qortalName;
+  const qortalMediaName = process.env.QORTAL_MEDIA_NAME?.trim() || profile.qortalMediaName;
+  const publicAuthorName =
+    process.env.PUBLIC_AUTHOR_NAME?.trim() || profile.publicAuthorName || 'Site Author';
+  const qortalCoauthorNames = [...new Set(
+    readCsvWithFallback('QORTAL_COAUTHOR_NAMES', profile.qortalCoauthorNames)
+  )];
+  const qortalPublisherNames = [...new Set([
+    ...(qortalName ? [qortalName] : []),
+    ...(qortalSiteName ? [qortalSiteName] : []),
+    ...(qortalContentName ? [qortalContentName] : []),
+    ...(qortalMediaName ? [qortalMediaName] : []),
+    ...readCsvWithFallback('QORTAL_PUBLISHER_NAMES', profile.qortalPublisherNames)
+  ])];
   const qortalNodeUrl = normalizeBaseUrl(
     process.env.QORTAL_NODE_URL?.trim() || 'http://localhost:12391'
   );
@@ -96,8 +126,11 @@ export function loadConfig() {
   }
 
   return {
+    profileId: profile.id,
+    resourcePrefix: profile.resourcePrefix,
+    qdnIdentifiers: profile.qdnIdentifiers,
     wordpressBaseUrl: normalizeBaseUrl(readRequiredEnv('WORDPRESS_BASE_URL')),
-    outputDir: process.env.OUTPUT_DIR?.trim() || DEFAULT_OUTPUT_DIR,
+    outputDir: process.env.OUTPUT_DIR?.trim() || profile.defaultOutputDir || DEFAULT_OUTPUT_DIR,
     limitPosts: readPositiveInteger('LIMIT_POSTS', DEFAULT_LIMIT_POSTS),
     limitPages: readPositiveInteger('LIMIT_PAGES', DEFAULT_LIMIT_PAGES),
     limitCategories: readPositiveInteger('LIMIT_CATEGORIES', DEFAULT_LIMIT_CATEGORIES),
@@ -117,6 +150,12 @@ export function loadConfig() {
         ? Boolean(wordpressUsername && wordpressPassword)
         : Boolean(wordpressUsername && wordpressAppPassword),
     qortalName,
+    qortalSiteName,
+    qortalContentName,
+    qortalMediaName,
+    qortalPublisherNames,
+    qortalCoauthorNames,
+    publicAuthorName,
     qortalNodeUrl,
     qortalApiKey,
     qortalApiKeyFile,

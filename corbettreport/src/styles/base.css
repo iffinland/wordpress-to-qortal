@@ -1,0 +1,55 @@
+* {
+  box-sizing: border-box;
+}
+
+html {
+  color: var(--cr-copy);
+  background: var(--cr-white);
+  font-family: Verdana, Helvetica, Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: var(--cr-blue);
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--cr-blue);
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.app-message {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  font-weight: 800;
+}
+
+.app-message.error {
+  color: #a12626;
+}

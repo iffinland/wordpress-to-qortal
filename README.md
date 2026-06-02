@@ -81,12 +81,27 @@ wp-qortal-import/
 
 Keep `.env` and `wp-qortal-import` private unless the imported content may be shared.
 
+The default shareable configuration uses:
+
+```env
+MIGRATION_PROFILE=generic
+```
+
+Site-specific defaults live in `profiles/<profile-id>/profile.json`. See
+`docs/PROFILES.md`.
+
 ## Release Commands
 
 Build the small Migration Publisher Q-App:
 
 ```bash
 npm run package:migration-qapp
+```
+
+This is an alias for:
+
+```bash
+npm run package:migration-qapp:generic
 ```
 
 Build the CMS Q-App:
@@ -120,7 +135,7 @@ It excludes:
 ```text
 TESTER_GUIDE.md
 QUICKSTART.md
-docs/FULL_IMPORT_WORKFLOW.md
 docs/QDN_RESOURCE_STRATEGY.md
+docs/PROFILES.md
 qortal-cms/README.md
 ```

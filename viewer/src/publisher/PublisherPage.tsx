@@ -9,12 +9,16 @@ interface PublishResource {
   type: string;
   service: string;
   identifier: string;
+  name?: string;
   local_path: string;
   source_url?: string;
   bytes?: number;
 }
 
 interface PublishPlan {
+  identifiers?: {
+    qdn_manifest?: string;
+  };
   resources: {
     posts: PublishResource[];
     pages: PublishResource[];
@@ -28,7 +32,7 @@ interface PublishRow extends PublishResource {
   message: string;
 }
 
-type PublishMode = 'demo' | 'cms-json' | 'images' | 'documents' | 'audio' | 'video' | 'selected' | 'full';
+type PublishMode = 'demo' | 'cms-json' | 'catalog' | 'images' | 'documents' | 'audio' | 'video' | 'selected' | 'full';
 type PublishSource = 'bundled' | 'folder';
 type FolderFileMap = Map<string, File>;
 type PublishHistory = Record<string, { published_at: string; service: string; identifier: string; local_path: string; bytes?: number }>;
@@ -71,24 +75,51 @@ function toBase64(value: string): string {
   return btoa(unescape(encodeURIComponent(value)));
 }
 
+function hydrateManifestPublisherName(content: string, qortalName: string): string {
+  const manifest = JSON.parse(content) as Record<string, unknown>;
+  manifest.qdn_name ||= qortalName;
+  manifest.publisher_names = [...new Set([
+    ...((Array.isArray(manifest.publisher_names) ? manifest.publisher_names : []) as string[]),
+    qortalName
+  ])];
+  manifest.public_author ||= 'Site Author';
+
+  function hydrate(value: unknown) {
+    if (!value || typeof value !== 'object') return;
+    const record = value as Record<string, unknown>;
+    if (typeof record.service === 'string' && typeof record.identifier === 'string' && !record.name) {
+      record.name = qortalName;
+    }
+    Object.values(record).forEach(hydrate);
+  }
+
+  hydrate(manifest);
+  return JSON.stringify(manifest, null, 2);
+}
+
 function resourceTitle(resource: PublishResource): string {
   if (resource.type === 'post') return 'Imported WordPress post';
   if (resource.type === 'page') return 'Imported WordPress page';
   if (resource.type === 'image') return 'Imported WordPress image';
-  if (resource.identifier === 'cr-qdn-manifest') return 'QDN loader manifest';
-  if (resource.identifier === 'cr-posts-index') return 'Posts index';
-  if (resource.identifier === 'cr-pages-index') return 'Pages index';
-  if (resource.identifier === 'cr-categories') return 'Categories';
-  if (resource.identifier === 'cr-tags') return 'Tags';
-  if (resource.identifier === 'cr-media-map') return 'Media map';
+  if (resource.local_path.endsWith('/qdn-manifest.json')) return 'QDN loader manifest';
+  if (resource.local_path.endsWith('/posts-index.json')) return 'Posts index';
+  if (resource.local_path.endsWith('/pages-index.json')) return 'Pages index';
+  if (resource.local_path.endsWith('/categories.json')) return 'Categories';
+  if (resource.local_path.endsWith('/tags.json')) return 'Tags';
+  if (resource.local_path.endsWith('/media-map.json')) return 'Media map';
   return resource.identifier;
+}
+
+function isManifestResource(resource: PublishResource, plan?: PublishPlan | null) {
+  return resource.identifier === plan?.identifiers?.qdn_manifest
+    || resource.local_path.endsWith('/qdn-manifest.json');
 }
 
 function toRows(resources: PublishResource[]): PublishRow[] {
   const seen = new Set<string>();
   return resources
     .filter((resource) => {
-      const key = `${resource.service}:${resource.identifier}`;
+      const key = `${resource.name || ''}:${resource.service}:${resource.identifier}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -103,9 +134,16 @@ function toRows(resources: PublishResource[]): PublishRow[] {
 function createRows(plan: PublishPlan, mode: PublishMode): PublishRow[] {
   const firstPost = plan.resources.posts[0];
   const firstImage = plan.resources.media.find((resource) => resource.type === 'image');
-  const coreIndexes = ['cr-qdn-manifest', 'cr-posts-index', 'cr-pages-index', 'cr-categories', 'cr-tags', 'cr-media-map', 'cr-url-map']
-    .map((identifier) => plan.resources.indexes.find((resource) => resource.identifier === identifier))
-    .filter(Boolean) as PublishResource[];
+  const coreIndexPaths = new Set([
+    'converted/qdn-manifest.json',
+    'converted/posts-index.json',
+    'converted/pages-index.json',
+    'converted/categories.json',
+    'converted/tags.json',
+    'converted/media-map.json',
+    'converted/url-map.json'
+  ]);
+  const coreIndexes = plan.resources.indexes.filter((resource) => coreIndexPaths.has(resource.local_path));
 
   if (mode === 'demo') {
     return toRows([...(firstImage ? [firstImage] : []), firstPost, ...coreIndexes].filter(Boolean) as PublishResource[]);
@@ -113,6 +151,10 @@ function createRows(plan: PublishPlan, mode: PublishMode): PublishRow[] {
 
   if (mode === 'cms-json') {
     return toRows([...(firstImage ? [firstImage] : []), ...plan.resources.posts, ...plan.resources.pages, ...coreIndexes]);
+  }
+
+  if (mode === 'catalog') {
+    return toRows(plan.resources.indexes);
   }
 
   if (mode === 'images') {
@@ -185,7 +227,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
         return;
       }
 
-      readFolderJson<PublishPlan>(folderFiles, 'publish-log/publish-plan.json')
+      readFolderJson<PublishPlan>(folderFiles, mode === 'catalog' ? 'publish-log/catalog-publish-plan.json' : 'publish-log/publish-plan.json')
         .then((loadedPlan) => {
           setPlan(loadedPlan);
           applyRows(createRows(loadedPlan, mode), mode);
@@ -195,7 +237,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       return;
     }
 
-    fetchJson<PublishPlan>('publish-log/publish-plan.json')
+    fetchJson<PublishPlan>(mode === 'catalog' ? 'publish-log/catalog-publish-plan.json' : 'publish-log/publish-plan.json')
       .then((loadedPlan) => {
         setPlan(loadedPlan);
         applyRows(createRows(loadedPlan, mode), mode);
@@ -226,7 +268,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
 
   function applyRows(nextRows: PublishRow[], nextMode: PublishMode) {
     const rowsWithHistory = nextRows.map((row) => {
-      const key = resourceKey(qortalName, row);
+      const key = resourceKey(row.name || qortalName, row);
       return history[key]
         ? { ...row, status: 'published' as const, message: 'Published earlier' }
         : row;
@@ -281,7 +323,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
     const nextHistory = { ...history };
     const publishedAt = new Date().toISOString();
     for (const row of publishedRows) {
-      nextHistory[resourceKey(qortalName, row)] = {
+      nextHistory[resourceKey(row.name || qortalName, row)] = {
         published_at: publishedAt,
         service: row.service,
         identifier: row.identifier,
@@ -298,7 +340,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       await requestQortal({
         action: 'FETCH_QDN_RESOURCE',
         service: resource.service,
-        name: qortalName,
+        name: resource.name || qortalName,
         identifier: resource.identifier
       });
       return true;
@@ -309,11 +351,14 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
 
   async function createPublishResourcePayload(resource: PublishRow) {
     if (resource.service === 'DOCUMENT' || resource.service === 'JSON') {
-      const content = source === 'folder'
+      let content = source === 'folder'
         ? await readLocalFileText(resource.local_path)
         : await fetch(`${CONTENT_BASE}/${resource.local_path}`).then((response) => response.text());
+      if (isManifestResource(resource, plan)) {
+        content = hydrateManifestPublisherName(content, qortalName);
+      }
       return {
-        name: qortalName,
+        name: resource.name || qortalName,
         service: resource.service,
         identifier: resource.identifier,
         data64: toBase64(content),
@@ -333,7 +378,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
         });
 
     return {
-      name: qortalName,
+      name: resource.name || qortalName,
       service: resource.service,
       identifier: resource.identifier,
       file,
@@ -436,7 +481,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
         <p className="version-line">Version {APP_VERSION}</p>
         <div className="publisher-controls">
           <label>
-            Qortal name
+            Default Qortal name
             <input value={qortalName} onChange={(event) => setQortalName(event.target.value)} />
           </label>
           <label>
@@ -460,6 +505,9 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
           </button>
           <button type="button" className={mode === 'cms-json' ? 'active' : ''} onClick={() => changeMode('cms-json')}>
             CMS JSON
+          </button>
+          <button type="button" className={mode === 'catalog' ? 'active' : ''} onClick={() => changeMode('catalog')}>
+            Merged catalog
           </button>
           <button type="button" className={mode === 'images' ? 'active' : ''} onClick={() => changeMode('images')}>
             Images
@@ -508,7 +556,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
           </div>
         )}
         <p className="publisher-note">
-          Select your local wp-qortal-import folder first. Use Images, Documents, Audio, Video, or Selected media to publish large media in small batches.
+          Select your local wp-qortal-import folder first. Resources with a configured publisher name override the default Qortal name. Use Images, Documents, Audio, Video, or Selected media to publish large media in small batches.
         </p>
         {!hasBridge && (
           <p className="publisher-warning">
@@ -528,7 +576,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
             <div>
               <strong>{row.identifier}</strong>
               <span>
-                {row.service} · {row.type} · {formatBytes(row.bytes)} · {row.local_path}
+                {row.name || qortalName} · {row.service} · {row.type} · {formatBytes(row.bytes)} · {row.local_path}
               </span>
             </div>
             <div className={`publisher-status ${row.status}`}>

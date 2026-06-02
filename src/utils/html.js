@@ -15,7 +15,7 @@ function splitSrcset(value) {
     .filter(Boolean);
 }
 
-function isInternalUrl(url, wordpressBaseUrl) {
+export function isInternalUrl(url, wordpressBaseUrl) {
   if (!url) {
     return false;
   }
@@ -31,6 +31,72 @@ function isInternalUrl(url, wordpressBaseUrl) {
   } catch {
     return false;
   }
+}
+
+function normalizeComparableUrl(value, wordpressBaseUrl) {
+  try {
+    const url = new URL(value, `${wordpressBaseUrl.replace(/\/+$/, '')}/`);
+    url.hash = '';
+    url.search = '';
+    url.pathname = url.pathname.replace(/\/+$/, '') || '/';
+    return url.toString();
+  } catch {
+    return '';
+  }
+}
+
+const LINKED_FILE_EXTENSIONS = [
+  '.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif',
+  '.mp3', '.m4a', '.wav', '.ogg', '.flac',
+  '.mp4', '.webm', '.mov', '.m4v',
+  '.pdf', '.doc', '.docx', '.odt', '.xls', '.xlsx', '.epub', '.zip'
+];
+
+function qappRouteForInternalUrl(value, wordpressBaseUrl) {
+  try {
+    const url = new URL(value, `${wordpressBaseUrl.replace(/\/+$/, '')}/`);
+    const pathname = url.pathname.replace(/\/+$/, '') || '/';
+    const normalizedPath = pathname.toLowerCase();
+    const parts = pathname.split('/').filter(Boolean).map(decodeURIComponent);
+
+    if (LINKED_FILE_EXTENSIONS.some((extension) => normalizedPath.endsWith(extension))) return null;
+    if (normalizedPath.startsWith('/wp-content/') || normalizedPath.startsWith('/mp4/')) return null;
+    if (parts.length === 0) return '#/';
+    if (parts[0] === 'category' && parts[1]) return `#/category/${encodeURIComponent(parts.at(-1))}`;
+    if (parts[0] === 'tag' && parts[1]) return `#/tag/${encodeURIComponent(parts.at(-1))}`;
+    if (['members', 'member', 'login'].includes(parts[0])) return '#/member';
+    return `#/posts/${encodeURIComponent(parts.at(-1))}`;
+  } catch {
+    return null;
+  }
+}
+
+export function rewriteInternalLinks(contentHtml, wordpressBaseUrl, urlMap) {
+  const $ = cheerio.load(contentHtml || '');
+  const routes = new Map();
+
+  for (const [sourceUrl, item] of Object.entries(urlMap || {})) {
+    if (item.qapp_route) {
+      routes.set(normalizeComparableUrl(sourceUrl, wordpressBaseUrl), item.qapp_route);
+    }
+  }
+
+  $('a[href]').each((_, element) => {
+    const link = $(element);
+    const href = link.attr('href');
+    if (!href || href.startsWith('#') || !isInternalUrl(href, wordpressBaseUrl)) {
+      return;
+    }
+
+    const route = routes.get(normalizeComparableUrl(href, wordpressBaseUrl))
+      || qappRouteForInternalUrl(href, wordpressBaseUrl);
+    if (route) {
+      link.attr('data-web2-href', href);
+      link.attr('href', route);
+    }
+  });
+
+  return $('body').html() || '';
 }
 
 function urlsWithExtensions(urls, extensions) {

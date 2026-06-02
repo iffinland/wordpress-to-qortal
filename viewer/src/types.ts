@@ -4,6 +4,7 @@ export interface IndexItem {
   type: ContentType;
   source_id: number;
   old_url: string;
+  public_author?: string;
   slug: string;
   title: string;
   date: string;
@@ -72,6 +73,7 @@ export interface QdnResourceRef {
   type: string;
   service: string;
   identifier: string;
+  name?: string;
   local_path?: string | null;
   source_url?: string | null;
 }
@@ -79,7 +81,16 @@ export interface QdnResourceRef {
 export interface QdnManifest {
   version: string;
   generated_at: string;
+  profile_id?: string;
+  identifier_prefix?: string;
+  identifiers?: Record<string, string>;
   qdn_name: string | null;
+  canonical_site_name?: string | null;
+  qdn_content_name?: string | null;
+  qdn_media_name?: string | null;
+  publisher_names?: string[];
+  coauthor_names?: string[];
+  public_author?: string;
   entrypoints: {
     posts_index: QdnResourceRef;
     pages_index: QdnResourceRef;

@@ -1,10 +1,16 @@
+import * as cheerio from 'cheerio';
+
 export function toPlainText(html = '') {
-  return String(html)
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
-    .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
-    .replace(/<[^>]*>/g, ' ')
+  const $ = cheerio.load(String(html));
+  $('script, style').remove();
+  return $('body')
+    .text()
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+export function decodeHtmlText(html = '') {
+  return toPlainText(html);
 }
 
 export function truncateText(value = '', maxLength = 240) {

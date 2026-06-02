@@ -44,6 +44,10 @@ export interface CmsPost extends CmsPostIndexItem {
     name: string;
     address: string;
   };
+  publisher?: {
+    name: string;
+    address: string;
+  };
 }
 
 export interface CmsComment {
@@ -90,6 +94,23 @@ export interface CmsMediaItem {
   qdn: QdnRef;
 }
 
+export interface CmsSubmission {
+  schema: 'qortal-cms/submission@1';
+  id: string;
+  site_id: string;
+  site_owner_name: string;
+  status: 'pending';
+  submitted_at: string;
+  submitted_by: {
+    name: string;
+    address: string;
+  };
+  post: CmsPost;
+  categories: CmsTerm[];
+  tags: CmsTerm[];
+  qdn: QdnRef;
+}
+
 export interface CmsManifest {
   schema: 'qortal-cms/manifest@1';
   site_id: string;
@@ -97,6 +118,7 @@ export interface CmsManifest {
   tagline: string;
   owner_name: string;
   owner_address: string;
+  canonical_site_name?: string;
   coauthors: string[];
   version: string;
   updated_at: string;

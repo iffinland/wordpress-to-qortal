@@ -1,4 +1,5 @@
 import { createQdnUrl, fetchQdnResource, hasQortalBridge, requestQortal, toBase64, tryRequestQortal } from './qortalClient';
+import { cmsProfile, editorialAuthorName } from './cmsProfile';
 import type { CmsComment, CmsDataset, CmsManifest, CmsMediaItem, CmsMediaType, CmsPost, CmsPostIndexItem, CmsTerm, QdnRef, ViewerIdentity } from './types';
 
 export const CMS_VERSION = '0.1.5';
@@ -54,6 +55,18 @@ export function createPostIdentifier(slug: string, siteId = '') {
 
 export function createCommentIdentifier(postId: string) {
   return `cms-comment-${postId.slice(0, 24)}-${Date.now().toString(36)}`.slice(0, 64);
+}
+
+export function createSubmissionIdentifier(postId: string) {
+  return `cms-submission-${safeIdentifierPart(postId)}-${Date.now().toString(36)}`.slice(0, 64);
+}
+
+export function createSubmissionsIndexIdentifier(siteId: string) {
+  return `cms-submissions-${safeIdentifierPart(siteId)}`.slice(0, 64);
+}
+
+export function createOperatorIdentifier(identifier: string, siteId: string) {
+  return `cms-operator-${safeIdentifierPart(siteId)}-${identifier.replace(/^cms-/, '')}`.slice(0, 64);
 }
 
 export function createMediaIdentifier(filename: string) {
@@ -171,15 +184,15 @@ export function principalMatches(value: string, viewer: { address?: string; name
 }
 
 export function createEmptyManifest(ownerName: string, ownerAddress = ''): CmsManifest {
-  const title = ownerName ? `${ownerName} CMS` : 'Qortal CMS';
+  const title = cmsProfile.siteTitle || (ownerName ? `${ownerName} CMS` : 'Qortal CMS');
   return {
     schema: 'qortal-cms/manifest@1',
     site_id: createSiteId(ownerName || title),
     title,
-    tagline: 'A Qortal-native publishing site.',
+    tagline: cmsProfile.tagline || 'A Qortal-native publishing site.',
     owner_name: ownerName,
     owner_address: ownerAddress,
-    coauthors: [],
+    coauthors: normalizeAddressList(cmsProfile.coauthorNames),
     version: CMS_VERSION,
     updated_at: nowIso(),
     entrypoints: {
@@ -247,7 +260,8 @@ function createSampleDataset(ownerName: string): CmsDataset {
     media: [],
     videos: [],
     comments_enabled: true,
-    author: { name: ownerName || 'local-owner', address: '' }
+    author: { name: editorialAuthorName(ownerName || 'local-owner'), address: '' },
+    publisher: { name: ownerName || 'local-owner', address: '' }
   };
 
   return {
@@ -279,6 +293,14 @@ export function toPostIndexItem(post: CmsPost): CmsPostIndexItem {
     published_at: post.published_at,
     qdn: post.qdn
   };
+}
+
+export function sortPostsNewestFirst(posts: CmsPostIndexItem[]) {
+  return [...posts].sort((left, right) => {
+    const leftTime = Date.parse(left.published_at || left.created_at || left.updated_at);
+    const rightTime = Date.parse(right.published_at || right.created_at || right.updated_at);
+    return (Number.isFinite(rightTime) ? rightTime : 0) - (Number.isFinite(leftTime) ? leftTime : 0);
+  });
 }
 
 export async function getViewerIdentity(ownerName: string, manifest?: CmsManifest): Promise<ViewerIdentity> {
@@ -332,27 +354,92 @@ export async function loadQdnDataset(ownerName: string): Promise<CmsDataset | nu
   }
 
   try {
-    const manifest = ensureManifestShape(await fetchQdnResource<CmsManifest>('DOCUMENT', ownerName, MANIFEST_IDENTIFIER), ownerName);
-    const mediaRef = manifest.entrypoints.media_index;
+    const dataset = await loadSingleQdnDataset(ownerName);
+    if (!dataset) return null;
+    if (!cmsProfile.trustedCoauthorsCanAdoptImports && !cmsProfile.trustedCoauthorsCanPublishMedia) {
+      return dataset;
+    }
 
-    const [posts, pages, categories, tags, media, comments] = await Promise.all([
-      fetchQdnResource<CmsPostIndexItem[]>(manifest.entrypoints.posts_index.service, ownerName, manifest.entrypoints.posts_index.identifier)
-        .catch(() => []),
-      fetchQdnResource<CmsPostIndexItem[]>(manifest.entrypoints.pages_index.service, ownerName, manifest.entrypoints.pages_index.identifier)
-        .catch(() => []),
-      fetchQdnResource<CmsTerm[]>(manifest.entrypoints.categories.service, ownerName, manifest.entrypoints.categories.identifier)
-        .catch(() => []),
-      fetchQdnResource<CmsTerm[]>(manifest.entrypoints.tags.service, ownerName, manifest.entrypoints.tags.identifier)
-        .catch(() => []),
-      fetchQdnResource<CmsMediaItem[]>(mediaRef.service, ownerName, mediaRef.identifier)
-        .catch(() => []),
-      fetchQdnResource<CmsComment[]>(manifest.entrypoints.comments_index.service, ownerName, manifest.entrypoints.comments_index.identifier)
-        .catch(() => [])
-    ]);
-    return { manifest, posts, pages, categories, tags, media, comments, local_posts: {} };
+    const operatorNames = normalizeAddressList([
+      ...cmsProfile.coauthorNames,
+      ...(dataset.manifest.coauthors || [])
+    ]).filter((name) => normalizeQortalName(name) !== normalizeQortalName(ownerName));
+    const operatorDatasets = (await Promise.all(
+      operatorNames.map((name) => loadSingleQdnDataset(name, createOperatorIdentifier(MANIFEST_IDENTIFIER, dataset.manifest.site_id)))
+    )).filter((operator): operator is CmsDataset => Boolean(
+      operator
+      && normalizeQortalName(operator.manifest.canonical_site_name || '') === normalizeQortalName(ownerName)
+    ));
+
+    return operatorDatasets.reduce(mergeCmsDatasets, dataset);
   } catch {
     return null;
   }
+}
+
+async function loadSingleQdnDataset(ownerName: string, manifestIdentifier = MANIFEST_IDENTIFIER): Promise<CmsDataset | null> {
+  try {
+    const manifest = ensureManifestShape(await fetchQdnResource<CmsManifest>('DOCUMENT', ownerName, manifestIdentifier), ownerName);
+    const mediaRef = manifest.entrypoints.media_index;
+
+    const [posts, pages, categories, tags, media, comments] = await Promise.all([
+      fetchQdnResource<CmsPostIndexItem[]>(manifest.entrypoints.posts_index.service, manifest.entrypoints.posts_index.name || ownerName, manifest.entrypoints.posts_index.identifier)
+        .catch(() => []),
+      fetchQdnResource<CmsPostIndexItem[]>(manifest.entrypoints.pages_index.service, manifest.entrypoints.pages_index.name || ownerName, manifest.entrypoints.pages_index.identifier)
+        .catch(() => []),
+      fetchQdnResource<CmsTerm[]>(manifest.entrypoints.categories.service, manifest.entrypoints.categories.name || ownerName, manifest.entrypoints.categories.identifier)
+        .catch(() => []),
+      fetchQdnResource<CmsTerm[]>(manifest.entrypoints.tags.service, manifest.entrypoints.tags.name || ownerName, manifest.entrypoints.tags.identifier)
+        .catch(() => []),
+      fetchQdnResource<CmsMediaItem[]>(mediaRef.service, mediaRef.name || ownerName, mediaRef.identifier)
+        .catch(() => []),
+      fetchQdnResource<CmsComment[]>(manifest.entrypoints.comments_index.service, manifest.entrypoints.comments_index.name || ownerName, manifest.entrypoints.comments_index.identifier)
+        .catch(() => [])
+    ]);
+    return { manifest, posts: sortPostsNewestFirst(posts), pages, categories, tags, media, comments, local_posts: {} };
+  } catch {
+    return null;
+  }
+}
+
+function mergeCmsDatasets(base: CmsDataset, incoming: CmsDataset): CmsDataset {
+  return {
+    ...base,
+    posts: sortPostsNewestFirst(mergeNewestById(base.posts, incoming.posts)),
+    pages: sortPostsNewestFirst(mergeNewestById(base.pages, incoming.pages)),
+    categories: mergeTermsBySlug(base.categories, incoming.categories),
+    tags: mergeTermsBySlug(base.tags, incoming.tags),
+    media: mergeMediaByQdn(base.media, incoming.media),
+    comments: mergeNewestById(base.comments, incoming.comments),
+    local_posts: { ...(base.local_posts || {}), ...(incoming.local_posts || {}) }
+  };
+}
+
+function mergeNewestById<T extends { id: string; updated_at: string }>(base: T[], incoming: T[]) {
+  const byId = new Map(base.map((item) => [item.id, item]));
+  for (const item of incoming) {
+    const current = byId.get(item.id);
+    if (!current || Date.parse(item.updated_at) >= Date.parse(current.updated_at)) {
+      byId.set(item.id, item);
+    }
+  }
+  return [...byId.values()];
+}
+
+function mergeTermsBySlug(base: CmsTerm[], incoming: CmsTerm[]) {
+  const bySlug = new Map(base.map((term) => [term.slug, term]));
+  for (const term of incoming) {
+    if (!bySlug.has(term.slug)) bySlug.set(term.slug, term);
+  }
+  return [...bySlug.values()];
+}
+
+function mergeMediaByQdn(base: CmsMediaItem[], incoming: CmsMediaItem[]) {
+  const byQdn = new Map(base.map((item) => [`${item.qdn.name || ''}:${item.qdn.service}:${item.qdn.identifier}`, item]));
+  for (const item of incoming) {
+    byQdn.set(`${item.qdn.name || ''}:${item.qdn.service}:${item.qdn.identifier}`, item);
+  }
+  return [...byQdn.values()];
 }
 
 export async function loadDataset(ownerName: string): Promise<CmsDataset> {
@@ -366,6 +453,7 @@ export function loadLocalDataset(ownerName: string): CmsDataset {
     try {
       const parsed = JSON.parse(stored) as CmsDataset;
       parsed.media ||= [];
+      parsed.posts = sortPostsNewestFirst(parsed.posts || []);
       parsed.manifest = ensureManifestShape(parsed.manifest, ownerName);
       if (normalizeQortalName(parsed.manifest.owner_name) !== normalizeQortalName(ownerName)) {
         const dataset = createSampleDataset(ownerName);
@@ -460,7 +548,7 @@ export function createMediaItem(file: File, ownerName: string, ownerAddress: str
   };
 }
 
-export async function publishMediaWithIndex(name: string, file: File, mediaItem: CmsMediaItem, mediaIndex: CmsMediaItem[], manifest: CmsManifest) {
+export async function publishMediaWithIndex(name: string, file: File, mediaItem: CmsMediaItem, mediaIndex: CmsMediaItem[], manifest: CmsManifest, manifestIdentifier = MANIFEST_IDENTIFIER) {
   await requestQortal({
     action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
     resources: [
@@ -485,7 +573,7 @@ export async function publishMediaWithIndex(name: string, file: File, mediaItem:
       {
         name,
         service: 'DOCUMENT',
-        identifier: MANIFEST_IDENTIFIER,
+        identifier: manifestIdentifier,
         title: 'CMS manifest',
         description: 'Qortal CMS manifest',
         filename: 'cms-manifest.json',
@@ -499,7 +587,7 @@ export async function publishJsonResources(name: string, items: JsonPublishItem[
   await requestQortal({
     action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
     resources: items.map((item) => ({
-      name,
+      name: item.ref.name || name,
       service: item.ref.service,
       identifier: item.ref.identifier,
       title: item.title,

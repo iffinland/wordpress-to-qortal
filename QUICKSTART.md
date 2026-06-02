@@ -33,6 +33,7 @@ Edit `.env`. Start with a small import:
 
 ```env
 WORDPRESS_BASE_URL=https://example.com
+MIGRATION_PROFILE=generic
 OUTPUT_DIR=./wp-qortal-import
 LIMIT_POSTS=5
 LIMIT_PAGES=5
@@ -150,7 +151,7 @@ In the Qortal CMS backend, open `Imported` and enter:
 
 ```text
 Importer owner name: <Qortal name used by Migration Publisher>
-Manifest identifier: cr-qdn-manifest
+Manifest identifier: wpq-qdn-manifest
 ```
 
 Click `Load imported content`, preview a post, adopt it as a CMS draft, review attachments, and publish it through the CMS.
@@ -168,3 +169,4 @@ npm run package:tester-bundle
 ```
 
 See `TESTER_GUIDE.md` for the complete tester workflow.
+See `docs/PROFILES.md` for site-specific migration profiles.

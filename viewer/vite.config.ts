@@ -1,11 +1,12 @@
 import react from '@vitejs/plugin-react';
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Plugin, UserConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
+import type { Plugin } from 'vite';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const contentRoot = path.resolve(__dirname, '../wp-qortal-import');
+const rootDir = path.resolve(__dirname, '..');
 
 const contentTypes: Record<string, string> = {
   '.css': 'text/css',
@@ -27,7 +28,7 @@ const contentTypes: Record<string, string> = {
   '.webp': 'image/webp'
 };
 
-function qortalContentPlugin(): Plugin {
+function qortalContentPlugin(contentRoot: string): Plugin {
   return {
     name: 'qortal-local-content',
     configureServer(server) {
@@ -60,10 +61,28 @@ function qortalContentPlugin(): Plugin {
   };
 }
 
-export default {
-  base: './',
-  plugins: [react(), qortalContentPlugin()],
-  server: {
-    port: 5174
-  }
-} satisfies UserConfig;
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, rootDir, '');
+  const profileId = process.env.MIGRATION_PROFILE || env.MIGRATION_PROFILE || 'generic';
+  const profilePath = path.resolve(rootDir, 'profiles', profileId, 'profile.json');
+  const profile = JSON.parse(readFileSync(profilePath, 'utf8')) as {
+    resource_prefix: string;
+    default_output_dir?: string;
+  };
+  const outputDir = process.env.OUTPUT_DIR
+    || env.OUTPUT_DIR
+    || profile.default_output_dir
+    || `./workspaces/${profileId}/wp-qortal-import`;
+  const contentRoot = path.resolve(rootDir, outputDir);
+
+  return {
+    base: './',
+    define: {
+      'import.meta.env.VITE_QDN_MANIFEST_IDENTIFIER': JSON.stringify(`${profile.resource_prefix}-qdn-manifest`)
+    },
+    plugins: [react(), qortalContentPlugin(contentRoot)],
+    server: {
+      port: 5174
+    }
+  };
+});

@@ -10,9 +10,10 @@ import {
   createMediaMap,
   createPageIndexItem,
   createPostIndexItem,
+  createContentFileName,
   createUrlMap,
-  safeFileName
 } from './convert.js';
+import { rewriteInternalLinks } from './utils/html.js';
 import { ensureDir, readJson, resetDir, writeJson } from './utils/files.js';
 
 function serializeError(error, context = {}) {
@@ -62,7 +63,7 @@ async function main() {
   for (const rawPost of rawPosts) {
     try {
       const convertedPost = convertPost(rawPost, config, mediaByParent.get(rawPost.id) || []);
-      const fileName = `${safeFileName(convertedPost.slug, `post-${convertedPost.source_id}`)}.json`;
+      const fileName = createContentFileName(convertedPost);
       const outputPath = path.join(convertedPostsDir, fileName);
 
       await writeJson(outputPath, convertedPost);
@@ -76,7 +77,7 @@ async function main() {
   for (const rawPage of rawPages) {
     try {
       const convertedPage = convertPage(rawPage, config);
-      const fileName = `${safeFileName(convertedPage.slug, `page-${convertedPage.source_id}`)}.json`;
+      const fileName = createContentFileName(convertedPage);
       const outputPath = path.join(convertedPagesDir, fileName);
 
       await writeJson(outputPath, convertedPage);
@@ -103,6 +104,8 @@ async function main() {
     convertedTags,
     mediaMap
   });
+  await rewriteConvertedContent(convertedPosts, convertedPostsDir, config.wordpressBaseUrl, urlMap);
+  await rewriteConvertedContent(convertedPages, convertedPagesDir, config.wordpressBaseUrl, urlMap);
 
   await writeJson(path.join(convertedDir, 'posts-index.json'), postsIndex);
   await writeJson(path.join(convertedDir, 'pages-index.json'), pagesIndex);
@@ -113,7 +116,10 @@ async function main() {
   await writeJson(path.join(convertedDir, 'import-manifest.json'), {
     converted_at: new Date().toISOString(),
     importer_version: config.importerVersion,
+    profile_id: config.profileId,
+    identifier_prefix: config.resourcePrefix,
     wordpress_base_url: config.wordpressBaseUrl,
+    public_author: config.publicAuthorName,
     counts: {
       posts_read: rawPosts.length,
       posts_converted: convertedPosts.length,
@@ -156,6 +162,13 @@ async function main() {
   console.log('');
   console.log(`Converted directory: ${convertedDir}`);
   console.log(`Import manifest: ${path.join(convertedDir, 'import-manifest.json')}`);
+}
+
+async function rewriteConvertedContent(items, outputDir, wordpressBaseUrl, urlMap) {
+  for (const item of items) {
+    item.content_html = rewriteInternalLinks(item.content_html, wordpressBaseUrl, urlMap);
+    await writeJson(path.join(outputDir, createContentFileName(item)), item);
+  }
 }
 
 main().catch((error) => {

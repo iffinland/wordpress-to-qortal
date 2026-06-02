@@ -45,7 +45,7 @@ async function main() {
   );
   await cp(path.join(root, 'TESTER_GUIDE.md'), path.join(bundleDir, 'START_HERE.md'));
   await cp(path.join(root, 'QUICKSTART.md'), path.join(bundleDir, 'docs', 'IMPORTER_QUICKSTART.md'));
-  await cp(path.join(root, 'docs', 'FULL_IMPORT_WORKFLOW.md'), path.join(bundleDir, 'docs', 'FULL_IMPORT_WORKFLOW.md'));
+  await cp(path.join(root, 'docs', 'PROFILES.md'), path.join(bundleDir, 'docs', 'MIGRATION_PROFILES.md'));
   await cp(path.join(root, 'docs', 'QDN_RESOURCE_STRATEGY.md'), path.join(bundleDir, 'docs', 'QDN_RESOURCE_STRATEGY.md'));
   await cp(path.join(root, 'qortal-cms', 'README.md'), path.join(bundleDir, 'docs', 'QORTAL_CMS.md'));
 
