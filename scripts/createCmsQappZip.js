@@ -3,8 +3,6 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 
 const root = process.cwd();
-const cmsDir = path.join(root, 'qortal-cms');
-const distDir = path.join(cmsDir, 'dist');
 const releaseDir = path.join(root, 'release');
 
 function readProfileId(argv) {
@@ -24,12 +22,17 @@ function run(command, args, options = {}) {
 }
 
 async function main() {
-  const packageJson = JSON.parse(await readFile(path.join(cmsDir, 'package.json'), 'utf8'));
+  const rootPackageJson = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
   const profileId = readProfileId(process.argv.slice(2));
+  const isCorbettReport = profileId === 'corbettreport';
+  const appDir = path.join(root, isCorbettReport ? 'corbettreport' : 'qortal-cms');
+  const distDir = path.join(appDir, 'dist');
+  const packageJson = JSON.parse(await readFile(path.join(appDir, 'package.json'), 'utf8'));
   const profileSuffix = profileId === 'generic' ? '' : `-${profileId}`;
-  const zipName = `qortal-cms-app${profileSuffix}-v${packageJson.version}.zip`;
+  const version = isCorbettReport ? rootPackageJson.version : packageJson.version;
+  const zipName = `qortal-cms-app${profileSuffix}-v${version}.zip`;
 
-  run('npm', ['run', 'cms:build'], {
+  run('npm', ['run', isCorbettReport ? 'corbettreport:build' : 'cms:build'], {
     cwd: root,
     env: { ...process.env, MIGRATION_PROFILE: profileId }
   });

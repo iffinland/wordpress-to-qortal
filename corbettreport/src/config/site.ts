@@ -5,10 +5,10 @@ export const siteConfig = {
   tagline: 'Open Source Intelligence News',
   logo: './assets/corbett_logo_swirl-1.png',
   publicAuthor: 'Corbett',
-  siteName: import.meta.env.VITE_QDN_NAME || 'CorbettReport',
+  siteName: import.meta.env.VITE_QDN_NAME || 'Corbett',
   contentName: import.meta.env.VITE_CONTENT_QDN_NAME || 'Corbett',
-  mediaName: import.meta.env.VITE_MEDIA_QDN_NAME || 'CorbettReportMedia',
-  coauthorNames: (import.meta.env.VITE_COAUTHOR_NAMES || 'iffi,AgoristMarket')
+  mediaName: import.meta.env.VITE_MEDIA_QDN_NAME || '',
+  coauthorNames: (import.meta.env.VITE_COAUTHOR_NAMES || '')
     .split(',')
     .map((name: string) => name.trim())
     .filter(Boolean)

@@ -71,6 +71,26 @@ function findQortalRequest(): ((payload: QortalRequestPayload) => Promise<unknow
   return null;
 }
 
+function validateQortalResponse(response: unknown): unknown {
+  let parsed = response;
+  if (typeof response === 'string') {
+    try {
+      parsed = JSON.parse(response);
+    } catch {
+      return response;
+    }
+  }
+
+  if (parsed && typeof parsed === 'object') {
+    const record = parsed as Record<string, unknown>;
+    if (record.error) {
+      throw new Error(String(record.message || record.error));
+    }
+  }
+
+  return parsed;
+}
+
 export function getQortalBridgeDiagnostics() {
   const diagnostics = {
     window: false,
@@ -145,7 +165,7 @@ export async function requestQortal(payload: QortalRequestPayload): Promise<unkn
   if (!bridge) {
     throw new Error('Qortal request API is not available.');
   }
-  return bridge(payload);
+  return validateQortalResponse(await bridge(payload));
 }
 
 export async function fetchQdnResource<T>({
@@ -160,12 +180,12 @@ export async function fetchQdnResource<T>({
   const bridge = findQortalRequest();
 
   if (bridge) {
-    const result = await bridge({
+    const result = validateQortalResponse(await bridge({
       action: 'FETCH_QDN_RESOURCE',
       service,
       name,
       identifier
-    });
+    }));
 
     if (typeof result === 'string') {
       return JSON.parse(result) as T;

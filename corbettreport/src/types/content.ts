@@ -103,6 +103,64 @@ export interface MigrationQdnManifest {
   };
 }
 
+export interface CmsPostIndexItem {
+  id: string;
+  type: 'post' | 'page';
+  title: string;
+  slug: string;
+  status: 'draft' | 'published' | 'archived';
+  excerpt: string;
+  category_ids: string[];
+  tag_ids: string[];
+  created_at: string;
+  updated_at: string;
+  published_at: string | null;
+  qdn: QdnResourceRef;
+  featured_image?: QdnResourceRef | null;
+  author?: {
+    name: string;
+    address: string;
+  };
+}
+
+export interface CmsPost extends CmsPostIndexItem {
+  schema: 'qortal-cms/post@1';
+  content_html: string;
+  featured_image: QdnResourceRef | null;
+  media: QdnResourceRef[];
+  comments_enabled: boolean;
+  author: {
+    name: string;
+    address: string;
+  };
+}
+
+export interface CmsTerm {
+  id: string;
+  name: string;
+  slug: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CmsManifest {
+  schema: 'qortal-cms/manifest@1';
+  site_id: string;
+  title: string;
+  tagline: string;
+  owner_name: string;
+  canonical_site_name?: string;
+  coauthors: string[];
+  version: string;
+  updated_at: string;
+  entrypoints: {
+    posts_index: QdnResourceRef;
+    pages_index: QdnResourceRef;
+    categories: QdnResourceRef;
+    tags: QdnResourceRef;
+  };
+}
+
 export interface SearchResult {
   id: string;
   kind: 'post' | 'page' | 'category';

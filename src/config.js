@@ -8,6 +8,7 @@ dotenv.config();
 
 const DEFAULT_OUTPUT_DIR = './wp-qortal-import';
 const DEFAULT_LIMIT_POSTS = 5;
+const DEFAULT_LIMIT_RECENT_POSTS = 100;
 const DEFAULT_LIMIT_PAGES = 5;
 const DEFAULT_LIMIT_CATEGORIES = 100;
 const DEFAULT_LIMIT_TAGS = 100;
@@ -64,6 +65,22 @@ function readPositiveInteger(name, fallback) {
   return parsed;
 }
 
+function readNonNegativeInteger(name, fallback = 0) {
+  const rawValue = process.env[name];
+
+  if (!rawValue || rawValue.trim() === '') {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(rawValue, 10);
+
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`${name} must be a non-negative integer.`);
+  }
+
+  return parsed;
+}
+
 function readCsv(name) {
   return (process.env[name] || '')
     .split(',')
@@ -73,6 +90,16 @@ function readCsv(name) {
 
 function readCsvWithFallback(name, fallback = []) {
   return process.env[name] === undefined ? fallback : readCsv(name);
+}
+
+function readOptionalTimestamp(name) {
+  const value = process.env[name]?.trim() || '';
+  if (!value) return '';
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) {
+    throw new Error(`${name} must be a valid ISO timestamp.`);
+  }
+  return new Date(timestamp).toISOString();
 }
 
 export function loadConfig() {
@@ -94,6 +121,8 @@ export function loadConfig() {
       .filter(Boolean)
   );
   const mediaScope = process.env.MEDIA_SCOPE?.trim().toLowerCase() || 'library';
+  const fetchHistoricalPosts =
+    process.env.FETCH_HISTORICAL_POSTS?.trim().toLowerCase() !== 'false';
   const qortalName = process.env.QORTAL_NAME?.trim() || profile.qortalName;
   const qortalSiteName = process.env.QORTAL_SITE_NAME?.trim() || profile.qortalSiteName || qortalName;
   const qortalContentName =
@@ -132,6 +161,11 @@ export function loadConfig() {
     wordpressBaseUrl: normalizeBaseUrl(readRequiredEnv('WORDPRESS_BASE_URL')),
     outputDir: process.env.OUTPUT_DIR?.trim() || profile.defaultOutputDir || DEFAULT_OUTPUT_DIR,
     limitPosts: readPositiveInteger('LIMIT_POSTS', DEFAULT_LIMIT_POSTS),
+    limitRecentPosts: readPositiveInteger('LIMIT_RECENT_POSTS', DEFAULT_LIMIT_RECENT_POSTS),
+    postsOffset: readNonNegativeInteger('POSTS_OFFSET'),
+    postsBefore: readOptionalTimestamp('POSTS_BEFORE'),
+    postsAfter: readOptionalTimestamp('POSTS_AFTER'),
+    fetchHistoricalPosts,
     limitPages: readPositiveInteger('LIMIT_PAGES', DEFAULT_LIMIT_PAGES),
     limitCategories: readPositiveInteger('LIMIT_CATEGORIES', DEFAULT_LIMIT_CATEGORIES),
     limitTags: readPositiveInteger('LIMIT_TAGS', DEFAULT_LIMIT_TAGS),

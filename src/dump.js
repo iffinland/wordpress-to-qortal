@@ -46,6 +46,66 @@ async function dumpResource({ label, fileName, fetcher, samplePath, useSample, r
   }
 }
 
+function mergePosts(...collections) {
+  const postsById = new Map();
+
+  for (const posts of collections) {
+    for (const post of posts) {
+      postsById.set(post.id, post);
+    }
+  }
+
+  return [...postsById.values()].sort((left, right) => {
+    const leftDate = Date.parse(left.date_gmt || left.date || 0);
+    const rightDate = Date.parse(right.date_gmt || right.date || 0);
+    return rightDate - leftDate;
+  });
+}
+
+async function dumpPosts({ client, config, fixturesDir, useSample, rawDir, errors }) {
+  if (useSample) {
+    const posts = await readJson(path.join(fixturesDir, 'sample-wordpress-posts.json'));
+    await writeJson(path.join(rawDir, 'wordpress-posts.json'), posts);
+    return { posts, historicalPosts: posts, recentPosts: [] };
+  }
+
+  const historicalPosts = config.fetchHistoricalPosts
+    ? await dumpResource({
+        label: 'historical posts',
+        fileName: 'wordpress-historical-posts.json',
+        fetcher: () => client.fetchPosts({
+          limit: config.limitPosts,
+          offset: config.postsOffset,
+          before: config.postsBefore
+        }),
+        samplePath: '',
+        useSample: false,
+        rawDir,
+        errors,
+        config
+      })
+    : [];
+  const recentPosts = config.postsAfter
+    ? await dumpResource({
+        label: 'recent posts',
+        fileName: 'wordpress-recent-posts.json',
+        fetcher: () => client.fetchPosts({
+          limit: config.limitRecentPosts,
+          after: config.postsAfter,
+          order: 'asc'
+        }),
+        samplePath: '',
+        useSample: false,
+        rawDir,
+        errors,
+        config
+      })
+    : [];
+  const posts = mergePosts(historicalPosts, recentPosts);
+  await writeJson(path.join(rawDir, 'wordpress-posts.json'), posts);
+  return { posts, historicalPosts, recentPosts };
+}
+
 async function main() {
   const errors = [];
   const config = loadConfig();
@@ -66,16 +126,11 @@ async function main() {
   await ensureDir(logsDir);
 
   const fixturesDir = path.join(__dirname, '..', 'fixtures');
-  const rawPosts = await dumpResource({
-    label: 'posts',
-    fileName: 'wordpress-posts.json',
-    fetcher: () => client.fetchPosts({ limit: config.limitPosts }),
-    samplePath: path.join(fixturesDir, 'sample-wordpress-posts.json'),
-    useSample,
-    rawDir,
-    errors,
-    config
-  });
+  const {
+    posts: rawPosts,
+    historicalPosts,
+    recentPosts
+  } = await dumpPosts({ client, config, fixturesDir, useSample, rawDir, errors });
   const rawPages = await dumpResource({
     label: 'pages',
     fileName: 'wordpress-pages.json',
@@ -132,6 +187,11 @@ async function main() {
     wordpress_base_url: config.wordpressBaseUrl,
     limits: {
       posts: config.limitPosts,
+      posts_offset: config.postsOffset,
+      posts_before: config.postsBefore || null,
+      recent_posts: config.limitRecentPosts,
+      posts_after: config.postsAfter || null,
+      fetch_historical_posts: config.fetchHistoricalPosts,
       pages: config.limitPages,
       categories: config.limitCategories,
       tags: config.limitTags,
@@ -140,18 +200,29 @@ async function main() {
     media_scope: config.mediaScope,
     counts: {
       posts: rawPosts.length,
+      historical_posts: historicalPosts.length,
+      recent_posts: recentPosts.length,
       pages: rawPages.length,
       categories: rawCategories.length,
       tags: rawTags.length,
       media: rawMedia.length
     },
-    errors: errors.length
+    errors: errors.length,
+    post_source_ids: {
+      historical: historicalPosts.map((post) => post.id),
+      recent: recentPosts.map((post) => post.id),
+      combined: rawPosts.map((post) => post.id)
+    }
   });
 
   console.log('');
   console.log(useSample ? 'Sample WordPress raw dump complete' : 'WordPress raw dump complete');
   console.log('');
   console.log(`Posts fetched: ${rawPosts.length}`);
+  if (config.postsAfter) {
+    console.log(`Historical posts fetched: ${historicalPosts.length}`);
+    console.log(`New posts fetched: ${recentPosts.length}`);
+  }
   console.log(`Pages fetched: ${rawPages.length}`);
   console.log(`Categories fetched: ${rawCategories.length}`);
   console.log(`Tags fetched: ${rawTags.length}`);

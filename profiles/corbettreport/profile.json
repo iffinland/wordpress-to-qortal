@@ -3,18 +3,16 @@
   "resource_prefix": "cr",
   "public_author_name": "Corbett",
   "qortal_name": "Corbett",
-  "qortal_site_name": "CorbettReport",
-  "qortal_content_name": "Corbett",
-  "qortal_media_name": "CorbettReportMedia",
+  "qortal_site_name": "Corbett",
+  "qortal_content_name": "",
+  "qortal_media_name": "",
   "qortal_publisher_names": [
-    "CorbettReport",
-    "Corbett",
-    "CorbettReportMedia"
+    "Corbett"
   ],
-  "qortal_coauthor_names": [
-    "iffi",
-    "AgoristMarket"
+  "qortal_sysop_names": [
+    "Corbett"
   ],
+  "qortal_coauthor_names": [],
   "cms_site_title": "The Corbett Report",
   "cms_tagline": "Open Source Intelligence News",
   "cms_trusted_coauthors_can_adopt_imports": true,

@@ -53,7 +53,11 @@ async function main() {
   console.log('');
 
   await checkStep('REST root /wp-json/', () => client.fetchRoot(), config);
-  await checkStep('Posts endpoint', () => client.fetchPosts({ limit: config.limitPosts }), config);
+  await checkStep('Posts endpoint', () => client.fetchPosts({
+    limit: config.limitPosts,
+    offset: config.postsOffset,
+    before: config.postsBefore
+  }), config);
   await checkStep('Pages endpoint', () => client.fetchPages({ limit: 5 }), config);
   await checkStep('Categories endpoint', () => client.fetchCategories({ limit: 100 }), config);
   await checkStep('Tags endpoint', () => client.fetchTags({ limit: 100 }), config);

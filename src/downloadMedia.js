@@ -15,7 +15,15 @@ const MEDIA_DIRS = {
   document: 'documents',
   file: 'files'
 };
-const DOWNLOAD_CONCURRENCY = 3;
+
+function readPositiveInteger(value, fallback) {
+  const parsed = Number.parseInt(value || '', 10);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+const DOWNLOAD_CONCURRENCY = readPositiveInteger(process.env.MEDIA_DOWNLOAD_CONCURRENCY, 2);
+const DOWNLOAD_ATTEMPTS = readPositiveInteger(process.env.MEDIA_DOWNLOAD_ATTEMPTS, 3);
+const RETRY_DELAY_MS = readPositiveInteger(process.env.MEDIA_DOWNLOAD_RETRY_DELAY_MS, 3000);
 
 function serializeError(error, context = {}) {
   return {
@@ -90,6 +98,25 @@ async function downloadFile(url, outputPath) {
   };
 }
 
+async function downloadFileWithRetry(url, outputPath) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= DOWNLOAD_ATTEMPTS; attempt += 1) {
+    try {
+      return await downloadFile(url, outputPath);
+    } catch (error) {
+      lastError = error;
+      if (attempt === DOWNLOAD_ATTEMPTS) break;
+      console.warn(
+        `Download attempt ${attempt}/${DOWNLOAD_ATTEMPTS} failed for ${url}: ${error.message}`
+      );
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * attempt));
+    }
+  }
+
+  throw lastError;
+}
+
 async function main() {
   const config = loadConfig();
   const shouldDownload = config.downloadMedia || process.argv.includes('--force');
@@ -150,7 +177,7 @@ async function main() {
       const absolutePath = path.join(config.outputDir, localPath);
       await ensureDir(path.dirname(absolutePath));
       const existing = await inspectExistingFile(absolutePath);
-      const fileInfo = existing || (await downloadFile(url, absolutePath));
+      const fileInfo = existing || (await downloadFileWithRetry(url, absolutePath));
 
       mediaMap[url] = {
         ...mediaItem,

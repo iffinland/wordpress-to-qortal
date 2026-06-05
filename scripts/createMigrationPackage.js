@@ -36,7 +36,6 @@ async function copyPath(relativePath) {
         && !parts.includes('qortal-cms')
         && ![
           'createCmsQappZip.js',
-          'createCorbettReportQappZip.js',
           'createMigrationPackage.js',
           'createMigrationZip.js',
           'createTesterBundle.js'
@@ -66,7 +65,6 @@ async function main() {
     'package:cms-qapp',
     'package:cms-qapp:generic',
     'package:cms-qapp:corbettreport',
-    'package:corbettreport-qapp',
     'package:migration',
     'package:migration-qapp:corbettreport',
     'package:zip',

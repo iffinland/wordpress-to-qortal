@@ -143,8 +143,17 @@ export class WordPressClient {
     return this.fetchJson(new URL(`${this.baseUrl}/wp-json/`));
   }
 
-  async fetchPosts({ limit = 5 } = {}) {
-    return this.fetchCollection('/wp-json/wp/v2/posts', { limit });
+  async fetchPosts({ limit = 5, offset = 0, before = '', after = '', order = 'desc' } = {}) {
+    return this.fetchCollection('/wp-json/wp/v2/posts', {
+      limit,
+      offset,
+      query: {
+        order,
+        orderby: 'date',
+        ...(before ? { before } : {}),
+        ...(after ? { after } : {})
+      }
+    });
   }
 
   async fetchPages({ limit = 5 } = {}) {
@@ -192,7 +201,7 @@ export class WordPressClient {
     return [...mediaById.values()];
   }
 
-  async fetchCollection(endpoint, { limit = 100, query = {} } = {}) {
+  async fetchCollection(endpoint, { limit = 100, offset = 0, query = {} } = {}) {
     const items = [];
     const perPage = Math.min(limit, 100);
     let page = 1;
@@ -200,7 +209,11 @@ export class WordPressClient {
     while (items.length < limit) {
       const url = new URL(`${this.baseUrl}${endpoint}`);
       url.searchParams.set('per_page', String(perPage));
-      url.searchParams.set('page', String(page));
+      if (offset > 0) {
+        url.searchParams.set('offset', String(offset + items.length));
+      } else {
+        url.searchParams.set('page', String(page));
+      }
       Object.entries(query).forEach(([name, value]) => url.searchParams.set(name, value));
 
       let pageItems;

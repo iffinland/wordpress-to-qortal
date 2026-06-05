@@ -36,7 +36,7 @@ type PublishMode = 'demo' | 'cms-json' | 'catalog' | 'images' | 'documents' | 'a
 type PublishSource = 'bundled' | 'folder';
 type FolderFileMap = Map<string, File>;
 type PublishHistory = Record<string, { published_at: string; service: string; identifier: string; local_path: string; bytes?: number }>;
-type PublishProgressPhase = 'idle' | 'preparing' | 'confirming' | 'completed' | 'failed';
+type PublishProgressPhase = 'idle' | 'preparing' | 'confirming' | 'verifying' | 'completed' | 'partial' | 'failed';
 
 interface PublishProgress {
   phase: PublishProgressPhase;
@@ -115,6 +115,19 @@ function isManifestResource(resource: PublishResource, plan?: PublishPlan | null
     || resource.local_path.endsWith('/qdn-manifest.json');
 }
 
+function isMutableCatalogResource(resource: PublishResource) {
+  return resource.type === 'index' || resource.local_path.startsWith('converted/') && [
+    'qdn-manifest.json',
+    'posts-index.json',
+    'pages-index.json',
+    'categories.json',
+    'tags.json',
+    'media-map.json',
+    'url-map.json',
+    'import-manifest.json'
+  ].some((fileName) => resource.local_path.endsWith(`/${fileName}`));
+}
+
 function toRows(resources: PublishResource[]): PublishRow[] {
   const seen = new Set<string>();
   return resources
@@ -182,6 +195,18 @@ function createRows(plan: PublishPlan, mode: PublishMode): PublishRow[] {
 
 function resourceKey(name: string, resource: Pick<PublishResource, 'service' | 'identifier'>) {
   return `${name}:${resource.service}:${resource.identifier}`;
+}
+
+function normalizeQortalName(name: string) {
+  return name.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function targetPublisherName(resource: Pick<PublishResource, 'name'>, fallbackName: string) {
+  return resource.name || fallbackName;
+}
+
+function canPublishWithActiveName(resource: Pick<PublishResource, 'name'>, activeName: string) {
+  return normalizeQortalName(targetPublisherName(resource, activeName)) === normalizeQortalName(activeName);
 }
 
 function loadPublishHistory(): PublishHistory {
@@ -268,27 +293,33 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
 
   function applyRows(nextRows: PublishRow[], nextMode: PublishMode) {
     const rowsWithHistory = nextRows.map((row) => {
-      const key = resourceKey(row.name || qortalName, row);
-      return history[key]
+      const key = resourceKey(targetPublisherName(row, qortalName), row);
+      return history[key] && !isMutableCatalogResource(row)
         ? { ...row, status: 'published' as const, message: 'Published earlier' }
         : row;
     });
     setRows(rowsWithHistory);
     setSelectedIds(nextMode === 'selected'
       ? new Set()
-      : new Set(rowsWithHistory.filter((row) => row.status !== 'published').map((row) => row.identifier)));
+      : new Set(rowsWithHistory
+        .filter((row) => row.status !== 'published' && canPublishWithActiveName(row, qortalName))
+        .map((row) => row.identifier)));
   }
 
   const summary = useMemo(() => {
     const bytes = rows.reduce((sum, row) => sum + (row.bytes || 0), 0);
+    const blockedRows = rows.filter((row) => row.status !== 'published' && !canPublishWithActiveName(row, qortalName));
+    const blockedNames = [...new Set(blockedRows.map((row) => targetPublisherName(row, qortalName)).filter(Boolean))];
     return {
       count: rows.length,
-      selected: rows.filter((row) => selectedIds.has(row.identifier) && row.status !== 'published').length,
+      selected: rows.filter((row) => selectedIds.has(row.identifier) && row.status !== 'published' && canPublishWithActiveName(row, qortalName)).length,
       bytes,
       published: rows.filter((row) => row.status === 'published').length,
-      failed: rows.filter((row) => row.status === 'failed').length
+      failed: rows.filter((row) => row.status === 'failed').length,
+      blocked: blockedRows.length,
+      blockedNames
     };
-  }, [rows, selectedIds]);
+  }, [rows, selectedIds, qortalName]);
 
   const progressPercent = progress.total
     ? Math.round(((progress.phase === 'completed' ? progress.completed : progress.prepared) / progress.total) * 100)
@@ -297,12 +328,20 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   function progressLabel() {
     if (progress.phase === 'preparing') return 'Preparing resources';
     if (progress.phase === 'confirming') return 'Waiting for Qortal confirmation';
+    if (progress.phase === 'verifying') return 'Verifying QDN results';
+    if (progress.phase === 'partial') return 'Batch partially confirmed';
     if (progress.phase === 'completed') return 'Batch completed';
     if (progress.phase === 'failed') return 'Batch failed';
     return '';
   }
 
   function toggleRow(identifier: string) {
+    const row = rows.find((candidate) => candidate.identifier === identifier);
+    if (!row || row.status === 'published') return;
+    if (!canPublishWithActiveName(row, qortalName)) {
+      setError(`This resource must be published as ${targetPublisherName(row, qortalName)}. Change Default Qortal name and use an account that owns that name.`);
+      return;
+    }
     setSelectedIds((current) => {
       const next = new Set(current);
       if (next.has(identifier)) next.delete(identifier);
@@ -312,7 +351,9 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   }
 
   function selectAllRows() {
-    setSelectedIds(new Set(rows.filter((row) => row.status !== 'published').map((row) => row.identifier)));
+    setSelectedIds(new Set(rows
+      .filter((row) => row.status !== 'published' && canPublishWithActiveName(row, qortalName))
+      .map((row) => row.identifier)));
   }
 
   function clearSelectedRows() {
@@ -323,7 +364,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
     const nextHistory = { ...history };
     const publishedAt = new Date().toISOString();
     for (const row of publishedRows) {
-      nextHistory[resourceKey(row.name || qortalName, row)] = {
+      nextHistory[resourceKey(targetPublisherName(row, qortalName), row)] = {
         published_at: publishedAt,
         service: row.service,
         identifier: row.identifier,
@@ -401,7 +442,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   }
 
   async function publishAll() {
-    const activeRows = rows.filter((row) => selectedIds.has(row.identifier) && row.status !== 'published');
+    const activeRows = rows.filter((row) => selectedIds.has(row.identifier) && row.status !== 'published' && canPublishWithActiveName(row, qortalName));
     if (!activeRows.length) return;
 
     setIsPublishing(true);
@@ -412,17 +453,20 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
         ? { ...row, status: 'publishing', message: 'Queued in batch' }
         : row)
     );
+    const existingBeforePublish = new Set<string>();
 
     try {
       const resources = [];
       const alreadyPublishedRows: PublishRow[] = [];
       const publishRows: PublishRow[] = [];
       for (const [index, row] of activeRows.entries()) {
-        if (skipExisting && await qdnResourceExists(row)) {
+        const existsBefore = await qdnResourceExists(row);
+        if (existsBefore && skipExisting && !isMutableCatalogResource(row)) {
           alreadyPublishedRows.push(row);
           setProgress({ phase: 'preparing', total: activeRows.length, prepared: index + 1, completed: alreadyPublishedRows.length });
           continue;
         }
+        if (existsBefore) existingBeforePublish.add(row.identifier);
         resources.push(await createPublishResourcePayload(row));
         publishRows.push(row);
         setProgress({ phase: 'preparing', total: activeRows.length, prepared: index + 1, completed: alreadyPublishedRows.length });
@@ -455,13 +499,44 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       setProgress({ phase: 'completed', total: activeRows.length, prepared: activeRows.length, completed: activeRows.length });
     } catch (publishError) {
       const message = (publishError as Error).message;
+      setProgress((current) => ({ ...current, phase: 'verifying' }));
+      const confirmedRows: PublishRow[] = [];
+      const preExistingRows: PublishRow[] = [];
+      const missingRows: PublishRow[] = [];
+
+      for (const row of activeRows) {
+        if (existingBeforePublish.has(row.identifier)) preExistingRows.push(row);
+        else if (await qdnResourceExists(row)) confirmedRows.push(row);
+        else missingRows.push(row);
+      }
+
+      if (confirmedRows.length) {
+        markHistoryPublished(confirmedRows);
+      }
+
       setRows((current) =>
         current.map((row) => activeRows.some((active) => active.identifier === row.identifier)
-          ? { ...row, status: 'failed', message }
+          ? confirmedRows.some((confirmed) => confirmed.identifier === row.identifier)
+            ? { ...row, status: 'published', message: `Published resource found in QDN after Qortal returned: ${message}` }
+            : preExistingRows.some((existing) => existing.identifier === row.identifier)
+              ? { ...row, status: 'failed', message: `Resource existed before this attempt; update not confirmed after: ${message}` }
+            : { ...row, status: 'failed', message }
           : row)
       );
-      setError(message);
-      setProgress((current) => ({ ...current, phase: 'failed' }));
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        for (const row of confirmedRows) next.delete(row.identifier);
+        return next;
+      });
+      setError(confirmedRows.length
+        ? `Qortal returned "${message}", but ${confirmedRows.length} new resources appeared in QDN. Existing resources were not treated as confirmed updates.`
+        : message);
+      setProgress({
+        phase: missingRows.length || preExistingRows.length ? 'partial' : 'completed',
+        total: activeRows.length,
+        prepared: activeRows.length,
+        completed: confirmedRows.length
+      });
     }
 
     setIsPublishing(false);
@@ -542,6 +617,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
           <span>{formatBytes(summary.bytes)}</span>
           <span>{summary.published} published</span>
           <span>{summary.failed} failed</span>
+          <span>{summary.blocked} require another name</span>
           <span>{source === 'folder' ? 'local folder' : 'bundled files'}</span>
         </div>
         {progress.phase !== 'idle' && (
@@ -556,8 +632,13 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
           </div>
         )}
         <p className="publisher-note">
-          Select your local wp-qortal-import folder first. Resources with a configured publisher name override the default Qortal name. Use Images, Documents, Audio, Video, or Selected media to publish large media in small batches.
+          Select your local wp-qortal-import folder first. Resources with a configured publisher name override the default Qortal name. Use Images, Documents, Audio, Video, or Selected media to publish large media in small batches. Catalog indexes and manifests are always updated even when Skip already published is enabled.
         </p>
+        {summary.blocked > 0 && (
+          <p className="publisher-warning">
+            {summary.blocked} resources in this mode require another Qortal name: {summary.blockedNames.join(', ')}. Change Default Qortal name and publish from an account that owns that name.
+          </p>
+        )}
         {!hasBridge && (
           <p className="publisher-warning">
             Qortal request API is not available in this browser context. Bridge checks:
@@ -568,25 +649,33 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       </section>
 
       <section className="publisher-list">
-        {rows.map((row) => (
-          <article key={row.identifier} className="publisher-row">
-            <button type="button" className="row-check" onClick={() => toggleRow(row.identifier)} disabled={row.status === 'published'}>
-              {selectedIds.has(row.identifier) ? <SquareCheckBig size={19} /> : <Square size={19} />}
-            </button>
-            <div>
-              <strong>{row.identifier}</strong>
-              <span>
-                {row.name || qortalName} · {row.service} · {row.type} · {formatBytes(row.bytes)} · {row.local_path}
-              </span>
-            </div>
-            <div className={`publisher-status ${row.status}`}>
-              {row.status === 'published' && <CheckCircle2 size={18} />}
-              {row.status === 'failed' && <XCircle size={18} />}
-              {row.status === 'publishing' && <Play size={18} />}
-              <span>{row.message || row.status}</span>
-            </div>
-          </article>
-        ))}
+        {rows.map((row) => {
+          const requiresOtherName = row.status !== 'published' && !canPublishWithActiveName(row, qortalName);
+          const status = requiresOtherName ? 'skipped' : row.status;
+          const message = requiresOtherName
+            ? `Requires ${targetPublisherName(row, qortalName)}`
+            : row.message || row.status;
+
+          return (
+            <article key={row.identifier} className={`publisher-row${requiresOtherName ? ' blocked' : ''}`}>
+              <button type="button" className="row-check" onClick={() => toggleRow(row.identifier)} disabled={row.status === 'published' || requiresOtherName}>
+                {selectedIds.has(row.identifier) ? <SquareCheckBig size={19} /> : <Square size={19} />}
+              </button>
+              <div>
+                <strong>{row.identifier}</strong>
+                <span>
+                  {targetPublisherName(row, qortalName)} · {row.service} · {row.type} · {formatBytes(row.bytes)} · {row.local_path}
+                </span>
+              </div>
+              <div className={`publisher-status ${status}`}>
+                {row.status === 'published' && <CheckCircle2 size={18} />}
+                {row.status === 'failed' && <XCircle size={18} />}
+                {row.status === 'publishing' && <Play size={18} />}
+                <span>{message}</span>
+              </div>
+            </article>
+          );
+        })}
       </section>
     </main>
   );

@@ -14,6 +14,7 @@ export const cmsProfile = {
   publicAuthorName: import.meta.env.VITE_CMS_PUBLIC_AUTHOR_NAME || '',
   contentName: import.meta.env.VITE_CMS_CONTENT_NAME || '',
   mediaName: import.meta.env.VITE_CMS_MEDIA_NAME || '',
+  sysopNames: readCsv(import.meta.env.VITE_CMS_SYSOP_NAMES || ''),
   coauthorNames: readCsv(import.meta.env.VITE_CMS_COAUTHOR_NAMES || ''),
   importOwnerName: import.meta.env.VITE_CMS_IMPORT_OWNER_NAME || '',
   trustedCoauthorsCanAdoptImports: readBoolean(import.meta.env.VITE_CMS_TRUSTED_COAUTHORS_CAN_ADOPT_IMPORTS || ''),

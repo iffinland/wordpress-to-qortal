@@ -64,6 +64,7 @@ export function loadProfile(profileId = process.env.MIGRATION_PROFILE?.trim() ||
     qortalContentName: String(raw.qortal_content_name || '').trim(),
     qortalMediaName: String(raw.qortal_media_name || '').trim(),
     qortalPublisherNames: readStringList(raw.qortal_publisher_names),
+    qortalSysopNames: readStringList(raw.qortal_sysop_names),
     qortalCoauthorNames: readStringList(raw.qortal_coauthor_names),
     cmsTrustedCoauthorsCanAdoptImports: Boolean(raw.cms_trusted_coauthors_can_adopt_imports),
     cmsTrustedCoauthorsCanPublishMedia: Boolean(raw.cms_trusted_coauthors_can_publish_media)

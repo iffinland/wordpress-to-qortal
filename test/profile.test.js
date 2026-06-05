@@ -15,10 +15,12 @@ test('Corbett Report profile keeps site-specific names outside the universal eng
   const profile = loadProfile('corbettreport');
   assert.equal(profile.resourcePrefix, 'cr');
   assert.equal(profile.qdnIdentifiers.qdn_manifest, 'cr-qdn-manifest');
-  assert.equal(profile.qortalSiteName, 'CorbettReport');
-  assert.equal(profile.qortalContentName, 'Corbett');
-  assert.equal(profile.qortalMediaName, 'CorbettReportMedia');
-  assert.deepEqual(profile.qortalCoauthorNames, ['iffi', 'AgoristMarket']);
+  assert.equal(profile.qortalSiteName, 'Corbett');
+  assert.equal(profile.qortalContentName, '');
+  assert.equal(profile.qortalMediaName, '');
+  assert.deepEqual(profile.qortalPublisherNames, ['Corbett']);
+  assert.deepEqual(profile.qortalSysopNames, ['Corbett']);
+  assert.deepEqual(profile.qortalCoauthorNames, []);
   assert.equal(profile.cmsTrustedCoauthorsCanAdoptImports, true);
   assert.equal(profile.cmsTrustedCoauthorsCanPublishMedia, true);
 });

@@ -28,6 +28,11 @@ export interface CmsPostIndexItem {
   updated_at: string;
   published_at: string | null;
   qdn: QdnRef;
+  featured_image?: QdnRef | null;
+  author?: {
+    name: string;
+    address: string;
+  };
 }
 
 export interface CmsPost extends CmsPostIndexItem {
@@ -150,4 +155,5 @@ export interface ViewerIdentity {
   ownerTarget: string;
   role: CmsRole;
   bridgeAvailable: boolean;
+  identityIssue?: string;
 }

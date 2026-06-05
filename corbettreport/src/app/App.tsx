@@ -4,7 +4,7 @@ import { contentRepository } from '../data/contentRepository';
 import { createSearchIndex } from '../data/searchIndex';
 import { ArticlePage } from '../pages/ArticlePage';
 import { CategoryPage } from '../pages/CategoryPage';
-import { EditorialBackendPage } from '../pages/EditorialBackendPage';
+import { CmsBackendApp } from '../cms/CmsBackendApp';
 import { MemberDashboardPage } from '../pages/MemberDashboardPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { PublicHomePage } from '../pages/PublicHomePage';
@@ -21,8 +21,10 @@ export function App() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    contentRepository.loadDataset().then(setDataset).catch((loadError: Error) => setError(loadError.message));
-  }, []);
+    if (route.kind === 'admin') return;
+    setError('');
+    contentRepository.loadDataset(true).then(setDataset).catch((loadError: Error) => setError(loadError.message));
+  }, [route.kind === 'admin']);
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +59,7 @@ export function App() {
 
   const searchIndex = useMemo(() => dataset ? createSearchIndex(dataset) : [], [dataset]);
 
+  if (route.kind === 'admin') return <CmsBackendApp adminOnly />;
   if (error) return <div className="app-message error">{error}</div>;
   if (!dataset) return <div className="app-message">Loading The Corbett Report...</div>;
 
@@ -73,7 +76,6 @@ export function App() {
       return detailPage ? <StaticPage page={detailPage} /> : <NotFoundPage />;
     }
     if (route.kind === 'member') return <MemberDashboardPage />;
-    if (route.kind === 'admin') return <EditorialBackendPage />;
     return <NotFoundPage />;
   }
 

@@ -11,6 +11,16 @@ TESTER_GUIDE.md
 QUICKSTART.md
 ```
 
+The Corbett Report implementation is now operated as a production migration
+project. Its primary runbook is:
+
+```text
+docs/CORBETT_BATCH_WORKFLOW.md
+```
+
+Each completed batch includes unseen live posts and the next historical group,
+allowing the Qortal site to stay current while the archive migration continues.
+
 ## Components
 
 ### Local WordPress Importer
@@ -137,5 +147,6 @@ TESTER_GUIDE.md
 QUICKSTART.md
 docs/QDN_RESOURCE_STRATEGY.md
 docs/PROFILES.md
+docs/CORBETT_BATCH_WORKFLOW.md
 qortal-cms/README.md
 ```

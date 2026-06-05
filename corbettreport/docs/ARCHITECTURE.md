@@ -1,4 +1,4 @@
-# Corbett Report Q-App Architecture
+# Corbett Report CMS Q-App Architecture
 
 ## Goals
 
@@ -16,14 +16,15 @@
 | `src/components/layout/` | Public layout and navigation |
 | `src/components/search/` | Instant search UI |
 | `src/components/follow/` | Qortal hosting support controls |
+| `src/cms/` | SysOp and trusted coauthor editorial backend |
 | `src/data/` | Repository interfaces, demo adapter and search indexing |
 | `src/qdn/` | Qortal bridge calls |
 | `src/pages/` | Route-level screens |
 | `src/styles/` | Small CSS modules grouped by concern |
 
-## Planned Content Layers
+## Content Layers
 
-The final repository adapter will merge content layers before rendering:
+The repository adapter merges content layers before rendering:
 
 1. Immutable WordPress migration archive.
 2. CMS posts and pages created after the Qortal site launch.
@@ -40,42 +41,49 @@ The public Q-App supports the migration catalog loader through:
 Homepage cards load from QDN indexes. Full post and page JSON is loaded only when
 the visitor opens that route.
 
+The Q-App loads the migration catalog and the canonical CMS manifest in parallel.
+Either catalog may be temporarily absent during rollout. When the canonical CMS
+manifest exists, the Q-App also loads configured trusted operator manifests from:
+
+```text
+DOCUMENT/<operator-name>/cms-operator-<site-id>-manifest
+```
+
+An operator catalog is merged only when its `canonical_site_name` matches
+`CorbettReport`. Published CMS posts override migrated posts with the same slug.
+The final public feed is sorted by editorial `published_at`.
+
 ## Planned QDN Catalog
 
 ```text
-cr-site-catalog
-  core_manifest
-    publisher: CorbettReport
-    resources: app, posts, pages, indexes, images, documents
-  media_manifest
-    publisher: CorbettReportMedia
-    resources: audio, video
+Corbett
+  cms-manifest
+    publisher: Corbett
+    resources: canonical website and CMS catalog
+  operator manifests
+    publishers: Corbett, AgoristMarket, other trusted coauthors
+    resources: adopted posts, indexes, images, audio, video and documents
 ```
 
-The catalog allows operators to publish resources from separate computers. Once
-resources and the approved catalog are in QDN, frontend and CMS reads no longer
-depend on any local computer.
+The catalog allows operators to publish resources from separate computers under
+names they actually own. Once resources and operator manifests are in QDN,
+frontend and CMS reads no longer depend on any local computer.
 
 ## Name Roles
 
 | Qortal name | Role |
 | --- | --- |
-| `CorbettReport` | Canonical website address and CMS catalog publisher |
-| `Corbett` | Public editorial identity, future owner identity and essential content publisher |
-| `CorbettReportMedia` | Dedicated audio and video publisher |
-| `iffi` | Coauthor only |
-| `AgoristMarket` | Coauthor only |
+| `Corbett` | Current website address, CMS catalog publisher, public editorial identity, SysOp and migration publisher |
 
 QDN publication still requires the signing wallet to own the technical resource
 name. Coauthors can prepare and publish resources under names they own. Updating
-the canonical catalog under `CorbettReport` requires the wallet that owns
-`CorbettReport`.
+the canonical catalog under `Corbett` requires the wallet that owns `Corbett`.
 
-For production, publish the website and CMS catalog under `CorbettReport`.
-Publish posts, pages, indexes, images and documents under `Corbett`. This keeps
-the archive attached to the editorial identity that can later be transferred to
-the Web2 owner. `iffi` and `AgoristMarket` remain CMS coauthors without becoming
-public QDN content dependencies.
+For the current deployment, publish the website, migration resources and
+canonical CMS catalog under `Corbett`. Other import sources can still be loaded
+by name and adopted from the CMS backend after they are added as coauthors.
+The public author remains `Corbett` even when the technical QDN publisher is a
+trusted coauthor.
 
 ## Internal Link Rule
 
@@ -95,11 +103,7 @@ External Web2 links keep the click-to-copy behavior. The first scaffold implemen
 
 Qortal Core follows registered names through its local `followedNames` list. It does not currently filter followed resources by service.
 
-The planned split publishing names allow:
-
-- Essential follow: `CorbettReport` and `Corbett`
-- Full archive follow: `CorbettReport`, `Corbett` and `CorbettReportMedia`
-
-`CorbettReportMedia` must be registered in Qortal before the full archive option
-is used. The full archive control adds both registered names to the local
-`followedNames` list.
+The follow control adds the site name, the default content name and configured
+trusted publisher names to the local `followedNames` list. Media no longer
+requires a dedicated technical publisher name; it follows whichever trusted
+importer published the batch.

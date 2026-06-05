@@ -17,6 +17,15 @@ declare global {
   var qortalRequest: ((payload: QortalRequestPayload) => Promise<unknown>) | undefined;
 }
 
+function getInjectedGlobalBridge() {
+  try {
+    const candidate = Function('return typeof qortalRequest === "function" ? qortalRequest : null')() as unknown;
+    return typeof candidate === 'function' ? candidate as (payload: QortalRequestPayload) => Promise<unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
 function findQortalRequest() {
   if (typeof window.qortalRequest === 'function') return window.qortalRequest;
   if (typeof globalThis.qortalRequest === 'function') return globalThis.qortalRequest;
@@ -30,7 +39,30 @@ function findQortalRequest() {
   } catch {
     // Top frame access depends on the Qortal UI context.
   }
-  return null;
+  try {
+    if (window.opener && typeof window.opener.qortalRequest === 'function') return window.opener.qortalRequest;
+  } catch {
+    // Opener access depends on the Qortal UI context.
+  }
+  return getInjectedGlobalBridge();
+}
+
+function validateQortalResponse(response: unknown): unknown {
+  let parsed = response;
+  if (typeof response === 'string') {
+    try {
+      parsed = JSON.parse(response);
+    } catch {
+      return response;
+    }
+  }
+
+  if (parsed && typeof parsed === 'object') {
+    const record = parsed as Record<string, unknown>;
+    if (record.error) throw new Error(String(record.message || record.error));
+  }
+
+  return parsed;
 }
 
 export function hasQortalBridge() {
@@ -42,7 +74,7 @@ export async function requestQortal<T>(payload: QortalRequestPayload): Promise<T
   if (!bridge) {
     throw new Error('Qortal request API is only available when the app is opened inside Qortal UI.');
   }
-  return bridge(payload) as Promise<T>;
+  return validateQortalResponse(await bridge(payload)) as T;
 }
 
 function createQdnResourcePath(service: string, name: string, identifier: string) {
@@ -54,15 +86,18 @@ function getQortalNodeUrl() {
   return (params.get('node') || import.meta.env.VITE_QORTAL_NODE_URL || 'http://localhost:12391').replace(/\/+$/, '');
 }
 
+export function resolveQdnUrl(url: string) {
+  return !hasQortalBridge() && url.startsWith('/arbitrary/') ? `${getQortalNodeUrl()}${url}` : url;
+}
+
 export function createQdnResourceUrl(service: string, name: string, identifier: string) {
-  const path = createQdnResourcePath(service, name, identifier);
-  return hasQortalBridge() ? path : `${getQortalNodeUrl()}${path}`;
+  return resolveQdnUrl(createQdnResourcePath(service, name, identifier));
 }
 
 export async function fetchQdnResource<T>(service: string, name: string, identifier: string): Promise<T> {
   const bridge = findQortalRequest();
   if (bridge) {
-    const result = await bridge({ action: 'FETCH_QDN_RESOURCE', service, name, identifier });
+    const result = validateQortalResponse(await bridge({ action: 'FETCH_QDN_RESOURCE', service, name, identifier }));
     return (typeof result === 'string' ? JSON.parse(result) : result) as T;
   }
 

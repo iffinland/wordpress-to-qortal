@@ -63,6 +63,7 @@ export default defineConfig(({ mode }) => {
     qortal_site_name?: string;
     qortal_content_name?: string;
     qortal_media_name?: string;
+    qortal_sysop_names?: string[];
     qortal_coauthor_names?: string[];
     public_author_name?: string;
     cms_site_title?: string;
@@ -87,6 +88,7 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_CMS_PUBLIC_AUTHOR_NAME': JSON.stringify(profile.public_author_name || ''),
       'import.meta.env.VITE_CMS_CONTENT_NAME': JSON.stringify(profile.qortal_content_name || ''),
       'import.meta.env.VITE_CMS_MEDIA_NAME': JSON.stringify(profile.qortal_media_name || ''),
+      'import.meta.env.VITE_CMS_SYSOP_NAMES': JSON.stringify((profile.qortal_sysop_names || []).join(',')),
       'import.meta.env.VITE_CMS_COAUTHOR_NAMES': JSON.stringify((profile.qortal_coauthor_names || []).join(',')),
       'import.meta.env.VITE_CMS_IMPORT_OWNER_NAME': JSON.stringify(profile.qortal_site_name || profile.qortal_content_name || ''),
       'import.meta.env.VITE_CMS_TRUSTED_COAUTHORS_CAN_ADOPT_IMPORTS': JSON.stringify(String(Boolean(profile.cms_trusted_coauthors_can_adopt_imports))),

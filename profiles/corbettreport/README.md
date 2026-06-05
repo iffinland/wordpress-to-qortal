@@ -4,23 +4,16 @@ This profile contains the Corbett Report migration defaults.
 
 | Qortal name | Role |
 | --- | --- |
-| `CorbettReport` | Website address and future CMS catalog |
-| `Corbett` | Essential archive content publisher and public author |
-| `CorbettReportMedia` | Audio and video publisher |
-| `iffi` | CMS coauthor |
-| `AgoristMarket` | CMS coauthor |
+| `Corbett` | Current website owner, CMS catalog, migration publisher, public author and SysOp |
 
-The Corbett Report CMS build uses this profile to seed its canonical catalog,
-public author, and initial coauthor names. Coauthor posts are signed under the
-coauthor name and enter the SysOp submission queue before they are added to the
-canonical site index.
+The Corbett Report CMS build uses `Corbett` as the only built-in owner and
+SysOp. Coauthors are not hard coded. The owner adds or removes them from the CMS
+Settings view using a Qortal name or wallet address.
 
 Trusted coauthors can also adopt WordPress migration batches and upload media.
-Those operator resources remain signed by the actual publisher name, such as
-`AgoristMarket`, because QDN writes cannot be signed under another wallet's
-registered name. The Corbett Report CMS loads trusted operator manifests and
-merges their resources into the canonical view automatically. Operator control
-resources use site-specific `cms-operator-<site-id>-*` identifiers.
+Raw migration resources are currently published under `Corbett`. Trusted
+coauthors can load migration manifests from other Qortal names and adopt those
+posts under their own operator catalog after the owner adds them to the CMS.
 
 Build the dedicated Migration Publisher:
 

@@ -24,11 +24,11 @@ WORDPRESS_USERNAME=your-wordpress-username
 WORDPRESS_APP_PASSWORD=your-wordpress-application-password
 WORDPRESS_PASSWORD=
 QORTAL_NAME=Corbett
-QORTAL_SITE_NAME=CorbettReport
-QORTAL_CONTENT_NAME=Corbett
-QORTAL_MEDIA_NAME=CorbettReportMedia
-QORTAL_PUBLISHER_NAMES=CorbettReport,Corbett,CorbettReportMedia
-QORTAL_COAUTHOR_NAMES=iffi,AgoristMarket
+QORTAL_SITE_NAME=Corbett
+QORTAL_CONTENT_NAME=
+QORTAL_MEDIA_NAME=
+QORTAL_PUBLISHER_NAMES=Corbett
+QORTAL_COAUTHOR_NAMES=
 PUBLIC_AUTHOR_NAME=Corbett
 ```
 
@@ -47,7 +47,7 @@ WORDPRESS_PASSWORD=your-normal-login-password
 Keep `.env` local. It is excluded from git.
 
 `QORTAL_NAME` is the technical publisher used for the current batch.
-`QORTAL_SITE_NAME=CorbettReport` is the stable website address and canonical CMS
+`QORTAL_SITE_NAME=Corbett` is the current website address and canonical CMS
 catalog name.
 `QORTAL_CONTENT_NAME=Corbett` is the stable publisher for posts, pages, indexes,
 images and documents.
@@ -160,11 +160,12 @@ Use the stable registered website name as the canonical catalog name:
 CorbettReport
 ```
 
-Use the registered Qortal name of the media operator for large audio and video
-resources:
+Each operator can publish a full or partial migration batch under a Qortal name
+they own. For example:
 
 ```text
-CorbettReportMedia
+Corbett
+AgoristMarket
 ```
 
 After both operators have prepared and published their resources, place both exported
@@ -174,12 +175,12 @@ After both operators have prepared and published their resources, place both exp
 npm run merge-manifests -- \
   --canonical-name=CorbettReport \
   --source=Corbett=/path/to/content-qdn-manifest.json \
-  --source=CorbettReportMedia=/path/to/media-qdn-manifest.json
+  --source=AgoristMarket=/path/to/media-qdn-manifest.json
 ```
 
-Source order matters. Pass the canonical content publisher first and the dedicated
-media publisher second. Later sources override matching source media URLs while the
-first source remains authoritative for indexes and content paths.
+Source order matters. Pass the preferred content publisher first. Later sources
+override matching source media URLs while the first source remains authoritative
+for indexes and content paths.
 
 The command writes:
 

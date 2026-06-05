@@ -1,7 +1,7 @@
 {
-  "name": "corbettreport-qapp",
-  "version": "0.1.0",
-  "description": "Qortal-native Corbett Report public site, member area, and editorial CMS.",
+  "name": "corbettreport-cms-qapp",
+  "version": "0.1.5",
+  "description": "Qortal-native Corbett Report public site and editorial CMS.",
   "type": "module",
   "private": true,
   "scripts": {

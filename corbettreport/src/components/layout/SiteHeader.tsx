@@ -18,8 +18,9 @@ export function SiteHeader({ searchIndex }: { searchIndex: SearchResult[] }) {
         </div>
         <nav className="account-links" aria-label="Account links">
           <a href="#/pages/shop">Shop</a>
-          <a href="#/member">Log In</a>
+          <a href="#/member">Subscribe</a>
           <a href="#/member">Manage Account</a>
+          <a href="#/admin">Author Backend</a>
         </nav>
       </div>
 
@@ -35,6 +36,7 @@ export function SiteHeader({ searchIndex }: { searchIndex: SearchResult[] }) {
       </div>
 
       <div className="mobile-controls">
+        <span className="mobile-follow-control"><FollowButton compact /></span>
         <button type="button" onClick={() => setMobileSearchOpen((current) => !current)} title="Search"><Search size={22} /></button>
         <button type="button" onClick={() => setMobileMenuOpen((current) => !current)} title="Menu">{mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}</button>
       </div>

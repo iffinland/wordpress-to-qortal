@@ -1,13 +1,13 @@
-import { Database, HardDrive, UserPlus, X } from 'lucide-react';
+import { Database, UserPlus, X } from 'lucide-react';
 import { useState } from 'react';
 import { siteConfig } from '../../config/site';
 import { hasQortalBridge, requestQortal } from '../../qdn/qortalClient';
 
-export function FollowButton() {
+export function FollowButton({ compact = false }: { compact?: boolean }) {
   const params = new URLSearchParams(window.location.search);
   const siteName = params.get('siteName') || siteConfig.siteName;
   const contentName = params.get('contentName') || siteConfig.contentName;
-  const mediaName = siteConfig.mediaName;
+  const archiveNames = [siteName, contentName, ...siteConfig.coauthorNames].filter(Boolean);
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -29,24 +29,17 @@ export function FollowButton() {
     }
   }
 
-  function followEssential() {
+  function followArchive() {
     return followNames(
-      [siteName, contentName],
-      `Following ${siteName} and ${contentName}. Qortal Core can now mirror the essential archive.`
-    );
-  }
-
-  function followFullArchive() {
-    return followNames(
-      [siteName, contentName, mediaName],
-      `Following ${siteName}, ${contentName} and ${mediaName}. Qortal Core can now mirror the full archive.`
+      archiveNames,
+      `Following ${[...new Set(archiveNames)].join(', ')}. Qortal Core can now mirror the Corbett Report archive.`
     );
   }
 
   return (
     <>
-      <button className="follow-trigger" type="button" onClick={() => setOpen(true)}>
-        <UserPlus size={15} /> Follow
+      <button className={`follow-trigger ${compact ? 'compact' : ''}`} type="button" onClick={() => setOpen(true)}>
+        <UserPlus size={15} /> <span>{compact ? 'Follow' : 'Follow'}</span>
       </button>
       {open && (
         <div className="modal-backdrop" role="presentation" onClick={() => setOpen(false)}>
@@ -55,16 +48,12 @@ export function FollowButton() {
             <p className="eyebrow">Qortal hosting support</p>
             <h2 id="follow-title">Follow The Corbett Report</h2>
             <p>Following helps your local Qortal node mirror published resources and makes the archive easier for peers to retrieve.</p>
-            <button className="follow-choice" type="button" onClick={followEssential} disabled={submitting || !hasQortalBridge() || !siteName || !contentName}>
+            <button className="follow-choice" type="button" onClick={followArchive} disabled={submitting || !hasQortalBridge() || archiveNames.length === 0}>
               <Database size={19} />
-              <span><strong>Follow Essential</strong><small>Website and CMS by {siteName || 'the configured site publisher'}; text, images and documents by {contentName || 'the configured content publisher'}</small></span>
-            </button>
-            <button className="follow-choice" type="button" onClick={followFullArchive} disabled={submitting || !hasQortalBridge() || !siteName || !contentName || !mediaName}>
-              <HardDrive size={19} />
-              <span><strong>Follow Full Archive</strong><small>Add audio and video published by {mediaName || 'the configured media publisher'}</small></span>
+              <span><strong>Follow Archive</strong><small>Follow the site, canonical content name, and trusted publisher names used by the CMS.</small></span>
             </button>
             {!hasQortalBridge() && <p className="follow-note">Open this Q-App inside Qortal UI to enable follow controls.</p>}
-            {(!siteName || !contentName) && <p className="follow-note">Registered site and content Qortal names are required before follow can be enabled.</p>}
+            {archiveNames.length === 0 && <p className="follow-note">At least one registered Qortal name is required before follow can be enabled.</p>}
             {message && <p className="follow-note" role="status">{message}</p>}
           </section>
         </div>

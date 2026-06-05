@@ -529,6 +529,14 @@ select {
   background: #2e7d57;
 }
 
+.publisher-progress.verifying .publisher-progress-track span {
+  background: #2f6fb3;
+}
+
+.publisher-progress.partial .publisher-progress-track span {
+  background: #c47720;
+}
+
 .publisher-progress.failed .publisher-progress-track span {
   background: #b64236;
 }
@@ -563,6 +571,10 @@ select {
   border: 1px solid #dfe5df;
   border-radius: 8px;
   background: #fff;
+}
+
+.publisher-row.blocked {
+  opacity: 0.68;
 }
 
 .row-check {
@@ -621,6 +633,11 @@ select {
 
 .publisher-status.failed {
   color: #ad392f;
+  font-weight: 800;
+}
+
+.publisher-status.skipped {
+  color: #64716b;
   font-weight: 800;
 }
 

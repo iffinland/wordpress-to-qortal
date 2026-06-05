@@ -6,8 +6,7 @@
   }
 
   .social-links,
-  .account-links a:first-child,
-  .account-links a:last-child,
+  .account-links a:not(:nth-child(2)),
   .header-actions,
   .main-nav {
     display: none;
@@ -55,7 +54,7 @@
     display: flex;
     min-height: 47px;
     justify-content: center;
-    gap: 22px;
+    gap: 18px;
     border-bottom: 1px solid var(--cr-blue);
   }
 
@@ -63,6 +62,17 @@
     border: 0;
     color: var(--cr-blue);
     background: transparent;
+  }
+
+  .mobile-follow-control {
+    display: flex;
+    align-items: center;
+  }
+
+  .mobile-follow-control .follow-trigger {
+    border-color: var(--cr-blue);
+    color: var(--cr-blue);
+    font-weight: 800;
   }
 
   .mobile-search {

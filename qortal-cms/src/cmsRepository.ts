@@ -207,7 +207,7 @@ export function createEmptyManifest(ownerName: string, ownerAddress = ''): CmsMa
 }
 
 function ensureManifestShape(manifest: CmsManifest, ownerName: string): CmsManifest {
-  const normalizedCoauthors = normalizeAddressList(manifest.coauthors || []);
+  const normalizedCoauthors = normalizeAddressList(Array.isArray(manifest.coauthors) ? manifest.coauthors : cmsProfile.coauthorNames);
   const ownerChanged = Boolean(
     manifest.owner_name &&
     ownerName &&
@@ -291,7 +291,9 @@ export function toPostIndexItem(post: CmsPost): CmsPostIndexItem {
     created_at: post.created_at,
     updated_at: post.updated_at,
     published_at: post.published_at,
-    qdn: post.qdn
+    qdn: post.qdn,
+    featured_image: post.featured_image,
+    author: post.author
   };
 }
 
@@ -305,7 +307,7 @@ export function sortPostsNewestFirst(posts: CmsPostIndexItem[]) {
 
 export async function getViewerIdentity(ownerName: string, manifest?: CmsManifest): Promise<ViewerIdentity> {
   const bridgeAvailable = hasQortalBridge();
-  const account = await tryRequestQortal<{ address?: string; name?: string; primaryName?: string }>({ action: 'GET_USER_ACCOUNT' });
+  const account = await tryRequestQortal<{ address?: string; name?: string; primaryName?: string }>({ action: 'GET_USER_ACCOUNT' }, 60_000);
   const address = account?.address || '';
   const discoveredNames = new Set<string>();
 
@@ -332,19 +334,30 @@ export async function getViewerIdentity(ownerName: string, manifest?: CmsManifes
   if (devName) discoveredNames.add(devName);
 
   const normalizedOwner = normalizeQortalName(ownerName);
+  const sysopNames = [...new Set([ownerName, ...(cmsProfile.sysopNames || [])])].filter(Boolean);
   const allNames = [...discoveredNames].filter(Boolean);
-  const matchingOwnerName = allNames.find((nextName) => normalizeQortalName(nextName) === normalizedOwner) || '';
-  const displayName = matchingOwnerName || allNames[0] || '';
-  const isSysop = normalizedOwner && Boolean(matchingOwnerName);
+  const matchingSysopName = allNames.find((nextName) => sysopNames.some((sysopName) => normalizeQortalName(sysopName) === normalizeQortalName(nextName))) || '';
+  const displayName = matchingSysopName || allNames[0] || '';
+  const isSysop = Boolean(matchingSysopName);
   const isCoauthor = (manifest?.coauthors || []).some((coauthor) => principalMatches(coauthor, { address, name: displayName, names: allNames }));
+  const identityIssue = !bridgeAvailable
+    ? 'Qortal request bridge is not available. Open the published Q-App inside Qortal UI.'
+    : !account
+      ? 'Qortal did not return the logged-in account. Approve the account request when Qortal asks for it.'
+      : !address
+        ? 'Qortal account response did not include a wallet address.'
+        : allNames.length === 0
+          ? 'The logged-in account was detected, but no registered names were returned for its address.'
+          : undefined;
 
   return {
     address,
     name: displayName,
     names: allNames,
-    ownerTarget: ownerName,
+    ownerTarget: normalizedOwner ? ownerName : sysopNames.join(', '),
     bridgeAvailable,
-    role: isSysop ? 'sysop' : isCoauthor ? 'coauthor' : 'reader'
+    role: isSysop ? 'sysop' : isCoauthor ? 'coauthor' : 'reader',
+    identityIssue
   };
 }
 

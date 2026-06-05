@@ -43,7 +43,7 @@
 }
 
 .account-links {
-  gap: 22px;
+  gap: 18px;
 }
 
 .account-links a {
@@ -90,6 +90,10 @@
   border: 1px solid var(--cr-blue);
   color: #fff;
   background: transparent;
+}
+
+.follow-trigger.compact {
+  padding: 8px 10px;
 }
 
 .main-nav {

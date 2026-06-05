@@ -739,7 +739,10 @@ function createFallbackIdentity(ownerName: string): ViewerIdentity {
     names: [],
     ownerTarget: ownerName,
     role: 'reader',
-    bridgeAvailable: hasQortalBridge()
+    bridgeAvailable: hasQortalBridge(),
+    identityIssue: hasQortalBridge()
+      ? 'Qortal identity was not approved or returned no account data.'
+      : 'Qortal request bridge is not available in this browser context.'
   };
 }
 
@@ -2452,6 +2455,7 @@ function App() {
             <p><strong>Owner address:</strong> {dataset.manifest.owner_address || 'not set'}</p>
             <p><strong>Your role:</strong> {identity.role}</p>
             <p><strong>CMS profile:</strong> {cmsProfile.id}</p>
+            <p><strong>SysOp names:</strong> {[dataset.manifest.owner_name, ...(cmsProfile.sysopNames || [])].filter(Boolean).join(', ')}</p>
             <p><strong>Public author:</strong> {cmsProfile.publicAuthorName || 'per post'}</p>
             <p><strong>Migration catalog:</strong> {cmsProfile.importOwnerName || 'manual'} / {cmsProfile.importManifestIdentifier}</p>
             <p><strong>Site ID:</strong> {dataset.manifest.site_id}</p>
@@ -2483,6 +2487,7 @@ function App() {
 
             <section className="coauthor-panel">
               <div className="panel-title"><User size={18} /><h3>Coauthors</h3><span>{dataset.manifest.coauthors.length}</span></div>
+              <small>Coauthors can be added as Qortal names or wallet addresses.</small>
               <div className="coauthor-list">
                 {dataset.manifest.coauthors.map((address) => (
                   <div key={address} className="coauthor-row">
