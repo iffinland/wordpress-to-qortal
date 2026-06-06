@@ -126,6 +126,7 @@ class QdnMigrationRepository implements ContentRepository {
       tags: (item.tags || []).map((id) => this.tags.get(id) || `Tag ${id}`),
       image: this.featuredImageUrl(item.featured_media),
       contentHtml,
+      commentsEnabled: true,
       source: 'migration'
     };
   }
@@ -285,6 +286,7 @@ class CmsQdnRepository implements ContentRepository {
       tags: (item.tag_ids || []).map((id) => this.tags.get(id) || id),
       image: item.featured_image ? this.resolveRefUrl(item.featured_image) : undefined,
       contentHtml: 'content_html' in item ? this.rewriteQdnUrls(item.content_html) : '',
+      commentsEnabled: 'comments_enabled' in item ? item.comments_enabled : true,
       source: 'cms'
     };
   }

@@ -78,3 +78,16 @@ test('unknown internal posts receive future Q-App routes while media links stay 
   assert.match(html, /href="#\/posts\/future-post"/);
   assert.match(html, /href="https:\/\/example.com\/mp4\/video.mp4"/);
 });
+
+test('known WordPress pages and categories keep their Q-App route types', () => {
+  const html = rewriteInternalLinks(
+    '<a href="https://example.com/about/">About</a><a href="https://example.com/category/research/">Research</a>',
+    config.wordpressBaseUrl,
+    {
+      'https://example.com/about/': { qapp_route: '#/pages/about' },
+      'https://example.com/category/research/': { qapp_route: '#/category/research' }
+    }
+  );
+  assert.match(html, /href="#\/pages\/about"/);
+  assert.match(html, /href="#\/category\/research"/);
+});

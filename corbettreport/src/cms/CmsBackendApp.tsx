@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type MouseEvent } from 'react';
-import { CheckCircle2, ChevronLeft, ChevronRight, Coins, Copy, Download, Edit3, Eye, FileText, Filter, Heart, Image, Link, Lock, MessageSquare, Paperclip, Play, Plus, RefreshCcw, Save, Search, Send, Settings, Share2, Tags, Trash2, Upload, User, Video, XCircle } from 'lucide-react';
+import { CheckCircle2, Coins, Copy, Download, Edit3, Eye, FileText, Filter, Heart, Image, Link, Paperclip, Play, Plus, RefreshCcw, Save, Search, Send, Settings, Share2, Tags, Trash2, Upload, User, Video, XCircle } from 'lucide-react';
+import { internalRouteForWeb2Url } from '../app/routes';
 import { RichTextEditor } from './RichTextEditor';
 import {
   CMS_VERSION,
   MANIFEST_IDENTIFIER,
   POSTS_INDEX_IDENTIFIER,
-  createCommentIdentifier,
   createEmptyManifest,
   createMediaItem,
   createOperatorIdentifier,
@@ -31,13 +31,13 @@ import {
 import { cmsProfile, editorialAuthorName } from './cmsProfile';
 import { fetchQdnResource, getQdnResourceStatus, getQdnResourceUrl, getQortalBridgeDiagnostics, hasQortalBridge, requestQortal, toBase64, tryRequestQortal } from './qortalClient';
 import { parseVideoLink } from './videoLinks';
-import type { CmsComment, CmsDataset, CmsMediaItem, CmsPost, CmsPostIndexItem, CmsStatus, CmsTerm, CmsVideoEmbed, QdnRef, ViewerIdentity } from './types';
+import type { CmsDataset, CmsMediaItem, CmsPost, CmsPostIndexItem, CmsStatus, CmsTerm, CmsVideoEmbed, QdnRef, ViewerIdentity } from './types';
 import './styles.css';
 
 type Section = 'dashboard' | 'posts' | 'media' | 'imported' | 'settings';
 type EditorMode = 'preview' | 'edit';
 const IMPORT_BATCH_LIMIT = 10;
-const PUBLIC_POSTS_PER_PAGE = 8;
+const POST_BULK_LIMIT = 10;
 const DEFAULT_IMPORT_MANIFEST_IDENTIFIER =
   cmsProfile.importManifestIdentifier;
 
@@ -158,30 +158,23 @@ function readableError(value: unknown, fallback = 'Unexpected Qortal error.') {
   }
 }
 
-function paginationItems(currentPage: number, pageCount: number) {
-  const visiblePages = new Set([1, pageCount, currentPage - 1, currentPage, currentPage + 1]);
-  const pages = [...visiblePages].filter((page) => page >= 1 && page <= pageCount).sort((left, right) => left - right);
-  const items: Array<number | string> = [];
+const LINKED_VIDEO_PLATFORM_ICON = /^(archive|bitchute|odysee|rumble|substack|youtube)icon(?:-[a-f0-9]{10})?\.(?:jpe?g|png|webp)$/i;
 
-  for (const page of pages) {
-    const previous = items[items.length - 1];
-    if (typeof previous === 'number' && page - previous > 1) {
-      items.push(`ellipsis-${previous}-${page}`);
-    }
-    items.push(page);
+function mediaFilename(value = '') {
+  try {
+    const pathname = new URL(value, window.location.origin).pathname;
+    return decodeURIComponent(pathname.split('/').pop() || '');
+  } catch {
+    return value.split(/[?#]/)[0].split('/').pop() || '';
   }
-
-  return items;
 }
 
-function sharedPostSlug() {
-  const match = window.location.hash.match(/^#\/posts\/([^/?#]+)/i);
-  if (!match?.[1]) return '';
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return match[1];
-  }
+function isLinkedVideoPlatformIcon(attachment: ImportedAttachment, mediaItem: ImportedMediaMapItem | null) {
+  const filenames = [
+    mediaFilename(attachment.source_url || ''),
+    mediaFilename(mediaItem?.local_path || '')
+  ];
+  return filenames.some((filename) => LINKED_VIDEO_PLATFORM_ICON.test(filename));
 }
 
 function buildPostPageLink(appName: string, post: Pick<CmsPostIndexItem, 'slug' | 'id'>) {
@@ -233,9 +226,24 @@ function markQdnVideoDownload(link: HTMLAnchorElement, qdn: QdnRef, filename: st
 function markWeb2CopyLinks(document: Document) {
   for (const link of Array.from(document.querySelectorAll<HTMLAnchorElement>('a[href]'))) {
     const url = link.getAttribute('href') || '';
-    if (!/^https:\/\//i.test(url)) continue;
+    if (url.startsWith('#/')) {
+      link.setAttribute('data-qortal-internal-link', 'true');
+      link.setAttribute('title', 'Open this page inside The Corbett Report');
+      continue;
+    }
+    const internalRoute = internalRouteForWeb2Url(url);
+    if (internalRoute) {
+      link.setAttribute('data-web2-href', url);
+      link.setAttribute('data-qortal-internal-link', 'true');
+      link.setAttribute('href', internalRoute);
+      link.setAttribute('title', 'Open this page inside The Corbett Report');
+      link.removeAttribute('target');
+      continue;
+    }
+    if (!/^https?:\/\//i.test(url)) continue;
     link.setAttribute('data-copy-web2-url', url);
-    link.setAttribute('title', 'Click to copy Web2 link');
+    link.setAttribute('data-copy-tooltip', 'Click this link to copy it to the clipboard');
+    link.setAttribute('title', 'Click this link to copy it to the clipboard');
     link.removeAttribute('target');
   }
 }
@@ -247,15 +255,6 @@ function removeWeb2VideoFallbackNotice(document: Document) {
     if ((element.textContent || '').trim().toLowerCase() !== notice) continue;
     element.remove();
   }
-}
-
-function rewriteWeb2CopyLinks(html: string) {
-  if (!html) return html;
-  const parser = new DOMParser();
-  const document = parser.parseFromString(html, 'text/html');
-  removeWeb2VideoFallbackNotice(document);
-  markWeb2CopyLinks(document);
-  return document.body.innerHTML;
 }
 
 function rewriteCmsContentLinks(post: CmsPost) {
@@ -730,7 +729,7 @@ function createFallbackIdentity(ownerName: string): ViewerIdentity {
   };
 }
 
-export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
+export function CmsBackendApp() {
   const qdnName = cmsProfile.ownerName || getQdnNameFromLocation();
   const [section, setSection] = useState<Section>('posts');
   const [editorMode, setEditorMode] = useState<EditorMode>('preview');
@@ -741,7 +740,9 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<CmsStatus | 'all'>('all');
-  const [commentDraft, setCommentDraft] = useState('');
+  const [selectedPostIds, setSelectedPostIds] = useState<string[]>([]);
+  const [bulkPostStatus, setBulkPostStatus] = useState<CmsStatus>('published');
+  const [isBulkPostAction, setIsBulkPostAction] = useState(false);
   const [mediaTitleDraft, setMediaTitleDraft] = useState('');
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [videoLinkDraft, setVideoLinkDraft] = useState('');
@@ -766,11 +767,15 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
   const [selectedImportedPost, setSelectedImportedPost] = useState<ImportedPost | null>(null);
   const [selectedImportedIndex, setSelectedImportedIndex] = useState<ImportedIndexItem | null>(null);
   const [selectedImportedIds, setSelectedImportedIds] = useState<number[]>([]);
-  const [publicDetailOpen, setPublicDetailOpen] = useState(false);
-  const [publicPage, setPublicPage] = useState(1);
-  const [forcePublicView, setForcePublicView] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [clipboardNotice, setClipboardNotice] = useState<{ message: string; success: boolean } | null>(null);
+
+  useEffect(() => {
+    if (!clipboardNotice) return;
+    const timeout = window.setTimeout(() => setClipboardNotice(null), 3500);
+    return () => window.clearTimeout(timeout);
+  }, [clipboardNotice]);
 
   useEffect(() => {
     boot().catch((bootError: Error) => {
@@ -806,13 +811,8 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
     setIdentity(initialIdentity || createFallbackIdentity(ownerName));
     setSiteTitleDraft(loadedDataset.manifest.title);
     setSiteTaglineDraft(loadedDataset.manifest.tagline || '');
-    const linkedSlug = sharedPostSlug();
-    const linkedPost = linkedSlug
-      ? loadedDataset.posts.find((post) => post.status === 'published' && (post.slug === linkedSlug || post.id === linkedSlug))
-      : null;
-    const initialPost = linkedPost || loadedDataset.posts[0] || null;
+    const initialPost = loadedDataset.posts[0] || null;
     setSelectedIndex(initialPost);
-    setPublicDetailOpen(Boolean(linkedPost));
     setStatus('');
 
     void getViewerIdentity(ownerName, loadedDataset.manifest)
@@ -853,11 +853,6 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
   const bridgeDiagnostics = getQortalBridgeDiagnostics();
   const canAdoptImportedContent = Boolean(isSysop || (isCoauthor && cmsProfile.trustedCoauthorsCanAdoptImports));
   const canManageMediaLibrary = Boolean(isSysop || (isCoauthor && cmsProfile.trustedCoauthorsCanPublishMedia));
-  const canComment = Boolean(identity?.bridgeAvailable && identity.name && selectedPost?.comments_enabled);
-  const commentsForPost = useMemo(() => {
-    return (dataset?.comments || []).filter((comment) => comment.post_id === selectedPost?.id && comment.status === 'published');
-  }, [dataset?.comments, selectedPost?.id]);
-
   const visiblePosts = useMemo(() => {
     const posts = dataset?.posts || [];
     return canManageContent ? posts : posts.filter((post) => post.status === 'published');
@@ -895,6 +890,198 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
       setError((openError as Error).message);
     } finally {
       setStatus('');
+    }
+  }
+
+  function togglePostSelection(postId: string) {
+    setSelectedPostIds((current) => {
+      if (current.includes(postId)) return current.filter((id) => id !== postId);
+      if (current.length >= POST_BULK_LIMIT) {
+        setStatus(`Bulk post limit is ${POST_BULK_LIMIT} posts at once.`);
+        return current;
+      }
+      return [...current, postId];
+    });
+  }
+
+  function selectVisiblePosts() {
+    const ids = filteredPosts.slice(0, POST_BULK_LIMIT).map((post) => post.id);
+    setSelectedPostIds(ids);
+    setStatus(ids.length ? `${ids.length} visible posts selected.` : 'No visible posts to select.');
+  }
+
+  async function publishPostCatalog(nextDataset: CmsDataset, publishName: string, cmsSiteName: string) {
+    const publishedManifest = isSysop
+      ? nextDataset.manifest
+      : manifestForPublisher(nextDataset.manifest, publishName, cmsSiteName);
+    const publishedManifestIdentifier = isSysop
+      ? MANIFEST_IDENTIFIER
+      : createOperatorIdentifier(MANIFEST_IDENTIFIER, nextDataset.manifest.site_id);
+
+    await publishJsonResources(publishName, [
+      { ref: publishedManifest.entrypoints.posts_index, data: nextDataset.posts, title: 'CMS posts index', description: 'Qortal CMS posts index' },
+      { ref: publishedManifest.entrypoints.pages_index, data: nextDataset.pages, title: 'CMS pages index', description: 'Qortal CMS pages index' },
+      { ref: publishedManifest.entrypoints.categories, data: nextDataset.categories, title: 'CMS categories', description: 'Qortal CMS categories' },
+      { ref: publishedManifest.entrypoints.tags, data: nextDataset.tags, title: 'CMS tags', description: 'Qortal CMS tags' },
+      { ref: publishedManifest.entrypoints.media_index, data: nextDataset.media, title: 'CMS media index', description: 'Qortal CMS media index' },
+      { ref: publishedManifest.entrypoints.comments_index, data: nextDataset.comments, title: 'CMS comments index', description: 'Qortal CMS comments index' },
+      { ref: { service: 'DOCUMENT', identifier: publishedManifestIdentifier, name: publishName }, data: publishedManifest, title: 'CMS manifest', description: 'Qortal CMS manifest' }
+    ]);
+  }
+
+  async function applyBulkPostStatus() {
+    if (!dataset || !identity || !canManageContent || selectedPostIds.length === 0) return;
+    if (!hasQortalBridge()) {
+      setError('Qortal bridge is not available. Open this CMS through Qortal UI to update posts.');
+      return;
+    }
+
+    const selectedIndexes = dataset.posts.filter((post) => selectedPostIds.includes(post.id));
+    const cmsSiteName = dataset.manifest.owner_name || qdnName || identity.name;
+    const publishName = isSysop ? cmsSiteName : identity.name;
+    if (!cmsSiteName || !publishName) {
+      setError('Missing Qortal name. Updating posts requires a logged-in Qortal account with a registered name.');
+      return;
+    }
+
+    setError(null);
+    setIsBulkPostAction(true);
+    try {
+      setStatus(`Loading ${selectedIndexes.length} selected posts...`);
+      const loadedPosts = await Promise.all(selectedIndexes.map((index) => safeLoadPost(index, dataset)));
+      const updatedAt = new Date().toISOString();
+      const updatedPosts = loadedPosts.map((post) => ({
+        ...post,
+        status: bulkPostStatus,
+        updated_at: updatedAt,
+        published_at: publishedAtForPost(post, bulkPostStatus, updatedAt),
+        cms_site_id: dataset.manifest.site_id,
+        cms_site_name: cmsSiteName,
+        qdn: {
+          ...post.qdn,
+          service: 'DOCUMENT',
+          name: publishName,
+          identifier: isSysop ? post.qdn.identifier : createPostIdentifier(post.slug, dataset.manifest.site_id)
+        },
+        publisher: { name: publishName, address: identity.address }
+      } satisfies CmsPost));
+      const updatedById = new Map(updatedPosts.map((post) => [post.id, post]));
+      const nextPosts = sortPostsNewestFirst(dataset.posts.map((index) => {
+        const updated = updatedById.get(index.id);
+        return updated ? toPostIndexItem(updated) : index;
+      }));
+      const nextDataset: CmsDataset = {
+        ...dataset,
+        manifest: {
+          ...dataset.manifest,
+          updated_at: updatedAt,
+          owner_name: cmsSiteName,
+          owner_address: dataset.manifest.owner_address || identity.address
+        },
+        posts: nextPosts,
+        local_posts: {
+          ...(dataset.local_posts || {}),
+          ...Object.fromEntries(updatedPosts.map((post) => [post.id, post]))
+        }
+      };
+      const publishedManifest = isSysop
+        ? nextDataset.manifest
+        : manifestForPublisher(nextDataset.manifest, publishName, cmsSiteName);
+      const publishedManifestIdentifier = isSysop
+        ? MANIFEST_IDENTIFIER
+        : createOperatorIdentifier(MANIFEST_IDENTIFIER, dataset.manifest.site_id);
+
+      setStatus(`Applying ${bulkPostStatus} status to ${updatedPosts.length} posts...`);
+      await publishJsonResources(publishName, [
+        ...updatedPosts.map((post) => ({
+          ref: post.qdn,
+          data: post,
+          title: post.title,
+          description: stripHtml(post.excerpt || post.content_html).slice(0, 4000)
+        })),
+        { ref: publishedManifest.entrypoints.posts_index, data: nextDataset.posts, title: 'CMS posts index', description: 'Qortal CMS posts index' },
+        { ref: { service: 'DOCUMENT', identifier: publishedManifestIdentifier, name: publishName }, data: publishedManifest, title: 'CMS manifest', description: 'Qortal CMS manifest' }
+      ]);
+
+      setDataset(nextDataset);
+      saveLocalDataset(nextDataset);
+      const refreshedSelected = selectedPost ? updatedById.get(selectedPost.id) : null;
+      if (refreshedSelected) {
+        setSelectedPost(refreshedSelected);
+        setSelectedIndex(toPostIndexItem(refreshedSelected));
+        setDraft(createDraft(refreshedSelected, nextDataset.categories, nextDataset.tags));
+      }
+      setSelectedPostIds([]);
+      setStatus(`${updatedPosts.length} posts changed to ${bulkPostStatus}.`);
+    } catch (bulkError) {
+      setError(readableError(bulkError, 'Bulk post status update failed.'));
+      setStatus('');
+    } finally {
+      setIsBulkPostAction(false);
+    }
+  }
+
+  async function deleteSelectedPosts() {
+    if (!dataset || !identity || !canManageContent || selectedPostIds.length === 0) return;
+    if (!hasQortalBridge()) {
+      setError('Qortal bridge is not available. Open this CMS through Qortal UI to remove posts.');
+      return;
+    }
+    const confirmed = window.confirm(
+      `Remove ${selectedPostIds.length} selected post(s) from the CMS catalog? ` +
+      'Previously published QDN versions remain in QDN history.'
+    );
+    if (!confirmed) return;
+
+    const cmsSiteName = dataset.manifest.owner_name || qdnName || identity.name;
+    const publishName = isSysop ? cmsSiteName : identity.name;
+    if (!cmsSiteName || !publishName) {
+      setError('Missing Qortal name. Removing posts requires a logged-in Qortal account with a registered name.');
+      return;
+    }
+
+    const selectedSet = new Set(selectedPostIds);
+    const updatedAt = new Date().toISOString();
+    const nextLocalPosts = { ...(dataset.local_posts || {}) };
+    selectedPostIds.forEach((id) => delete nextLocalPosts[id]);
+    const nextDataset: CmsDataset = {
+      ...dataset,
+      manifest: {
+        ...dataset.manifest,
+        updated_at: updatedAt,
+        owner_name: cmsSiteName,
+        owner_address: dataset.manifest.owner_address || identity.address
+      },
+      posts: dataset.posts.filter((post) => !selectedSet.has(post.id)),
+      local_posts: nextLocalPosts
+    };
+
+    setError(null);
+    setIsBulkPostAction(true);
+    try {
+      setStatus(`Removing ${selectedSet.size} posts from the CMS catalog...`);
+      await publishPostCatalog(nextDataset, publishName, cmsSiteName);
+      setDataset(nextDataset);
+      saveLocalDataset(nextDataset);
+      if (selectedPost && selectedSet.has(selectedPost.id)) {
+        const nextIndex = nextDataset.posts[0] || null;
+        setSelectedIndex(nextIndex);
+        if (nextIndex) {
+          const nextPost = await safeLoadPost(nextIndex, nextDataset);
+          setSelectedPost(nextPost);
+          setDraft(createDraft(nextPost, nextDataset.categories, nextDataset.tags));
+        } else {
+          setSelectedPost(null);
+          setDraft(null);
+        }
+      }
+      setSelectedPostIds([]);
+      setStatus(`${selectedSet.size} posts removed from the CMS catalog.`);
+    } catch (deleteError) {
+      setError(readableError(deleteError, 'Removing posts from the CMS catalog failed.'));
+      setStatus('');
+    } finally {
+      setIsBulkPostAction(false);
     }
   }
 
@@ -1097,41 +1284,6 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
         : `Draft saved directly under ${publishName}.`);
     } catch (publishError) {
       setError(readableError(publishError, 'Qortal publish failed. Check that the logged-in account owns the publish target name.'));
-      setStatus('');
-    }
-  }
-
-  async function publishComment() {
-    if (!dataset || !selectedPost || !identity || !commentDraft.trim()) return;
-    if (!identity.bridgeAvailable || !identity.name) {
-      setError('Comment publishing requires Qortal UI and a logged-in Qortal name.');
-      return;
-    }
-
-    const created = new Date().toISOString();
-    const comment: CmsComment = {
-      schema: 'qortal-cms/comment@1',
-      id: `comment-${Date.now().toString(36)}`,
-      post_id: selectedPost.id,
-      post_identifier: selectedPost.qdn.identifier,
-      body_html: commentDraft,
-      status: 'published',
-      created_at: created,
-      updated_at: created,
-      author: { name: identity.name, address: identity.address },
-      qdn: { service: 'DOCUMENT', identifier: createCommentIdentifier(selectedPost.id), name: identity.name }
-    };
-
-    try {
-      setStatus('Publishing comment...');
-      await publishJsonResource(identity.name, comment.qdn, comment, `Comment on ${selectedPost.title}`, stripHtml(comment.body_html).slice(0, 4000));
-      const nextDataset = { ...dataset, comments: [comment, ...dataset.comments] };
-      setDataset(nextDataset);
-      saveLocalDataset(nextDataset);
-      setCommentDraft('');
-      setStatus(`Comment published directly under ${identity.name}.`);
-    } catch (commentError) {
-      setError((commentError as Error).message);
       setStatus('');
     }
   }
@@ -1373,7 +1525,7 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
       const mediaItem = attachmentMediaItem(attachment);
       const qdn = mediaItem ? importedMediaRef(mediaItem, ownerName, attachment.source_url) : null;
       return { attachment, mediaItem, qdn };
-    });
+    }).filter(({ attachment, mediaItem }) => !isLinkedVideoPlatformIcon(attachment, mediaItem));
   }
 
   function rewriteImportedHtml(post: ImportedPost, ownerName: string) {
@@ -1726,34 +1878,6 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
   const selectedTagNames = selectedPost?.tag_ids.map((id) => dataset.tags.find((term) => term.id === id)?.name).filter(Boolean) || [];
   const selectedMediaItems = selectedPost ? selectedPost.media.map((ref) => findMediaItem(dataset.media, ref)).filter(Boolean) as CmsMediaItem[] : [];
   const ownerTarget = qdnName || dataset.manifest.owner_name || 'not set';
-  const allPublicPosts = dataset.posts.filter((post) => post.status === 'published');
-  const publicPageCount = Math.max(1, Math.ceil(allPublicPosts.length / PUBLIC_POSTS_PER_PAGE));
-  const activePublicPage = Math.min(publicPage, publicPageCount);
-  const publicPosts = allPublicPosts.slice((activePublicPage - 1) * PUBLIC_POSTS_PER_PAGE, activePublicPage * PUBLIC_POSTS_PER_PAGE);
-  const publicSelectedPost = selectedPost?.status === 'published' ? selectedPost : null;
-
-  function cmsTermNames(ids: string[], terms: CmsDataset['categories']) {
-    return ids.map((id) => terms.find((term) => term.id === id)?.name).filter(Boolean) as string[];
-  }
-
-  function publicExcerpt(post: CmsPostIndexItem) {
-    return decodeText(stripHtml(post.excerpt || '')).slice(0, 500);
-  }
-
-  function formatDate(value: string) {
-    return value ? new Date(value).toLocaleDateString() : 'No date';
-  }
-
-  async function openPublicPost(index: CmsPostIndexItem) {
-    await openPost(index);
-    setPublicDetailOpen(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function changePublicPage(nextPage: number) {
-    setPublicPage(Math.min(Math.max(nextPage, 1), publicPageCount));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
 
   async function copyPostQdnUri() {
     if (!selectedPost) return;
@@ -1787,6 +1911,17 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
       return;
     }
 
+    const internalLink = (event.target as Element).closest<HTMLAnchorElement>('a[data-qortal-internal-link]');
+    if (internalLink) {
+      const route = internalLink.getAttribute('href') || '';
+      if (route.startsWith('#/')) {
+        event.preventDefault();
+        event.stopPropagation();
+        window.location.hash = route.slice(1);
+      }
+      return;
+    }
+
     const link = (event.target as Element).closest<HTMLAnchorElement>('a[data-copy-web2-url]');
     const url = link?.dataset.copyWeb2Url;
     if (!url) return;
@@ -1794,6 +1929,10 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
     event.preventDefault();
     event.stopPropagation();
     const copied = await copyText(url);
+    setClipboardNotice({
+      success: copied,
+      message: copied ? 'Link copied successfully to clipboard' : 'Unable to copy link to clipboard'
+    });
     setStatus(copied ? 'Web2 link copied.' : 'Unable to copy Web2 link.');
   }
 
@@ -1867,10 +2006,6 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
     if (!selectedPost) return;
     const url = qdnLink(selectedPost.qdn);
     if (url) window.open(url, '_blank', 'noopener,noreferrer');
-  }
-
-  function scrollToComments() {
-    document.getElementById('post-comments')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
   async function publishMediaFile() {
@@ -1968,7 +2103,7 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
     setStatus('Video removed from current post. Save draft or publish to persist.');
   }
 
-  if (adminOnly && !canManageContent) {
+  if (!canManageContent) {
     return (
       <main className="cms-shell admin-access-shell">
         <section className="access-panel">
@@ -1995,166 +2130,9 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
     );
   }
 
-  if (!adminOnly && (!canManageContent || forcePublicView)) {
-    return (
-      <main className="public-shell">
-        <header className="public-header">
-          <div>
-            <p className="eyebrow">Qortal CMS</p>
-            <h1>{dataset.manifest.title}</h1>
-            {dataset.manifest.tagline && <p className="public-tagline">{dataset.manifest.tagline}</p>}
-            <span>{allPublicPosts.length} published posts · owner {ownerTarget}</span>
-          </div>
-          <div className="public-status">
-            <span>{identity.name ? `Viewing as ${identity.name}` : 'Read-only visitor'}</span>
-            {isSysop && (
-              <button className="icon-command" type="button" onClick={() => setForcePublicView(false)}>
-                <Settings size={16} /> Back to backend
-              </button>
-            )}
-          </div>
-        </header>
-
-        {error && <div className="public-alert">{error}</div>}
-
-        {!publicDetailOpen || !publicSelectedPost ? (
-          <section className="public-home">
-            <div className="public-section-title">
-              <h2>Latest Posts</h2>
-              <span>Page {activePublicPage} of {publicPageCount} · {allPublicPosts.length} published posts</span>
-            </div>
-            <div className="public-post-grid">
-              {publicPosts.map((post) => {
-                const categoryNames = cmsTermNames(post.category_ids, dataset.categories);
-                const tagNames = cmsTermNames(post.tag_ids, dataset.tags);
-                return (
-                  <article key={post.id} className="public-post-card">
-                    <div className="public-card-meta">
-                      <span>{formatDate(post.published_at || post.created_at)}</span>
-                      <span>{post.type}</span>
-                    </div>
-                    <h3>{decodeText(post.title)}</h3>
-                    <div className="public-term-stack">
-                      <div><strong>Categories</strong><div className="chip-row">{categoryNames.length ? categoryNames.map((name) => <span key={name}>{name}</span>) : <em>None</em>}</div></div>
-                      <div><strong>Tags</strong><div className="chip-row">{tagNames.length ? tagNames.map((name) => <span key={name}>{name}</span>) : <em>None</em>}</div></div>
-                    </div>
-                    <p>{publicExcerpt(post) || 'No excerpt available.'}</p>
-                    <button className="icon-command primary" type="button" onClick={() => void openPublicPost(post)}>
-                      <Eye size={16} /> Read more
-                    </button>
-                  </article>
-                );
-              })}
-              {publicPosts.length === 0 && <div className="placeholder"><FileText size={22} /><strong>No published posts yet</strong><span>Published CMS posts will appear here for visitors.</span></div>}
-            </div>
-            {publicPageCount > 1 && (
-              <nav className="public-pagination" aria-label="Published posts pagination">
-                <button type="button" onClick={() => changePublicPage(activePublicPage - 1)} disabled={activePublicPage === 1} title="Previous page">
-                  <ChevronLeft size={16} /> <span>Previous</span>
-                </button>
-                <div className="public-page-numbers">
-                  {paginationItems(activePublicPage, publicPageCount).map((item) => typeof item === 'number' ? (
-                      <button
-                        className={item === activePublicPage ? 'active' : ''}
-                        type="button"
-                        key={item}
-                        onClick={() => changePublicPage(item)}
-                        aria-label={`Page ${item}`}
-                        aria-current={item === activePublicPage ? 'page' : undefined}
-                      >
-                        {item}
-                      </button>
-                    ) : <span key={item} aria-hidden="true">...</span>)}
-                </div>
-                <button type="button" onClick={() => changePublicPage(activePublicPage + 1)} disabled={activePublicPage === publicPageCount} title="Next page">
-                  <span>Next</span> <ChevronRight size={16} />
-                </button>
-              </nav>
-            )}
-          </section>
-        ) : (
-          <section className="public-detail">
-            <button className="icon-command public-back" type="button" onClick={() => setPublicDetailOpen(false)}>
-              <FileText size={16} /> Back to posts
-            </button>
-            <article className="public-article">
-              <div className="post-meta">
-                <span>{formatDate(publicSelectedPost.published_at || publicSelectedPost.created_at)}</span>
-                <span>{publicSelectedPost.author.name}</span>
-                {publicSelectedPost.qdn.name && <a href={qdnLink(publicSelectedPost.qdn)} target="_blank" rel="noreferrer">QDN resource</a>}
-              </div>
-              <h2>{decodeText(publicSelectedPost.title)}</h2>
-              {publicSelectedPost.excerpt && <p className="summary">{decodeText(publicSelectedPost.excerpt)}</p>}
-              <div className="term-display">
-                <div>
-                  <strong>Categories</strong>
-                  <div className="chip-row">
-                    {selectedCategoryNames.length ? selectedCategoryNames.map((name) => <span key={name}>{name}</span>) : <em>None</em>}
-                  </div>
-                </div>
-                <div>
-                  <strong>Tags</strong>
-                  <div className="chip-row">
-                    {selectedTagNames.length ? selectedTagNames.map((name) => <span key={name}>{name}</span>) : <em>None</em>}
-                  </div>
-                </div>
-              </div>
-              <div className="content-preview" onClick={(event) => void handleContentLinkClick(event)} dangerouslySetInnerHTML={{ __html: rewriteCmsContentLinks(publicSelectedPost) }} />
-              <MediaAttachmentViewer items={selectedMediaItems} />
-              {standaloneVideosForPost(publicSelectedPost).length > 0 && (
-                <section className="attachments-panel">
-                  <div className="panel-title"><Video size={18} /><h3>Videos</h3><span>{standaloneVideosForPost(publicSelectedPost).length}</span></div>
-                  <div className="video-embed-list">
-                    {standaloneVideosForPost(publicSelectedPost).map((video) => (
-                      <LazyVideoEmbed key={video.id} video={video} />
-                    ))}
-                  </div>
-                </section>
-              )}
-              <div className="quick-actions post-quick-actions" aria-label="Post quick actions">
-                <button type="button" onClick={() => void likeSelectedPost()} title="Like post"><Heart size={16} /><span>{likeCounts[publicSelectedPost.id] || 0}</span></button>
-                <button type="button" onClick={() => void shareSelectedPost()} title="Share post"><Share2 size={16} /><span>Share</span></button>
-                <button type="button" onClick={() => void copyPostQdnUri()} disabled={!publicSelectedPost.qdn.name} title="Copy QDN URI"><Link size={16} /><span>Copy</span></button>
-                <button type="button" onClick={() => void openTipModal()} title="Send tip"><Coins size={16} /><span>Tip</span></button>
-                <button type="button" onClick={scrollToComments} title="Comments"><MessageSquare size={16} /><span>{commentsForPost.length}</span></button>
-              </div>
-            </article>
-
-            <section id="post-comments" className="comments-panel public-comments">
-              <div className="panel-title"><MessageSquare size={18} /><h3>Comments</h3><span>{commentsForPost.length}</span></div>
-              {publicSelectedPost.comments_enabled ? (
-                <>
-                  {commentsForPost.map((comment) => (
-                    <article key={comment.id} className="comment-card"><strong>{comment.author.name}</strong><span>{new Date(comment.updated_at).toLocaleString()}</span><div onClick={(event) => void handleContentLinkClick(event)} dangerouslySetInnerHTML={{ __html: rewriteWeb2CopyLinks(comment.body_html) }} />{identity.name === comment.author.name && <button className="text-button">Edit own comment ready</button>}</article>
-                  ))}
-                  <div className="comment-box"><RichTextEditor value={commentDraft} onChange={setCommentDraft} /><button className="icon-command" disabled={!canComment} onClick={publishComment}><Send size={16} /> Publish comment</button>{!canComment && <small>Commenting requires Qortal UI, a logged-in Qortal name, and comments enabled for this post.</small>}</div>
-                </>
-              ) : <p className="muted-text"><Lock size={16} /> Comments are disabled for this post.</p>}
-            </section>
-          </section>
-        )}
-
-        {tipOpen && (
-          <div className="modal-backdrop" role="presentation" onClick={() => setTipOpen(false)}>
-            <div className="media-preview-modal tip-modal" role="dialog" aria-modal="true" aria-label="Send QORT tip" onClick={(event) => event.stopPropagation()}>
-              <div className="modal-title">
-                <strong>Send QORT Tip</strong>
-                <button type="button" onClick={() => setTipOpen(false)}><XCircle size={18} /> Close</button>
-              </div>
-              <label>Recipient<input value={tipRecipient} readOnly /></label>
-              <label>Amount<input value={tipAmount} onChange={(event) => setTipAmount(event.target.value)} placeholder="0.1" inputMode="decimal" /></label>
-              {typeof tipBalance === 'number' && <small>Available balance: {tipBalance} QORT</small>}
-              {tipError && <p className="preview-error">{tipError}</p>}
-              <button className="icon-command primary" type="button" disabled={tipSending} onClick={sendTip}><Coins size={16} /> {tipSending ? 'Sending...' : 'Send tip'}</button>
-            </div>
-          </div>
-        )}
-      </main>
-    );
-  }
-
   return (
     <main className="cms-shell">
+      {clipboardNotice && <p className={`clipboard-badge ${clipboardNotice.success ? 'success' : 'error'}`} role="status">{clipboardNotice.message}</p>}
       <aside className="sidebar">
         <div className="brand-block">
           <p>Qortal CMS</p>
@@ -2208,14 +2186,46 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
         {section === 'posts' && (
           <>
             <label className="search-box"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search posts" /></label>
-            <label className="filter-box"><Filter size={17} /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CmsStatus | 'all')}><option value="all">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label>
+            <label className="filter-box"><Filter size={17} /><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as CmsStatus | 'all')}><option value="all">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option><option value="hidden">Hidden</option></select></label>
+            {canManageContent && (
+              <div className="post-bulk-toolbar">
+                <span>{selectedPostIds.length} selected · max {POST_BULK_LIMIT}</span>
+                <button className="icon-command" type="button" onClick={selectVisiblePosts} disabled={isBulkPostAction}><CheckCircle2 size={15} /> Select visible</button>
+                <button className="icon-command" type="button" onClick={() => setSelectedPostIds([])} disabled={selectedPostIds.length === 0 || isBulkPostAction}><XCircle size={15} /> Clear</button>
+                <label>
+                  Status
+                  <select value={bulkPostStatus} onChange={(event) => setBulkPostStatus(event.target.value as CmsStatus)} disabled={isBulkPostAction}>
+                    <option value="published">Published</option>
+                    <option value="draft">Draft</option>
+                    <option value="archived">Archived</option>
+                    <option value="hidden">Hidden</option>
+                  </select>
+                </label>
+                <button className="icon-command primary" type="button" onClick={() => void applyBulkPostStatus()} disabled={selectedPostIds.length === 0 || isBulkPostAction}><Save size={15} /> Apply status</button>
+                <button className="icon-command danger" type="button" onClick={() => void deleteSelectedPosts()} disabled={selectedPostIds.length === 0 || isBulkPostAction}><Trash2 size={15} /> Delete from CMS</button>
+              </div>
+            )}
             <div className="post-list">
-              {filteredPosts.map((post) => (
-                <button key={post.id} className={selectedIndex?.id === post.id ? 'selected' : ''} onClick={() => openPost(post)}>
-                  <strong>{decodeText(post.title)}</strong>
-                  <span>{post.status} · {new Date(post.updated_at).toLocaleString()}</span>
-                </button>
-              ))}
+              {filteredPosts.map((post) => {
+                const checked = selectedPostIds.includes(post.id);
+                return (
+                  <article key={post.id} className={`post-list-row${selectedIndex?.id === post.id ? ' selected' : ''}`}>
+                    {canManageContent && (
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${decodeText(post.title)}`}
+                        checked={checked}
+                        disabled={isBulkPostAction}
+                        onChange={() => togglePostSelection(post.id)}
+                      />
+                    )}
+                    <button type="button" onClick={() => openPost(post)}>
+                      <strong>{decodeText(post.title)}</strong>
+                      <span>{post.status} · {new Date(post.updated_at).toLocaleString()}</span>
+                    </button>
+                  </article>
+                );
+              })}
             </div>
           </>
         )}
@@ -2513,7 +2523,6 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
                   <button type="button" onClick={() => void shareSelectedPost()} title="Share post"><Share2 size={16} /><span>Share</span></button>
                   <button type="button" onClick={() => void copyPostQdnUri()} disabled={!selectedPost.qdn.name} title="Copy QDN URI"><Link size={16} /><span>Copy</span></button>
                   <button type="button" onClick={() => void openTipModal()} title="Send tip"><Coins size={16} /><span>Tip</span></button>
-                  <button type="button" onClick={scrollToComments} title="Comments"><MessageSquare size={16} /><span>{commentsForPost.length}</span></button>
                 </div>
               </article>
             )}
@@ -2527,7 +2536,7 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
                   <TermInput label="Categories" value={draft.categoryText} onChange={(categoryText) => setDraft({ ...draft, categoryText })} placeholder="News, Research" terms={dataset.categories} />
                   <TermInput label="Tags" value={draft.tagText} onChange={(tagText) => setDraft({ ...draft, tagText })} placeholder="Qortal, Podcast" terms={dataset.tags} />
                 </div>
-                <label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as CmsStatus })}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option></select></label>
+                <label>Status<select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as CmsStatus })}><option value="draft">Draft</option><option value="published">Published</option><option value="archived">Archived</option><option value="hidden">Hidden</option></select></label>
                 <label className="check-line"><input type="checkbox" checked={draft.comments_enabled} onChange={(event) => setDraft({ ...draft, comments_enabled: event.target.checked })} /> Comments enabled</label>
                 {selectedMediaItems.length > 0 && (
                   <div className="attached-media-box">
@@ -2564,17 +2573,6 @@ export function CmsBackendApp({ adminOnly = false }: { adminOnly?: boolean }) {
               </div>
             )}
 
-            <section id="post-comments" className="comments-panel">
-              <div className="panel-title"><MessageSquare size={18} /><h3>Comments</h3><span>{commentsForPost.length}</span></div>
-              {selectedPost.comments_enabled ? (
-                <>
-                  {commentsForPost.map((comment) => (
-                    <article key={comment.id} className="comment-card"><strong>{comment.author.name}</strong><span>{new Date(comment.updated_at).toLocaleString()}</span><div onClick={(event) => void handleContentLinkClick(event)} dangerouslySetInnerHTML={{ __html: rewriteWeb2CopyLinks(comment.body_html) }} />{identity.name === comment.author.name && <button className="text-button">Edit own comment ready</button>}</article>
-                  ))}
-                  <div className="comment-box"><RichTextEditor value={commentDraft} onChange={setCommentDraft} /><button className="icon-command" disabled={!canComment} onClick={publishComment}><Send size={16} /> Publish comment</button>{!canComment && <small>Commenting requires Qortal UI, a logged-in Qortal name, and comments enabled for this post.</small>}</div>
-                </>
-              ) : <p className="muted-text"><Lock size={16} /> Comments are disabled for this post.</p>}
-            </section>
           </>
         ) : (
           <div className="placeholder"><FileText size={24} /><strong>No post selected</strong><span>{canManageContent ? 'Create a new post or select an existing one.' : 'Select a published post to read.'}</span></div>

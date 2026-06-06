@@ -12,6 +12,7 @@ export interface ContentPost {
   image?: string;
   heroImage?: string;
   contentHtml: string;
+  commentsEnabled?: boolean;
   source: 'demo' | 'migration' | 'cms';
 }
 

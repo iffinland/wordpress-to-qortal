@@ -1,4 +1,4 @@
-export type CmsStatus = 'draft' | 'published' | 'archived';
+export type CmsStatus = 'draft' | 'published' | 'archived' | 'hidden';
 export type CmsRole = 'sysop' | 'coauthor' | 'reader';
 
 export interface QdnRef {

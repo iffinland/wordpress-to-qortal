@@ -36,10 +36,61 @@
 }
 
 .social-links a {
+  position: relative;
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
   color: #fff;
-  font-size: 10px;
-  font-weight: 900;
+  cursor: copy;
   text-decoration: none;
+}
+
+.social-links img {
+  display: block;
+  width: 23px;
+  height: 23px;
+  object-fit: contain;
+}
+
+.social-links a::after {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  z-index: 40;
+  width: max-content;
+  max-width: min(300px, 82vw);
+  padding: 7px 10px;
+  border-radius: 6px;
+  color: #fff;
+  background: #202523;
+  box-shadow: 0 8px 22px rgb(0 0 0 / 25%);
+  content: attr(data-copy-tooltip);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  text-align: center;
+  transform: translateX(-50%) translateY(-4px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.social-links a:hover::after,
+.social-links a:focus-visible::after {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.social-links a:first-child::after {
+  left: 0;
+  transform: translateY(-4px);
+}
+
+.social-links a:first-child:hover::after,
+.social-links a:first-child:focus-visible::after {
+  transform: translateY(0);
 }
 
 .account-links {

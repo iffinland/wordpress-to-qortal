@@ -3,21 +3,23 @@ import { WEB2_BASE_URL } from '../config/site';
 export type AppRoute =
   | { kind: 'home' }
   | { kind: 'post'; slug: string }
-  | { kind: 'category'; slug: string }
-  | { kind: 'tag'; slug: string }
+  | { kind: 'category'; slug: string; page: number }
+  | { kind: 'tag'; slug: string; page: number }
   | { kind: 'page'; slug: string }
   | { kind: 'member' }
   | { kind: 'admin' }
   | { kind: 'not-found' };
 
 export function parseHashRoute(hash = window.location.hash): AppRoute {
-  const [path] = hash.replace(/^#/, '').split('?');
+  const [path, query = ''] = hash.replace(/^#/, '').split('?');
   const parts = path.split('/').filter(Boolean).map(decodeURIComponent);
+  const requestedPage = Number.parseInt(new URLSearchParams(query).get('page') || '1', 10);
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
 
   if (parts.length === 0) return { kind: 'home' };
   if (parts[0] === 'posts' && parts[1]) return { kind: 'post', slug: parts[1] };
-  if (parts[0] === 'category' && parts[1]) return { kind: 'category', slug: parts[1] };
-  if (parts[0] === 'tag' && parts[1]) return { kind: 'tag', slug: parts[1] };
+  if (parts[0] === 'category' && parts[1]) return { kind: 'category', slug: parts[1], page };
+  if (parts[0] === 'tag' && parts[1]) return { kind: 'tag', slug: parts[1], page };
   if (parts[0] === 'pages' && parts[1]) return { kind: 'page', slug: parts[1] };
   if (parts[0] === 'member') return { kind: 'member' };
   if (parts[0] === 'admin') return { kind: 'admin' };
@@ -28,16 +30,18 @@ export function postHref(slug: string) {
   return `#/posts/${encodeURIComponent(slug)}`;
 }
 
-export function categoryHref(slug: string) {
-  return `#/category/${encodeURIComponent(slugify(slug))}`;
+export function categoryHref(slug: string, page = 1) {
+  const base = `#/category/${encodeURIComponent(slugify(slug))}`;
+  return page > 1 ? `${base}?page=${page}` : base;
 }
 
 export function pageHref(slug: string) {
   return `#/pages/${encodeURIComponent(slug)}`;
 }
 
-export function tagHref(slug: string) {
-  return `#/tag/${encodeURIComponent(slugify(slug))}`;
+export function tagHref(slug: string, page = 1) {
+  const base = `#/tag/${encodeURIComponent(slugify(slug))}`;
+  return page > 1 ? `${base}?page=${page}` : base;
 }
 
 export function slugify(value: string) {

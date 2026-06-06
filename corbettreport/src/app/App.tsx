@@ -59,14 +59,14 @@ export function App() {
 
   const searchIndex = useMemo(() => dataset ? createSearchIndex(dataset) : [], [dataset]);
 
-  if (route.kind === 'admin') return <CmsBackendApp adminOnly />;
+  if (route.kind === 'admin') return <CmsBackendApp />;
   if (error) return <div className="app-message error">{error}</div>;
   if (!dataset) return <div className="app-message">Loading The Corbett Report...</div>;
 
   function renderPage() {
     if (route.kind === 'home') return <PublicHomePage dataset={dataset!} />;
-    if (route.kind === 'category') return <CategoryPage slug={route.slug} posts={dataset!.posts} />;
-    if (route.kind === 'tag') return <CategoryPage slug={route.slug} posts={dataset!.posts} taxonomy="tag" />;
+    if (route.kind === 'category') return <CategoryPage slug={route.slug} page={route.page} posts={dataset!.posts} />;
+    if (route.kind === 'tag') return <CategoryPage slug={route.slug} page={route.page} posts={dataset!.posts} taxonomy="tag" />;
     if (route.kind === 'post') {
       if (detailLoading) return <div className="app-message">Loading article...</div>;
       return detailPost ? <ArticlePage post={detailPost} /> : <NotFoundPage />;

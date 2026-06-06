@@ -5,6 +5,18 @@ interface QortalRequestPayload {
   service?: string;
   name?: string;
   identifier?: string;
+  address?: string;
+  data64?: string;
+  encoding?: string;
+  title?: string;
+  description?: string;
+  mode?: string;
+  prefix?: boolean;
+  limit?: number;
+  offset?: number;
+  reverse?: boolean;
+  includeMetadata?: boolean;
+  excludeBlocked?: boolean;
 }
 
 declare global {
@@ -75,6 +87,10 @@ export async function requestQortal<T>(payload: QortalRequestPayload): Promise<T
     throw new Error('Qortal request API is only available when the app is opened inside Qortal UI.');
   }
   return validateQortalResponse(await bridge(payload)) as T;
+}
+
+export function toBase64(value: string): string {
+  return btoa(unescape(encodeURIComponent(value)));
 }
 
 function createQdnResourcePath(service: string, name: string, identifier: string) {

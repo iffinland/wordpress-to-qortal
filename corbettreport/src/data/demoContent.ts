@@ -26,6 +26,7 @@ function post(
     image,
     heroImage,
     contentHtml: `<p>${excerpt}</p><p>This preview content is provided by the public-site scaffold. Imported WordPress HTML and QDN-backed CMS content will replace it through the repository layer.</p>`,
+    commentsEnabled: true,
     source: 'demo' as const
   };
 }

@@ -139,6 +139,25 @@
     padding: 0 10px;
   }
 
+  .pagination-summary,
+  .content-pagination {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .content-pagination {
+    flex-wrap: wrap;
+  }
+
+  .pagination-pages {
+    width: 100%;
+    order: -1;
+  }
+
+  .content-pagination .pagination-direction {
+    flex: 1;
+  }
+
   .documentary-carousel {
     min-height: 360px;
     padding: 0 10px;

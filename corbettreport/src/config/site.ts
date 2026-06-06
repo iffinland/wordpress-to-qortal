@@ -15,14 +15,14 @@ export const siteConfig = {
 };
 
 export const socialLinks = [
-  { label: 'Internet Archive', href: 'https://archive.org/details/@corbettreport?sort=-date', shortLabel: 'IA' },
-  { label: 'BitChute', href: 'https://www.bitchute.com/channel/GwPziiQZrVT3/', shortLabel: 'BC' },
-  { label: 'Odysee', href: 'https://odysee.com/@corbettreport:0', shortLabel: 'OD' },
-  { label: 'Rokfin', href: 'https://rokfin.com/corbettreport', shortLabel: 'RK' },
-  { label: 'Rumble', href: 'https://rumble.com/c/corbettreport', shortLabel: 'RU' },
-  { label: 'Substack', href: 'https://corbettreport.substack.com/', shortLabel: 'SS' },
-  { label: 'Minds', href: 'https://www.minds.com/corbettreport', shortLabel: 'MI' },
-  { label: 'RSS', href: `${WEB2_BASE_URL}/feed/`, shortLabel: 'RSS' }
+  { label: 'Internet Archive', href: 'https://archive.org/details/@corbettreport?sort=-date', icon: './assets/social-icons/internet-archive.png' },
+  { label: 'BitChute', href: 'https://www.bitchute.com/channel/GwPziiQZrVT3/', icon: './assets/social-icons/bitchute.png' },
+  { label: 'Odysee', href: 'https://odysee.com/@corbettreport:0', icon: './assets/social-icons/odysee.png' },
+  { label: 'Rokfin', href: 'https://rokfin.com/corbettreport', icon: './assets/social-icons/rokfin.png' },
+  { label: 'Rumble', href: 'https://rumble.com/c/corbettreport', icon: './assets/social-icons/rumble.png' },
+  { label: 'Substack', href: 'https://corbettreport.substack.com/', icon: './assets/social-icons/substack.png' },
+  { label: 'Minds', href: 'https://www.minds.com/corbettreport', icon: './assets/social-icons/minds.png' },
+  { label: 'RSS', href: `${WEB2_BASE_URL}/feed/`, icon: './assets/social-icons/rss.png' }
 ];
 
 export const primaryNavigation = [

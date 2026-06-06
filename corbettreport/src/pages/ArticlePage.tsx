@@ -1,5 +1,6 @@
-import { ChevronLeft, MessageSquare } from 'lucide-react';
+import { ChevronLeft } from 'lucide-react';
 import { categoryHref } from '../app/routes';
+import { PostComments } from '../components/comments/PostComments';
 import { ContentHtml } from '../components/content/ContentHtml';
 import { formatPostDate } from '../components/content/PostCard';
 import type { ContentPost } from '../types/content';
@@ -17,10 +18,7 @@ export function ArticlePage({ post }: { post: ContentPost }) {
         {post.image && <img className="article-lead-image" src={post.image} alt="" />}
         <ContentHtml html={post.contentHtml} />
       </article>
-      <section className="comments-preview">
-        <h2><MessageSquare size={21} /> Comments</h2>
-        <p>QDN-native comments and author editing are reserved for the editorial workflow phase.</p>
-      </section>
+      <PostComments postId={post.id} enabled={post.commentsEnabled !== false} />
     </section>
   );
 }
