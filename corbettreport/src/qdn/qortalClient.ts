@@ -19,6 +19,11 @@ interface QortalRequestPayload {
   excludeBlocked?: boolean;
 }
 
+const QDN_READ_TIMEOUT_MS = 15000;
+const QDN_READ_RETRIES = 1;
+const QDN_RETRY_DELAY_MS = 350;
+const inFlightQdnReads = new Map<string, Promise<unknown>>();
+
 declare global {
   interface Window {
     qortalRequest?: (payload: QortalRequestPayload) => Promise<unknown>;
@@ -77,6 +82,20 @@ function validateQortalResponse(response: unknown): unknown {
   return parsed;
 }
 
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    promise
+      .then(resolve)
+      .catch(reject)
+      .finally(() => window.clearTimeout(timeoutId));
+  });
+}
+
 export function hasQortalBridge() {
   return Boolean(findQortalRequest());
 }
@@ -110,16 +129,68 @@ export function createQdnResourceUrl(service: string, name: string, identifier: 
   return resolveQdnUrl(createQdnResourcePath(service, name, identifier));
 }
 
-export async function fetchQdnResource<T>(service: string, name: string, identifier: string): Promise<T> {
+function shouldRetryFetch(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || '');
+  return !message.includes(': 404') && !message.toLowerCase().includes("couldn't find put transaction");
+}
+
+async function fetchQdnResourceOnce<T>(service: string, name: string, identifier: string, timeoutMs: number): Promise<T> {
   const bridge = findQortalRequest();
+  const resourceLabel = `${service}/${name}/${identifier}`;
+
   if (bridge) {
-    const result = validateQortalResponse(await bridge({ action: 'FETCH_QDN_RESOURCE', service, name, identifier }));
+    const result = validateQortalResponse(await withTimeout(
+      bridge({ action: 'FETCH_QDN_RESOURCE', service, name, identifier }),
+      timeoutMs,
+      `Timed out loading QDN resource ${resourceLabel}`
+    ));
     return (typeof result === 'string' ? JSON.parse(result) : result) as T;
   }
 
-  const response = await fetch(createQdnResourceUrl(service, name, identifier));
-  if (!response.ok) {
-    throw new Error(`Failed to fetch QDN resource ${service}/${name}/${identifier}: ${response.status}`);
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(createQdnResourceUrl(service, name, identifier), { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`Failed to fetch QDN resource ${resourceLabel}: ${response.status}`);
+    }
+    return response.json() as Promise<T>;
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`Timed out loading QDN resource ${resourceLabel}`);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
   }
-  return response.json() as Promise<T>;
+}
+
+export async function fetchQdnResource<T>(service: string, name: string, identifier: string, timeoutMs = QDN_READ_TIMEOUT_MS): Promise<T> {
+  const key = `${service}::${name}::${identifier}`;
+  const existing = inFlightQdnReads.get(key);
+  if (existing) return existing as Promise<T>;
+
+  const operation = (async () => {
+    let attempt = 0;
+    let lastError: unknown = null;
+    while (attempt <= QDN_READ_RETRIES) {
+      try {
+        return await fetchQdnResourceOnce<T>(service, name, identifier, timeoutMs);
+      } catch (error) {
+        lastError = error;
+        if (attempt >= QDN_READ_RETRIES || !shouldRetryFetch(error)) break;
+        await wait(QDN_RETRY_DELAY_MS * (attempt + 1));
+      }
+      attempt += 1;
+    }
+    throw lastError instanceof Error ? lastError : new Error(String(lastError || 'QDN resource fetch failed'));
+  })();
+
+  inFlightQdnReads.set(key, operation);
+  try {
+    return await operation;
+  } finally {
+    inFlightQdnReads.delete(key);
+  }
 }

@@ -419,6 +419,22 @@ function mergeMediaItems(existing: CmsMediaItem[], incoming: CmsMediaItem[]) {
   return next;
 }
 
+function mergePostIndexes(existing: CmsPostIndexItem[], incoming: CmsPostIndexItem[]) {
+  const byId = new Map(existing.map((item) => [item.id, item]));
+  for (const item of incoming) byId.set(item.id, item);
+  return sortPostsNewestFirst([...byId.values()]);
+}
+
+function assertNoPostCatalogShrink(previous: CmsDataset, next: CmsDataset, action: string) {
+  const nextIds = new Set(next.posts.map((post) => post.id));
+  const missing = previous.posts.filter((post) => !nextIds.has(post.id));
+  if (missing.length === 0) return;
+  throw new Error(
+    `${action} blocked because it would remove ${missing.length} existing post(s) from the CMS catalog. ` +
+    'Reload the canonical CMS dataset and try again before publishing.'
+  );
+}
+
 function manifestForPublisher(manifest: CmsDataset['manifest'], publisherName: string, canonicalSiteName: string) {
   return {
     ...manifest,
@@ -936,7 +952,6 @@ export function CmsBackendApp() {
       return;
     }
 
-    const selectedIndexes = dataset.posts.filter((post) => selectedPostIds.includes(post.id));
     const cmsSiteName = dataset.manifest.owner_name || qdnName || identity.name;
     const publishName = isSysop ? cmsSiteName : identity.name;
     if (!cmsSiteName || !publishName) {
@@ -947,49 +962,58 @@ export function CmsBackendApp() {
     setError(null);
     setIsBulkPostAction(true);
     try {
+      setStatus('Refreshing canonical CMS catalog before bulk status update...');
+      const baseDataset = await loadQdnDataset(cmsSiteName).catch(() => null) || dataset;
+      const selectedIndexes = baseDataset.posts.filter((post) => selectedPostIds.includes(post.id));
+      if (selectedIndexes.length === 0) {
+        setStatus('Selected posts were not found in the canonical CMS catalog.');
+        return;
+      }
+
       setStatus(`Loading ${selectedIndexes.length} selected posts...`);
-      const loadedPosts = await Promise.all(selectedIndexes.map((index) => safeLoadPost(index, dataset)));
+      const loadedPosts = await Promise.all(selectedIndexes.map((index) => safeLoadPost(index, baseDataset)));
       const updatedAt = new Date().toISOString();
       const updatedPosts = loadedPosts.map((post) => ({
         ...post,
         status: bulkPostStatus,
         updated_at: updatedAt,
         published_at: publishedAtForPost(post, bulkPostStatus, updatedAt),
-        cms_site_id: dataset.manifest.site_id,
+        cms_site_id: baseDataset.manifest.site_id,
         cms_site_name: cmsSiteName,
         qdn: {
           ...post.qdn,
           service: 'DOCUMENT',
           name: publishName,
-          identifier: isSysop ? post.qdn.identifier : createPostIdentifier(post.slug, dataset.manifest.site_id)
+          identifier: isSysop ? post.qdn.identifier : createPostIdentifier(post.slug, baseDataset.manifest.site_id)
         },
         publisher: { name: publishName, address: identity.address }
       } satisfies CmsPost));
       const updatedById = new Map(updatedPosts.map((post) => [post.id, post]));
-      const nextPosts = sortPostsNewestFirst(dataset.posts.map((index) => {
+      const nextPosts = sortPostsNewestFirst(baseDataset.posts.map((index) => {
         const updated = updatedById.get(index.id);
         return updated ? toPostIndexItem(updated) : index;
       }));
       const nextDataset: CmsDataset = {
-        ...dataset,
+        ...baseDataset,
         manifest: {
-          ...dataset.manifest,
+          ...baseDataset.manifest,
           updated_at: updatedAt,
           owner_name: cmsSiteName,
-          owner_address: dataset.manifest.owner_address || identity.address
+          owner_address: baseDataset.manifest.owner_address || identity.address
         },
         posts: nextPosts,
         local_posts: {
-          ...(dataset.local_posts || {}),
+          ...(baseDataset.local_posts || {}),
           ...Object.fromEntries(updatedPosts.map((post) => [post.id, post]))
         }
       };
+      assertNoPostCatalogShrink(baseDataset, nextDataset, 'Bulk post status update');
       const publishedManifest = isSysop
         ? nextDataset.manifest
         : manifestForPublisher(nextDataset.manifest, publishName, cmsSiteName);
       const publishedManifestIdentifier = isSysop
         ? MANIFEST_IDENTIFIER
-        : createOperatorIdentifier(MANIFEST_IDENTIFIER, dataset.manifest.site_id);
+        : createOperatorIdentifier(MANIFEST_IDENTIFIER, baseDataset.manifest.site_id);
 
       setStatus(`Applying ${bulkPostStatus} status to ${updatedPosts.length} posts...`);
       await publishJsonResources(publishName, [
@@ -1720,36 +1744,37 @@ export function CmsBackendApp() {
       return;
     }
 
-    const existing = dataset.posts.find((post) => post.id === `wp-${selectedImportedPost.source_id}`);
-    const now = new Date().toISOString();
-    const built = buildCmsPostFromImported(selectedImportedPost, dataset.categories, dataset.tags, ownerName, dataset.manifest.site_id, identity, now, existing);
-    const post = isSysop ? built.post : {
-      ...built.post,
-      qdn: { ...built.post.qdn, name: publishName },
-      publisher: { name: publishName, address: identity.address }
-    };
-    const index = toPostIndexItem(post);
-    const posts = sortPostsNewestFirst(existing
-      ? dataset.posts.map((item) => item.id === index.id ? index : item)
-      : [index, ...dataset.posts]);
-    const nextDataset: CmsDataset = {
-      ...dataset,
-      manifest: { ...dataset.manifest, updated_at: now, owner_name: ownerName, owner_address: dataset.manifest.owner_address || identity.address },
-      posts,
-      categories: built.categories,
-      tags: built.tags,
-      media: mergeMediaItems(dataset.media, built.mediaItems),
-      local_posts: { ...(dataset.local_posts || {}), [post.id]: post }
-    };
-    const publishedManifest = isSysop
-      ? nextDataset.manifest
-      : manifestForPublisher(nextDataset.manifest, publishName, ownerName);
-    const publishedManifestIdentifier = isSysop
-      ? MANIFEST_IDENTIFIER
-      : createOperatorIdentifier(MANIFEST_IDENTIFIER, dataset.manifest.site_id);
-
     setError(null);
     try {
+      setStatus('Refreshing canonical CMS catalog before adoption...');
+      const baseDataset = await loadQdnDataset(ownerName).catch(() => null) || dataset;
+      const existing = baseDataset.posts.find((post) => post.id === `wp-${selectedImportedPost.source_id}`);
+      const now = new Date().toISOString();
+      const built = buildCmsPostFromImported(selectedImportedPost, baseDataset.categories, baseDataset.tags, ownerName, baseDataset.manifest.site_id, identity, now, existing);
+      const post = isSysop ? built.post : {
+        ...built.post,
+        qdn: { ...built.post.qdn, name: publishName },
+        publisher: { name: publishName, address: identity.address }
+      };
+      const index = toPostIndexItem(post);
+      const posts = mergePostIndexes(baseDataset.posts, [index]);
+      const nextDataset: CmsDataset = {
+        ...baseDataset,
+        manifest: { ...baseDataset.manifest, updated_at: now, owner_name: ownerName, owner_address: baseDataset.manifest.owner_address || identity.address },
+        posts,
+        categories: built.categories,
+        tags: built.tags,
+        media: mergeMediaItems(baseDataset.media, built.mediaItems),
+        local_posts: { ...(baseDataset.local_posts || {}), [post.id]: post }
+      };
+      assertNoPostCatalogShrink(baseDataset, nextDataset, 'Imported post adoption');
+      const publishedManifest = isSysop
+        ? nextDataset.manifest
+        : manifestForPublisher(nextDataset.manifest, publishName, ownerName);
+      const publishedManifestIdentifier = isSysop
+        ? MANIFEST_IDENTIFIER
+        : createOperatorIdentifier(MANIFEST_IDENTIFIER, baseDataset.manifest.site_id);
+
       setStatus('Adopting imported post as CMS draft...');
       await publishJsonResources(publishName, [
         { ref: post.qdn, data: post, title: post.title, description: stripHtml(post.excerpt || post.content_html).slice(0, 4000) },
@@ -1781,25 +1806,27 @@ export function CmsBackendApp() {
       return;
     }
 
-    const selectedIndexes = importedPosts
-      .filter((post) => selectedImportedIds.includes(post.source_id))
-      .filter((post) => !dataset.posts.some((item) => item.id === `wp-${post.source_id}`))
-      .slice(0, IMPORT_BATCH_LIMIT);
-
-    if (selectedIndexes.length === 0) {
-      setStatus('Selected imported posts are already adopted.');
-      return;
-    }
-
     setError(null);
     try {
+      setStatus('Refreshing canonical CMS catalog before batch adoption...');
+      const baseDataset = await loadQdnDataset(ownerName).catch(() => null) || dataset;
+      const selectedIndexes = importedPosts
+        .filter((post) => selectedImportedIds.includes(post.source_id))
+        .filter((post) => !baseDataset.posts.some((item) => item.id === `wp-${post.source_id}`))
+        .slice(0, IMPORT_BATCH_LIMIT);
+
+      if (selectedIndexes.length === 0) {
+        setStatus('Selected imported posts are already adopted.');
+        return;
+      }
+
       setStatus(`Preparing ${selectedIndexes.length} imported posts...`);
       const now = new Date().toISOString();
       const importedIndexes: CmsPostIndexItem[] = [];
-      let categories = [...dataset.categories];
-      let tags = [...dataset.tags];
-      const localPosts = { ...(dataset.local_posts || {}) };
-      let media = [...dataset.media];
+      let categories = [...baseDataset.categories];
+      let tags = [...baseDataset.tags];
+      const localPosts = { ...(baseDataset.local_posts || {}) };
+      let media = [...baseDataset.media];
       const publishItems: Parameters<typeof publishJsonResources>[1] = [];
       let firstPost: CmsPost | null = null;
 
@@ -1807,7 +1834,7 @@ export function CmsBackendApp() {
         const importedPost = selectedImportedPost?.source_id === indexItem.source_id
           ? selectedImportedPost
           : await fetchImportedPost(indexItem, ownerName);
-        const imported = buildCmsPostFromImported(importedPost, categories, tags, ownerName, dataset.manifest.site_id, identity, now);
+        const imported = buildCmsPostFromImported(importedPost, categories, tags, ownerName, baseDataset.manifest.site_id, identity, now);
         const built = isSysop ? imported.post : {
           ...imported.post,
           qdn: { ...imported.post.qdn, name: publishName },
@@ -1828,20 +1855,21 @@ export function CmsBackendApp() {
       }
 
       const nextDataset: CmsDataset = {
-        ...dataset,
-        manifest: { ...dataset.manifest, updated_at: now, owner_name: ownerName, owner_address: dataset.manifest.owner_address || identity.address },
-        posts: sortPostsNewestFirst([...importedIndexes, ...dataset.posts]),
+        ...baseDataset,
+        manifest: { ...baseDataset.manifest, updated_at: now, owner_name: ownerName, owner_address: baseDataset.manifest.owner_address || identity.address },
+        posts: mergePostIndexes(baseDataset.posts, importedIndexes),
         categories,
         tags,
         media,
         local_posts: localPosts
       };
+      assertNoPostCatalogShrink(baseDataset, nextDataset, 'Imported batch adoption');
       const publishedManifest = isSysop
         ? nextDataset.manifest
         : manifestForPublisher(nextDataset.manifest, publishName, ownerName);
       const publishedManifestIdentifier = isSysop
         ? MANIFEST_IDENTIFIER
-        : createOperatorIdentifier(MANIFEST_IDENTIFIER, dataset.manifest.site_id);
+        : createOperatorIdentifier(MANIFEST_IDENTIFIER, baseDataset.manifest.site_id);
 
       setStatus(`Publishing ${selectedIndexes.length} imported CMS drafts...`);
       await publishJsonResources(publishName, [

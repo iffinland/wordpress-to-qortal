@@ -159,6 +159,15 @@ export function normalizeQortalAddress(value = '') {
   return value.trim();
 }
 
+function isLikelyQortalAddress(value = '') {
+  return /^Q[1-9A-HJ-NP-Za-km-z]{25,40}$/.test(value.trim());
+}
+
+function isLikelyQortalName(value = '') {
+  const trimmed = value.trim();
+  return Boolean(trimmed) && !isLikelyQortalAddress(trimmed);
+}
+
 export function normalizeAddressList(addresses: string[] = []) {
   return [...new Set(addresses.map(normalizeQortalAddress).filter(Boolean))];
 }
@@ -368,7 +377,10 @@ export async function loadQdnDataset(ownerName: string): Promise<CmsDataset | nu
     const operatorNames = normalizeAddressList([
       ...cmsProfile.coauthorNames,
       ...(dataset.manifest.coauthors || [])
-    ]).filter((name) => normalizeQortalName(name) !== normalizeQortalName(ownerName));
+    ]).filter((name) =>
+      isLikelyQortalName(name)
+      && normalizeQortalName(name) !== normalizeQortalName(ownerName)
+    );
     const operatorDatasets = (await Promise.all(
       operatorNames.map((name) => loadSingleQdnDataset(name, createOperatorIdentifier(MANIFEST_IDENTIFIER, dataset.manifest.site_id)))
     )).filter((operator): operator is CmsDataset => Boolean(
@@ -573,7 +585,8 @@ export async function publishMediaWithIndex(name: string, file: File, mediaItem:
         title: 'CMS media index',
         description: 'Qortal CMS media index',
         filename: 'cms-media-index.json',
-        data64: toBase64(JSON.stringify(mediaIndex, null, 2))
+        data64: toBase64(JSON.stringify(mediaIndex, null, 2)),
+        encoding: 'base64'
       },
       {
         name,
@@ -582,7 +595,8 @@ export async function publishMediaWithIndex(name: string, file: File, mediaItem:
         title: 'CMS manifest',
         description: 'Qortal CMS manifest',
         filename: 'cms-manifest.json',
-        data64: toBase64(JSON.stringify(manifest, null, 2))
+        data64: toBase64(JSON.stringify(manifest, null, 2)),
+        encoding: 'base64'
       }
     ]
   });
@@ -598,7 +612,8 @@ export async function publishJsonResources(name: string, items: JsonPublishItem[
       title: item.title,
       description: item.description,
       filename: item.filename || `${item.ref.identifier}.json`,
-      data64: toBase64(JSON.stringify(item.data, null, 2))
+      data64: toBase64(JSON.stringify(item.data, null, 2)),
+      encoding: 'base64'
     }))
   });
 }

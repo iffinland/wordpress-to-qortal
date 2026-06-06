@@ -101,6 +101,167 @@ async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, 'utf8'));
 }
 
+async function readJsonIfPresent(filePath) {
+  try {
+    return await readJson(filePath);
+  } catch {
+    return null;
+  }
+}
+
+function mergeNewestByKey(items, keyFn, dateFn = (item) => item.modified_at || item.modified || item.published_at || item.date || '') {
+  const byKey = new Map();
+  for (const item of items) {
+    const key = keyFn(item);
+    if (!key) continue;
+    const current = byKey.get(key);
+    const currentTime = current ? Date.parse(dateFn(current)) : Number.NEGATIVE_INFINITY;
+    const nextTime = Date.parse(dateFn(item));
+    if (!current || (Number.isFinite(nextTime) ? nextTime : 0) >= (Number.isFinite(currentTime) ? currentTime : 0)) {
+      byKey.set(key, item);
+    }
+  }
+  return [...byKey.values()];
+}
+
+function mergeTermsByIdOrSlug(items) {
+  const byKey = new Map();
+  for (const item of items) {
+    const key = item.source_id ?? item.slug ?? item.name;
+    if (!key || byKey.has(key)) continue;
+    byKey.set(key, item);
+  }
+  return [...byKey.values()];
+}
+
+function mergeObjects(sources) {
+  return Object.assign({}, ...sources.filter(Boolean));
+}
+
+function sourcePathsForDirectory(directory) {
+  return {
+    manifest: path.join(directory, 'converted', 'qdn-manifest.json'),
+    posts: path.join(directory, 'converted', 'posts-index.json'),
+    pages: path.join(directory, 'converted', 'pages-index.json'),
+    categories: path.join(directory, 'converted', 'categories.json'),
+    tags: path.join(directory, 'converted', 'tags.json'),
+    mediaMap: path.join(directory, 'converted', 'media-map.json')
+  };
+}
+
+function sourcePathsForReceipt(directory) {
+  return {
+    manifest: path.join(directory, 'qdn-manifest.json'),
+    posts: path.join(directory, 'posts-index.json'),
+    pages: path.join(directory, 'pages-index.json'),
+    categories: path.join(directory, 'categories.json'),
+    tags: path.join(directory, 'tags.json'),
+    mediaMap: path.join(directory, 'media-map.json')
+  };
+}
+
+function manifestSourceCandidates(state, currentBatch) {
+  const candidates = [];
+  if (state.baseline?.source_dir) {
+    candidates.push({ label: 'baseline', ...sourcePathsForDirectory(path.resolve(root, state.baseline.source_dir)) });
+  }
+
+  for (const batch of state.batches) {
+    if (batch.number > currentBatch.number) continue;
+    if (!['completed', 'prepared', 'building'].includes(batch.status)) continue;
+    const outputDir = path.resolve(root, batch.output_dir);
+    candidates.push({ label: `batch-${pad(batch.number)}`, ...sourcePathsForDirectory(outputDir) });
+    if (batch.receipt_dir) {
+      candidates.push({ label: `receipt-${pad(batch.number)}`, ...sourcePathsForReceipt(path.resolve(root, batch.receipt_dir)) });
+    }
+  }
+
+  return candidates;
+}
+
+async function loadCatalogSource(candidate) {
+  const manifest = await readJsonIfPresent(candidate.manifest);
+  const posts = await readJsonIfPresent(candidate.posts);
+  const pages = await readJsonIfPresent(candidate.pages);
+  const categories = await readJsonIfPresent(candidate.categories);
+  const tags = await readJsonIfPresent(candidate.tags);
+  const mediaMap = await readJsonIfPresent(candidate.mediaMap);
+  if (!manifest || !Array.isArray(posts)) return null;
+  return {
+    ...candidate,
+    manifest,
+    posts,
+    pages: Array.isArray(pages) ? pages : [],
+    categories: Array.isArray(categories) ? categories : [],
+    tags: Array.isArray(tags) ? tags : [],
+    mediaMap: mediaMap && typeof mediaMap === 'object' ? mediaMap : {}
+  };
+}
+
+async function rebuildCumulativeImportCatalog(state, currentBatch) {
+  const outputDir = path.resolve(root, currentBatch.output_dir);
+  const sources = (await Promise.all(
+    manifestSourceCandidates(state, currentBatch).map(loadCatalogSource)
+  )).filter(Boolean);
+
+  if (!sources.length) return;
+
+  const current = sources.at(-1);
+  const mergedPosts = mergeNewestByKey(sources.flatMap((source) => source.posts), (post) => post.source_id ?? post.old_url ?? post.slug)
+    .sort((left, right) => Date.parse(right.published_at || right.date || '') - Date.parse(left.published_at || left.date || ''));
+  const mergedPages = mergeNewestByKey(sources.flatMap((source) => source.pages), (page) => page.source_id ?? page.old_url ?? page.slug)
+    .sort((left, right) => Date.parse(right.published_at || right.date || '') - Date.parse(left.published_at || left.date || ''));
+  const mergedCategories = mergeTermsByIdOrSlug(sources.flatMap((source) => source.categories));
+  const mergedTags = mergeTermsByIdOrSlug(sources.flatMap((source) => source.tags));
+  const mergedMediaMap = mergeObjects(sources.map((source) => source.mediaMap));
+  const resourcesByPath = mergeObjects(sources.map((source) => source.manifest.resources?.by_path));
+  const resourcesByIdentifier = mergeObjects(sources.map((source) => source.manifest.resources?.by_identifier));
+  const resourcesBySourceUrl = mergeObjects(sources.map((source) => source.manifest.resources?.by_source_url));
+  const linkedOnly = new Map();
+
+  for (const source of sources) {
+    for (const item of source.manifest.linked_only_media || []) {
+      if (!resourcesBySourceUrl[item.source_url]) linkedOnly.set(item.source_url, item);
+    }
+  }
+
+  const catalogManifest = {
+    ...current.manifest,
+    generated_at: new Date().toISOString(),
+    entrypoints: {
+      ...current.manifest.entrypoints
+    },
+    resources: {
+      by_path: resourcesByPath,
+      by_identifier: resourcesByIdentifier,
+      by_source_url: resourcesBySourceUrl
+    },
+    linked_only_media: [...linkedOnly.values()],
+    summary: {
+      ...(current.manifest.summary || {}),
+      batches: sources.length,
+      posts: mergedPosts.length,
+      pages: mergedPages.length,
+      media: Object.keys(mergedMediaMap).length,
+      linked_only_media: linkedOnly.size,
+      total_publish_resources: Object.keys(resourcesByPath).length,
+      resources_by_path: Object.keys(resourcesByPath).length,
+      resources_by_source_url: Object.keys(resourcesBySourceUrl).length
+    }
+  };
+
+  await writeFile(path.join(outputDir, 'converted', 'posts-index.json'), `${JSON.stringify(mergedPosts, null, 2)}\n`, 'utf8');
+  await writeFile(path.join(outputDir, 'converted', 'pages-index.json'), `${JSON.stringify(mergedPages, null, 2)}\n`, 'utf8');
+  await writeFile(path.join(outputDir, 'converted', 'categories.json'), `${JSON.stringify(mergedCategories, null, 2)}\n`, 'utf8');
+  await writeFile(path.join(outputDir, 'converted', 'tags.json'), `${JSON.stringify(mergedTags, null, 2)}\n`, 'utf8');
+  await writeFile(path.join(outputDir, 'converted', 'media-map.json'), `${JSON.stringify(mergedMediaMap, null, 2)}\n`, 'utf8');
+  await writeFile(path.join(outputDir, 'converted', 'qdn-manifest.json'), `${JSON.stringify(catalogManifest, null, 2)}\n`, 'utf8');
+
+  currentBatch.catalog_source_count = sources.length;
+  currentBatch.catalog_post_count = mergedPosts.length;
+  currentBatch.catalog_media_count = Object.keys(mergedMediaMap).length;
+}
+
 function pendingBatch(state) {
   return state.batches.find((batch) => batch.status === 'prepared') || null;
 }
@@ -255,6 +416,7 @@ async function createNextBatch() {
     for (const script of ['convert', 'plan-media', 'download-media', 'validate', 'validate:media', 'prepare-publish']) {
       runNpm(script, env);
     }
+    await rebuildCumulativeImportCatalog(state, batch);
     batch.status = 'prepared';
     batch.prepared_at = new Date().toISOString();
     delete batch.failed_at;
@@ -317,6 +479,7 @@ async function retryBatch() {
     for (const script of ['download-media', 'validate', 'validate:media', 'prepare-publish']) {
       runNpm(script, env);
     }
+    await rebuildCumulativeImportCatalog(state, batch);
     batch.status = 'prepared';
     batch.prepared_at = new Date().toISOString();
     batch.retried_at = batch.prepared_at;
@@ -389,6 +552,11 @@ async function cleanupBatch() {
     ['raw/dump-manifest.json', 'dump-manifest.json'],
     ['converted/import-manifest.json', 'import-manifest.json'],
     ['converted/qdn-manifest.json', 'qdn-manifest.json'],
+    ['converted/posts-index.json', 'posts-index.json'],
+    ['converted/pages-index.json', 'pages-index.json'],
+    ['converted/categories.json', 'categories.json'],
+    ['converted/tags.json', 'tags.json'],
+    ['converted/media-map.json', 'media-map.json'],
     ['publish-log/publish-plan.json', 'publish-plan.json'],
     ['logs/validation.json', 'validation.json'],
     ['logs/media-download-errors.json', 'media-download-errors.json']
@@ -403,6 +571,23 @@ async function cleanupBatch() {
 
   console.log(`Deleted local data for completed batch ${batch.number}.`);
   console.log(`Audit files retained in: ${batch.receipt_dir}`);
+}
+
+async function rebuildPreparedCatalog() {
+  const state = await readState();
+  const batch = pendingBatch(state) || [...state.batches].reverse().find((item) => item.status === 'completed');
+  if (!batch) {
+    throw new Error('No prepared or completed batch is available for catalog rebuild.');
+  }
+
+  await rebuildCumulativeImportCatalog(state, batch);
+  batch.catalog_rebuilt_at = new Date().toISOString();
+  await writeState(state);
+
+  console.log(`Rebuilt cumulative import catalog for batch ${batch.number}.`);
+  console.log(`Catalog posts: ${batch.catalog_post_count || 0}`);
+  console.log(`Catalog media entries: ${batch.catalog_media_count || 0}`);
+  console.log(`Folder to select in Migration Publisher: ${batch.output_dir}`);
 }
 
 async function initializeFromExistingBatch() {
@@ -467,6 +652,7 @@ async function printStatus() {
 async function main() {
   if (action === 'next') return createNextBatch();
   if (action === 'retry') return retryBatch();
+  if (action === 'catalog') return rebuildPreparedCatalog();
   if (action === 'init') return initializeFromExistingBatch();
   if (action === 'complete') return completeBatch();
   if (action === 'cleanup') return cleanupBatch();

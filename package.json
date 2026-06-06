@@ -35,6 +35,7 @@
     "corbettreport:batch:retry": "node scripts/runCorbettBatch.js retry",
     "corbettreport:batch:init": "node scripts/runCorbettBatch.js init",
     "corbettreport:batch:complete": "node scripts/runCorbettBatch.js complete",
+    "corbettreport:batch:catalog": "node scripts/runCorbettBatch.js catalog",
     "corbettreport:batch:cleanup": "node scripts/runCorbettBatch.js cleanup",
     "corbettreport:batch:status": "node scripts/runCorbettBatch.js status",
     "prepare-import": "npm run dump && npm run convert && npm run plan-media && npm run download-media && npm run validate",

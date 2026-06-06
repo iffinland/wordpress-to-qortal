@@ -27,6 +27,7 @@ interface QortalRequestPayload {
     name?: string;
     identifier: string;
     data64?: string;
+    encoding?: string;
     file?: File;
     filename?: string;
     title?: string;

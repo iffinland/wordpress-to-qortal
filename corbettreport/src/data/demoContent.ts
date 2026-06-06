@@ -46,19 +46,19 @@ const documentaries: Documentary[] = [
   {
     id: 'doc-al-qaeda',
     title: 'False Flags: The Secret History of Al Qaeda',
-    image: `${uploads}/2024/01/AQ_POSTER_2023_2520x3780-scaled-3-480x720.jpg`,
+    image: './assets/documentaries/false-flags-al-qaeda.jpg',
     href: '#/category/documentaries'
   },
   {
     id: 'doc-big-oil',
     title: 'How Big Oil Conquered the World',
-    image: `${uploads}/2024/01/BIG_OIL_POSTER_2023_2520x3780-scaled-3-480x720.jpg`,
+    image: './assets/documentaries/how-big-oil-conquered-the-world.jpg',
     href: '#/category/documentaries'
   },
   {
     id: 'doc-war-games',
     title: 'War Games',
-    image: `${uploads}/2024/01/WAR_GAMES_POSTER_2023_2520x3780-scaled-3-480x720.jpg`,
+    image: './assets/documentaries/war-games.jpg',
     href: '#/category/documentaries'
   }
 ];

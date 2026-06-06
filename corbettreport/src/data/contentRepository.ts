@@ -228,7 +228,10 @@ class CmsQdnRepository implements ContentRepository {
     const operatorNames = [...new Set([
       ...siteConfig.coauthorNames,
       ...(canonical.manifest.coauthors || [])
-    ])].filter((name) => normalizeQortalName(name) !== normalizeQortalName(this.name));
+    ])].filter((name) =>
+      isLikelyQortalName(name)
+      && normalizeQortalName(name) !== normalizeQortalName(this.name)
+    );
     const operators = (await Promise.all(operatorNames.map((name) =>
       this.loadSingleDataset(name, createOperatorIdentifier(CMS_MANIFEST_IDENTIFIER, canonical.manifest.site_id))
         .catch(() => null)
@@ -329,23 +332,30 @@ class QdnContentRepository implements ContentRepository {
     await this.loadDataset();
     const cmsPost = this.cmsAvailable ? await this.cms.findPost(slug).catch(() => null) : null;
     if (cmsPost) return cmsPost;
-    return this.migrationAvailable ? this.migration.findPost(slug).catch(() => null) : null;
+    const migrationPost = await this.migration.findPost(slug).catch(() => null);
+    if (migrationPost) this.migrationAvailable = true;
+    return migrationPost;
   }
 
   async findPage(slug: string) {
     await this.loadDataset();
     const cmsPage = this.cmsAvailable ? await this.cms.findPage(slug).catch(() => null) : null;
     if (cmsPage) return cmsPage;
-    return this.migrationAvailable ? this.migration.findPage(slug).catch(() => null) : null;
+    const migrationPage = await this.migration.findPage(slug).catch(() => null);
+    if (migrationPage) this.migrationAvailable = true;
+    return migrationPage;
   }
 
   private async loadDatasetOnce() {
-    const [migration, cms] = await Promise.all([
-      this.migration.loadDataset(true).catch(() => null),
-      this.cms.loadDataset(true).catch(() => null)
-    ]);
-    this.migrationAvailable = Boolean(migration);
+    const cms = await this.cms.loadDataset(true).catch(() => null);
     this.cmsAvailable = Boolean(cms);
+    if (cms && (cms.posts.length > 0 || cms.pages.length > 0)) {
+      this.migrationAvailable = false;
+      return cms;
+    }
+
+    const migration = await this.migration.loadDataset(true).catch(() => null);
+    this.migrationAvailable = Boolean(migration);
     if (!migration && !cms) {
       throw new Error(`No Corbett Report QDN catalogs were found under ${siteConfig.siteName}.`);
     }
@@ -355,6 +365,15 @@ class QdnContentRepository implements ContentRepository {
 
 function normalizeQortalName(value: string) {
   return value.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+function isLikelyQortalAddress(value = '') {
+  return /^Q[1-9A-HJ-NP-Za-km-z]{25,40}$/.test(value.trim());
+}
+
+function isLikelyQortalName(value = '') {
+  const trimmed = value.trim();
+  return Boolean(trimmed) && !isLikelyQortalAddress(trimmed);
 }
 
 function safeIdentifierPart(value = '') {
