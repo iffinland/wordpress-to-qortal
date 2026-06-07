@@ -5,6 +5,7 @@ export type AppRoute =
   | { kind: 'post'; slug: string }
   | { kind: 'category'; slug: string; page: number }
   | { kind: 'tag'; slug: string; page: number }
+  | { kind: 'archive'; year?: number; month?: number; page: number }
   | { kind: 'page'; slug: string }
   | { kind: 'member' }
   | { kind: 'admin' }
@@ -20,6 +21,17 @@ export function parseHashRoute(hash = window.location.hash): AppRoute {
   if (parts[0] === 'posts' && parts[1]) return { kind: 'post', slug: parts[1] };
   if (parts[0] === 'category' && parts[1]) return { kind: 'category', slug: parts[1], page };
   if (parts[0] === 'tag' && parts[1]) return { kind: 'tag', slug: parts[1], page };
+  if (parts[0] === 'archive') {
+    const year = parts[1] ? Number.parseInt(parts[1], 10) : undefined;
+    const month = parts[2] ? Number.parseInt(parts[2], 10) : undefined;
+    const validMonth = typeof month === 'number' && Number.isFinite(month) && month >= 1 && month <= 12 ? month : undefined;
+    return {
+      kind: 'archive',
+      year: Number.isFinite(year) ? year : undefined,
+      month: validMonth,
+      page
+    };
+  }
   if (parts[0] === 'pages' && parts[1]) return { kind: 'page', slug: parts[1] };
   if (parts[0] === 'member') return { kind: 'member' };
   if (parts[0] === 'admin') return { kind: 'admin' };
@@ -37,6 +49,13 @@ export function categoryHref(slug: string, page = 1) {
 
 export function pageHref(slug: string) {
   return `#/pages/${encodeURIComponent(slug)}`;
+}
+
+export function archiveHref(year?: number, month?: number, page = 1) {
+  const base = year && month
+    ? `#/archive/${year}/${String(month).padStart(2, '0')}`
+    : '#/archive';
+  return page > 1 ? `${base}?page=${page}` : base;
 }
 
 export function tagHref(slug: string, page = 1) {
@@ -60,6 +79,9 @@ export function internalRouteForWeb2Url(value: string): string | null {
     if (fileExtensions.some((extension) => normalizedPath.endsWith(extension))) return null;
     if (normalizedPath.startsWith('/wp-content/') || normalizedPath.startsWith('/mp4/') || normalizedPath.startsWith('/arbitrary/')) return null;
     if (parts.length === 0) return '#/';
+    if (/^\d{4}$/.test(parts[0]) && /^\d{2}$/.test(parts[1] || '')) {
+      return archiveHref(Number.parseInt(parts[0], 10), Number.parseInt(parts[1], 10));
+    }
     if (parts[0] === 'category' && parts[1]) return categoryHref(parts[parts.length - 1]);
     if (parts[0] === 'tag' && parts[1]) return tagHref(parts[parts.length - 1]);
     if (['members', 'member', 'login'].includes(parts[0])) return '#/member';

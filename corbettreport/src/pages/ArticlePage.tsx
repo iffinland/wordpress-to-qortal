@@ -1,11 +1,19 @@
+import { useEffect, useState } from 'react';
 import { ChevronLeft } from 'lucide-react';
 import { categoryHref } from '../app/routes';
+import { PostQuickActions } from '../components/actions/PostQuickActions';
 import { PostComments } from '../components/comments/PostComments';
 import { ContentHtml } from '../components/content/ContentHtml';
 import { formatPostDate } from '../components/content/PostCard';
 import type { ContentPost } from '../types/content';
 
 export function ArticlePage({ post }: { post: ContentPost }) {
+  const [commentCount, setCommentCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    setCommentCount(null);
+  }, [post.id]);
+
   return (
     <section className="page-shell article-page">
       <a className="back-link" href="#/"><ChevronLeft size={17} /> Back to latest posts</a>
@@ -18,7 +26,8 @@ export function ArticlePage({ post }: { post: ContentPost }) {
         {post.image && <img className="article-lead-image" src={post.image} alt="" />}
         <ContentHtml html={post.contentHtml} />
       </article>
-      <PostComments postId={post.id} enabled={post.commentsEnabled !== false} />
+      <PostQuickActions post={post} commentCount={commentCount} />
+      <PostComments postId={post.id} enabled={post.commentsEnabled !== false} onCommentCountChange={setCommentCount} />
     </section>
   );
 }

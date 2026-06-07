@@ -7,6 +7,9 @@ interface QortalRequestPayload {
   identifier?: string;
   address?: string;
   destinationAddress?: string;
+  coin?: string;
+  recipient?: string;
+  amount?: number;
   message?: string;
   data64?: string;
   encoding?: string;

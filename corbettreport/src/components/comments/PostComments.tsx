@@ -18,7 +18,7 @@ function formatTimestamp(value: string) {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
 
-export function PostComments({ postId, enabled = true }: { postId: string; enabled?: boolean }) {
+export function PostComments({ postId, enabled = true, onCommentCountChange }: { postId: string; enabled?: boolean; onCommentCountChange?: (count: number) => void }) {
   const [comments, setComments] = useState<PostComment[]>([]);
   const [identity, setIdentity] = useState<CommentIdentity | null>(null);
   const [draft, setDraft] = useState('');
@@ -38,6 +38,7 @@ export function PostComments({ postId, enabled = true }: { postId: string; enabl
         getCommentIdentity().catch(() => null)
       ]);
       setComments(nextComments);
+      onCommentCountChange?.(nextComments.length);
       setIdentity(nextIdentity);
     } catch (loadError) {
       setError((loadError as Error).message || 'Unable to load comments.');
@@ -72,7 +73,9 @@ export function PostComments({ postId, enabled = true }: { postId: string; enabl
       const published = await publishPostComment({ postId, bodyText: draft, identity, existing: editing });
       setComments((current) => {
         const withoutCurrent = current.filter((comment) => comment.id !== published.id);
-        return [...withoutCurrent, published].sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at));
+        const nextComments = [...withoutCurrent, published].sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at));
+        onCommentCountChange?.(nextComments.length);
+        return nextComments;
       });
       setDraft('');
       setEditing(null);

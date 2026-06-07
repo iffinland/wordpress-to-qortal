@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { PublicLayout } from '../components/layout/PublicLayout';
 import { contentRepository } from '../data/contentRepository';
 import { createSearchIndex } from '../data/searchIndex';
+import { ArchivePage } from '../pages/ArchivePage';
 import { ArticlePage } from '../pages/ArticlePage';
 import { CategoryPage } from '../pages/CategoryPage';
 import { CmsBackendApp } from '../cms/CmsBackendApp';
@@ -65,6 +66,7 @@ export function App() {
 
   function renderPage() {
     if (route.kind === 'home') return <PublicHomePage dataset={dataset!} />;
+    if (route.kind === 'archive') return <ArchivePage posts={dataset!.posts} year={route.year} month={route.month} page={route.page} />;
     if (route.kind === 'category') return <CategoryPage slug={route.slug} page={route.page} posts={dataset!.posts} />;
     if (route.kind === 'tag') return <CategoryPage slug={route.slug} page={route.page} posts={dataset!.posts} taxonomy="tag" />;
     if (route.kind === 'post') {
@@ -79,5 +81,5 @@ export function App() {
     return <NotFoundPage />;
   }
 
-  return <PublicLayout searchIndex={searchIndex}>{renderPage()}</PublicLayout>;
+  return <PublicLayout searchIndex={searchIndex} posts={dataset.posts} showSidebar={route.kind !== 'home'}>{renderPage()}</PublicLayout>;
 }

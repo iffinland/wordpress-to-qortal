@@ -137,6 +137,46 @@ export async function loadPostComments(postId: string): Promise<PostComment[]> {
     .sort((left, right) => Date.parse(left.created_at) - Date.parse(right.created_at));
 }
 
+export async function loadRecentPostComments(limit = 5): Promise<PostComment[]> {
+  if (!hasQortalBridge()) return [];
+  const response = await requestQortal<unknown>({
+    action: 'SEARCH_QDN_RESOURCES',
+    service: COMMENT_SERVICE,
+    mode: 'ALL',
+    identifier: `${COMMENT_PREFIX}-`,
+    prefix: true,
+    limit: Math.max(limit * 4, 20),
+    offset: 0,
+    reverse: true,
+    includeMetadata: false,
+    excludeBlocked: true
+  });
+
+  const comments = await Promise.all(normalizeSearchResults(response).map(async (resource) => {
+    const service = resource.service || COMMENT_SERVICE;
+    const name = resource.name || '';
+    const identifier = resource.identifier || '';
+    if (!name || !identifier.startsWith(`${COMMENT_PREFIX}-`)) return null;
+
+    try {
+      const comment = await fetchQdnResource<unknown>(service, name, identifier);
+      if (!isPostComment(comment) || comment.status !== 'published') return null;
+      return {
+        ...comment,
+        author: { ...comment.author, name },
+        qdn: { service, name, identifier }
+      };
+    } catch {
+      return null;
+    }
+  }));
+
+  return comments
+    .filter((comment): comment is PostComment => Boolean(comment))
+    .sort((left, right) => Date.parse(right.updated_at || right.created_at) - Date.parse(left.updated_at || left.created_at))
+    .slice(0, limit);
+}
+
 export async function publishPostComment(input: {
   postId: string;
   bodyText: string;

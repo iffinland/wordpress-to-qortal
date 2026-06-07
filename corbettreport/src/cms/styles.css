@@ -432,11 +432,6 @@ button {
   background: #f7f9f8;
 }
 
-.post-quick-actions {
-  grid-template-columns: repeat(5, 1fr);
-  margin: 20px 0 0;
-}
-
 .video-actions {
   grid-template-columns: repeat(3, 1fr);
 }

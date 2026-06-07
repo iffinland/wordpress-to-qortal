@@ -9,7 +9,7 @@ export function PostGridSection({ title, tone, posts, showOlderEntries = true }:
       <div className="post-grid">
         {posts.map((post) => <PostCard key={post.id} post={post} />)}
       </div>
-      {showOlderEntries && <a className="older-entries" href="#/category/archive">« Older Entries</a>}
+      {showOlderEntries && <a className="older-entries" href="#/archive">« Older Entries</a>}
     </section>
   );
 }

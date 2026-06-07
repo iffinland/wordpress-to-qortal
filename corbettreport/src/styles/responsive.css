@@ -161,15 +161,46 @@
   .documentary-carousel {
     min-height: 360px;
     padding: 0 10px;
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
+    gap: 8px;
+  }
+
+  .documentary-track {
+    gap: 10px;
   }
 
   .documentary-carousel img {
-    height: 320px;
+    height: 230px;
+  }
+
+  .documentary-track a.featured img {
+    height: 260px;
   }
 
   .page-shell,
   .reserved-page {
     padding: 30px 10px 50px;
+  }
+
+  .public-main.with-sidebar {
+    display: block;
+    padding: 0 10px;
+  }
+
+  .public-main.with-sidebar .page-shell,
+  .public-main.with-sidebar .reserved-page,
+  .public-main.with-sidebar .category-page,
+  .public-main.with-sidebar .archive-page {
+    padding-right: 0;
+    padding-left: 0;
+  }
+
+  .site-sidebar {
+    padding: 0 0 50px;
+  }
+
+  .sidebar-ad img {
+    max-width: 160px;
   }
 
   .page-shell article {

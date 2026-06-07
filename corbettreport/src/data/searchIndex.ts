@@ -1,4 +1,4 @@
-import { categoryHref, pageHref, postHref, slugify } from '../app/routes';
+import { archiveHref, categoryHref, pageHref, postHref, slugify } from '../app/routes';
 import type { SearchResult, SiteDataset } from '../types/content';
 
 export function createSearchIndex(dataset: SiteDataset): SearchResult[] {
@@ -19,6 +19,13 @@ export function createSearchIndex(dataset: SiteDataset): SearchResult[] {
       description: 'Page',
       href: pageHref(page.slug)
     })),
+    {
+      id: 'page:archive',
+      kind: 'page' as const,
+      title: 'Archive',
+      description: 'Monthly post archive',
+      href: archiveHref()
+    },
     ...categoryNames.map((category) => ({
       id: `category:${slugify(category)}`,
       kind: 'category' as const,

@@ -31,6 +31,7 @@ export const primaryNavigation = [
   { label: 'Documentaries', href: '#/category/documentaries' },
   { label: 'Series', href: '#/category/series' },
   { label: 'Newsletter', href: '#/category/newsletter' },
+  { label: 'Archive', href: '#/archive' },
   { label: 'Sign Up', href: '#/member' },
   { label: 'Shop', href: '#/pages/shop' },
   { label: 'Contact', href: '#/pages/contact' },
