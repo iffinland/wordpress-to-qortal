@@ -4,7 +4,7 @@ Use this workflow for the full Corbett Report migration. It processes WordPress
 content through two synchronized queues in every batch:
 
 - every new post published after the last completed batch;
-- the next 15 older posts from the historical archive.
+- the next 50 older posts from the historical archive by default.
 
 The workflow creates a timestamped directory automatically and stores separate
 date cursors for the live and historical queues.
@@ -36,7 +36,7 @@ npm run corbettreport:batch:init -- --from=wp-qortal-import-smoke-10
 
 The command records the existing post IDs, newest timestamp, and oldest
 timestamp. The first production batch then loads posts newer than the baseline
-and the next 15 posts older than the baseline.
+and the next 50 posts older than the baseline.
 
 Skip this initialization only when starting the migration from the newest post
 with an empty CMS catalog.
@@ -51,7 +51,7 @@ The command automatically:
 
 1. Creates a timestamped batch directory.
 2. Loads all unseen recent posts after the live cursor.
-3. Loads the next 15 older posts before the historical cursor.
+3. Loads the next 50 older posts before the historical cursor by default.
 4. Merges both queues by WordPress post ID and removes duplicates.
 5. Downloads images, audio, video, documents, and files linked to those posts.
 6. Converts and validates the batch.
@@ -62,7 +62,7 @@ Example directory:
 
 ```text
 workspaces/corbettreport-batches/batches/
-2026-06-05_14-30-00_batch-0001_posts-000001-000015/
+2026-06-05_14-30-00_batch-0001_posts-000001-000050/
 ```
 
 The command refuses to prepare another batch while the current batch is still
@@ -143,8 +143,10 @@ Keep an external backup if future republishing may be required.
 Change the automatic batch size for one terminal command:
 
 ```bash
-CORBETT_BATCH_SIZE=20 npm run corbettreport:batch:next
+CORBETT_BATCH_SIZE=70 npm run corbettreport:batch:next
 ```
+
+If that is stable, increase in small steps, for example `90`, `110`, and so on.
 
 Change the maximum number of recent posts processed in one batch:
 
@@ -161,8 +163,9 @@ Change the local batch root:
 CORBETT_BATCH_ROOT=/path/to/storage npm run corbettreport:batch:next
 ```
 
-For production migration, keep the default historical batch size of 15 unless
-QDN upload or CMS adoption shows that a different workload is more practical.
+For production migration, start with the default historical batch size of 50.
+Increase by about 20 posts at a time only after QDN upload and CMS adoption are
+stable.
 
 ## Operating rule
 

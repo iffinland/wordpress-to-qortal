@@ -48,7 +48,7 @@ function relativeToRoot(filePath) {
 function defaultState() {
   return {
     version: 2,
-    batch_size: readPositiveInteger(process.env.CORBETT_BATCH_SIZE, 15),
+    batch_size: readPositiveInteger(process.env.CORBETT_BATCH_SIZE, 50),
     next_offset: readNonNegativeInteger(process.env.CORBETT_START_OFFSET, 0),
     next_before: null,
     latest_seen_after: null,
@@ -369,7 +369,7 @@ async function createNextBatch() {
   if (unfinished) {
     throw new Error(`Batch ${unfinished.number} is ${unfinished.status}. Resume it with npm run corbettreport:batch:retry.`);
   }
-  const batchSize = readPositiveInteger(process.env.CORBETT_BATCH_SIZE, state.batch_size || 15);
+  const batchSize = readPositiveInteger(process.env.CORBETT_BATCH_SIZE, state.batch_size || 50);
   const recentLimit = readPositiveInteger(process.env.CORBETT_RECENT_LIMIT, 100);
   const batchNumber = state.batches.length + 1;
   const rangeStart = state.next_offset + 1;
@@ -453,7 +453,7 @@ async function retryBatch() {
   }
 
   const dumpManifest = await readJson(path.join(outputDir, 'raw', 'dump-manifest.json'));
-  const batchSize = readPositiveInteger(dumpManifest.limits?.posts, state.batch_size || 15);
+  const batchSize = readPositiveInteger(dumpManifest.limits?.posts, state.batch_size || 50);
   const recentLimit = readPositiveInteger(dumpManifest.limits?.recent_posts, 100);
   const env = batchEnvironment(outputDir, state, batchSize, recentLimit);
 
