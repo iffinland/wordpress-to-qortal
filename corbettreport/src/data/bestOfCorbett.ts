@@ -1,3 +1,22 @@
+import image911 from '../assets/best-of-corbett/911.jpg';
+import biographiesImage from '../assets/best-of-corbett/biographies.jpg';
+import bookReviewsImage from '../assets/best-of-corbett/book-reviews.jpg';
+import covidBiosecurityImage from '../assets/best-of-corbett/covid-biosecurity.jpg';
+import crashesOfConvenienceImage from '../assets/best-of-corbett/crashes-of-convenience.jpg';
+import economicsImage from '../assets/best-of-corbett/economics.jpg';
+import geopoliticsImage from '../assets/best-of-corbett/geopolitics.jpg';
+import healthEnvironmentImage from '../assets/best-of-corbett/health-environment.jpg';
+import historyImage from '../assets/best-of-corbett/history.jpg';
+import humorImage from '../assets/best-of-corbett/humor.jpg';
+import literatureImage from '../assets/best-of-corbett/literature.jpg';
+import mediaImage from '../assets/best-of-corbett/media.jpg';
+import politicsImage from '../assets/best-of-corbett/politics.jpg';
+import qaImage from '../assets/best-of-corbett/qa.jpg';
+import redPillSeriesImage from '../assets/best-of-corbett/red-pill-series.jpg';
+import requiemSeriesImage from '../assets/best-of-corbett/requiem-series.jpg';
+import scienceImage from '../assets/best-of-corbett/science.jpg';
+import solutionsImage from '../assets/best-of-corbett/solutions.jpg';
+
 export interface BestOfLink {
   title: string;
   url: string;
@@ -14,7 +33,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "9-11",
     "title": "9/11",
-    "image": "./assets/best-of-corbett/911.jpg",
+    "image": image911,
     "links": [
       {
         "title": "9/11 Trillions: Follow The Money",
@@ -45,7 +64,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "covid-biosecurity",
     "title": "COVID/Biosecurity",
-    "image": "./assets/best-of-corbett/covid-biosecurity.jpg",
+    "image": covidBiosecurityImage,
     "links": [
       {
         "title": "COVID-911",
@@ -84,7 +103,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "crashes-of-convenience",
     "title": "Crashes of Convenience",
-    "image": "./assets/best-of-corbett/crashes-of-convenience.jpg",
+    "image": crashesOfConvenienceImage,
     "links": [
       {
         "title": "Michael Connell",
@@ -111,7 +130,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "economics",
     "title": "Economics",
-    "image": "./assets/best-of-corbett/economics.jpg",
+    "image": economicsImage,
     "links": [
       {
         "title": "Century of Enslavement: The History of the Federal Reserve",
@@ -150,7 +169,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "geopolitics",
     "title": "Geopolitics",
-    "image": "./assets/best-of-corbett/geopolitics.jpg",
+    "image": geopoliticsImage,
     "links": [
       {
         "title": "The Assassination of Gaddafi",
@@ -201,7 +220,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "health-and-environment",
     "title": "Health & Environment",
-    "image": "./assets/best-of-corbett/health-environment.jpg",
+    "image": healthEnvironmentImage,
     "links": [
       {
         "title": "A Message to the Environmental Movement",
@@ -248,7 +267,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "history",
     "title": "History",
-    "image": "./assets/best-of-corbett/history.jpg",
+    "image": historyImage,
     "links": [
       {
         "title": "Debunking A Century of War Lies",
@@ -279,7 +298,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "humor",
     "title": "Humor",
-    "image": "./assets/best-of-corbett/humor.jpg",
+    "image": humorImage,
     "links": [
       {
         "title": "5 Stupid Ideas You Won’t Believe the Government Actually Thought Of",
@@ -322,7 +341,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "literature",
     "title": "Literature",
-    "image": "./assets/best-of-corbett/literature.jpg",
+    "image": literatureImage,
     "links": [
       {
         "title": "Aesop’s Fables",
@@ -365,7 +384,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "media",
     "title": "Media",
-    "image": "./assets/best-of-corbett/media.jpg",
+    "image": mediaImage,
     "links": [
       {
         "title": "The Annual Fake News Awards",
@@ -412,7 +431,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "politics",
     "title": "Politics",
-    "image": "./assets/best-of-corbett/politics.jpg",
+    "image": politicsImage,
     "links": [
       {
         "title": "A Brief History of Hopium",
@@ -455,7 +474,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "qanda",
     "title": "Q&A",
-    "image": "./assets/best-of-corbett/qa.jpg",
+    "image": qaImage,
     "links": [
       {
         "title": "Are There Limits to Growth?",
@@ -486,7 +505,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "book-reviews",
     "title": "Book Reviews",
-    "image": "./assets/best-of-corbett/book-reviews.jpg",
+    "image": bookReviewsImage,
     "links": [
       {
         "title": "I Read Bill Gates’ New Book (So You Don’t Have To!)",
@@ -537,7 +556,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "red-pill-series",
     "title": "Red Pill Series",
-    "image": "./assets/best-of-corbett/red-pill-series.jpg",
+    "image": redPillSeriesImage,
     "links": [
       {
         "title": "James Corbett Dispenses White Pills on AM WakeUp",
@@ -580,7 +599,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "requiem-series",
     "title": "Requiem Series",
-    "image": "./assets/best-of-corbett/requiem-series.jpg",
+    "image": requiemSeriesImage,
     "links": [
       {
         "title": "Danny Casolaro",
@@ -611,7 +630,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "science",
     "title": "Science",
-    "image": "./assets/best-of-corbett/science.jpg",
+    "image": scienceImage,
     "links": [
       {
         "title": "Climate Models for the Layman",
@@ -650,7 +669,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "solutions",
     "title": "Solutions",
-    "image": "./assets/best-of-corbett/solutions.jpg",
+    "image": solutionsImage,
     "links": [
       {
         "title": "Autodidacticism",
@@ -733,7 +752,7 @@ export const bestOfSections: BestOfSection[] = [
   {
     "id": "biographies",
     "title": "Biographies",
-    "image": "./assets/best-of-corbett/biographies.jpg",
+    "image": biographiesImage,
     "links": [
       {
         "title": "Meet Allen Dulles: Fascist Spymaster",
@@ -774,4 +793,3 @@ export const bestOfSections: BestOfSection[] = [
     ]
   }
 ];
-

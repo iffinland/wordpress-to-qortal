@@ -3,11 +3,12 @@ import { archiveHref, postHref } from '../../app/routes';
 import { canUsePublicComments, loadRecentPostComments, type PostComment } from '../../comments/commentService';
 import { createArchiveMonths } from '../../data/archive';
 import { loadRecentPostTips, type PostTipEvent } from '../../social/postEngagementService';
+import libertasImage from '../../assets/sidebar/libertas-160-x-600.png';
 import type { ContentPost } from '../../types/content';
 import { copyText } from '../../utils/clipboard';
 
 const LIBERTAS_LINK = 'https://libertas.earth/';
-const LIBERTAS_IMAGE = './assets/sidebar/libertas-160-x-600.png';
+const LIBERTAS_IMAGE = libertasImage;
 
 function truncate(value: string, length = 92) {
   return value.length > length ? `${value.slice(0, length - 1).trim()}...` : value;

@@ -1,3 +1,6 @@
+import falseFlagsImage from '../assets/documentaries/false-flags-al-qaeda.jpg';
+import bigOilImage from '../assets/documentaries/how-big-oil-conquered-the-world.jpg';
+import warGamesImage from '../assets/documentaries/war-games.jpg';
 import { siteConfig, WEB2_BASE_URL } from '../config/site';
 import type { Documentary, PublicPage, SiteDataset } from '../types/content';
 
@@ -46,19 +49,19 @@ const documentaries: Documentary[] = [
   {
     id: 'doc-al-qaeda',
     title: 'False Flags: The Secret History of Al Qaeda',
-    image: './assets/documentaries/false-flags-al-qaeda.jpg',
+    image: falseFlagsImage,
     href: '#/documentaries'
   },
   {
     id: 'doc-big-oil',
     title: 'How Big Oil Conquered the World',
-    image: './assets/documentaries/how-big-oil-conquered-the-world.jpg',
+    image: bigOilImage,
     href: '#/documentaries'
   },
   {
     id: 'doc-war-games',
     title: 'War Games',
-    image: './assets/documentaries/war-games.jpg',
+    image: warGamesImage,
     href: '#/documentaries'
   }
 ];
