@@ -36,8 +36,11 @@ import './styles.css';
 
 type Section = 'dashboard' | 'posts' | 'media' | 'imported' | 'settings';
 type EditorMode = 'preview' | 'edit';
+type ImportedStatusFilter = 'not-adopted' | 'adopted' | 'all';
 const IMPORT_BATCH_LIMIT = 10;
 const POST_BULK_LIMIT = 10;
+const BACKEND_POSTS_PER_PAGE = 20;
+const BACKEND_IMPORTED_PER_PAGE = 20;
 const DEFAULT_IMPORT_MANIFEST_IDENTIFIER =
   cmsProfile.importManifestIdentifier;
 
@@ -755,7 +758,8 @@ export function CmsBackendApp() {
   const [selectedPost, setSelectedPost] = useState<CmsPost | null>(null);
   const [draft, setDraft] = useState<DraftState | null>(null);
   const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<CmsStatus | 'all'>('all');
+  const [statusFilter, setStatusFilter] = useState<CmsStatus | 'all'>('draft');
+  const [postsPage, setPostsPage] = useState(1);
   const [selectedPostIds, setSelectedPostIds] = useState<string[]>([]);
   const [bulkPostStatus, setBulkPostStatus] = useState<CmsStatus>('published');
   const [isBulkPostAction, setIsBulkPostAction] = useState(false);
@@ -783,6 +787,8 @@ export function CmsBackendApp() {
   const [selectedImportedPost, setSelectedImportedPost] = useState<ImportedPost | null>(null);
   const [selectedImportedIndex, setSelectedImportedIndex] = useState<ImportedIndexItem | null>(null);
   const [selectedImportedIds, setSelectedImportedIds] = useState<number[]>([]);
+  const [importedStatusFilter, setImportedStatusFilter] = useState<ImportedStatusFilter>('not-adopted');
+  const [importedPage, setImportedPage] = useState(1);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [clipboardNotice, setClipboardNotice] = useState<{ message: string; success: boolean } | null>(null);
@@ -891,6 +897,41 @@ export function CmsBackendApp() {
       return matchesSearch && matchesStatus;
     });
   }, [query, statusFilter, visiblePosts]);
+  const postsPageCount = Math.max(1, Math.ceil(filteredPosts.length / BACKEND_POSTS_PER_PAGE));
+  const visibleFilteredPosts = useMemo(() => {
+    const start = (postsPage - 1) * BACKEND_POSTS_PER_PAGE;
+    return filteredPosts.slice(start, start + BACKEND_POSTS_PER_PAGE);
+  }, [filteredPosts, postsPage]);
+
+  useEffect(() => {
+    setPostsPage(1);
+    setSelectedPostIds([]);
+  }, [query, statusFilter]);
+
+  useEffect(() => {
+    setPostsPage((current) => Math.min(current, postsPageCount));
+  }, [postsPageCount]);
+
+  const filteredImportedPosts = useMemo(() => importedPosts.filter((post) => {
+    const adopted = Boolean(dataset?.posts.some((item) => item.id === `wp-${post.source_id}`));
+    if (importedStatusFilter === 'adopted') return adopted;
+    if (importedStatusFilter === 'not-adopted') return !adopted;
+    return true;
+  }), [dataset?.posts, importedPosts, importedStatusFilter]);
+  const importedPageCount = Math.max(1, Math.ceil(filteredImportedPosts.length / BACKEND_IMPORTED_PER_PAGE));
+  const visibleImportedPosts = useMemo(() => {
+    const start = (importedPage - 1) * BACKEND_IMPORTED_PER_PAGE;
+    return filteredImportedPosts.slice(start, start + BACKEND_IMPORTED_PER_PAGE);
+  }, [filteredImportedPosts, importedPage]);
+
+  useEffect(() => {
+    setImportedPage(1);
+    setSelectedImportedIds([]);
+  }, [importedStatusFilter, importedPosts]);
+
+  useEffect(() => {
+    setImportedPage((current) => Math.min(current, importedPageCount));
+  }, [importedPageCount]);
 
   async function openPost(index: CmsPostIndexItem) {
     if (!dataset) return;
@@ -921,7 +962,7 @@ export function CmsBackendApp() {
   }
 
   function selectVisiblePosts() {
-    const ids = filteredPosts.slice(0, POST_BULK_LIMIT).map((post) => post.id);
+    const ids = visibleFilteredPosts.slice(0, POST_BULK_LIMIT).map((post) => post.id);
     setSelectedPostIds(ids);
     setStatus(ids.length ? `${ids.length} visible posts selected.` : 'No visible posts to select.');
   }
@@ -1727,7 +1768,7 @@ export function CmsBackendApp() {
 
   function selectVisibleImportedPosts() {
     if (!dataset) return;
-    const ids = importedPosts
+    const ids = visibleImportedPosts
       .filter((post) => !dataset.posts.some((item) => item.id === `wp-${post.source_id}`))
       .slice(0, IMPORT_BATCH_LIMIT)
       .map((post) => post.source_id);
@@ -2233,8 +2274,13 @@ export function CmsBackendApp() {
                 <button className="icon-command danger" type="button" onClick={() => void deleteSelectedPosts()} disabled={selectedPostIds.length === 0 || isBulkPostAction}><Trash2 size={15} /> Delete from CMS</button>
               </div>
             )}
+            <div className="import-batch-toolbar">
+              <span>Showing {visibleFilteredPosts.length} of {filteredPosts.length} posts · page {postsPage} / {postsPageCount}</span>
+              <button className="icon-command" type="button" onClick={() => setPostsPage((page) => Math.max(1, page - 1))} disabled={postsPage <= 1}>Previous</button>
+              <button className="icon-command" type="button" onClick={() => setPostsPage((page) => Math.min(postsPageCount, page + 1))} disabled={postsPage >= postsPageCount}>Next</button>
+            </div>
             <div className="post-list">
-              {filteredPosts.map((post) => {
+              {visibleFilteredPosts.map((post) => {
                 const checked = selectedPostIds.includes(post.id);
                 return (
                   <article key={post.id} className={`post-list-row${selectedIndex?.id === post.id ? ' selected' : ''}`}>
@@ -2254,6 +2300,7 @@ export function CmsBackendApp() {
                   </article>
                 );
               })}
+              {filteredPosts.length === 0 && <div className="placeholder"><FileText size={22} /><strong>No posts match this filter</strong><span>Change the search text or status filter.</span></div>}
             </div>
           </>
         )}
@@ -2339,12 +2386,27 @@ export function CmsBackendApp() {
 
             {importedPosts.length > 0 && (
               <div className="import-batch-toolbar">
+                <label>
+                  Status
+                  <select value={importedStatusFilter} onChange={(event) => setImportedStatusFilter(event.target.value as ImportedStatusFilter)}>
+                    <option value="not-adopted">Not adopted</option>
+                    <option value="adopted">Adopted</option>
+                    <option value="all">All imported</option>
+                  </select>
+                </label>
                 <span>{selectedImportedIds.length} selected · max {IMPORT_BATCH_LIMIT}</span>
-                <button className="icon-command" type="button" onClick={selectVisibleImportedPosts}><CheckCircle2 size={15} /> Select next drafts</button>
+                <button className="icon-command" type="button" onClick={selectVisibleImportedPosts}><CheckCircle2 size={15} /> Select visible</button>
                 <button className="icon-command" type="button" onClick={() => setSelectedImportedIds([])} disabled={selectedImportedIds.length === 0}><XCircle size={15} /> Clear</button>
                 <button className="icon-command primary" type="button" onClick={adoptSelectedImportedPosts} disabled={!canAdoptImportedContent || selectedImportedIds.length === 0}>
                   <Download size={15} /> Adopt selected
                 </button>
+              </div>
+            )}
+            {importedPosts.length > 0 && (
+              <div className="import-batch-toolbar">
+                <span>Showing {visibleImportedPosts.length} of {filteredImportedPosts.length} imported posts · page {importedPage} / {importedPageCount}</span>
+                <button className="icon-command" type="button" onClick={() => setImportedPage((page) => Math.max(1, page - 1))} disabled={importedPage <= 1}>Previous</button>
+                <button className="icon-command" type="button" onClick={() => setImportedPage((page) => Math.min(importedPageCount, page + 1))} disabled={importedPage >= importedPageCount}>Next</button>
               </div>
             )}
 
@@ -2352,7 +2414,7 @@ export function CmsBackendApp() {
             {!isSysop && canAdoptImportedContent && <small>Trusted coauthor imports are published under your Qortal name and merged into the Corbett Report catalog.</small>}
 
             <div className="imported-list">
-              {importedPosts.map((post) => {
+              {visibleImportedPosts.map((post) => {
                 const adopted = dataset.posts.some((item) => item.id === `wp-${post.source_id}`);
                 const checked = selectedImportedIds.includes(post.source_id);
                 return (
@@ -2377,6 +2439,7 @@ export function CmsBackendApp() {
                 );
               })}
               {importedPosts.length === 0 && <div className="placeholder"><Tags size={22} /><strong>No imported content loaded</strong><span>Load a migrator QDN manifest to review WordPress posts.</span></div>}
+              {importedPosts.length > 0 && filteredImportedPosts.length === 0 && <div className="placeholder"><Tags size={22} /><strong>No imported posts match this filter</strong><span>Change the imported status filter.</span></div>}
             </div>
           </div>
         )}

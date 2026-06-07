@@ -20,6 +20,10 @@ import type {
 const MANIFEST_SERVICE = 'DOCUMENT';
 const MANIFEST_IDENTIFIER = 'cr-qdn-manifest';
 const CMS_MANIFEST_IDENTIFIER = 'cms-manifest';
+const PUBLIC_MANIFEST_TIMEOUT_MS = 4500;
+const PUBLIC_INDEX_TIMEOUT_MS = 6500;
+const PUBLIC_CONTENT_TIMEOUT_MS = 15000;
+const PUBLIC_DATASET_CACHE_PREFIX = 'corbettreport:public-dataset';
 
 export interface ContentRepository {
   loadDataset: (refresh?: boolean) => Promise<SiteDataset>;
@@ -162,18 +166,23 @@ class QdnMigrationRepository implements ContentRepository {
     const manifest = await this.loadManifest();
     const ref = manifest.resources.by_path[`converted/${item.file}`];
     if (!ref) throw new Error(`QDN catalog does not contain converted/${item.file}`);
-    return this.loadRef<MigrationContentItem>(ref);
+    return this.loadRef<MigrationContentItem>(ref, PUBLIC_CONTENT_TIMEOUT_MS);
   }
 
   private loadManifest() {
-    this.manifestPromise ??= fetchQdnResource<MigrationQdnManifest>(MANIFEST_SERVICE, this.name, MANIFEST_IDENTIFIER);
+    this.manifestPromise ??= fetchQdnResource<MigrationQdnManifest>(
+      MANIFEST_SERVICE,
+      this.name,
+      MANIFEST_IDENTIFIER,
+      PUBLIC_MANIFEST_TIMEOUT_MS
+    );
     return this.manifestPromise;
   }
 
   private manifestValue: MigrationQdnManifest | null = null;
 
-  private async loadRef<T>(ref: QdnResourceRef) {
-    return fetchQdnResource<T>(ref.service, ref.name || this.name, ref.identifier);
+  private async loadRef<T>(ref: QdnResourceRef, timeoutMs = PUBLIC_INDEX_TIMEOUT_MS) {
+    return fetchQdnResource<T>(ref.service, ref.name || this.name, ref.identifier, timeoutMs);
   }
 
   private async rememberManifest() {
@@ -258,7 +267,7 @@ class CmsQdnRepository implements ContentRepository {
   }
 
   private async loadSingleDataset(name: string, manifestIdentifier = CMS_MANIFEST_IDENTIFIER): Promise<CmsDataset> {
-    const manifest = await fetchQdnResource<CmsManifest>('DOCUMENT', name, manifestIdentifier);
+    const manifest = await fetchQdnResource<CmsManifest>('DOCUMENT', name, manifestIdentifier, PUBLIC_MANIFEST_TIMEOUT_MS);
     const [posts, pages, categories, tags] = await Promise.all([
       this.loadOptionalRef<CmsPostIndexItem[]>(manifest.entrypoints.posts_index, name, []),
       this.loadOptionalRef<CmsPostIndexItem[]>(manifest.entrypoints.pages_index, name, []),
@@ -269,11 +278,11 @@ class CmsQdnRepository implements ContentRepository {
   }
 
   private async loadContent(item: CmsPostIndexItem) {
-    return fetchQdnResource<CmsPost>(item.qdn.service, item.qdn.name || this.name, item.qdn.identifier);
+    return fetchQdnResource<CmsPost>(item.qdn.service, item.qdn.name || this.name, item.qdn.identifier, PUBLIC_CONTENT_TIMEOUT_MS);
   }
 
   private async loadOptionalRef<T>(ref: QdnResourceRef, fallbackName: string, fallback: T) {
-    return fetchQdnResource<T>(ref.service, ref.name || fallbackName, ref.identifier).catch(() => fallback);
+    return fetchQdnResource<T>(ref.service, ref.name || fallbackName, ref.identifier, PUBLIC_INDEX_TIMEOUT_MS).catch(() => fallback);
   }
 
   private toPost(item: CmsPostIndexItem | CmsPost): ContentPost {
@@ -317,7 +326,7 @@ class QdnContentRepository implements ContentRepository {
   private migrationAvailable = false;
   private cmsAvailable = false;
 
-  constructor(name: string) {
+  constructor(private readonly name: string) {
     this.migration = new QdnMigrationRepository(name);
     this.cms = new CmsQdnRepository(name);
   }
@@ -347,19 +356,38 @@ class QdnContentRepository implements ContentRepository {
   }
 
   private async loadDatasetOnce() {
-    const cms = await this.cms.loadDataset(true).catch(() => null);
+    const cacheKey = this.cacheKey();
+    const cmsPromise = this.cms.loadDataset(true).catch(() => null);
+    const migrationPromise = this.migration.loadDataset(true).catch(() => null);
+
+    const cms = await cmsPromise;
     this.cmsAvailable = Boolean(cms);
     if (cms && (cms.posts.length > 0 || cms.pages.length > 0)) {
-      this.migrationAvailable = false;
+      writeCachedDataset(cacheKey, cms);
+      void migrationPromise.then((migration) => {
+        this.migrationAvailable = Boolean(migration);
+      });
       return cms;
     }
 
-    const migration = await this.migration.loadDataset(true).catch(() => null);
+    const migration = await migrationPromise;
     this.migrationAvailable = Boolean(migration);
-    if (!migration && !cms) {
-      throw new Error(`No Corbett Report QDN catalogs were found under ${siteConfig.siteName}.`);
+    if (migration) {
+      const dataset = mergeSiteDatasets(migration, cms);
+      writeCachedDataset(cacheKey, dataset);
+      return dataset;
     }
-    return mergeSiteDatasets(migration, cms);
+
+    const cached = readCachedDataset(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    throw new Error(`No Corbett Report QDN catalogs were found under ${siteConfig.siteName}.`);
+  }
+
+  private cacheKey() {
+    return `${PUBLIC_DATASET_CACHE_PREFIX}:${normalizeQortalName(this.name) || 'default'}`;
   }
 }
 
@@ -426,6 +454,31 @@ function mergeContentBySlug<T extends { slug: string }>(base: T[], incoming: T[]
   const bySlug = new Map(base.map((item) => [item.slug, item]));
   for (const item of incoming) bySlug.set(item.slug, item);
   return [...bySlug.values()];
+}
+
+function isSiteDataset(value: unknown): value is SiteDataset {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<SiteDataset>;
+  return Array.isArray(candidate.posts) && Array.isArray(candidate.pages) && Array.isArray(candidate.documentaries);
+}
+
+function readCachedDataset(key: string): SiteDataset | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    return isSiteDataset(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedDataset(key: string, dataset: SiteDataset) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(dataset));
+  } catch {
+    // Storage can be blocked or full inside some Qortal UI contexts.
+  }
 }
 
 function createContentRepository() {

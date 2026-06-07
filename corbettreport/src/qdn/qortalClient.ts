@@ -6,6 +6,8 @@ interface QortalRequestPayload {
   name?: string;
   identifier?: string;
   address?: string;
+  destinationAddress?: string;
+  message?: string;
   data64?: string;
   encoding?: string;
   title?: string;
