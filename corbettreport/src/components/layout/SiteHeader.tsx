@@ -1,6 +1,6 @@
 import { Menu, Search, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { primaryNavigation, siteConfig, socialLinks } from '../../config/site';
+import { primaryNavigation, SHOP_LINK_URL, siteConfig, socialLinks } from '../../config/site';
 import type { SearchResult } from '../../types/content';
 import { copyText } from '../../utils/clipboard';
 import { FollowButton } from '../follow/FollowButton';
@@ -19,7 +19,7 @@ export function SiteHeader({ searchIndex }: { searchIndex: SearchResult[] }) {
     return () => window.clearTimeout(timeout);
   }, [copyNotice]);
 
-  async function copySocialLink(event: React.MouseEvent<HTMLAnchorElement>, url: string) {
+  async function copyExternalLink(event: React.MouseEvent<HTMLAnchorElement>, url: string) {
     event.preventDefault();
     const copied = await copyText(url);
     setCopyNotice({
@@ -32,13 +32,13 @@ export function SiteHeader({ searchIndex }: { searchIndex: SearchResult[] }) {
     <header className="site-header">
       {copyNotice && <p className={`copy-status ${copyNotice.success ? 'success' : 'error'}`} role="status">{copyNotice.message}</p>}
       <div className="top-strip">
-        <a className="mobile-start-link" href="#/member">New? Start Here!</a>
+        <a className="mobile-start-link" href="#/best-of-corbett">New? Start Here!</a>
         <div className="social-links">
           {socialLinks.map((link) => (
             <a
               key={link.label}
               href={link.href}
-              onClick={(event) => void copySocialLink(event, link.href)}
+              onClick={(event) => void copyExternalLink(event, link.href)}
               data-copy-tooltip={COPY_TOOLTIP}
               title={COPY_TOOLTIP}
               aria-label={`${link.label}: ${COPY_TOOLTIP}`}
@@ -48,7 +48,14 @@ export function SiteHeader({ searchIndex }: { searchIndex: SearchResult[] }) {
           ))}
         </div>
         <nav className="account-links" aria-label="Account links">
-          <a href="#/pages/shop">Shop</a>
+          <a
+            href={SHOP_LINK_URL}
+            onClick={(event) => void copyExternalLink(event, SHOP_LINK_URL)}
+            data-copy-tooltip={COPY_TOOLTIP}
+            title={COPY_TOOLTIP}
+          >
+            Shop
+          </a>
           <a href="#/member">Subscribe</a>
           <a href="#/member">Manage Account</a>
           <a href="#/admin">Author Backend</a>
@@ -56,7 +63,7 @@ export function SiteHeader({ searchIndex }: { searchIndex: SearchResult[] }) {
       </div>
 
       <div className="brand-row">
-        <a className="start-button" href="#/member">New? Start Here!</a>
+        <a className="start-button" href="#/best-of-corbett">New? Start Here!</a>
         <a className="brand-logo" href="#/" aria-label={siteConfig.title}>
           <img src={siteConfig.logo} alt={siteConfig.title} />
         </a>
@@ -74,7 +81,35 @@ export function SiteHeader({ searchIndex }: { searchIndex: SearchResult[] }) {
       {mobileSearchOpen && <div className="mobile-search"><InstantSearch index={searchIndex} compact onNavigate={() => setMobileSearchOpen(false)} /></div>}
 
       <nav className={`main-nav ${mobileMenuOpen ? 'open' : ''}`} aria-label="Main navigation">
-        {primaryNavigation.map((item) => <a key={item.label} href={item.href} onClick={() => setMobileMenuOpen(false)}>{item.label}</a>)}
+        {primaryNavigation.map((item) => (
+          item.children?.length ? (
+            <div className="nav-dropdown" key={item.label}>
+              <button type="button" className="nav-dropdown-trigger" aria-haspopup="true">
+                {item.label}
+              </button>
+              <div className="nav-dropdown-menu" role="menu">
+                {item.children.map((child) => (
+                  <a key={child.label} href={child.href} onClick={() => setMobileMenuOpen(false)} role="menuitem">
+                    {child.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <a
+              key={item.label}
+              href={item.href}
+              onClick={(event) => {
+                setMobileMenuOpen(false);
+                if (item.copyToClipboard) void copyExternalLink(event, item.href);
+              }}
+              data-copy-tooltip={item.copyToClipboard ? COPY_TOOLTIP : undefined}
+              title={item.copyToClipboard ? COPY_TOOLTIP : undefined}
+            >
+              {item.label}
+            </a>
+          )
+        ))}
       </nav>
     </header>
   );

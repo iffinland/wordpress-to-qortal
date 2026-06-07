@@ -47,19 +47,19 @@ const documentaries: Documentary[] = [
     id: 'doc-al-qaeda',
     title: 'False Flags: The Secret History of Al Qaeda',
     image: './assets/documentaries/false-flags-al-qaeda.jpg',
-    href: '#/category/documentaries'
+    href: '#/documentaries'
   },
   {
     id: 'doc-big-oil',
     title: 'How Big Oil Conquered the World',
     image: './assets/documentaries/how-big-oil-conquered-the-world.jpg',
-    href: '#/category/documentaries'
+    href: '#/documentaries'
   },
   {
     id: 'doc-war-games',
     title: 'War Games',
     image: './assets/documentaries/war-games.jpg',
-    href: '#/category/documentaries'
+    href: '#/documentaries'
   }
 ];
 
@@ -67,7 +67,7 @@ const pages: PublicPage[] = [
   {
     slug: 'about',
     title: 'About',
-    contentHtml: '<p>The Corbett Report is an independent, listener-supported alternative news source.</p><p>This Qortal-native edition is being built to preserve the public archive and support decentralized publishing.</p>'
+    contentHtml: '<p>The Corbett Report is an independent, listener-supported alternative news source.</p><h3>JAMES CORBETT</h3><p>The Corbett Report is edited, written, produced and hosted by James Corbett.</p><h3>BROC WEST / Video Editor</h3><p>Broc West joined The Corbett Report in 2014 as a video editor.</p>'
   },
   {
     slug: 'shop',

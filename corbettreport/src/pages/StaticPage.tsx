@@ -1,9 +1,11 @@
 import { ContentHtml } from '../components/content/ContentHtml';
 import type { PublicPage } from '../types/content';
+import { AboutPage } from './AboutPage';
 import { ContactPage } from './ContactPage';
 
 export function StaticPage({ page }: { page: PublicPage }) {
   if (page.slug === 'contact') return <ContactPage />;
+  if (page.slug === 'about') return <AboutPage page={page} />;
 
   return (
     <section className="page-shell static-page">

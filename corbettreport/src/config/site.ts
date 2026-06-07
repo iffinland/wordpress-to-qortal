@@ -1,4 +1,5 @@
 export const WEB2_BASE_URL = 'https://corbettreport.com';
+export const SHOP_LINK_URL = 'https://newworldnextweek.com/';
 
 export const siteConfig = {
   title: 'The Corbett Report',
@@ -28,12 +29,21 @@ export const socialLinks = [
 export const primaryNavigation = [
   { label: 'Home', href: '#/' },
   { label: 'About', href: '#/pages/about' },
-  { label: 'Documentaries', href: '#/category/documentaries' },
-  { label: 'Series', href: '#/category/series' },
+  { label: 'Documentaries', href: '#/documentaries' },
+  {
+    label: 'Series',
+    children: [
+      { label: 'Podcasts', href: '#/category/podcasts' },
+      { label: 'Interviews', href: '#/category/interviews' },
+      { label: 'NWNW', href: '#/category/nwnw' },
+      { label: 'Solutions Watch', href: '#/category/solutions-watch' },
+      { label: 'Questions For Corbett', href: '#/category/questions-for-corbett' },
+      { label: 'Propaganda Watch', href: '#/category/propaganda-watch' },
+      { label: 'FLNWO', href: '#/category/flnwo' }
+    ]
+  },
   { label: 'Newsletter', href: '#/category/newsletter' },
   { label: 'Archive', href: '#/archive' },
-  { label: 'Sign Up', href: '#/member' },
-  { label: 'Shop', href: '#/pages/shop' },
-  { label: 'Contact', href: '#/pages/contact' },
-  { label: 'RSS', href: '#/pages/rss' }
+  { label: 'Shop', href: SHOP_LINK_URL, copyToClipboard: true },
+  { label: 'Contact', href: '#/pages/contact' }
 ];

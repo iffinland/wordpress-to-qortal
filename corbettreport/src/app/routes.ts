@@ -1,11 +1,15 @@
 import { WEB2_BASE_URL } from '../config/site';
 
+export const DOCUMENTARIES_POST_SLUG = 'corbett-report-documentaries';
+
 export type AppRoute =
   | { kind: 'home' }
   | { kind: 'post'; slug: string }
   | { kind: 'category'; slug: string; page: number }
   | { kind: 'tag'; slug: string; page: number }
   | { kind: 'archive'; year?: number; month?: number; page: number }
+  | { kind: 'documentaries' }
+  | { kind: 'best-of-corbett' }
   | { kind: 'page'; slug: string }
   | { kind: 'member' }
   | { kind: 'admin' }
@@ -19,6 +23,7 @@ export function parseHashRoute(hash = window.location.hash): AppRoute {
 
   if (parts.length === 0) return { kind: 'home' };
   if (parts[0] === 'posts' && parts[1]) return { kind: 'post', slug: parts[1] };
+  if (parts[0] === 'documentaries') return { kind: 'documentaries' };
   if (parts[0] === 'category' && parts[1]) return { kind: 'category', slug: parts[1], page };
   if (parts[0] === 'tag' && parts[1]) return { kind: 'tag', slug: parts[1], page };
   if (parts[0] === 'archive') {
@@ -32,6 +37,7 @@ export function parseHashRoute(hash = window.location.hash): AppRoute {
       page
     };
   }
+  if (parts[0] === 'best-of-corbett') return { kind: 'best-of-corbett' };
   if (parts[0] === 'pages' && parts[1]) return { kind: 'page', slug: parts[1] };
   if (parts[0] === 'member') return { kind: 'member' };
   if (parts[0] === 'admin') return { kind: 'admin' };
@@ -45,6 +51,10 @@ export function postHref(slug: string) {
 export function categoryHref(slug: string, page = 1) {
   const base = `#/category/${encodeURIComponent(slugify(slug))}`;
   return page > 1 ? `${base}?page=${page}` : base;
+}
+
+export function documentariesHref() {
+  return '#/documentaries';
 }
 
 export function pageHref(slug: string) {
@@ -79,6 +89,7 @@ export function internalRouteForWeb2Url(value: string): string | null {
     if (fileExtensions.some((extension) => normalizedPath.endsWith(extension))) return null;
     if (normalizedPath.startsWith('/wp-content/') || normalizedPath.startsWith('/mp4/') || normalizedPath.startsWith('/arbitrary/')) return null;
     if (parts.length === 0) return '#/';
+    if (parts[0] === DOCUMENTARIES_POST_SLUG) return documentariesHref();
     if (/^\d{4}$/.test(parts[0]) && /^\d{2}$/.test(parts[1] || '')) {
       return archiveHref(Number.parseInt(parts[0], 10), Number.parseInt(parts[1], 10));
     }
@@ -91,6 +102,7 @@ export function internalRouteForWeb2Url(value: string): string | null {
       ['rssfeeds', 'rss'],
       ['shop', 'shop'],
     ]);
+    if (parts[0] === 'best-of-corbett') return '#/best-of-corbett';
     const pageSlug = staticPages.get(parts[0]);
     if (pageSlug) return pageHref(pageSlug);
     return postHref(parts[parts.length - 1]);

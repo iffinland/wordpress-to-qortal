@@ -5,7 +5,7 @@ export function MemberDashboardPage() {
     <section className="reserved-page">
       <p className="eyebrow">Reserved application area</p>
       <h1>Member Dashboard</h1>
-      <p>This route is separated from the public frontend so Qortal wallet-based membership can be implemented without coupling payment logic to the archive renderer.</p>
+      <p>This section is still under development. Membership tools and account details will be added in a later phase.</p>
       <div className="reserved-grid">
         <div><User /><strong>Account profile</strong><span>Qortal identity and membership state</span></div>
         <div><CreditCard /><strong>QORT membership</strong><span>Plans, payments and expiry history</span></div>

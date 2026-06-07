@@ -26,6 +26,20 @@ export function createSearchIndex(dataset: SiteDataset): SearchResult[] {
       description: 'Monthly post archive',
       href: archiveHref()
     },
+    {
+      id: 'page:best-of-corbett',
+      kind: 'page' as const,
+      title: 'Best of Corbett',
+      description: 'Curated starter guide for the best Corbett Report content',
+      href: '#/best-of-corbett'
+    },
+    {
+      id: 'page:documentaries',
+      kind: 'page' as const,
+      title: 'Corbett Report Documentaries',
+      description: 'Documentary master page and imported documentary posts',
+      href: '#/documentaries'
+    },
     ...categoryNames.map((category) => ({
       id: `category:${slugify(category)}`,
       kind: 'category' as const,
