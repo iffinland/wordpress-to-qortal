@@ -88,16 +88,6 @@ function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
-    promise
-      .then(resolve)
-      .catch(reject)
-      .finally(() => window.clearTimeout(timeoutId));
-  });
-}
-
 export function hasQortalBridge() {
   return Boolean(findQortalRequest());
 }
@@ -133,22 +123,14 @@ export function createQdnResourceUrl(service: string, name: string, identifier: 
 
 function shouldRetryFetch(error: unknown) {
   const message = error instanceof Error ? error.message : String(error || '');
-  return !message.includes(': 404') && !message.toLowerCase().includes("couldn't find put transaction");
+  const normalized = message.toLowerCase();
+  return !message.includes(': 404')
+    && !normalized.includes("couldn't find put transaction")
+    && !normalized.includes('timed out loading qdn resource');
 }
 
 async function fetchQdnResourceOnce<T>(service: string, name: string, identifier: string, timeoutMs: number): Promise<T> {
-  const bridge = findQortalRequest();
   const resourceLabel = `${service}/${name}/${identifier}`;
-
-  if (bridge) {
-    const result = validateQortalResponse(await withTimeout(
-      bridge({ action: 'FETCH_QDN_RESOURCE', service, name, identifier }),
-      timeoutMs,
-      `Timed out loading QDN resource ${resourceLabel}`
-    ));
-    return (typeof result === 'string' ? JSON.parse(result) : result) as T;
-  }
-
   const controller = new AbortController();
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
