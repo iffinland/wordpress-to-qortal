@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
-const DEFAULT_PROFILE_ID = 'generic';
+const DEFAULT_PROFILE_ID = 'corbettreport';
 
 function validateProfileId(profileId) {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(profileId)) {

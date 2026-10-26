@@ -1,172 +1,150 @@
-# Quickstart: WordPress to Qortal Migrator
+# Quick Start
 
-Current version: `0.1.5`
+This is the short version. For a click-by-click walkthrough, open `docs/ZORIN_LINUX_SETUP.md`.
 
-This Node.js tool downloads WordPress content to your computer, converts it to Qortal-friendly JSON, downloads selected media, and prepares a QDN publish plan.
+## 1. Install Node.js 20 or newer
 
-The Migration Publisher and Qortal CMS are separate Q-Apps. Imported content stays on your computer until the Migration Publisher sends selected resources to QDN.
-
-## 1. Install Requirements
-
-Install:
-
-- Node.js 18 or newer
-- npm
-- Qortal Core and Qortal UI for QDN publishing
-- WordPress REST API access or a supported WordPress login
-
-Check Node.js:
+On Zorin OS / Ubuntu, open a terminal:
 
 ```bash
+sudo apt update
+sudo apt install -y curl
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
 node --version
-npm --version
 ```
 
-## 2. Install the Importer
+`node --version` must show `v20` or a newer major version.
+
+## 2. Open the project folder
+
+If you downloaded a ZIP, extract it first. Then open a terminal in the extracted folder:
 
 ```bash
-npm install
-cp .env.example .env
+cd ~/wordpress-to-qortal
 ```
 
-Edit `.env`. Start with a small import:
+The folder is correct when it contains `README.md`, `package.json`, and `scripts`.
 
-```env
-WORDPRESS_BASE_URL=https://example.com
-MIGRATION_PROFILE=generic
-OUTPUT_DIR=./wp-qortal-import
-LIMIT_POSTS=5
-LIMIT_PAGES=5
-LIMIT_CATEGORIES=100
-LIMIT_TAGS=100
-LIMIT_MEDIA=20
-MEDIA_SCOPE=selected_posts
-DOWNLOAD_MEDIA=true
-DOWNLOAD_EXTERNAL_MEDIA=false
-DOWNLOAD_MEDIA_TYPES=image,audio,video,document,file
+## 3. Run setup
+
+```bash
+bash scripts/setup-linux.sh
 ```
 
-For WordPress Application Password login:
+This installs the project dependencies and creates `.env` on the first run.
 
-```env
-WORDPRESS_AUTH_MODE=application_password
-WORDPRESS_USERNAME=your-wordpress-username
-WORDPRESS_APP_PASSWORD=your-application-password
-WORDPRESS_PASSWORD=
+## 4. Enter the WordPress login
+
+```bash
+nano .env
 ```
 
-For normal website login fallback:
+Set these values:
 
 ```env
+WORDPRESS_BASE_URL=https://corbettreport.com
 WORDPRESS_AUTH_MODE=session
 WORDPRESS_LOGIN_URL=/login/
-WORDPRESS_USERNAME=your-login-email
+WORDPRESS_USERNAME=your-wordpress-username-or-email
+WORDPRESS_PASSWORD=your-wordpress-password
 WORDPRESS_APP_PASSWORD=
-WORDPRESS_PASSWORD=your-normal-password
+
+MIGRATION_PROFILE=corbettreport
+QORTAL_NAME=Corbett
+QORTAL_SITE_NAME=Corbett
+QORTAL_CONTENT_NAME=Corbett
+PUBLIC_AUTHOR_NAME=Corbett
+QORTAL_NODE_URL=http://localhost:12391
 ```
 
-Keep `.env` private.
+Save with `Ctrl + O`, press `Enter`, then close with `Ctrl + X`.
 
-## 3. Import and Convert
+Never share `.env`.
 
-Check access:
+## 5. Check the setup
+
+Start Qortal Hub and log in with the account that owns the `Corbett` name. Then run:
 
 ```bash
+npm run doctor
 npm run inspect
 ```
 
-Run the local import:
+## 6. Record the existing QDN catalog once
 
 ```bash
-npm run prepare-import
-npm run validate:media
-npm run prepare-publish
+npm run batch:init -- --from-qdn
 ```
 
-This creates:
+This protects the existing Corbett Report archive. Do it only once.
+
+## 7. Prepare a small first batch
+
+```bash
+CORBETT_BATCH_SIZE=10 CORBETT_RECENT_LIMIT=10 npm run batch:next
+```
+
+The terminal prints a folder such as:
 
 ```text
-wp-qortal-import/
-├── raw/
-├── media/
-├── converted/
-├── logs/
-└── publish-log/
+workspaces/corbettreport-batches/batches/2026-10-26_14-30-00_batch-0001_posts-000001-000010
 ```
 
-## 4. Optional Local Preview
+Keep that folder path.
 
-For local development or review:
+## 8. Publish the batch
 
-```bash
-npm run migration:dev
+In Qortal UI, open:
+
+```text
+qortal://WEBSITE/Corbett
 ```
+
+1. Click `Browse Folder`.
+2. Select the batch folder printed by the terminal.
+3. Confirm the Qortal name is `Corbett`.
+4. Keep `Skip already published` enabled.
+5. Publish `CMS JSON`.
+6. Publish `Full media`.
+
+If the connection is slow, publish `Images`, `Documents`, `Audio`, and `Video` separately instead of `Full media`.
+
+## 9. Adopt the posts in the CMS
 
 Open:
 
 ```text
-http://localhost:5174/?tool=viewer
+qortal://WEBSITE/CorbettReport
 ```
 
-This local URL is only for preview and development. Normal QDN publishing uses the small Migration Publisher Q-App.
+Open `Author Backend`, then `Imported`.
 
-## 5. Build the Migration Publisher Q-App
-
-```bash
-npm run package:migration-qapp
-```
-
-This creates:
+Use:
 
 ```text
-release/wordpress-to-qortal-migration-app-v0.1.5.zip
+Import source: Corbett
+Manifest: cr-qdn-manifest
 ```
 
-Publish that small ZIP to Qortal as an `APP` or `WEBSITE`. Do not place `wp-qortal-import` inside the Q-App ZIP.
+1. Click `Load Imported Content`.
+2. Select the new posts.
+3. Click `Adopt selected`.
+4. Open `Posts`, filter to `Draft`, select the adopted posts, and publish them.
+5. Open the public site and check that the posts appear in the correct order.
 
-Open the published app inside Qortal UI:
+## 10. Finish the batch
 
-1. Select your local `wp-qortal-import` folder.
-2. Confirm the Qortal name.
-3. Keep `Skip already published` enabled.
-4. Publish `Demo`.
-5. Publish `CMS JSON`.
-6. Publish media gradually.
-
-Publisher media modes:
-
-- `Images`
-- `Documents`
-- `Audio`
-- `Video`
-- `Selected media`
-- `Full media`
-
-Each resource row has a checkbox. Large migrations should be uploaded in small batches. Existing QDN resources are skipped automatically when `Skip already published` is enabled.
-The progress bar shows preparation and completion for the selected batch. Green statuses are complete or already present in QDN. Orange rows are queued for the grouped Qortal confirmation.
-
-## 6. Load Content in Qortal CMS
-
-In the Qortal CMS backend, open `Imported` and enter:
-
-```text
-Importer owner name: <Qortal name used by Migration Publisher>
-Manifest identifier: wpq-qdn-manifest
-```
-
-Click `Load imported content`, preview a post, adopt it as a CMS draft, review attachments, and publish it through the CMS.
-
-## 7. Useful Commands
+Only after publishing and checking the public site:
 
 ```bash
-npm run inspect
-npm run prepare-import
-npm run validate:media
-npm run prepare-publish
-npm run migration:dev
-npm run package:migration-qapp
-npm run package:tester-bundle
+npm run batch:complete
 ```
 
-See `TESTER_GUIDE.md` for the complete tester workflow.
-See `docs/PROFILES.md` for site-specific migration profiles.
+Then remove the large local files from that completed batch when you no longer need a retry:
+
+```bash
+npm run batch:cleanup
+```
+
+The next batch is prepared with `npm run batch:next`.

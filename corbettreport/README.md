@@ -7,7 +7,6 @@ and editorial CMS application. It is separate from:
 
 - the WordPress migration toolkit in the repository root
 - the migration publisher in `viewer/`
-- the generic CMS prototype in `qortal-cms/`
 
 ## Application Areas
 
@@ -42,11 +41,11 @@ are temporary audit fixtures.
 The production QDN mode reads and merges the available public catalogs:
 
 ```text
-?source=qdn&name=CorbettReport
+?source=qdn&name=Corbett
 ```
 
-The immutable WordPress archive starts at `DOCUMENT/CorbettReport/cr-qdn-manifest`.
-New Qortal-native content starts at `DOCUMENT/CorbettReport/cms-manifest`. Trusted
+The immutable WordPress archive starts at `DOCUMENT/Corbett/cr-qdn-manifest`.
+New Qortal-native content starts at `DOCUMENT/Corbett/cms-manifest`. Trusted
 operator catalogs published under configured coauthor names are included only when
 their `canonical_site_name` matches `Corbett`.
 
@@ -61,7 +60,7 @@ published the batch, such as `Corbett` or `AgoristMarket`.
 From the repository root:
 
 ```bash
-npm run corbettreport:dev
+npm run cms:dev
 ```
 
 Open:
@@ -73,12 +72,18 @@ http://localhost:5190/
 ## Build
 
 ```bash
-npm run corbettreport:build
-npm run package:cms-qapp:corbettreport
+npm run cms:build
+npm run package:cms-qapp
 ```
 
 The production ZIP is:
 
 ```text
-release/qortal-cms-app-corbettreport-v0.1.5.zip
+release/corbettreport-website-cms-app-v0.1.5.zip
+```
+
+The published website/CMS app is:
+
+```text
+qortal://WEBSITE/CorbettReport
 ```

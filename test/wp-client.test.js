@@ -78,3 +78,22 @@ test('WordPress post batches can fetch posts newer than the latest imported post
     globalThis.fetch = originalFetch;
   }
 });
+
+test('a filtered short or empty REST page does not hide later pages', async () => {
+  const originalFetch = globalThis.fetch;
+  const requested = [];
+  globalThis.fetch = async (url) => {
+    const page = Number(new URL(url).searchParams.get('page'));
+    requested.push(page);
+    return new Response(JSON.stringify(page === 2 ? [] : [{ id: page }]), {
+      headers: { 'X-WP-TotalPages': '3', 'Content-Type': 'application/json' }
+    });
+  };
+  try {
+    const result = await new WordPressClient({ baseUrl: 'https://example.com' }).fetchMedia({ limit: 1000 });
+    assert.deepEqual(requested, [1, 2, 3]);
+    assert.deepEqual(result.map((item) => item.id), [1, 3]);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

@@ -2202,14 +2202,12 @@ export function CmsBackendApp() {
         {section === 'imported' && (
           <div className="imported-panel">
             <div className="import-settings">
-              {cmsProfile.id !== 'generic' && (
-                <div className="import-profile-summary">
-                  <strong>{cmsProfile.siteTitle || cmsProfile.id}</strong>
-                  <span>Default import source: {cmsProfile.importOwnerName || 'manual'} / {cmsProfile.importManifestIdentifier}</span>
-                  <span>Enter the Qortal name that published the selected migration batch. Trusted coauthors can adopt batches from each other.</span>
-                  <button className="icon-command" type="button" onClick={applyProfileCatalogPreset}><Settings size={15} /> Use default source</button>
-                </div>
-              )}
+              <div className="import-profile-summary">
+                <strong>{cmsProfile.siteTitle || cmsProfile.id}</strong>
+                <span>Default import source: {cmsProfile.importOwnerName || 'manual'} / {cmsProfile.importManifestIdentifier}</span>
+                <span>Enter the Qortal name that published the selected migration batch. Trusted coauthors can adopt batches from each other.</span>
+                <button className="icon-command" type="button" onClick={applyProfileCatalogPreset}><Settings size={15} /> Use default source</button>
+              </div>
               <label>
                 Import source Qortal name
                 <input value={importOwnerName} onChange={(event) => setImportOwnerName(event.target.value)} placeholder="Qortal name that published the migrator manifest" />

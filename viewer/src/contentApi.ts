@@ -3,7 +3,7 @@ import type { ContentItem, IndexItem, MediaMap, QdnManifest, QdnResourceRef, Ter
 
 export const CONTENT_BASE = '/qortal-content';
 const DEFAULT_QDN_MANIFEST_IDENTIFIER =
-  import.meta.env.VITE_QDN_MANIFEST_IDENTIFIER || 'wpq-qdn-manifest';
+  import.meta.env.VITE_QDN_MANIFEST_IDENTIFIER || 'cr-qdn-manifest';
 const QDN_MANIFEST_SERVICE = 'DOCUMENT';
 
 export type ContentSourceMode = 'local' | 'qdn';

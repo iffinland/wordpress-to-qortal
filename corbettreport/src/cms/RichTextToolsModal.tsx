@@ -1,4 +1,5 @@
 import { Code2, Heading2, Heading3, Link, List, ListOrdered, Palette, Quote, Type, XCircle } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 export type RichTextTool =
   | 'heading2'
@@ -22,7 +23,7 @@ interface RichTextToolsModalProps {
   onApplyColor: (color: string) => void;
 }
 
-const toolGroups: Array<{ title: string; items: Array<{ label: string; tool: RichTextTool; icon: JSX.Element }> }> = [
+const toolGroups: Array<{ title: string; items: Array<{ label: string; tool: RichTextTool; icon: ReactNode }> }> = [
   {
     title: 'Structure',
     items: [

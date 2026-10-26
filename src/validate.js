@@ -40,6 +40,7 @@ async function readJsonOrIssue(filePath, issues, required = true) {
 async function main() {
   const config = loadConfig();
   const requireMedia = process.argv.includes('--require-media');
+  const allowMissingMedia = process.argv.includes('--allow-missing-media');
   const issues = [];
   const rawDir = path.join(config.outputDir, 'raw');
   const convertedDir = path.join(config.outputDir, 'converted');
@@ -117,7 +118,12 @@ async function main() {
       (config.downloadExternalMedia || sameSite);
 
     if (expectedDownload && (!item.local_path || !item.sha256 || !item.downloaded)) {
-      addIssue(issues, 'error', 'Expected media file is not downloaded.', { url });
+      addIssue(
+        issues,
+        allowMissingMedia ? 'warning' : 'error',
+        'Expected media file is not downloaded; it will remain an external link.',
+        { url }
+      );
     }
   }
 

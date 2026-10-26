@@ -19,7 +19,8 @@ function run(command, args, options = {}) {
 async function main() {
   const packageJson = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
   const version = packageJson.version;
-  const bundleName = `wordpress-to-qortal-toolkit-v${version}`;
+  const packageZipName = `corbettreport-wordpress-to-qortal-v${version}.zip`;
+  const bundleName = `corbettreport-wordpress-to-qortal-release-v${version}`;
   const bundleDir = path.join(releaseDir, bundleName);
   const bundleZip = path.join(releaseDir, `${bundleName}.zip`);
 
@@ -32,41 +33,40 @@ async function main() {
   await mkdir(path.join(bundleDir, 'docs'), { recursive: true });
 
   await cp(
-    path.join(releaseDir, `wordpress-to-qortal-migrator-v${version}.zip`),
-    path.join(bundleDir, `wordpress-to-qortal-migrator-v${version}.zip`)
+    path.join(releaseDir, packageZipName),
+    path.join(bundleDir, packageZipName)
   );
   await cp(
-    path.join(releaseDir, `wordpress-to-qortal-migration-app-v${version}.zip`),
-    path.join(bundleDir, 'apps', `wordpress-to-qortal-migration-app-v${version}.zip`)
+    path.join(releaseDir, `wordpress-to-qortal-migration-app-corbettreport-v${version}.zip`),
+    path.join(bundleDir, 'apps', `wordpress-to-qortal-migration-app-corbettreport-v${version}.zip`)
   );
   await cp(
-    path.join(releaseDir, `qortal-cms-app-v${version}.zip`),
-    path.join(bundleDir, 'apps', `qortal-cms-app-v${version}.zip`)
+    path.join(releaseDir, `corbettreport-website-cms-app-v${version}.zip`),
+    path.join(bundleDir, 'apps', `corbettreport-website-cms-app-v${version}.zip`)
   );
-  await cp(path.join(root, 'TESTER_GUIDE.md'), path.join(bundleDir, 'START_HERE.md'));
-  await cp(path.join(root, 'QUICKSTART.md'), path.join(bundleDir, 'docs', 'IMPORTER_QUICKSTART.md'));
-  await cp(path.join(root, 'docs', 'PROFILES.md'), path.join(bundleDir, 'docs', 'MIGRATION_PROFILES.md'));
+  await cp(path.join(root, 'QUICKSTART.md'), path.join(bundleDir, 'START_HERE.md'));
+  await cp(path.join(root, 'docs', 'ZORIN_LINUX_SETUP.md'), path.join(bundleDir, 'docs', 'ZORIN_LINUX_SETUP.md'));
+  await cp(path.join(root, 'docs', 'CORBETT_MIGRATION_RUNBOOK.md'), path.join(bundleDir, 'docs', 'CORBETT_MIGRATION_RUNBOOK.md'));
   await cp(path.join(root, 'docs', 'QDN_RESOURCE_STRATEGY.md'), path.join(bundleDir, 'docs', 'QDN_RESOURCE_STRATEGY.md'));
-  await cp(path.join(root, 'qortal-cms', 'README.md'), path.join(bundleDir, 'docs', 'QORTAL_CMS.md'));
 
   await writeFile(
     path.join(bundleDir, 'VERSION.txt'),
-    `WordPress to Qortal Toolkit ${version}\n`
+    `The Corbett Report WordPress to Qortal toolkit ${version}\n`
   );
 
   await rm(bundleZip, { force: true });
   run('zip', ['-qr', path.basename(bundleZip), bundleName], { cwd: releaseDir });
 
   console.log('');
-  console.log('Tester bundle prepared:');
+  console.log('Corbett Report release bundle prepared:');
   console.log(bundleZip);
   console.log('');
-  console.log('Share this ZIP with testers. They should open START_HERE.md first.');
+  console.log('The recipient should open START_HERE.md first.');
 }
 
 main().catch((error) => {
   console.error('');
-  console.error('Failed to prepare tester bundle');
+  console.error('Failed to prepare release bundle');
   console.error(error.message);
   process.exitCode = 1;
 });

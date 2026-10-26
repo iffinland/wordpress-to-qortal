@@ -210,16 +210,17 @@ export class WordPressClient {
       const url = new URL(`${this.baseUrl}${endpoint}`);
       url.searchParams.set('per_page', String(perPage));
       if (offset > 0) {
-        url.searchParams.set('offset', String(offset + items.length));
+        url.searchParams.set('offset', String(offset + (page - 1) * perPage));
       } else {
         url.searchParams.set('page', String(page));
       }
       Object.entries(query).forEach(([name, value]) => url.searchParams.set(name, value));
 
       let pageItems;
+      const metadata = {};
 
       try {
-        pageItems = await this.fetchJson(url);
+        pageItems = await this.fetchJson(url, metadata);
       } catch (error) {
         if (page > 1 && error.status === 400 && error.body?.includes('rest_post_invalid_page_number')) {
           break;
@@ -228,13 +229,11 @@ export class WordPressClient {
         throw error;
       }
 
-      if (!Array.isArray(pageItems) || pageItems.length === 0) {
-        break;
-      }
+      if (!Array.isArray(pageItems)) throw new Error(`Expected a WordPress collection at ${endpoint}`);
 
       items.push(...pageItems);
 
-      if (pageItems.length < perPage) {
+      if (metadata.totalPages !== null ? page >= metadata.totalPages : pageItems.length < perPage) {
         break;
       }
 
@@ -244,7 +243,7 @@ export class WordPressClient {
     return items.slice(0, limit);
   }
 
-  async fetchJson(url) {
+  async fetchJson(url, metadata = {}) {
     await this.authenticate();
 
     const response = await fetch(url, {
@@ -261,6 +260,8 @@ export class WordPressClient {
       });
     }
 
+    const totalPages = response.headers.get('X-WP-TotalPages');
+    metadata.totalPages = totalPages !== null && /^\d+$/.test(totalPages) ? Number(totalPages) : null;
     return response.json();
   }
 }

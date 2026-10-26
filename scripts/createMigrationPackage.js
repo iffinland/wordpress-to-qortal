@@ -3,19 +3,17 @@ import path from 'node:path';
 
 const root = process.cwd();
 const releaseRoot = path.join(root, 'release');
-const packageDir = path.join(releaseRoot, 'wordpress-to-qortal-migrator');
+const packageDir = path.join(releaseRoot, 'corbettreport-wordpress-to-qortal');
 
 const pathsToCopy = [
   '.env.example',
   'README.md',
   'QUICKSTART.md',
-  'TESTER_GUIDE.md',
-  'ROADMAP.md',
   'package.json',
   'package-lock.json',
   'scripts',
   'src',
-  'profiles/generic',
+  'profiles/corbettreport',
   'viewer',
   'fixtures',
   'docs'
@@ -30,10 +28,10 @@ async function copyPath(relativePath) {
       const fileName = path.basename(normalized);
       return !parts.includes('node_modules')
         && !parts.includes('dist')
+        && !parts.includes('workspaces')
         && !normalized.endsWith('/.env')
         && !normalized.endsWith('/wp-qortal-import')
-        && !normalized.endsWith('/docs/FULL_IMPORT_WORKFLOW.md')
-        && !parts.includes('qortal-cms')
+        && !normalized.endsWith('/docs/PROJECT_REPORT.md')
         && ![
           'createCmsQappZip.js',
           'createMigrationPackage.js',
@@ -61,17 +59,15 @@ async function main() {
     'cms:dev',
     'cms:build',
     'cms:preview',
-    'check:cms',
-    'package:cms-qapp',
-    'package:cms-qapp:generic',
-    'package:cms-qapp:corbettreport',
-    'package:migration',
-    'package:migration-qapp:corbettreport',
+    'migration:build',
+    'migration:preview',
+    'package:source',
     'package:zip',
+    'package:migration-qapp',
+    'package:cms-qapp',
     'package:tester-bundle',
-    'corbettreport:dev',
-    'corbettreport:build',
-    'corbettreport:preview'
+    'package:release',
+    'check'
   ]) {
     delete releasePackageJson.scripts[scriptName];
   }
@@ -79,23 +75,23 @@ async function main() {
 
   await writeFile(
     path.join(packageDir, 'VERSION.txt'),
-    `wordpress-to-qortal-migrator ${version}\n`
+    `The Corbett Report WordPress to Qortal toolkit ${version}\n`
   );
 
   await writeFile(
     path.join(releaseRoot, 'README.txt'),
     [
-      `WordPress to Qortal Migrator package v${version}`,
+      `The Corbett Report WordPress to Qortal toolkit v${version}`,
       '',
       'Open QUICKSTART.md first.',
-      'Run npm install before using the tool.',
-      'Do not copy real .env files or imported site data into public repositories.',
+      'Then open docs/ZORIN_LINUX_SETUP.md for the detailed Linux walkthrough.',
+      'Do not share your .env file or imported WordPress data.',
       ''
     ].join('\n')
   );
 
   console.log('');
-  console.log('Migration package prepared:');
+  console.log('Corbett Report migration package prepared:');
   console.log(packageDir);
   console.log('');
   console.log('Open QUICKSTART.md inside that folder for user instructions.');

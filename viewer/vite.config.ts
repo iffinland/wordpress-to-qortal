@@ -63,7 +63,7 @@ function qortalContentPlugin(contentRoot: string): Plugin {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, rootDir, '');
-  const profileId = process.env.MIGRATION_PROFILE || env.MIGRATION_PROFILE || 'generic';
+  const profileId = process.env.MIGRATION_PROFILE || env.MIGRATION_PROFILE || 'corbettreport';
   const profilePath = path.resolve(rootDir, 'profiles', profileId, 'profile.json');
   const profile = JSON.parse(readFileSync(profilePath, 'utf8')) as {
     resource_prefix: string;

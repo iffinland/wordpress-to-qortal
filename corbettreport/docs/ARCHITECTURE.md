@@ -35,7 +35,7 @@ The merged result must be ordered by editorial `published_at`, never by migratio
 The public Q-App supports the migration catalog loader through:
 
 ```text
-?source=qdn&name=CorbettReport
+?source=qdn&name=Corbett
 ```
 
 Homepage cards load from QDN indexes. Full post and page JSON is loaded only when
@@ -50,7 +50,7 @@ DOCUMENT/<operator-name>/cms-operator-<site-id>-manifest
 ```
 
 An operator catalog is merged only when its `canonical_site_name` matches
-`CorbettReport`. Published CMS posts override migrated posts with the same slug.
+`Corbett`. Published CMS posts override migrated posts with the same slug.
 The final public feed is sorted by editorial `published_at`.
 
 ## Planned QDN Catalog
@@ -73,7 +73,8 @@ frontend and CMS reads no longer depend on any local computer.
 
 | Qortal name | Role |
 | --- | --- |
-| `Corbett` | Current website address, CMS catalog publisher, public editorial identity, SysOp and migration publisher |
+| `Corbett` | Content publisher, CMS catalog owner, public editorial identity, SysOp, and migration publisher |
+| `CorbettReport` | Website/CMS Q-App resource owner and SysOp |
 
 QDN publication still requires the signing wallet to own the technical resource
 name. Coauthors can prepare and publish resources under names they own. Updating

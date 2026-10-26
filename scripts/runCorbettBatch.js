@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { cp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
@@ -138,6 +139,20 @@ function mergeObjects(sources) {
   return Object.assign({}, ...sources.filter(Boolean));
 }
 
+function qortalNodeUrl() {
+  return (process.env.QORTAL_NODE_URL?.trim() || 'http://localhost:12391').replace(/\/+$/, '');
+}
+
+async function fetchQdnJson(nodeUrl, name, identifier) {
+  const url = `${nodeUrl}/arbitrary/DOCUMENT/${encodeURIComponent(name)}/${encodeURIComponent(identifier)}`;
+  const response = await fetch(url, { signal: AbortSignal.timeout(60000) });
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Could not read ${identifier} from ${name}: HTTP ${response.status} ${body.slice(0, 200)}`);
+  }
+  return response.json();
+}
+
 function sourcePathsForDirectory(directory) {
   return {
     manifest: path.join(directory, 'converted', 'qdn-manifest.json'),
@@ -145,7 +160,9 @@ function sourcePathsForDirectory(directory) {
     pages: path.join(directory, 'converted', 'pages-index.json'),
     categories: path.join(directory, 'converted', 'categories.json'),
     tags: path.join(directory, 'converted', 'tags.json'),
-    mediaMap: path.join(directory, 'converted', 'media-map.json')
+    mediaMap: path.join(directory, 'converted', 'media-map.json'),
+    urlMap: path.join(directory, 'converted', 'url-map.json'),
+    importManifest: path.join(directory, 'converted', 'import-manifest.json')
   };
 }
 
@@ -156,7 +173,9 @@ function sourcePathsForReceipt(directory) {
     pages: path.join(directory, 'pages-index.json'),
     categories: path.join(directory, 'categories.json'),
     tags: path.join(directory, 'tags.json'),
-    mediaMap: path.join(directory, 'media-map.json')
+    mediaMap: path.join(directory, 'media-map.json'),
+    urlMap: path.join(directory, 'url-map.json'),
+    importManifest: path.join(directory, 'import-manifest.json')
   };
 }
 
@@ -186,6 +205,8 @@ async function loadCatalogSource(candidate) {
   const categories = await readJsonIfPresent(candidate.categories);
   const tags = await readJsonIfPresent(candidate.tags);
   const mediaMap = await readJsonIfPresent(candidate.mediaMap);
+  const urlMap = await readJsonIfPresent(candidate.urlMap);
+  const importManifest = await readJsonIfPresent(candidate.importManifest);
   if (!manifest || !Array.isArray(posts)) return null;
   return {
     ...candidate,
@@ -194,7 +215,9 @@ async function loadCatalogSource(candidate) {
     pages: Array.isArray(pages) ? pages : [],
     categories: Array.isArray(categories) ? categories : [],
     tags: Array.isArray(tags) ? tags : [],
-    mediaMap: mediaMap && typeof mediaMap === 'object' ? mediaMap : {}
+    mediaMap: mediaMap && typeof mediaMap === 'object' ? mediaMap : {},
+    urlMap: urlMap && typeof urlMap === 'object' ? urlMap : {},
+    importManifest: importManifest && typeof importManifest === 'object' ? importManifest : {}
   };
 }
 
@@ -214,6 +237,7 @@ async function rebuildCumulativeImportCatalog(state, currentBatch) {
   const mergedCategories = mergeTermsByIdOrSlug(sources.flatMap((source) => source.categories));
   const mergedTags = mergeTermsByIdOrSlug(sources.flatMap((source) => source.tags));
   const mergedMediaMap = mergeObjects(sources.map((source) => source.mediaMap));
+  const mergedUrlMap = mergeObjects(sources.map((source) => source.urlMap));
   const resourcesByPath = mergeObjects(sources.map((source) => source.manifest.resources?.by_path));
   const resourcesByIdentifier = mergeObjects(sources.map((source) => source.manifest.resources?.by_identifier));
   const resourcesBySourceUrl = mergeObjects(sources.map((source) => source.manifest.resources?.by_source_url));
@@ -250,11 +274,27 @@ async function rebuildCumulativeImportCatalog(state, currentBatch) {
     }
   };
 
+  const importManifest = {
+    ...(current.importManifest || {}),
+    generated_at: new Date().toISOString(),
+    cumulative: {
+      batches: sources.length,
+      posts: mergedPosts.length,
+      pages: mergedPages.length,
+      categories: mergedCategories.length,
+      tags: mergedTags.length,
+      media: Object.keys(mergedMediaMap).length,
+      urls: Object.keys(mergedUrlMap).length
+    }
+  };
+
   await writeFile(path.join(outputDir, 'converted', 'posts-index.json'), `${JSON.stringify(mergedPosts, null, 2)}\n`, 'utf8');
   await writeFile(path.join(outputDir, 'converted', 'pages-index.json'), `${JSON.stringify(mergedPages, null, 2)}\n`, 'utf8');
   await writeFile(path.join(outputDir, 'converted', 'categories.json'), `${JSON.stringify(mergedCategories, null, 2)}\n`, 'utf8');
   await writeFile(path.join(outputDir, 'converted', 'tags.json'), `${JSON.stringify(mergedTags, null, 2)}\n`, 'utf8');
   await writeFile(path.join(outputDir, 'converted', 'media-map.json'), `${JSON.stringify(mergedMediaMap, null, 2)}\n`, 'utf8');
+  await writeFile(path.join(outputDir, 'converted', 'url-map.json'), `${JSON.stringify(mergedUrlMap, null, 2)}\n`, 'utf8');
+  await writeFile(path.join(outputDir, 'converted', 'import-manifest.json'), `${JSON.stringify(importManifest, null, 2)}\n`, 'utf8');
   await writeFile(path.join(outputDir, 'converted', 'qdn-manifest.json'), `${JSON.stringify(catalogManifest, null, 2)}\n`, 'utf8');
 
   currentBatch.catalog_source_count = sources.length;
@@ -278,6 +318,7 @@ function postDates(posts) {
 }
 
 function batchEnvironment(outputDir, state, batchSize, recentLimit) {
+  const downloadMedia = process.env.CORBETT_DOWNLOAD_MEDIA?.trim().toLowerCase() !== 'false';
   return {
     ...process.env,
     OUTPUT_DIR: outputDir,
@@ -288,7 +329,7 @@ function batchEnvironment(outputDir, state, batchSize, recentLimit) {
     POSTS_AFTER: state.latest_seen_after || '',
     FETCH_HISTORICAL_POSTS: state.historical_exhausted ? 'false' : 'true',
     MEDIA_SCOPE: 'selected_posts',
-    DOWNLOAD_MEDIA: 'true',
+    DOWNLOAD_MEDIA: String(downloadMedia),
     DOWNLOAD_MEDIA_TYPES: 'image,audio,video,document,file',
     MIGRATION_PROFILE: 'corbettreport'
   };
@@ -361,13 +402,16 @@ async function latestUntrackedBatchDirectory(state) {
 
 async function createNextBatch() {
   const state = await readState();
+  if (!state.baseline && state.batches.length === 0) {
+    throw new Error('Run npm run batch:init -- --from-qdn first. This records the existing QDN catalog so new batches do not hide older posts.');
+  }
   const pending = pendingBatch(state);
   if (pending) {
-    throw new Error(`Batch ${pending.number} is still prepared. Publish and adopt it, then run npm run corbettreport:batch:complete.`);
+    throw new Error(`Batch ${pending.number} is still prepared. Publish and adopt it, then run npm run batch:complete.`);
   }
   const unfinished = unfinishedBatch(state);
   if (unfinished) {
-    throw new Error(`Batch ${unfinished.number} is ${unfinished.status}. Resume it with npm run corbettreport:batch:retry.`);
+    throw new Error(`Batch ${unfinished.number} is ${unfinished.status}. Resume it with npm run batch:retry.`);
   }
   const batchSize = readPositiveInteger(process.env.CORBETT_BATCH_SIZE, state.batch_size || 50);
   const recentLimit = readPositiveInteger(process.env.CORBETT_RECENT_LIMIT, 100);
@@ -413,7 +457,14 @@ async function createNextBatch() {
   await writeState(state);
 
   try {
-    for (const script of ['convert', 'plan-media', 'download-media', 'validate', 'validate:media', 'prepare-publish']) {
+    const scripts = ['convert', 'plan-media', 'download-media', 'validate'];
+    if (process.env.CORBETT_REQUIRE_MEDIA?.trim().toLowerCase() !== 'false') {
+      scripts.push(process.env.CORBETT_ALLOW_MISSING_MEDIA?.trim().toLowerCase() === 'false'
+        ? 'validate:media'
+        : 'validate:media:batch');
+    }
+    scripts.push('prepare-publish');
+    for (const script of scripts) {
       runNpm(script, env);
     }
     await rebuildCumulativeImportCatalog(state, batch);
@@ -437,7 +488,7 @@ async function createNextBatch() {
   console.log(`New posts included: ${batch.recent_post_count}`);
   console.log(`Historical posts included: ${batch.historical_post_count}`);
   console.log('After QDN publishing and CMS adoption, run:');
-  console.log('npm run corbettreport:batch:complete');
+  console.log('npm run batch:complete');
 }
 
 async function retryBatch() {
@@ -476,7 +527,14 @@ async function retryBatch() {
   console.log('Existing completed media files will be skipped.');
 
   try {
-    for (const script of ['download-media', 'validate', 'validate:media', 'prepare-publish']) {
+    const scripts = ['download-media', 'validate'];
+    if (process.env.CORBETT_REQUIRE_MEDIA?.trim().toLowerCase() !== 'false') {
+      scripts.push(process.env.CORBETT_ALLOW_MISSING_MEDIA?.trim().toLowerCase() === 'false'
+        ? 'validate:media'
+        : 'validate:media:batch');
+    }
+    scripts.push('prepare-publish');
+    for (const script of scripts) {
       runNpm(script, env);
     }
     await rebuildCumulativeImportCatalog(state, batch);
@@ -527,7 +585,7 @@ async function completeBatch() {
   console.log(`Next WordPress offset: ${state.next_offset}`);
   if (state.next_before) console.log(`Next batch cursor: posts before ${state.next_before}`);
   if (state.latest_seen_after) console.log(`Recent-post cursor: posts after ${state.latest_seen_after}`);
-  console.log('Create the next batch with: npm run corbettreport:batch:next');
+  console.log('Create the next batch with: npm run batch:next');
 }
 
 async function copyIfPresent(source, destination) {
@@ -631,6 +689,99 @@ async function initializeFromExistingBatch() {
   console.log(`Next batch will load posts before ${state.next_before}.`);
 }
 
+async function initializeFromQdn() {
+  const state = await readState();
+  if (state.batches.length || state.baseline) {
+    throw new Error('Batch state is already initialized.');
+  }
+
+  const name = readFlag('--name') || process.env.QORTAL_NAME?.trim() || 'Corbett';
+  const nodeUrl = qortalNodeUrl();
+  const baselineDir = path.join(batchRoot, 'baseline-qdn');
+  const convertedDir = path.join(baselineDir, 'converted');
+
+  console.log(`Reading the existing QDN catalog from ${name} using ${nodeUrl}`);
+
+  const identifiers = {
+    manifest: 'cr-qdn-manifest',
+    posts: 'cr-posts-index',
+    pages: 'cr-pages-index',
+    categories: 'cr-categories',
+    tags: 'cr-tags',
+    mediaMap: 'cr-media-map',
+    urlMap: 'cr-url-map',
+    importManifest: 'cr-import-manifest'
+  };
+
+  const [manifest, posts, pages, categories, tags, mediaMap, urlMap, importManifest] = await Promise.all([
+    fetchQdnJson(nodeUrl, name, identifiers.manifest),
+    fetchQdnJson(nodeUrl, name, identifiers.posts),
+    fetchQdnJson(nodeUrl, name, identifiers.pages),
+    fetchQdnJson(nodeUrl, name, identifiers.categories),
+    fetchQdnJson(nodeUrl, name, identifiers.tags),
+    fetchQdnJson(nodeUrl, name, identifiers.mediaMap),
+    fetchQdnJson(nodeUrl, name, identifiers.urlMap),
+    fetchQdnJson(nodeUrl, name, identifiers.importManifest)
+  ]);
+
+  if (!Array.isArray(posts) || posts.length === 0) {
+    throw new Error(`The QDN catalog for ${name} contains no posts.`);
+  }
+  if (!Array.isArray(pages) || !Array.isArray(categories) || !Array.isArray(tags)) {
+    throw new Error(`The QDN catalog for ${name} contains invalid index data.`);
+  }
+
+  const dates = posts
+    .map((post) => normalizeWordPressTimestamp(post.published_at || post.date))
+    .filter(Boolean)
+    .sort();
+  if (!dates.length) {
+    throw new Error(`The QDN catalog for ${name} has no usable post dates.`);
+  }
+
+  await rm(baselineDir, { recursive: true, force: true });
+  await mkdir(convertedDir, { recursive: true });
+  const writeJson = (fileName, value) => writeFile(
+    path.join(convertedDir, fileName),
+    `${JSON.stringify(value, null, 2)}\n`,
+    'utf8'
+  );
+  await Promise.all([
+    writeJson('qdn-manifest.json', manifest),
+    writeJson('posts-index.json', posts),
+    writeJson('pages-index.json', pages),
+    writeJson('categories.json', categories),
+    writeJson('tags.json', tags),
+    writeJson('media-map.json', mediaMap),
+    writeJson('url-map.json', urlMap),
+    writeJson('import-manifest.json', importManifest)
+  ]);
+
+  state.next_offset = 0;
+  state.next_before = dates[0];
+  state.latest_seen_after = dates.at(-1);
+  state.historical_exhausted = false;
+  state.baseline = {
+    initialized_at: new Date().toISOString(),
+    source: 'qdn',
+    qdn_name: name,
+    node_url: nodeUrl,
+    source_dir: relativeToRoot(baselineDir),
+    manifest_generated_at: manifest.generated_at || null,
+    post_count: posts.length,
+    page_count: pages.length,
+    source_ids: posts.map((post) => post.source_id).filter(Boolean),
+    newest_post_date: dates.at(-1),
+    oldest_post_date: dates[0]
+  };
+  await writeState(state);
+
+  console.log(`Existing QDN catalog recorded: ${posts.length} posts and ${pages.length} pages.`);
+  console.log(`Newest existing post: ${dates.at(-1)}`);
+  console.log(`Oldest existing post: ${dates[0]}`);
+  console.log('The next batch will add newer posts and continue with older posts.');
+}
+
 async function printStatus() {
   const state = await readState();
   const pending = pendingBatch(state);
@@ -653,6 +804,7 @@ async function main() {
   if (action === 'next') return createNextBatch();
   if (action === 'retry') return retryBatch();
   if (action === 'catalog') return rebuildPreparedCatalog();
+  if (action === 'init' && process.argv.includes('--from-qdn')) return initializeFromQdn();
   if (action === 'init') return initializeFromExistingBatch();
   if (action === 'complete') return completeBatch();
   if (action === 'cleanup') return cleanupBatch();

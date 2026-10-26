@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const root = process.cwd();
 const releaseRoot = path.join(root, 'release');
-const packageName = 'wordpress-to-qortal-migrator';
+const packageName = 'corbettreport-wordpress-to-qortal';
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {

@@ -7,7 +7,7 @@ const releaseDir = path.join(root, 'release');
 
 function readProfileId(argv) {
   const inline = argv.find((arg) => arg.startsWith('--profile='));
-  return inline ? inline.slice('--profile='.length) : 'generic';
+  return inline ? inline.slice('--profile='.length) : 'corbettreport';
 }
 
 function run(command, args, options = {}) {
@@ -24,15 +24,12 @@ function run(command, args, options = {}) {
 async function main() {
   const rootPackageJson = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
   const profileId = readProfileId(process.argv.slice(2));
-  const isCorbettReport = profileId === 'corbettreport';
-  const appDir = path.join(root, isCorbettReport ? 'corbettreport' : 'qortal-cms');
+  const appDir = path.join(root, 'corbettreport');
   const distDir = path.join(appDir, 'dist');
-  const packageJson = JSON.parse(await readFile(path.join(appDir, 'package.json'), 'utf8'));
-  const profileSuffix = profileId === 'generic' ? '' : `-${profileId}`;
-  const version = isCorbettReport ? rootPackageJson.version : packageJson.version;
-  const zipName = `qortal-cms-app${profileSuffix}-v${version}.zip`;
+  const version = rootPackageJson.version;
+  const zipName = `corbettreport-website-cms-app-v${version}.zip`;
 
-  run('npm', ['run', isCorbettReport ? 'corbettreport:build' : 'cms:build'], {
+  run('npm', ['run', 'cms:build'], {
     cwd: root,
     env: { ...process.env, MIGRATION_PROFILE: profileId }
   });
@@ -42,7 +39,7 @@ async function main() {
   run('zip', ['-qr', path.join(releaseDir, zipName), '.', '-x', '*.zip'], { cwd: distDir });
 
   console.log('');
-  console.log('Qortal CMS Q-App zip prepared:');
+  console.log('Corbett Report website/CMS Q-App zip prepared:');
   console.log(path.join(releaseDir, zipName));
   console.log(`Profile: ${profileId}`);
 }

@@ -52,19 +52,23 @@ async function main() {
   printResult('Authentication configured', config.hasWordPressAuth ? 'yes' : 'no');
   console.log('');
 
-  await checkStep('REST root /wp-json/', () => client.fetchRoot(), config);
-  await checkStep('Posts endpoint', () => client.fetchPosts({
+  const results = [];
+  results.push(await checkStep('REST root /wp-json/', () => client.fetchRoot(), config));
+  results.push(await checkStep('Posts endpoint', () => client.fetchPosts({
     limit: config.limitPosts,
     offset: config.postsOffset,
     before: config.postsBefore
-  }), config);
-  await checkStep('Pages endpoint', () => client.fetchPages({ limit: 5 }), config);
-  await checkStep('Categories endpoint', () => client.fetchCategories({ limit: 100 }), config);
-  await checkStep('Tags endpoint', () => client.fetchTags({ limit: 100 }), config);
-  await checkStep('Media endpoint', () => client.fetchMedia({ limit: 100 }), config);
+  }), config));
+  results.push(await checkStep('Pages endpoint', () => client.fetchPages({ limit: 5 }), config));
+  results.push(await checkStep('Categories endpoint', () => client.fetchCategories({ limit: 100 }), config));
+  results.push(await checkStep('Tags endpoint', () => client.fetchTags({ limit: 100 }), config));
+  results.push(await checkStep('Media endpoint', () => client.fetchMedia({ limit: 100 }), config));
 
   console.log('');
   console.log('Inspection complete');
+  if (results.some((ok) => !ok)) {
+    process.exitCode = 1;
+  }
 }
 
 main().catch((error) => {

@@ -1,152 +1,80 @@
-# WordPress to Qortal Toolkit
+# The Corbett Report: WordPress to Qortal
 
-Current version: `0.1.5`
+This toolkit copies the public WordPress site at `https://corbettreport.com` into Qortal QDN and keeps it current.
 
-This repository contains a WordPress migration toolkit and a separate Qortal-native CMS.
+The person using this repository does **not** need to understand Node.js or Qortal internals. Follow the instructions in order and copy the commands exactly.
 
-Start here:
+## What this toolkit does
+
+1. Reads posts, pages, categories, tags, and media from the WordPress REST API.
+2. Converts the WordPress data into Qortal-friendly JSON resources.
+3. Downloads same-site media and prepares a publish plan.
+4. Builds one small batch folder on your computer.
+5. Publishes the batch through the existing Migration Publisher Q-App.
+6. Lets the existing Corbett Report CMS adopt the imported posts as drafts.
+
+## What is already published
+
+| Item | Qortal address | Notes |
+| --- | --- | --- |
+| Migration Publisher | `qortal://WEBSITE/Corbett` | Already published. Publishes import batches. |
+| Website and CMS | `qortal://WEBSITE/CorbettReport` | Already published. Includes the public site and Author Backend. |
+| Content and import name | `Corbett` | Posts, pages, indexes, and media are published under this name. |
+| Migration manifest | `DOCUMENT/Corbett/cr-qdn-manifest` | The CMS reads this catalog. |
+
+The CMS app is owned by `CorbettReport`. Migration content is published by `Corbett`. These are intentionally different Qortal names.
+
+## Before the first batch
+
+The current QDN catalog already contains an older Corbett Report archive. Run this once before preparing any new batch:
+
+```bash
+npm run batch:init -- --from-qdn
+```
+
+This records the existing QDN catalog locally. New batches then merge with it instead of replacing older posts and indexes.
+
+## Start here
+
+- `QUICKSTART.md` - one-page command list.
+- `docs/ZORIN_LINUX_SETUP.md` - complete beginner walkthrough for Zorin OS / Ubuntu.
+- `docs/CORBETT_MIGRATION_RUNBOOK.md` - what to do for every batch.
+- `docs/QDN_RESOURCE_STRATEGY.md` - technical resource model and recovery notes.
+
+## Where files go
 
 ```text
-TESTER_GUIDE.md
-QUICKSTART.md
+wordpress-to-qortal/                         project folder
+├── .env                                     private WordPress and Qortal settings
+├── wp-qortal-import/                        general local import folder
+└── workspaces/corbettreport-batches/
+    ├── state.json                           batch progress and cursors
+    ├── baseline-qdn/                        snapshot of the existing QDN catalog
+    └── batches/                             prepared batch folders
 ```
 
-The Corbett Report implementation is now operated as a production migration
-project. Its primary runbook is:
+The terminal prints the exact batch folder to select in the Migration Publisher. It looks like this:
 
 ```text
-docs/CORBETT_BATCH_WORKFLOW.md
+workspaces/corbettreport-batches/batches/2026-10-26_14-30-00_batch-0001_posts-000001-000010
 ```
 
-Each completed batch includes unseen live posts and the next historical group,
-allowing the Qortal site to stay current while the archive migration continues.
+## Safety rules
 
-## Components
+- Never send or upload `.env`. It contains the WordPress password.
+- Do not publish `wp-qortal-import` or a batch folder as a Qortal app.
+- Keep `Skip already published` enabled in the Migration Publisher.
+- Do not run `npm run batch:complete` until the batch is published, adopted in the CMS, and visible on the public site.
+- Keep backups of the original WordPress data and the local batch folders until the batch is verified.
 
-### Local WordPress Importer
-
-The Node.js importer:
-
-- reads WordPress REST API content
-- stores raw JSON locally
-- converts posts, pages, categories, and tags
-- extracts media and links from HTML
-- downloads selected media files
-- creates QDN identifiers, indexes, URL maps, and manifests
-- validates the local migration dataset
-
-### Migration Publisher Q-App
-
-The Migration Publisher is a small Qortal `APP` or `WEBSITE` ZIP.
-
-It does not contain imported media. Inside Qortal UI, the user selects the local `wp-qortal-import` folder and publishes selected resources through Qortal's `qortalRequest` bridge.
-
-Publisher modes:
-
-- `Demo`
-- `CMS JSON`
-- `Images`
-- `Documents`
-- `Audio`
-- `Video`
-- `Selected media`
-- `Full media`
-
-The publisher supports checkboxes, grouped multi-resource confirmations, local publish history, and QDN existence checks.
-
-### Qortal CMS Q-App
-
-The Qortal CMS is the long-term authoring interface. It supports:
-
-- public visitor frontend
-- SysOp and coauthor backend
-- per-site stable IDs
-- editable site title and tagline
-- rich text post creation and editing
-- QDN drafts and published posts
-- category and tag suggestions
-- local media uploads
-- imported WordPress post adoption
-- attachment previews
-- QDN and Q-Tube video embeds
-- lazy-loaded video players
-- comments, likes, shares, QDN URI copying, and QORT tips
-
-## Local Import Workflow
+## Useful commands
 
 ```bash
-npm install
-cp .env.example .env
-npm run inspect
-npm run prepare-import
-npm run validate:media
-npm run prepare-publish
-```
-
-Generated data is written to:
-
-```text
-wp-qortal-import/
-```
-
-Keep `.env` and `wp-qortal-import` private unless the imported content may be shared.
-
-The default shareable configuration uses:
-
-```env
-MIGRATION_PROFILE=generic
-```
-
-Site-specific defaults live in `profiles/<profile-id>/profile.json`. See
-`docs/PROFILES.md`.
-
-## Release Commands
-
-Build the small Migration Publisher Q-App:
-
-```bash
-npm run package:migration-qapp
-```
-
-This is an alias for:
-
-```bash
-npm run package:migration-qapp:generic
-```
-
-Build the CMS Q-App:
-
-```bash
-npm run package:cms-qapp
-```
-
-Build the complete tester bundle:
-
-```bash
-npm run package:tester-bundle
-```
-
-The tester bundle contains:
-
-- local importer ZIP
-- Migration Publisher Q-App ZIP
-- Qortal CMS Q-App ZIP
-- tester documentation
-
-It excludes:
-
-- `node_modules`
-- `.env`
-- imported WordPress data
-- local Qortal API keys
-
-## Documentation
-
-```text
-TESTER_GUIDE.md
-QUICKSTART.md
-docs/QDN_RESOURCE_STRATEGY.md
-docs/PROFILES.md
-docs/CORBETT_BATCH_WORKFLOW.md
-qortal-cms/README.md
+npm run doctor          # Check Node.js, .env, Qortal node, and QDN catalog
+npm run inspect         # Check WordPress API access
+npm run batch:status    # Show migration progress
+npm run batch:next      # Prepare the next batch
+npm run batch:retry     # Resume a failed batch
+npm run batch:complete  # Mark the current batch complete
+npm run batch:cleanup   # Delete large local files from a completed batch
 ```

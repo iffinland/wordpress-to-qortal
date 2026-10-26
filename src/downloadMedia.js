@@ -64,6 +64,7 @@ function createLocalMediaPath(url, mediaItem, index) {
 
 async function downloadFile(url, outputPath) {
   const response = await fetch(url, {
+    signal: AbortSignal.timeout(60000),
     headers: {
       Accept: '*/*'
     }
@@ -71,6 +72,11 @@ async function downloadFile(url, outputPath) {
 
   if (!response.ok) {
     throw new Error(`Media download failed: ${response.status} ${response.statusText}`);
+  }
+
+  if (/text\/html|application\/xhtml\+xml/i.test(response.headers.get('content-type') || '')) {
+    await response.body?.cancel();
+    throw new Error('Media URL returned an HTML page instead of a media file.');
   }
 
   if (!response.body) {
