@@ -19,7 +19,16 @@ phases, not current capabilities.
 > [`PHASE-2-WORDPRESS-ADAPTER.md`](PHASE-2-WORDPRESS-ADAPTER.md). Phase 2 keeps
 > the journal+snapshot store, represents terms and media as `qms-content@1`
 > documents, and writes discovery batches under the project's local artifacts.
-> Media download, planning, cleanup and QDN publication remain unimplemented.
+>
+> **Phase 3 implementation note (2026-11-03):** universal site identity, a
+> project-scoped QDN namespace, persistent source→QDN mappings, deterministic
+> batch planning, disk preflight/limits, streaming media downloads,
+> content-addressed deduplication, reference counts and explicit conflict/target
+> migration are implemented. See
+> [`PHASE-3-PLANNING-MEDIA-IDENTITY.md`](PHASE-3-PLANNING-MEDIA-IDENTITY.md).
+> Phase 3 does not publish to QDN, does not sign, and does not delete local or
+> Qortal Core data. The Phase 3 state store is journal+snapshot version 2;
+> SQLite remains a measured future option, not a current dependency.
 
 ## 1. Architecture goals and constraints
 
@@ -313,6 +322,15 @@ the OS keyring, not in these files.
 > Rationale, format and recovery rules are in
 > [`PHASE-1-ENGINE.md`](PHASE-1-ENGINE.md). The schema below remains the target
 > shape if state volume later justifies SQLite behind the same store interface.
+>
+> **Phase 3 actual layout (2026-11-03):** the implemented per-project layout is
+> `project.json`, `state/snapshot.json`, `state/journal.jsonl`, `runs/`,
+> `artifacts/source/<adapter>/batches/<batchId>/`,
+> `artifacts/plans/<planId>/plan.json`, `media/assets/<hash[0..2]>/<sha256>`,
+> `media/tmp/<sha256(url)>.part`, `media/receipts/` (reserved) and
+> `lock.json`. No `studio.db` exists. Compact identity mappings, plan records,
+> media receipts and reference counts live in the version-2 journal state; item
+> bodies and media bodies never do.
 
 ### 5.2 Database schema (proposed)
 
@@ -737,11 +755,16 @@ entrypoints resolve. A stale/partial index is reported honestly.
 
 ```text
 (project_id, source.adapter, source.key) -> stable internal item id
-item id + stable source key -> QDN identifier (unless user remaps)
+item id + immutable site_id/namespace + stable source key -> QDN identifier
 ```
 
-The mapping stores the last published content hash and QDN triple. Renaming a
-slug updates metadata, not identity, by default.
+**Phase 3 implementation:** the persistent identity key is
+`(site_id, source.adapter, source.key)`, not the mutable project name or URL.
+The site id is random and immutable; the QDN identifier is derived from the site
+id namespace and source key only. The mapping stores the last planned/published
+content hash and the exact `(service, name, identifier)` triple. Renaming a
+slug updates route metadata, not identity, by default. See
+[`PHASE-3-PLANNING-MEDIA-IDENTITY.md`](PHASE-3-PLANNING-MEDIA-IDENTITY.md).
 
 ### 9.2 Duplicate prevention
 
@@ -776,11 +799,17 @@ Before a run:
 
 ```text
 available = statfs(projectRoot).bavail * bsize
-reserve    = max(config.reserveBytes, 10% of volume)
-projected  = known media bytes * safetyFactor + content/index overhead
+reserve    = config.reserveBytes (default 10 GiB)
+projected  = (known media bytes + bounded unknown accounting) * safetyFactor
+             + content/index overhead
 required   = projected + reserve
 if available < required -> refuse or reduce scope
 ```
+
+**Phase 3 implementation:** `reserveBytes` defaults to 10 GiB and is
+configurable; unknown sizes follow `reject|cap|estimate` and are never counted
+as zero. Per-run bytes/files, per-file bytes and the reserve are enforced at
+preflight and during streaming. Blocked plans reserve no identity mappings.
 
 - Unknown-size assets are counted at the per-file cap or a conservative default.
 - The plan shows projected bytes, free bytes, reserve and whether the run fits.

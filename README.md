@@ -42,6 +42,7 @@ This records the existing QDN catalog locally. New batches then merge with it in
 - `docs/QDN_RESOURCE_STRATEGY.md` - technical resource model and recovery notes.
 - `docs/migration-studio/PHASE-1-ENGINE.md` - Qortal Migration Studio engine, storage, events, and CLI (Phase 1).
 - `docs/migration-studio/PHASE-2-WORDPRESS-ADAPTER.md` - source adapters, the WordPress adapter, `qms-content@1`, discovery artifacts, and Corbett compatibility (Phase 2).
+- `docs/migration-studio/PHASE-3-PLANNING-MEDIA-IDENTITY.md` - universal site identity, QDN namespaces, batch planning, disk protection, media downloads/dedupe and conflict handling (Phase 3).
 
 ## Where files go
 
@@ -118,6 +119,35 @@ npm run qms -- source discover <projectId> --per-page 50
 WordPress credentials are read only from environment variables
 (`WORDPRESS_USERNAME`, `WORDPRESS_APP_PASSWORD`, `WORDPRESS_PASSWORD`,
 `WORDPRESS_AUTH_MODE`) and are never written to project state or artifacts.
+
+## Qortal Migration Studio planning, media and identity (Phase 3)
+
+Phase 3 is the universal preparation layer. It gives every project an automatic
+immutable `siteId` and a project-scoped QDN namespace, plans deterministic
+batches (default 15), enforces disk reserves and download caps, and downloads
+media into a SHA-256 content-addressed store with deduplication and reference
+counts. It never publishes to QDN, signs transactions or deletes local data.
+
+```bash
+# Create a generic project with a target Qortal name and default batch size.
+npm run qms -- project create --name "Synthetic Site" \
+  --source-url https://example.test --qdn-name ExampleName --batch-size 15
+
+npm run qms -- source discover <projectId> --per-page 50
+npm run qms -- plan create <projectId> --batch-size 15 --json
+npm run qms -- media download <projectId> --plan <planId> --json
+npm run qms -- media inspect <projectId> --json
+npm run qms -- identity show <projectId> --json
+npm run qms -- disk check <projectId> --json
+```
+
+Target names, prefixes and batch sizes are project configuration, never
+hardcoded example-site defaults. All downloaded files stay under the project
+workspace; media URLs are restricted to HTTP(S) and secure defaults block local
+files, private addresses and external media unless explicitly enabled. See
+`docs/migration-studio/PHASE-3-PLANNING-MEDIA-IDENTITY.md` for the complete
+identity, planning, media, disk and recovery contract.
+
 Discovery artifacts live under
 `<project>/artifacts/source/<adapter>/batches/<batchId>/`; only completed
 batches are referenced by `latest.json`. See

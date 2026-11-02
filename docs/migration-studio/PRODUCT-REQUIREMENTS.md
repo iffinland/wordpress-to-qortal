@@ -6,8 +6,18 @@
 | Product working name | Qortal Migration Studio |
 | Executing agent | DeepSeek (`opencode-development` profile) |
 | Date | 2026-11-02 |
-| Status | Requirements baseline for architecture/planning; not a release commitment |
+| Status | Requirements baseline for architecture/planning; not a release commitment. Phase 3 requirements are implemented as documented in [`PHASE-3-PLANNING-MEDIA-IDENTITY.md`](PHASE-3-PLANNING-MEDIA-IDENTITY.md); Phases 4–10 remain unimplemented. |
 | Companion audit | [`PHASE-0-ARCHITECTURE-AUDIT.md`](PHASE-0-ARCHITECTURE-AUDIT.md) |
+
+> **Phase 3 implementation note (2026-11-03):** BAT-02/04/05/06, MED-01..07,
+> IDM-01..06 and the relevant SYN checks are implemented for the engine and
+> local fixtures. “Implemented” means tested against synthetic WordPress/media
+> fixtures; it does not mean a live WordPress or QDN end-to-end migration.
+> `BAT-02` includes exactly 15 posts per batch by default and rejects invalid
+> values. `MED-02` keeps external media linked-only unless explicitly enabled.
+> `IDM-03/04` prevent duplicate planning and surface conflicts; publication
+> status is still reserved for Phase 5. GUI acceptance criteria belong to
+> Phase 4.
 
 ## 1. Product definition
 

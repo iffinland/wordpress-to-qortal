@@ -17,6 +17,13 @@ is stated explicitly.
 > [`PHASE-2-WORDPRESS-ADAPTER.md`](PHASE-2-WORDPRESS-ADAPTER.md). The Phase 1
 > storage, locking, event and host guarantees described below are unchanged;
 > `source.validate` and `source.discover` reuse the same run/event model.
+>
+> **Phase 3 update (2026-11-03):** the state store is now version 2, adding
+> identity mappings, compact plan records, media receipts and reference counts.
+> The journal+snapshot design, locking, events and host semantics are unchanged.
+> See [`PHASE-3-PLANNING-MEDIA-IDENTITY.md`](PHASE-3-PLANNING-MEDIA-IDENTITY.md).
+> The migration from version 1 is forward-only and tested; newer versions still
+> fail closed.
 
 ## 1. Outcome
 
@@ -186,7 +193,8 @@ Writers:
 
 ## 6. Schema versions and migrations
 
-- `CURRENT_STORE_VERSION = 1`; project documents are version 1.
+- `CURRENT_STORE_VERSION = 2` since Phase 3 (it was 1 in Phase 1); project
+  documents remain version 1 with an optional additive `identity` field.
 - `STATE_MIGRATIONS` maps a source version to a forward-only function. Version 0
   is the documented legacy snapshot; opening it migrates to 1, rewrites the
   snapshot, and reports `recovery.migratedFrom`.

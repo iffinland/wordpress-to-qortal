@@ -6,7 +6,7 @@
 | Product working name | Qortal Migration Studio |
 | Executing agent | DeepSeek (`opencode-development` profile) |
 | Date | 2026-11-02 |
-| Status | Phase 0 complete; Phase 1 and Phase 2 implemented on dedicated agent branches; Phases 3–10 not started |
+| Status | Phase 0 complete; Phases 1–3 implemented on dedicated agent branches; Phases 4–10 not started |
 | Companion documents | [Audit](PHASE-0-ARCHITECTURE-AUDIT.md), [Requirements](PRODUCT-REQUIREMENTS.md), [Architecture](ARCHITECTURE.md) |
 
 ## 1. How to use this roadmap
@@ -197,6 +197,30 @@ persistent identity map, duplicate prevention and conflict detection.
    creates a conflict, not a silent overwrite.
 9. **AC3.9** A project lock prevents concurrent publication of the same identity.
 10. **AC3.10** Disk-full and limit tests leave the project recoverable.
+
+### Implementation evidence (Phase 3)
+
+Phase 3 is implemented on a dedicated agent branch from the verified Phase 2
+commit `f34e5229dd0eee1cef5d611f57569d6c72920d01`. Evidence is recorded in
+[`PHASE-3-PLANNING-MEDIA-IDENTITY.md`](PHASE-3-PLANNING-MEDIA-IDENTITY.md):
+
+- automatic immutable `site_id`, project-scoped QDN namespace, stable
+  service/name/identifier mappings, explicit target migration and conflict
+  resolution;
+- default 15-item deterministic plans with date/modified filters, classification
+  (new/modified/unchanged/route_changed/conflict/error/unsupported), plan
+  persistence and restart-safe retrieval;
+- 10 GiB default reserve, per-run/per-file/file-count caps, bounded unknown-size
+  policy, filesystem-specific preflight and runtime disk enforcement;
+- streaming media downloads with `.part` resume, SHA-256 verification, atomic
+  finalization, content-addressed dedupe, reference counts and receipts;
+- host/CLI operations for identity, plan, media and disk inspection;
+- 37 new Phase 3 tests, 139/139 total, plus viewer and CMS builds in
+  `npm run check`. No live WordPress migration or QDN publish was performed.
+
+Phase 3 deliberately stops before publication and destructive cleanup. Phase 4
+still requires the desktop shell, packaging, keyring integration and real
+operator workflows.
 
 ## 7. Phase 4 — Desktop shell and Linux packaging prototype (P0)
 

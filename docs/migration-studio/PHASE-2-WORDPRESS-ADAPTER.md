@@ -13,6 +13,13 @@ This document describes what Phase 2 actually implements and what it does not.
 It is evidence-oriented: every capability below has a corresponding test file and
 command in section 12.
 
+> **Phase 3 update (2026-11-03):** planning, media download, disk limits and
+> persistent identity mappings now build on the Phase 2 discovery artifacts.
+> Phase 3 reads completed batches through `latest.json`/`index.jsonl` and keeps
+> `qms-content@1` unchanged. See
+> [`PHASE-3-PLANNING-MEDIA-IDENTITY.md`](PHASE-3-PLANNING-MEDIA-IDENTITY.md).
+> Phase 3 does not publish to QDN.
+
 ## 1. Outcome
 
 Phase 2 adds a source-adapter boundary and a universal content model to the
