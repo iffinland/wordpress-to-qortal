@@ -19,10 +19,17 @@ const HELP = `qms ${ENGINE_VERSION} — Qortal Migration Studio engine CLI
 Usage:
   qms engine info [--json]
   qms project create --name <name> [--id <prj_...>] [--profile <id>]
+                     [--adapter wordpress] [--source-url <url>]
                      [--data-root <dir>] [--json]
   qms project list [--all] [--data-root <dir>] [--json]
   qms project show <projectId> [--json]
-  qms project update <projectId> [--name <name>] [--json]
+  qms project update <projectId> [--name <name>] [--adapter <id>]
+                      [--source-url <url>] [--auth-mode <mode>] [--json]
+  qms source capabilities [adapterId] [--json]
+  qms source validate <projectId> [--adapter <id>] [--json]
+  qms source discover <projectId> [--adapter <id>] [--per-page <n>]
+                      [--max-items <n>] [--content-types post,page]
+                      [--after <iso>] [--modified-after <iso>] [--json]
   qms project archive <projectId> [--delete-data] [--recover-stale]
   qms project validate <projectId> [--json]
   qms state compact <projectId> [--json]
@@ -35,7 +42,9 @@ Environment:
   QMS_DATA_ROOT   Override the XDG data root
                   (default: $XDG_DATA_HOME/qortal-migration-studio)
 
-No command performs a WordPress import or a QDN publish.
+No command publishes to QDN. WordPress authentication secrets are read only
+from WORDPRESS_USERNAME / WORDPRESS_APP_PASSWORD / WORDPRESS_PASSWORD and are
+never written to project state, artifacts or logs.
 `;
 
 function parseArgs(argv) {
@@ -87,6 +96,30 @@ function formatProject(project) {
   const archived = project.archivedAt ? ' (archived)' : '';
   const profile = project.profileId ? ` profile=${project.profileId}` : '';
   return `${project.id}  ${project.name}${archived}${profile}\n  root: ${project.storageRoot}`;
+}
+
+function buildWordpressAuth(flags) {
+  const mode = String(flags['auth-mode'] ?? process.env.WORDPRESS_AUTH_MODE ?? 'none').trim().toLowerCase();
+  if (mode === 'application_password') {
+    return {
+      mode,
+      username: process.env.WORDPRESS_USERNAME?.trim() ?? '',
+      appPassword: process.env.WORDPRESS_APP_PASSWORD?.trim() ?? ''
+    };
+  }
+  if (mode === 'session') {
+    return {
+      mode,
+      username: process.env.WORDPRESS_USERNAME?.trim() ?? '',
+      password: process.env.WORDPRESS_PASSWORD?.trim() ?? '',
+      loginUrl: process.env.WORDPRESS_LOGIN_URL?.trim() || '/login/'
+    };
+  }
+  return { mode: 'none' };
+}
+
+function parseBooleanFlag(value) {
+  return value === true || value === 'true' || value === '1';
 }
 
 function summarizeRun(result) {
@@ -167,14 +200,105 @@ async function main() {
     return 2;
   }
 
+  if (group === 'source') {
+    const engine = await openEngine(flags);
+    if (action === 'capabilities') {
+      const adapterId = argument ?? flags.adapter ?? 'wordpress';
+      print(engine.sourceRegistry.capabilities(adapterId), asJson);
+      return 0;
+    }
+    if (action === 'validate') {
+      const handle = await engine.projects.open(argument, {
+        recoverStaleLock: flags['recover-stale'] === true
+      });
+      try {
+        const result = await handle.source.validate({
+          adapterId: flags.adapter ?? null,
+          auth: buildWordpressAuth(flags),
+          source: flags['source-url'] ? { baseUrl: String(flags['source-url']) } : {}
+        });
+        if (asJson) {
+          print(result, true);
+        } else if (result.status === 'completed') {
+          const report = result.report;
+          print([
+            `run ${result.runId}: completed`,
+            `site: ${report.site?.name ?? '(unknown)'} ${report.site?.url ?? ''}`.trim(),
+            `auth: ${report.auth?.mode ?? 'none'}`,
+            `warnings: ${report.warnings?.length ?? 0}`,
+            `unsupported: ${report.unsupported?.length ?? 0}`
+          ].join('\n'));
+        } else {
+          print(summarizeRun(result));
+        }
+        return result.status === 'completed' ? 0 : 1;
+      } finally {
+        await handle.close();
+      }
+    }
+    if (action === 'discover') {
+      const handle = await engine.projects.open(argument, {
+        recoverStaleLock: flags['recover-stale'] === true
+      });
+      try {
+        const contentTypes = flags['content-types']
+          ? String(flags['content-types']).split(',').map((value) => value.trim()).filter(Boolean)
+          : null;
+        const result = await handle.source.discover({
+          adapterId: flags.adapter ?? null,
+          auth: buildWordpressAuth(flags),
+          source: flags['source-url'] ? { baseUrl: String(flags['source-url']) } : {},
+          contentTypes,
+          perPage: flags['per-page'] ? Number(flags['per-page']) : 100,
+          progressEvery: flags['progress-every'] ? Number(flags['progress-every']) : 25,
+          maxItems: flags['max-items'] ? Number(flags['max-items']) : null,
+          includeTerms: !parseBooleanFlag(flags['no-terms']),
+          includeAssets: !parseBooleanFlag(flags['no-assets']),
+          query: {
+            ...(flags.after ? { after: flags.after } : {}),
+            ...(flags.before ? { before: flags.before } : {}),
+            ...(flags['modified-after'] ? { modified_after: flags['modified-after'] } : {}),
+            ...(flags['modified-before'] ? { modified_before: flags['modified-before'] } : {})
+          }
+        });
+        if (asJson) {
+          print(result, true);
+        } else if (result.status === 'completed') {
+          print([
+            `run ${result.runId}: completed`,
+            `batch: ${result.batchId}`,
+            `items: ${result.summary.items} (new ${result.summary.new}, updated ${result.summary.updated}, unchanged ${result.summary.unchanged})`,
+            `content root: ${result.summary.contentRoot}`,
+            `batch directory: ${result.paths.batchDir}`,
+            `truncated: ${result.summary.truncated === true}`,
+            `warnings: ${result.report.warnings.length}`,
+            `unsupported: ${result.report.unsupported.length}`
+          ].join('\n'));
+        } else {
+          print(summarizeRun(result));
+        }
+        return result.status === 'completed' ? 0 : 1;
+      } finally {
+        await handle.close();
+      }
+    }
+    process.stderr.write(HELP);
+    return 2;
+  }
+
   if (group === 'project') {
     const engine = await openEngine(flags);
     if (action === 'create') {
+      const source = {};
+      if (flags.adapter) source.adapter = String(flags.adapter);
+      if (flags['source-url']) source.baseUrl = String(flags['source-url']);
+      if (flags['auth-mode']) source.authMode = String(flags['auth-mode']);
       const project = await engine.projects.create({
         name: flags.name,
         id: flags.id,
         profileId: flags.profile,
-        compatibility: flags.profile ? undefined : null
+        compatibility: flags.profile ? undefined : null,
+        source
       });
       print(project, asJson);
       return 0;
@@ -197,6 +321,12 @@ async function main() {
     }
     if (action === 'update') {
       const patch = flags.name ? { name: flags.name } : {};
+      if (flags.adapter || flags['source-url'] || flags['auth-mode']) {
+        patch.source = {};
+        if (flags.adapter) patch.source.adapter = String(flags.adapter);
+        if (flags['source-url']) patch.source.baseUrl = String(flags['source-url']);
+        if (flags['auth-mode']) patch.source.authMode = String(flags['auth-mode']);
+      }
       const updated = await engine.projects.update(argument, patch);
       print(updated.project, asJson);
       return 0;
