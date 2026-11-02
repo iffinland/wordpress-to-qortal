@@ -38,9 +38,15 @@ export function createQdnIdentifiers(resourcePrefix) {
   };
 }
 
-export function loadProfile(profileId = process.env.MIGRATION_PROFILE?.trim() || DEFAULT_PROFILE_ID) {
+export function loadProfile(
+  profileId = process.env.MIGRATION_PROFILE?.trim() || DEFAULT_PROFILE_ID,
+  options = {}
+) {
   validateProfileId(profileId);
-  const profileDir = path.resolve('profiles', profileId);
+  // baseDir keeps legacy CLI behavior (cwd) while letting the engine load the
+  // same profile independently of the current working directory.
+  const baseDir = options.baseDir || process.cwd();
+  const profileDir = path.resolve(baseDir, 'profiles', profileId);
   const profilePath = path.join(profileDir, 'profile.json');
 
   if (!existsSync(profilePath)) {
