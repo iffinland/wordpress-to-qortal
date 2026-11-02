@@ -43,7 +43,8 @@
     "package:migration-qapp": "node scripts/createMigrationQappZip.js --profile=corbettreport",
     "package:cms-qapp": "node scripts/createCmsQappZip.js --profile=corbettreport",
     "package:tester-bundle": "node scripts/createTesterBundle.js",
-    "package:release": "npm run package:zip && npm run package:migration-qapp && npm run package:cms-qapp"
+    "package:release": "npm run package:zip && npm run package:migration-qapp && npm run package:cms-qapp",
+    "test:phase3": "node --test test/phase3/*.test.js"
   },
   "engines": {
     "node": ">=20.0.0"

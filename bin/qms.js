@@ -13,6 +13,8 @@ import { createEngine, ENGINE_VERSION } from '../lib/engine/index.js';
 import { defaultDataRoot } from '../lib/engine/storage/paths.js';
 import { runHost } from '../lib/engine/host/server.js';
 import { isQmsError } from '../lib/engine/errors.js';
+import { GIB, MIB, resolveProjectConfig } from '../lib/engine/config.js';
+import { diskPreflight } from '../lib/engine/disk.js';
 
 const HELP = `qms ${ENGINE_VERSION} — Qortal Migration Studio engine CLI
 
@@ -20,11 +22,31 @@ Usage:
   qms engine info [--json]
   qms project create --name <name> [--id <prj_...>] [--profile <id>]
                      [--adapter wordpress] [--source-url <url>]
+                     [--qdn-name <name>] [--prefix <prefix>] [--batch-size <n>]
                      [--data-root <dir>] [--json]
   qms project list [--all] [--data-root <dir>] [--json]
   qms project show <projectId> [--json]
   qms project update <projectId> [--name <name>] [--adapter <id>]
-                      [--source-url <url>] [--auth-mode <mode>] [--json]
+                      [--source-url <url>] [--auth-mode <mode>]
+                      [--qdn-name <name>] [--prefix <prefix>] [--batch-size <n>] [--json]
+  qms identity show <projectId> [--json]
+  qms identity conflicts <projectId> [--all] [--json]
+  qms identity resolve <projectId> <conflictId> --resolution skip|alternate|abort
+  qms identity migrate-preview <projectId> --qdn-name <name> [--prefix <prefix>]
+  qms identity migrate-apply <projectId> --token <token>
+  qms plan create <projectId> [--batch-size <n>] [--after <iso>] [--before <iso>]
+                  [--modified-after <iso>] [--modified-before <iso>]
+                  [--content-types post,page] [--statuses publish] [--search <text>]
+                  [--no-media-estimates] [--allow-external] [--json]
+  qms plan list <projectId> [--json]
+  qms plan get <projectId> <planId> [--json]
+  qms media download <projectId> --plan <planId> [--concurrency <n>]
+                      [--max-files <n>] [--max-bytes-per-run <size>]
+                      [--max-file-bytes <size>] [--reserve-gib <n>]
+                      [--unknown-size-policy reject|cap|estimate] [--allow-external] [--json]
+  qms media inspect <projectId> [--json]
+  qms media reconcile <projectId> [--json]
+  qms disk check <projectId> [--reserve-gib <n>] [--json]
   qms source capabilities [adapterId] [--json]
   qms source validate <projectId> [--adapter <id>] [--json]
   qms source discover <projectId> [--adapter <id>] [--per-page <n>]
@@ -122,6 +144,81 @@ function parseBooleanFlag(value) {
   return value === true || value === 'true' || value === '1';
 }
 
+function parseByteSize(value, label) {
+  if (value === undefined) return undefined;
+  if (value === true) {
+    throw new Error(label + ' requires a value.');
+  }
+  const match = /^(\d+(?:\.\d+)?)\s*(b|kb|kib|mb|mib|gb|gib)?$/i.exec(String(value).trim());
+  if (!match) throw new Error(label + ' must be a byte size such as 512MiB or 10GiB.');
+  const amount = Number(match[1]);
+  const unit = (match[2] ?? 'b').toLowerCase();
+  const multiplier = unit === 'b' ? 1
+    : unit === 'kb' || unit === 'kib' ? 1024
+      : unit === 'mb' || unit === 'mib' ? MIB
+        : GIB;
+  return Math.floor(amount * multiplier);
+}
+
+function buildRunOverrides(flags) {
+  const disk = {};
+  if (flags['reserve-gib'] !== undefined) disk.reserveBytes = Math.floor(Number(flags['reserve-gib']) * GIB);
+  if (flags['reserve-bytes'] !== undefined) disk.reserveBytes = parseByteSize(flags['reserve-bytes'], '--reserve-bytes');
+  if (flags['max-bytes-per-run'] !== undefined) disk.maxBytesPerRun = parseByteSize(flags['max-bytes-per-run'], '--max-bytes-per-run');
+  if (flags['max-file-bytes'] !== undefined) disk.maxFileBytes = parseByteSize(flags['max-file-bytes'], '--max-file-bytes');
+  if (flags['max-files'] !== undefined) disk.maxFilesPerRun = Number(flags['max-files']);
+  if (flags['unknown-size-policy'] !== undefined) disk.unknownSizePolicy = String(flags['unknown-size-policy']);
+  if (flags['unknown-size-bytes'] !== undefined) disk.unknownSizeBytes = parseByteSize(flags['unknown-size-bytes'], '--unknown-size-bytes');
+  if (flags['safety-factor'] !== undefined) disk.safetyFactor = Number(flags['safety-factor']);
+  const media = {};
+  if (flags['allow-external'] !== undefined) media.allowExternalMedia = parseBooleanFlag(flags['allow-external']);
+  if (flags['allow-loopback'] !== undefined) media.allowLoopback = parseBooleanFlag(flags['allow-loopback']);
+  if (flags.concurrency !== undefined) media.concurrency = Number(flags.concurrency);
+  if (flags['max-retries'] !== undefined) media.maxRetries = Number(flags['max-retries']);
+  if (flags['timeout-ms'] !== undefined) media.timeoutMs = Number(flags['timeout-ms']);
+  return { disk, media };
+}
+
+function planFiltersFromFlags(flags) {
+  return {
+    ...(flags.after ? { after: flags.after } : {}),
+    ...(flags.before ? { before: flags.before } : {}),
+    ...(flags['modified-after'] ? { modifiedAfter: flags['modified-after'] } : {}),
+    ...(flags['modified-before'] ? { modifiedBefore: flags['modified-before'] } : {}),
+    ...(flags['content-types'] ? { contentTypes: String(flags['content-types']).split(',').map((value) => value.trim()).filter(Boolean) } : {}),
+    ...(flags.statuses ? { statuses: String(flags.statuses).split(',').map((value) => value.trim()).filter(Boolean) } : {}),
+    ...(flags.search ? { search: flags.search } : {})
+  };
+}
+
+function formatPlanSummary(result) {
+  const lines = [
+    'plan ' + result.planId + ': ' + result.status,
+    'batch: ' + result.plan.batchId,
+    'selected: ' + result.stats.selected + ' of ' + result.stats.scanned + ' scanned',
+    'classification: new ' + result.stats.new + ', modified ' + result.stats.modified + ', unchanged ' + result.stats.unchanged + ', route_changed ' + result.stats.route_changed + ', conflict ' + result.stats.conflict,
+    'media: ' + result.media.count + ' files, ' + result.media.knownBytes + ' known bytes, ' + result.media.unknownCount + ' unknown, ' + result.media.missingCount + ' missing, ' + result.media.skippedExternal + ' external',
+    'disk: ' + (result.disk.fits ? 'fits' : 'BLOCKED') + ' (free ' + result.disk.availableBytes + ', projected ' + result.disk.projectedBytes + ', reserve ' + result.disk.reserveBytes + ')',
+    'plan file: ' + result.planFile
+  ];
+  for (const error of result.errors ?? []) lines.push('  [error] ' + error.code + ': ' + error.message);
+  return lines.join('\n');
+}
+
+function formatMediaSummary(result) {
+  const counts = result.counts ?? {};
+  const lines = [
+    'media ' + result.status + ' for plan ' + result.planId,
+    'verified: ' + (counts.verified ?? 0) + ' (reused ' + (counts.reused ?? 0) + ')',
+    'failed: ' + (counts.failed ?? 0) + ', paused: ' + (counts.paused ?? 0) + ', skipped: ' + (counts.skipped ?? 0) + ', conflicts: ' + (counts.conflicts ?? 0),
+    'bytes downloaded: ' + (result.bytes ?? 0)
+  ];
+  if (result.errors?.length) {
+    for (const error of result.errors.slice(0, 10)) lines.push('  [error] ' + error.code + ': ' + error.message);
+  }
+  return lines.join('\n');
+}
+
 function summarizeRun(result) {
   const lines = [`run ${result.runId}: ${result.status}`];
   for (const check of result.checks ?? []) {
@@ -198,6 +295,176 @@ async function main() {
     }
     process.stderr.write(HELP);
     return 2;
+  }
+
+  if (group === 'identity') {
+    const engine = await openEngine(flags);
+    const handle = await engine.projects.open(argument, {
+      recoverStaleLock: flags['recover-stale'] === true
+    });
+    try {
+      if (action === 'show') {
+        const result = {
+          identity: handle.identity.describe(),
+          mappings: handle.identity.listMappings({ limit: Number(flags.limit ?? 1000) })
+        };
+        print(result, asJson);
+        return 0;
+      }
+      if (action === 'conflicts') {
+        const conflicts = handle.identity.listConflicts({
+          includeResolved: flags.all === true,
+          limit: Number(flags.limit ?? 1000)
+        });
+        print(conflicts, asJson);
+        return 0;
+      }
+      if (action === 'resolve') {
+        const conflictId = positional[3];
+        if (!conflictId || !flags.resolution) {
+          process.stderr.write('identity resolve requires <conflictId> and --resolution.\n');
+          return 2;
+        }
+        const result = await handle.identity.resolveConflict({
+          conflictId,
+          resolution: String(flags.resolution)
+        });
+        print(result, asJson);
+        return 0;
+      }
+      if (action === 'migrate-preview') {
+        if (!flags['qdn-name']) {
+          process.stderr.write('identity migrate-preview requires --qdn-name.\n');
+          return 2;
+        }
+        const preview = await handle.identity.migrationPreview({
+          target: {
+            qdnName: String(flags['qdn-name']),
+            ...(flags.prefix ? { resourcePrefix: String(flags.prefix) } : {})
+          }
+        });
+        print(preview, asJson);
+        return 0;
+      }
+      if (action === 'migrate-apply') {
+        if (!flags.token) {
+          process.stderr.write('identity migrate-apply requires --token from migrate-preview.\n');
+          return 2;
+        }
+        const result = await handle.identity.applyMigration({ token: String(flags.token) });
+        print(result, asJson);
+        return 0;
+      }
+    } finally {
+      await handle.close();
+    }
+    process.stderr.write(HELP);
+    return 2;
+  }
+
+  if (group === 'plan') {
+    const engine = await openEngine(flags);
+    const handle = await engine.projects.open(argument, {
+      recoverStaleLock: flags['recover-stale'] === true
+    });
+    try {
+      if (action === 'create') {
+        const overrides = buildRunOverrides(flags);
+        const result = await handle.planning.create({
+          batchSize: flags['batch-size'] !== undefined ? Number(flags['batch-size']) : undefined,
+          filters: planFiltersFromFlags(flags),
+          planning: {
+            ...(flags.order ? { order: String(flags.order) } : {}),
+            ...(flags['include-route-changes'] !== undefined
+              ? { includeRouteChanges: parseBooleanFlag(flags['include-route-changes']) }
+              : {}),
+            ...(flags['max-scan-items'] !== undefined ? { maxScanItems: Number(flags['max-scan-items']) } : {})
+          },
+          disk: overrides.disk,
+          media: overrides.media,
+          estimateMedia: !parseBooleanFlag(flags['no-media-estimates'])
+        });
+        print(asJson ? result : formatPlanSummary(result), asJson);
+        return result.status === 'failed' ? 1 : 0;
+      }
+      if (action === 'list') {
+        print(handle.planning.list({ limit: Number(flags.limit ?? 100) }), asJson);
+        return 0;
+      }
+      if (action === 'get') {
+        const planId = positional[3];
+        if (!planId) {
+          process.stderr.write('plan get requires <planId>.\n');
+          return 2;
+        }
+        print(await handle.planning.get(planId), asJson);
+        return 0;
+      }
+    } finally {
+      await handle.close();
+    }
+    process.stderr.write(HELP);
+    return 2;
+  }
+
+  if (group === 'media') {
+    const engine = await openEngine(flags);
+    const handle = await engine.projects.open(argument, {
+      recoverStaleLock: flags['recover-stale'] === true
+    });
+    try {
+      if (action === 'download') {
+        if (!flags.plan) {
+          process.stderr.write('media download requires --plan <planId>.\n');
+          return 2;
+        }
+        const overrides = buildRunOverrides(flags);
+        const result = await handle.media.download({
+          planId: String(flags.plan),
+          disk: overrides.disk,
+          media: overrides.media,
+          concurrency: flags.concurrency !== undefined ? Number(flags.concurrency) : undefined
+        });
+        print(asJson ? result : formatMediaSummary(result), asJson);
+        return ['failed'].includes(result.status) ? 1 : 0;
+      }
+      if (action === 'inspect') {
+        print(await handle.media.inspect(), asJson);
+        return 0;
+      }
+      if (action === 'reconcile') {
+        print(await handle.media.reconcileReferences(), asJson);
+        return 0;
+      }
+    } finally {
+      await handle.close();
+    }
+    process.stderr.write(HELP);
+    return 2;
+  }
+
+  if (group === 'disk' && action === 'check') {
+    const engine = await openEngine(flags);
+    const handle = await engine.projects.open(argument, {
+      recoverStaleLock: flags['recover-stale'] === true
+    });
+    try {
+      const overrides = buildRunOverrides(flags);
+      const config = resolveProjectConfig(handle.project);
+      const limits = { ...config.disk, ...overrides.disk };
+      const report = await diskPreflight({
+        probe: engine.diskProbe,
+        workspacePath: handle.paths.root,
+        limits,
+        knownBytes: 0,
+        unknownCount: 0,
+        metadataBytes: 0
+      });
+      print(report, asJson);
+      return report.fits ? 0 : 1;
+    } finally {
+      await handle.close();
+    }
   }
 
   if (group === 'source') {
@@ -293,12 +560,18 @@ async function main() {
       if (flags.adapter) source.adapter = String(flags.adapter);
       if (flags['source-url']) source.baseUrl = String(flags['source-url']);
       if (flags['auth-mode']) source.authMode = String(flags['auth-mode']);
+      const settings = {};
+      if (flags['batch-size'] !== undefined) settings.planning = { batchSize: Number(flags['batch-size']) };
+      if (flags.prefix !== undefined) settings.identity = { resourcePrefix: String(flags.prefix) };
+      const target = flags['qdn-name'] !== undefined ? { qdnName: String(flags['qdn-name']) } : {};
       const project = await engine.projects.create({
         name: flags.name,
         id: flags.id,
         profileId: flags.profile,
         compatibility: flags.profile ? undefined : null,
-        source
+        source,
+        settings,
+        target
       });
       print(project, asJson);
       return 0;
@@ -326,6 +599,25 @@ async function main() {
         if (flags.adapter) patch.source.adapter = String(flags.adapter);
         if (flags['source-url']) patch.source.baseUrl = String(flags['source-url']);
         if (flags['auth-mode']) patch.source.authMode = String(flags['auth-mode']);
+      }
+      if (flags['qdn-name'] !== undefined) {
+        patch.target = { qdnName: String(flags['qdn-name']) };
+      }
+      if (flags['batch-size'] !== undefined || flags.prefix !== undefined) {
+        const { project } = await engine.projects.get(argument);
+        patch.settings = { ...project.settings };
+        if (flags['batch-size'] !== undefined) {
+          patch.settings.planning = {
+            ...(project.settings?.planning ?? {}),
+            batchSize: Number(flags['batch-size'])
+          };
+        }
+        if (flags.prefix !== undefined) {
+          patch.settings.identity = {
+            ...(project.settings?.identity ?? {}),
+            resourcePrefix: String(flags.prefix)
+          };
+        }
       }
       const updated = await engine.projects.update(argument, patch);
       print(updated.project, asJson);

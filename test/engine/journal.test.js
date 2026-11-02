@@ -177,13 +177,16 @@ test('an older store version is migrated forward', async (t) => {
   }) + '\n');
 
   const store = await JournalStore.open({ root, migrations: undefined });
-  assert.equal(store.storeVersion, 1);
+  assert.equal(store.storeVersion, 2);
   assert.equal(store.recovery.migratedFrom, 0);
   assert.equal(store.state.counters.run, 0);
   await store.close();
 
   const raw = JSON.parse(await readFile(path.join(root, 'snapshot.json'), 'utf8'));
-  assert.equal(raw.storeVersion, 1);
+  assert.equal(raw.storeVersion, 2);
+  assert.equal(raw.state.identity, null);
+  assert.deepEqual(raw.state.plans, {});
+  assert.deepEqual(raw.state.media.counters, { bytes: 0, files: 0 });
 });
 
 test('an unknown newer store version fails closed without writing', async (t) => {
