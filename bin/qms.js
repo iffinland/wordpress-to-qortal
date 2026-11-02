@@ -198,6 +198,7 @@ function formatPlanSummary(result) {
     'selected: ' + result.stats.selected + ' of ' + result.stats.scanned + ' scanned',
     'classification: new ' + result.stats.new + ', modified ' + result.stats.modified + ', unchanged ' + result.stats.unchanged + ', route_changed ' + result.stats.route_changed + ', conflict ' + result.stats.conflict,
     'media: ' + result.media.count + ' files, ' + result.media.knownBytes + ' known bytes, ' + result.media.unknownCount + ' unknown, ' + result.media.missingCount + ' missing, ' + result.media.skippedExternal + ' external',
+    'estimated fee: ' + (result.estimates?.estimatedFee ?? 0) + ' ' + (result.estimates?.feeCurrency ?? 'QORT') + ' for ' + (result.estimates?.totalResources ?? 0) + ' resources (estimate only)',
     'disk: ' + (result.disk.fits ? 'fits' : 'BLOCKED') + ' (free ' + result.disk.availableBytes + ', projected ' + result.disk.projectedBytes + ', reserve ' + result.disk.reserveBytes + ')',
     'plan file: ' + result.planFile
   ];
@@ -378,7 +379,8 @@ async function main() {
             ...(flags['include-route-changes'] !== undefined
               ? { includeRouteChanges: parseBooleanFlag(flags['include-route-changes']) }
               : {}),
-            ...(flags['max-scan-items'] !== undefined ? { maxScanItems: Number(flags['max-scan-items']) } : {})
+            ...(flags['max-scan-items'] !== undefined ? { maxScanItems: Number(flags['max-scan-items']) } : {}),
+            ...(flags['fee-per-resource'] !== undefined ? { feePerResource: Number(flags['fee-per-resource']) } : {})
           },
           disk: overrides.disk,
           media: overrides.media,

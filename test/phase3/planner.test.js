@@ -19,6 +19,10 @@ test('the default plan selects exactly 15 items and subsequent plans do not dupl
   assert.equal(first.stats.selected, 15);
   assert.equal(first.plan.selection.batchSize, 15);
   assert.equal(first.plan.entries.filter((entry) => ['new', 'modified', 'route_changed'].includes(entry.status)).length, 15);
+  assert.equal(first.plan.estimates.totalResources, 15);
+  assert.equal(first.plan.estimates.feePerResource, 0.01);
+  assert.equal(first.plan.estimates.estimatedFee, 0.15);
+  assert.equal(first.plan.estimates.feeCurrency, 'QORT');
 
   const second = await env.handle.planning.create({ estimateMedia: false });
   assert.equal(second.status, 'completed');

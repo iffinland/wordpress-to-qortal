@@ -259,6 +259,7 @@ selected candidates (bounded by batch size).
 | Content types | post, page |
 | Media estimates | enabled |
 | Route changes | included |
+| Estimated fee per resource | 0.01 QORT (configurable estimate) |
 
 Batch size must be an integer 1–1000. `0`, negatives, fractions and strings are
 rejected with `CONFIG_INVALID`.
@@ -295,6 +296,8 @@ The plan file contains:
   unsupported/selected/withdrawn=0);
 - disk report (`availableBytes`, reserve, known/unknown/projected/required,
   `fits`, reason and message);
+- `estimates` (content/media/total resource counts, `feePerResource`,
+  `estimatedFee`, `feeCurrency`, and a note that this is not a live fee quote);
 - warnings/errors and conflict records.
 
 `qms-plan-record@1` in state is a compact pointer and summary, not a duplicate
@@ -532,6 +535,9 @@ Cleanup may delete a local asset only when:
   mapped items; SQLite remains a future option behind the store interface.
 - **External media policy is per plan/config.** Changing it requires a new plan;
   old plans retain their decision.
+- **Fee estimate is not a live quote.** The default 0.01 QORT per resource is
+  configurable and shown for planning review only; Phase 5 must read the current
+  network fee and show the final amount before approval.
 
 ## 12. Tests and evidence
 
@@ -560,7 +566,7 @@ Phase 3 test files:
 | Criterion | Evidence |
 | --- | --- |
 | AC3.1 Exactly 15 posts per configurable batch | `planner.test.js` default 15 and invalid values |
-| AC3.2 Plan shows item/media counts, known/unknown bytes, free/reserve/fits | `planner.test.js`, `disk.test.js`, plan model |
+| AC3.2 Plan shows item/media counts, known/unknown bytes, estimated fee, free/reserve/fits | `planner.test.js` (fee defaults), `disk.test.js`, plan model |
 | AC3.3 Refuse when projected + reserve exceeds free space | `disk.test.js` preflight refusal, zero mappings/GETs |
 | AC3.4 Per-run file/byte and per-file caps pause with state | `disk.test.js` runtime caps |
 | AC3.5 Interrupted downloads never look final; resume works | `media.test.js` `.part` + Range test |
