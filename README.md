@@ -40,6 +40,7 @@ This records the existing QDN catalog locally. New batches then merge with it in
 - `docs/ZORIN_LINUX_SETUP.md` - complete beginner walkthrough for Zorin OS / Ubuntu.
 - `docs/CORBETT_MIGRATION_RUNBOOK.md` - what to do for every batch.
 - `docs/QDN_RESOURCE_STRATEGY.md` - technical resource model and recovery notes.
+- `docs/YOUTUBE_VPS_INGEST_DECISION.md` - feasibility decision and work plan for server-side YouTube ingest/processing.
 
 ## Where files go
 
