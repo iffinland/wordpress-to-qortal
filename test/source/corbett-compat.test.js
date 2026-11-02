@@ -9,7 +9,7 @@ import {
   corbettCompatibilityRecord,
   rewriteLegacyContentHtml,
   toLegacyContent
-} from '../../lib/engine/compat/corbett.js';
+} from '../../lib/compat/corbett.js';
 
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const FIXED_IMPORTED_AT = '1970-01-01T00:00:00.000Z';

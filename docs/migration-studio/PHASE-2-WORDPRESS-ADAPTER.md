@@ -50,7 +50,7 @@ cleanup, provide a GUI or implement Phase 3+ functionality.
 | <code>lib/source/wordpress/index.js</code> | Public adapter exports |
 | <code>lib/engine/source.js</code> | Engine run integration for <code>source.validate</code> / <code>source.discover</code> |
 | <code>lib/engine/source-batch.js</code> | Batch directories, streaming index, latest pointer, sync history |
-| <code>lib/engine/compat/corbett.js</code> | Read-only legacy Corbett view and route rewriting adapter |
+| <code>lib/compat/corbett.js</code> | Read-only legacy Corbett view and route rewriting adapter |
 | <code>bin/qms.js</code> | <code>qms source capabilities|validate|discover</code> commands |
 | <code>lib/engine/host/server.js</code> | <code>source.list|capabilities|validate|discover</code> host methods |
 | <code>test-support/wordpress/fixtureServer.js</code> | Deterministic WordPress REST fixture server |
@@ -499,7 +499,7 @@ They are never accepted as project settings that are written to disk.
 
 ### 8.2 Compatibility adapter
 
-<code>lib/engine/compat/corbett.js</code> provides a read-only view:
+<code>lib/compat/corbett.js</code> provides a read-only view:
 
 - <code>toLegacyContent(document, options)</code> reproduces <code>convertPost</code>/<code>convertPage</code>
   fields (dates, author, term id arrays, featured media, attachments, links,
@@ -590,7 +590,7 @@ Commands:
 
 ~~~bash
 npm ci
-npm test                 # 101 tests: 56 legacy + 45 Phase 2
+npm test                 # 102 tests: 56 legacy + 46 Phase 2
 npm run check            # npm test + viewer build + CMS build
 node --test test/source  # Phase 2 suite only
 ~~~
@@ -605,12 +605,13 @@ Phase 2 test files:
 | <code>test/source/host-source.test.js</code> | Host methods, events, run progress |
 | <code>test/source/cli-source.test.js</code> | <code>qms source capabilities|validate|discover</code> |
 | <code>test/source/future-adapter.test.js</code> | Non-WordPress adapter registers and runs unchanged |
+| <code>test/source/engine-boundary.test.js</code> | Engine/model modules do not import WordPress adapter internals or fields |
 | <code>test/source/corbett-compat.test.js</code> | Golden legacy output, route rewriting, <code>cr-*</code> identifiers, original HTML preservation |
 
 Baseline before Phase 2: **56/56** tests pass on Phase 1 commit
 <code>e71c404a6fc795185c8ef205f77dc101418e5e3c</code>.
 
-Final Phase 2 result: **101/101** tests pass (see the commit report for the
+Final Phase 2 result: **102/102** tests pass (see the commit report for the
 exact run).
 
 Test fixtures are deterministic local HTTP servers. No live WordPress site, QDN

@@ -157,7 +157,7 @@ Phase 2 is implemented on a dedicated agent branch. Evidence is recorded in
 - Custom post types and unsupported features are reported with counts.
 - Corbett golden fixtures prove legacy post/page output and route rewriting are
   byte-identical; `cr-*` identifiers are unchanged.
-- 101/101 repository tests pass. No live migration or QDN publish was performed.
+- 102/102 repository tests pass. No live migration or QDN publish was performed.
 
 Phase 2 deliberately does not implement media download, planning, cleanup or
 publication; those remain Phase 3.
