@@ -12,6 +12,7 @@
     "setup": "bash scripts/setup-linux.sh",
     "doctor": "node scripts/doctor.js",
     "test": "node --test",
+    "qms": "node bin/qms.js",
     "inspect": "node src/inspect.js",
     "dump": "node src/dump.js",
     "convert": "node src/convertRaw.js",
