@@ -12,6 +12,12 @@ This document describes what Phase 1 actually implements. Archived Phase 0
 proposals remain design intent; where Phase 1 chose differently, the difference
 is stated explicitly.
 
+> **Phase 2 update:** the SourceAdapter contract, WordPress adapter and
+> `qms-content@1` model are implemented in
+> [`PHASE-2-WORDPRESS-ADAPTER.md`](PHASE-2-WORDPRESS-ADAPTER.md). The Phase 1
+> storage, locking, event and host guarantees described below are unchanged;
+> `source.validate` and `source.discover` reuse the same run/event model.
+
 ## 1. Outcome
 
 Phase 1 delivers a headless, Electron-free Node.js engine that can:

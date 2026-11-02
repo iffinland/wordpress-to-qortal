@@ -41,6 +41,7 @@ This records the existing QDN catalog locally. New batches then merge with it in
 - `docs/CORBETT_MIGRATION_RUNBOOK.md` - what to do for every batch.
 - `docs/QDN_RESOURCE_STRATEGY.md` - technical resource model and recovery notes.
 - `docs/migration-studio/PHASE-1-ENGINE.md` - Qortal Migration Studio engine, storage, events, and CLI (Phase 1).
+- `docs/migration-studio/PHASE-2-WORDPRESS-ADAPTER.md` - source adapters, the WordPress adapter, `qms-content@1`, discovery artifacts, and Corbett compatibility (Phase 2).
 
 ## Where files go
 
@@ -95,6 +96,30 @@ npm run qms -- compat list
 ```
 
 Projects live under `$XDG_DATA_HOME/qortal-migration-studio` (override with
-`QMS_DATA_ROOT`). Phase 1 does not import WordPress content or publish to QDN.
-See `docs/migration-studio/PHASE-1-ENGINE.md` for the API, storage format,
-locking rules, and test evidence.
+`QMS_DATA_ROOT`). See `docs/migration-studio/PHASE-1-ENGINE.md` for the API,
+storage format, locking rules, and test evidence.
+
+## Qortal Migration Studio source adapters (Phase 2)
+
+Phase 2 adds a versioned SourceAdapter contract, a WordPress REST adapter and a
+deterministic `qms-content@1` model. Discovery writes verified batches to the
+project's local artifacts directory. It does **not** download media, publish to
+QDN, or change the existing Corbett pipeline.
+
+```bash
+npm run qms -- project create --name "Corbett Report" --profile corbettreport \
+  --source-url https://corbettreport.com
+npm run qms -- project update <projectId> --source-url https://corbettreport.com
+npm run qms -- source capabilities --json
+npm run qms -- source validate <projectId>
+npm run qms -- source discover <projectId> --per-page 50
+```
+
+WordPress credentials are read only from environment variables
+(`WORDPRESS_USERNAME`, `WORDPRESS_APP_PASSWORD`, `WORDPRESS_PASSWORD`,
+`WORDPRESS_AUTH_MODE`) and are never written to project state or artifacts.
+Discovery artifacts live under
+`<project>/artifacts/source/<adapter>/batches/<batchId>/`; only completed
+batches are referenced by `latest.json`. See
+`docs/migration-studio/PHASE-2-WORDPRESS-ADAPTER.md` for the contract, schema,
+identity/hash rules, Corbett golden evidence, and limitations.

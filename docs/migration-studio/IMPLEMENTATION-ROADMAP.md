@@ -6,7 +6,7 @@
 | Product working name | Qortal Migration Studio |
 | Executing agent | DeepSeek (`opencode-development` profile) |
 | Date | 2026-11-02 |
-| Status | Planning baseline; Phase 0 complete, Phases 1–10 not started |
+| Status | Phase 0 complete; Phase 1 and Phase 2 implemented on dedicated agent branches; Phases 3–10 not started |
 | Companion documents | [Audit](PHASE-0-ARCHITECTURE-AUDIT.md), [Requirements](PRODUCT-REQUIREMENTS.md), [Architecture](ARCHITECTURE.md) |
 
 ## 1. How to use this roadmap
@@ -141,6 +141,26 @@ longer contains Corbett-specific assumptions.
 7. **AC2.7** The Corbett compatibility profile still emits the existing `cr-*`
    identifiers and route rewrites (golden fixtures).
 8. **AC2.8** Existing 15 tests plus new adapter tests pass.
+
+### Implementation evidence (Phase 2)
+
+Phase 2 is implemented on a dedicated agent branch. Evidence is recorded in
+[`PHASE-2-WORDPRESS-ADAPTER.md`](PHASE-2-WORDPRESS-ADAPTER.md):
+
+- SourceAdapter contract, registry and a non-WordPress fixture adapter pass the
+  same engine discovery path.
+- WordPress posts, pages, categories, tags, media, featured media, lazy images,
+  srcset, relative/absolute URLs, audio, video, documents, embeds and external
+  links are normalized into `qms-content@1`.
+- Deterministic hashes, stable source identity, duplicate slugs and slug renames
+  are covered by tests.
+- Custom post types and unsupported features are reported with counts.
+- Corbett golden fixtures prove legacy post/page output and route rewriting are
+  byte-identical; `cr-*` identifiers are unchanged.
+- 101/101 repository tests pass. No live migration or QDN publish was performed.
+
+Phase 2 deliberately does not implement media download, planning, cleanup or
+publication; those remain Phase 3.
 
 ## 6. Phase 3 — Planning, media, disk, identity and dedupe (P0)
 

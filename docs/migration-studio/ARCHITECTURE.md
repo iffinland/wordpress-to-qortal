@@ -13,6 +13,14 @@ This document separates **verified current behavior** (from the Phase 0 audit)
 from **proposed architecture**. Proposals are design decisions for the next
 phases, not current capabilities.
 
+> **Phase 2 implementation note (2026-11-02):** the SourceAdapter contract,
+> adapter registry, WordPress adapter and `qms-content@1` model are now
+> implemented on a dedicated agent branch. See
+> [`PHASE-2-WORDPRESS-ADAPTER.md`](PHASE-2-WORDPRESS-ADAPTER.md). Phase 2 keeps
+> the journal+snapshot store, represents terms and media as `qms-content@1`
+> documents, and writes discovery batches under the project's local artifacts.
+> Media download, planning, cleanup and QDN publication remain unimplemented.
+
 ## 1. Architecture goals and constraints
 
 ### 1.1 Goals
@@ -412,6 +420,19 @@ Rules:
 - Adapters may add adapter-specific fields under `source.extra`; the engine must
   not depend on them.
 - No UI strings, QDN names or template branding in the model.
+
+Phase 2 implementation details:
+
+- `content.hash` is `sha256:` over a canonical projection that excludes slug,
+  identity URL, source metadata, provenance and `modified_at`; published date,
+  status, title, body, terms, authors and media are included.
+- Terms and media are normalized as `qms-content@1` items with
+  `content_type` `category`, `tag` and `media`. A future split into separate
+  term/asset tables can preserve this document contract.
+- Discovery batches are append-only under
+  `<project>/artifacts/source/<adapter>/batches/<batchId>/`; `latest.json`
+  points only at verified completed batches. This is the local migration
+  workspace, never Qortal Core storage.
 
 ## 6. Source-adapter contract and capability declarations
 
