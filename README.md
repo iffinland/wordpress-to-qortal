@@ -40,6 +40,7 @@ This records the existing QDN catalog locally. New batches then merge with it in
 - `docs/ZORIN_LINUX_SETUP.md` - complete beginner walkthrough for Zorin OS / Ubuntu.
 - `docs/CORBETT_MIGRATION_RUNBOOK.md` - what to do for every batch.
 - `docs/QDN_RESOURCE_STRATEGY.md` - technical resource model and recovery notes.
+- `docs/migration-studio/PHASE-1-ENGINE.md` - Qortal Migration Studio engine, storage, events, and CLI (Phase 1).
 
 ## Where files go
 
@@ -78,3 +79,22 @@ npm run batch:retry     # Resume a failed batch
 npm run batch:complete  # Mark the current batch complete
 npm run batch:cleanup   # Delete large local files from a completed batch
 ```
+
+## Qortal Migration Studio engine (Phase 1)
+
+The repository now also contains a headless, reusable migration engine in
+`lib/engine/`. It manages independent projects, crash-safe state, and ordered
+progress events. It is optional for the current Corbett workflow: no existing
+command, profile, manifest, batch file, or QDN identifier changed.
+
+```bash
+npm run qms -- project create --name "Corbett Report" --profile corbettreport
+npm run qms -- project list
+npm run qms -- project validate <projectId>
+npm run qms -- compat list
+```
+
+Projects live under `$XDG_DATA_HOME/qortal-migration-studio` (override with
+`QMS_DATA_ROOT`). Phase 1 does not import WordPress content or publish to QDN.
+See `docs/migration-studio/PHASE-1-ENGINE.md` for the API, storage format,
+locking rules, and test evidence.

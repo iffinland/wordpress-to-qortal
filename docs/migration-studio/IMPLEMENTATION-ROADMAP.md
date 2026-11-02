@@ -62,6 +62,10 @@ correctness.
 
 ## 4. Phase 1 — Engine foundation, projects, state and events (P0)
 
+> **Status (2026-11-02):** implemented on a dedicated agent branch; see
+> [`PHASE-1-ENGINE.md`](PHASE-1-ENGINE.md) for the shipped API, storage format,
+> acceptance evidence and known limits. Phase 2 has not started.
+
 **Outcome:** a reusable engine with multiple independent projects, crash-safe
 state, structured progress and a stable host protocol.
 

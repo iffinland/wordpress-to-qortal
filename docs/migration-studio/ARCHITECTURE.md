@@ -300,6 +300,12 @@ interface HistoryService {
 `~/.config/qortal-migration-studio/` may hold UI preferences. Secrets belong in
 the OS keyring, not in these files.
 
+> **Phase 1 implementation note (2026-11-02):** the foundation ships the
+> journal + atomic-snapshot store described in §5.1 as the fallback, not SQLite.
+> Rationale, format and recovery rules are in
+> [`PHASE-1-ENGINE.md`](PHASE-1-ENGINE.md). The schema below remains the target
+> shape if state volume later justifies SQLite behind the same store interface.
+
 ### 5.2 Database schema (proposed)
 
 ```sql
