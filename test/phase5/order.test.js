@@ -37,6 +37,10 @@ test('batching splits at 20 and never schedules a dependent before its prerequis
     for (const item of batch) completed.add(item.id);
   }
   assert.equal(completed.size, 28);
+  // Qortal Core defaults to 25 unconfirmed transactions per account; the
+  // publisher stays at 20 resources per request and stops on pending results.
+  assert.equal(MAX_BATCH_RESOURCES, 20);
+  assert.ok(MAX_BATCH_RESOURCES <= 25);
   assert.throws(() => planBatches(content, { maxBatch: 21 }), /maxBatch/);
 });
 
