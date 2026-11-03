@@ -46,6 +46,7 @@
     "package:release": "npm run package:zip && npm run package:migration-qapp && npm run package:cms-qapp",
     "test:phase3": "node --test test/phase3/*.test.js",
     "test:phase4": "node --test test/phase4/*.test.js",
+    "test:phase5": "node --test test/phase5/*.test.js",
     "test:desktop": "npm --prefix desktop test",
     "desktop:build": "npm --prefix desktop run build",
     "desktop:deb": "npm --prefix desktop run dist:deb"

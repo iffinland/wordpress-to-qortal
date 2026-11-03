@@ -35,8 +35,21 @@ The generated package is not committed. Verify it with:
 
 ~~~bash
 npm run verify:package
-dpkg-deb -I release/qortal-migration-studio-0.4.0-amd64.deb
+dpkg-deb -I release/qortal-migration-studio-0.5.0-amd64.deb
 ~~~
+
+## Publishing (Phase 5)
+
+The desktop prepares a portable handoff folder and never signs or publishes.
+Open Qortal Hub, run the Migration Publisher Q-App, select the handoff folder,
+approve the resource set and fee, then export the receipt. Import the receipt in
+the desktop Publishing screen and run independent read-only QDN verification
+with a node that permits arbitrary reads.
+
+Only exact base64 read-back with matching byte length and SHA-256 marks a
+resource remote_verified. A receipt is Publisher-reported evidence, not proof.
+
+See `../docs/migration-studio/PHASE-5-QDN-PUBLISHING.md`.
 
 ## Security defaults
 

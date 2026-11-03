@@ -73,7 +73,7 @@ export function settings(overrides: Partial<DesktopSettings> = {}): DesktopSetti
     dataRoot: '/home/user/.local/share/qortal-migration-studio',
     configFile: '/home/user/.config/qortal-migration-studio/desktop-config.json',
     keyring: { available: false, backend: 'session-memory', persistentCredentials: false },
-    appVersion: '0.4.0',
+    appVersion: '0.5.0',
     platform: 'linux',
     arch: 'x64',
     packaged: false,
@@ -126,7 +126,7 @@ export function plan(): PlanDocument {
 export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
   const base: QmsApi = {
     app: {
-      info: vi.fn(async () => ({ apiVersion: 'qms-engine@1', version: '0.1.6-phase4', dataRoot: '/data', repoRoot: '/repo', sourceContract: 'qms-source-adapter@1', contentSchema: 'qms-content@1', planSchema: 'qms-plan@1', identitySchema: 'qms-identity-state@1', eventSchema: 'qms-event@1', adapters: [adapter()] })),
+      info: vi.fn(async () => ({ apiVersion: 'qms-engine@1', version: '0.1.7-phase5', dataRoot: '/data', repoRoot: '/repo', sourceContract: 'qms-source-adapter@1', contentSchema: 'qms-content@1', planSchema: 'qms-plan@1', identitySchema: 'qms-identity-state@1', eventSchema: 'qms-event@1', adapters: [adapter()] })),
       settings: vi.fn(async () => settings()),
       setDataRoot: vi.fn(async () => settings()),
       openPath: vi.fn(async () => ({ opened: true, path: '/tmp' }))
@@ -172,6 +172,40 @@ export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
       inspect: vi.fn(async () => ({ assets: [], totals: { assets: 0, bytes: 0, itemRefs: 0, referencedAssets: 0 }, downloads: {}, receipts: [], parts: { count: 0, bytes: 0 } }))
     },
     disk: { check: vi.fn(async () => ({ availableBytes: 1000000000, reserveBytes: 0, fits: true })) },
+    publication: {
+      list: vi.fn(async () => []),
+      prepare: vi.fn(async () => ({
+        handoffId: 'hof_abcdefgh12345678',
+        publicationBatchId: 'pub_abcdefgh12345678',
+        planId: 'plan_abcdefgh',
+        status: 'handoff_ready',
+        handoffPath: 'publication/handoffs/hof_abcdefgh12345678',
+        absolutePath: '/data/projects/prj_demo/publication/handoffs/hof_abcdefgh12345678',
+        resources: [],
+        counts: {},
+        estimate: {},
+        packageValidated: true,
+        message: 'ready'
+      })),
+      get: vi.fn(async () => ({
+        handoff: {
+          handoffId: 'hof_abcdefgh12345678', publicationBatchId: 'pub_abcdefgh12345678', planId: 'plan_abcdefgh',
+          projectId: 'prj_demo', siteId, status: 'handoff_ready', createdAt: '2026-11-03T10:00:00.000Z',
+          updatedAt: '2026-11-03T10:00:00.000Z', target: { qdnName: 'DemoQortalName', resourcePrefix: 'qms' },
+          estimate: { resourceCount: 0, feePerResource: 0, estimatedFee: 0, currency: 'QORT', label: 'estimate', batches: 0 },
+          counts: {}, resourceCount: 0, handoffPath: 'publication/handoffs/hof_abcdefgh12345678', resources: []
+        },
+        resources: [],
+        absolutePath: '/data/projects/prj_demo/publication/handoffs/hof_abcdefgh12345678',
+        packageValid: true,
+        validation: { filesVerified: 0, summary: {} }
+      })),
+      importReceipt: vi.fn(async () => ({ imported: true })),
+      verify: vi.fn(async () => ({ handoffId: 'hof_abcdefgh12345678', status: 'pending_confirmation', counts: {}, results: [], resources: [], evidencePath: '', pendingOrUnverified: 0 })),
+      history: vi.fn(async () => []),
+      resources: vi.fn(async () => []),
+      batches: vi.fn(async () => [])
+    },
     runs: {
       list: vi.fn(async () => []),
       get: vi.fn(async () => ({})),

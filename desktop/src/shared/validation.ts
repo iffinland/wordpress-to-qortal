@@ -13,6 +13,7 @@ const PLAN_ID = /^plan_[a-z0-9]{8,40}$/;
 const RUN_ID = /^run_[a-z0-9]{8,40}$/;
 const CONFLICT_ID = /^cnf_[a-z0-9]{8,40}$/;
 const TOKEN = /^mig_[a-z0-9]{8,64}$/;
+const HANDOFF_ID = /^hof_[a-z0-9]{8,40}$/;
 const QORTAL_NAME = /^[A-Za-z0-9](?:[A-Za-z0-9_-]{1,38}[A-Za-z0-9])$/;
 const SECRET_KEY = /(password|passwd|secret|token|apikey|api_key|seed|privatekey|private_key|wallet|authorization|cookie)/i;
 const MAX_STRING = 20_000;
@@ -74,6 +75,17 @@ function integer(value: unknown, label: string, { min = 0, max = Number.MAX_SAFE
   return value as number;
 }
 
+function numeric(value: unknown, label: string, { min = 0, max = Number.MAX_SAFE_INTEGER, optional = false } = {}): number | undefined {
+  if (value === undefined || value === null) {
+    if (optional) return undefined;
+    fail(label + ' is required.');
+  }
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
+    fail(label + ' must be a number between ' + min + ' and ' + max + '.');
+  }
+  return value;
+}
+
 function stringArray(value: unknown, label: string, maxItems = 50): string[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value)) fail(label + ' must be an array.');
@@ -91,6 +103,24 @@ function planId(params: Dict): string {
 
 function runId(params: Dict): string {
   return text(params.runId, 'runId', { pattern: RUN_ID }) as string;
+}
+
+function handoffId(params: Dict): string {
+  return text(params.handoffId, 'handoffId', { pattern: HANDOFF_ID }) as string;
+}
+
+function nodeUrl(value: unknown): string {
+  const raw = text(value, 'nodeUrl', { max: 2000 }) as string;
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    fail('nodeUrl must be a valid URL.');
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) fail('nodeUrl must use http or https.');
+  if (parsed.username || parsed.password) fail('nodeUrl must not contain credentials.');
+  if (parsed.search || parsed.hash) fail('nodeUrl must not contain a query or fragment.');
+  return (parsed.origin + parsed.pathname).replace(/\/+$/, '');
 }
 
 function absolutePath(value: unknown, label: string): string {
@@ -388,6 +418,49 @@ export function validateIpcPayload(channel: string, payload: unknown): Dict {
         disk: sanitizeDisk(params.disk),
         media: sanitizeMedia(params.media)
       };
+
+    case IPC.publicationList:
+    case IPC.publicationHistory:
+      return { projectId: projectId(params) };
+
+    case IPC.publicationPrepare:
+      return {
+        projectId: projectId(params),
+        planId: planId(params),
+        selection: stringArray(params.selection, 'selection', 5000) ?? [],
+        feePerResource: params.feePerResource === undefined
+          ? undefined
+          : numeric(params.feePerResource, 'feePerResource', { min: 0, max: 1000000 }),
+        feeCurrency: 'QORT'
+      };
+
+    case IPC.publicationGet:
+      return { projectId: projectId(params), handoffId: handoffId(params), validate: bool(params.validate, 'validate', true) };
+
+    case IPC.publicationImportReceipt:
+      return {
+        projectId: projectId(params),
+        handoffId: handoffId(params),
+        receipt: object(params.receipt, 'receipt')
+      };
+
+    case IPC.publicationVerify:
+      return {
+        projectId: projectId(params),
+        handoffId: handoffId(params),
+        nodeUrl: nodeUrl(params.nodeUrl),
+        attempts: integer(params.attempts, 'attempts', { min: 1, max: 60, optional: true }),
+        intervalMs: integer(params.intervalMs, 'intervalMs', { min: 0, max: 60000, optional: true })
+      };
+
+    case IPC.publicationResources:
+      return {
+        projectId: projectId(params),
+        handoffId: params.handoffId === undefined ? null : handoffId(params)
+      };
+
+    case IPC.publicationBatches:
+      return { projectId: projectId(params), handoffId: handoffId(params) };
 
     case IPC.diskCheck:
       return {

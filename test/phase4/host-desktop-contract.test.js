@@ -30,7 +30,7 @@ test('the desktop host contract exposes only engine methods and validates target
 
   const info = await client.request('engine.info');
   assert.equal(info.apiVersion, 'qms-engine@1');
-  assert.equal(info.version, '0.1.6-phase4');
+  assert.equal(info.version, '0.1.7-phase5');
   assert.ok(info.adapters.some((adapter) => adapter.id === 'wordpress'));
 
   await assert.rejects(

@@ -289,6 +289,74 @@ export interface DiagnosticsExport {
   createdAt: string;
 }
 
+export interface PublicationResource {
+  id: string;
+  kind: 'media' | 'content' | 'index' | 'manifest';
+  service: string;
+  name: string;
+  identifier: string;
+  relativePath: string;
+  contentType: string;
+  bytes: number;
+  sha256: string;
+  order: number;
+  dependsOn: string[];
+  sourceKey?: string | null;
+  status: string;
+  publisherReportedStatus?: string | null;
+  reason?: string | null;
+  txSignature?: string | null;
+  remoteVerifiedAt?: string | null;
+  updatedAt?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface PublicationHandoffSummary {
+  handoffId: string;
+  publicationBatchId: string;
+  planId: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  target: { qdnName: string; resourcePrefix: string };
+  estimate: { resourceCount: number; feePerResource: number; estimatedFee: number; currency: string; label: string; batches: number };
+  counts: Record<string, number>;
+  resourceCount: number;
+  handoffPath: string;
+}
+
+export interface PublicationHandoffDetail {
+  handoff: PublicationHandoffSummary & { resources: PublicationResource[]; siteId: string; projectId: string };
+  resources: PublicationResource[];
+  absolutePath: string;
+  packageValid: boolean;
+  validation: { filesVerified: number; summary: Record<string, unknown> } | null;
+}
+
+export interface PublicationPrepareResult {
+  handoffId: string;
+  publicationBatchId: string;
+  planId: string;
+  status: string;
+  handoffPath: string;
+  absolutePath: string;
+  resources: PublicationResource[];
+  counts: Record<string, number>;
+  estimate: Record<string, unknown>;
+  packageValidated: boolean;
+  message: string;
+}
+
+export interface PublicationVerifyResult {
+  handoffId: string;
+  status: string;
+  counts: Record<string, number>;
+  results: Array<{ resourceId: string; state: string; code?: string; message?: string; evidence?: Record<string, unknown> | null; transport?: string }>;
+  resources: PublicationResource[];
+  evidencePath: string;
+  pendingOrUnverified: number;
+}
+
 export interface QmsApi {
   app: {
     info(): Promise<EngineInfo>;
@@ -330,6 +398,16 @@ export interface QmsApi {
   };
   disk: {
     check(projectId: string, options?: Record<string, unknown>): Promise<Record<string, unknown>>;
+  };
+  publication: {
+    list(projectId: string): Promise<PublicationHandoffSummary[]>;
+    prepare(projectId: string, planId: string, selection: string[], options?: Record<string, unknown>): Promise<PublicationPrepareResult>;
+    get(projectId: string, handoffId: string, validate?: boolean): Promise<PublicationHandoffDetail>;
+    importReceipt(projectId: string, handoffId: string, receipt: Record<string, unknown>): Promise<Record<string, unknown>>;
+    verify(projectId: string, handoffId: string, nodeUrl: string, options?: Record<string, unknown>): Promise<PublicationVerifyResult>;
+    history(projectId: string): Promise<Array<Record<string, unknown>>>;
+    resources(projectId: string, handoffId?: string | null): Promise<PublicationResource[]>;
+    batches(projectId: string, handoffId: string): Promise<PublicationResource[][]>;
   };
   runs: {
     list(projectId: string): Promise<RunSummary[]>;

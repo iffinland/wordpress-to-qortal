@@ -46,7 +46,7 @@ test('the stdio host exposes projects, runs and ordered event notifications', as
 
   const opened = await connection.request('project.open', { projectId: project.id });
   assert.equal(opened.project.name, 'Host Project');
-  assert.equal(opened.snapshot.storage.storeVersion, 2);
+  assert.equal(opened.snapshot.storage.storeVersion, 3);
 
   const result = await connection.request('project.validate', { projectId: project.id });
   assert.equal(result.status, 'completed');

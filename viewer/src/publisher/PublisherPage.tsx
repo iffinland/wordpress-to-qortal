@@ -1,545 +1,585 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Play, Send, Square, SquareCheckBig, XCircle } from 'lucide-react';
-import { CONTENT_BASE, getRouteParams } from '../contentApi';
-import { getQortalBridgeDiagnostics, hasQortalBridge, requestQortal } from '../qortalClient';
-import { formatBytes } from '../contentApi';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { CheckCircle2, FileJson, FolderOpen, Play, RefreshCw, Send, ShieldAlert, Square, SquareCheckBig, XCircle } from 'lucide-react';
+import {
+  MAX_BATCH_RESOURCES,
+  buildFolderMap,
+  orderResources,
+  planBatches,
+  sha256Bytes,
+  validateHandoffPackage,
+  type HandoffManifest,
+  type HandoffResource,
+  type PublicationState,
+  type ValidatedHandoff
+} from './handoff';
+import {
+  bridgeDiagnostics,
+  fetchQdnBase64,
+  getActiveAccount,
+  getOwnedNames,
+  getResourceProperties,
+  getQortalRequest,
+  getResourceStatus,
+  requestQortal
+} from './bridge';
+import { createReceipt, downloadReceipt, receiptFileText, type ReceiptDocument } from './receipt';
 import { APP_VERSION } from '../version';
 
-interface PublishResource {
-  type: string;
-  service: string;
-  identifier: string;
-  name?: string;
-  local_path: string;
-  source_url?: string;
-  bytes?: number;
+interface ResourceState {
+  status: PublicationState;
+  reason: string;
+  txSignature: string | null;
+  updatedAt: string;
+  verification?: Record<string, unknown> | null;
 }
 
-interface PublishPlan {
-  identifiers?: {
-    qdn_manifest?: string;
-  };
-  resources: {
-    posts: PublishResource[];
-    pages: PublishResource[];
-    indexes: PublishResource[];
-    media: PublishResource[];
-  };
+interface SessionState {
+  handoffId: string;
+  selected: string[];
+  states: Record<string, ResourceState>;
+  accountAddress: string | null;
+  accountName: string | null;
+  receipt: ReceiptDocument | null;
+  updatedAt: string;
 }
 
-interface PublishRow extends PublishResource {
-  status: 'pending' | 'publishing' | 'published' | 'failed' | 'skipped';
-  message: string;
-}
+const STORAGE_PREFIX = 'qms-migration-publisher-v2:';
+const ACTIONS = new Set(['PUBLISH_MULTIPLE_QDN_RESOURCES']);
+const STATUS_TONE: Record<string, string> = {
+  remote_verified: 'good',
+  submitted: 'info',
+  pending_confirmation: 'warn',
+  ambiguous: 'warn',
+  partial: 'warn',
+  failed: 'bad',
+  declined: 'bad',
+  blocked: 'bad'
+};
 
-type PublishMode = 'demo' | 'cms-json' | 'catalog' | 'images' | 'documents' | 'audio' | 'video' | 'selected' | 'full';
-type PublishSource = 'bundled' | 'folder';
-type FolderFileMap = Map<string, File>;
-type PublishHistory = Record<string, { published_at: string; service: string; identifier: string; local_path: string; bytes?: number }>;
-type PublishProgressPhase = 'idle' | 'preparing' | 'confirming' | 'verifying' | 'completed' | 'partial' | 'failed';
-
-interface PublishProgress {
-  phase: PublishProgressPhase;
-  total: number;
-  prepared: number;
-  completed: number;
-}
-
-const PUBLISH_HISTORY_KEY = 'wp-to-qortal-migration-publish-history-v1';
-
-async function fetchJson<T>(path: string): Promise<T> {
-  const response = await fetch(`${CONTENT_BASE}/${path}`);
-  if (!response.ok) {
-    throw new Error(`Failed to load ${path}: ${response.status}`);
-  }
-  return response.json() as Promise<T>;
-}
-
-function normalizeFolderPath(file: File): string {
-  const rawPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name;
-  const normalized = rawPath.replace(/\\/g, '/').replace(/^\/+/, '');
-  const marker = 'wp-qortal-import/';
-  const markerIndex = normalized.indexOf(marker);
-  return markerIndex >= 0 ? normalized.slice(markerIndex + marker.length) : normalized.split('/').slice(1).join('/') || normalized;
-}
-
-async function readFolderJson<T>(files: FolderFileMap, path: string): Promise<T> {
-  const file = files.get(path);
-  if (!file) {
-    throw new Error(`Selected folder does not contain ${path}. Select the wp-qortal-import folder.`);
-  }
-  return JSON.parse(await file.text()) as T;
-}
-
-function toBase64(value: string): string {
-  return btoa(unescape(encodeURIComponent(value)));
-}
-
-function hydrateManifestPublisherName(content: string, qortalName: string): string {
-  const manifest = JSON.parse(content) as Record<string, unknown>;
-  manifest.qdn_name ||= qortalName;
-  manifest.publisher_names = [...new Set([
-    ...((Array.isArray(manifest.publisher_names) ? manifest.publisher_names : []) as string[]),
-    qortalName
-  ])];
-  manifest.public_author ||= 'Site Author';
-
-  function hydrate(value: unknown) {
-    if (!value || typeof value !== 'object') return;
-    const record = value as Record<string, unknown>;
-    if (typeof record.service === 'string' && typeof record.identifier === 'string' && !record.name) {
-      record.name = qortalName;
-    }
-    Object.values(record).forEach(hydrate);
-  }
-
-  hydrate(manifest);
-  return JSON.stringify(manifest, null, 2);
-}
-
-function resourceTitle(resource: PublishResource): string {
-  if (resource.type === 'post') return 'Imported WordPress post';
-  if (resource.type === 'page') return 'Imported WordPress page';
-  if (resource.type === 'image') return 'Imported WordPress image';
-  if (resource.local_path.endsWith('/qdn-manifest.json')) return 'QDN loader manifest';
-  if (resource.local_path.endsWith('/posts-index.json')) return 'Posts index';
-  if (resource.local_path.endsWith('/pages-index.json')) return 'Pages index';
-  if (resource.local_path.endsWith('/categories.json')) return 'Categories';
-  if (resource.local_path.endsWith('/tags.json')) return 'Tags';
-  if (resource.local_path.endsWith('/media-map.json')) return 'Media map';
-  return resource.identifier;
-}
-
-function isManifestResource(resource: PublishResource, plan?: PublishPlan | null) {
-  return resource.identifier === plan?.identifiers?.qdn_manifest
-    || resource.local_path.endsWith('/qdn-manifest.json');
-}
-
-function isMutableCatalogResource(resource: PublishResource) {
-  return resource.type === 'index' || resource.local_path.startsWith('converted/') && [
-    'qdn-manifest.json',
-    'posts-index.json',
-    'pages-index.json',
-    'categories.json',
-    'tags.json',
-    'media-map.json',
-    'url-map.json',
-    'import-manifest.json'
-  ].some((fileName) => resource.local_path.endsWith(`/${fileName}`));
-}
-
-function toRows(resources: PublishResource[]): PublishRow[] {
-  const seen = new Set<string>();
-  return resources
-    .filter((resource) => {
-      const key = `${resource.name || ''}:${resource.service}:${resource.identifier}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .map((resource) => ({
-      ...resource,
-      status: 'pending',
-      message: ''
-    }));
-}
-
-function createRows(plan: PublishPlan, mode: PublishMode): PublishRow[] {
-  const firstPost = plan.resources.posts[0];
-  const firstImage = plan.resources.media.find((resource) => resource.type === 'image');
-  const coreIndexPaths = new Set([
-    'converted/qdn-manifest.json',
-    'converted/posts-index.json',
-    'converted/pages-index.json',
-    'converted/categories.json',
-    'converted/tags.json',
-    'converted/media-map.json',
-    'converted/url-map.json'
-  ]);
-  const coreIndexes = plan.resources.indexes.filter((resource) => coreIndexPaths.has(resource.local_path));
-
-  if (mode === 'demo') {
-    return toRows([...(firstImage ? [firstImage] : []), firstPost, ...coreIndexes].filter(Boolean) as PublishResource[]);
-  }
-
-  if (mode === 'cms-json') {
-    return toRows([...(firstImage ? [firstImage] : []), ...plan.resources.posts, ...plan.resources.pages, ...coreIndexes]);
-  }
-
-  if (mode === 'catalog') {
-    return toRows(plan.resources.indexes);
-  }
-
-  if (mode === 'images') {
-    return toRows(plan.resources.media.filter((resource) => resource.type === 'image'));
-  }
-
-  if (mode === 'documents') {
-    return toRows(plan.resources.media.filter((resource) => resource.type === 'document' || resource.type === 'file'));
-  }
-
-  if (mode === 'audio') {
-    return toRows(plan.resources.media.filter((resource) => resource.type === 'audio'));
-  }
-
-  if (mode === 'video') {
-    return toRows(plan.resources.media.filter((resource) => resource.type === 'video'));
-  }
-
-  if (mode === 'selected') {
-    return toRows(plan.resources.media);
-  }
-
-  return toRows([...plan.resources.posts, ...plan.resources.pages, ...plan.resources.indexes, ...plan.resources.media]);
-}
-
-function resourceKey(name: string, resource: Pick<PublishResource, 'service' | 'identifier'>) {
-  return `${name}:${resource.service}:${resource.identifier}`;
-}
-
-function normalizeQortalName(name: string) {
-  return name.trim().replace(/\s+/g, ' ').toLowerCase();
-}
-
-function targetPublisherName(resource: Pick<PublishResource, 'name'>, fallbackName: string) {
-  return resource.name || fallbackName;
-}
-
-function canPublishWithActiveName(resource: Pick<PublishResource, 'name'>, activeName: string) {
-  return normalizeQortalName(targetPublisherName(resource, activeName)) === normalizeQortalName(activeName);
-}
-
-function loadPublishHistory(): PublishHistory {
+function loadSession(handoffId: string): SessionState | null {
   try {
-    return JSON.parse(localStorage.getItem(PUBLISH_HISTORY_KEY) || '{}') as PublishHistory;
+    const raw = localStorage.getItem(STORAGE_PREFIX + handoffId);
+    return raw ? JSON.parse(raw) as SessionState : null;
   } catch {
-    return {};
+    return null;
   }
 }
 
-function savePublishHistory(history: PublishHistory) {
-  localStorage.setItem(PUBLISH_HISTORY_KEY, JSON.stringify(history));
+function saveSession(session: SessionState) {
+  try {
+    localStorage.setItem(STORAGE_PREFIX + session.handoffId, JSON.stringify(session));
+  } catch {
+    // localStorage can be unavailable in hardened webviews; the in-memory
+    // session remains authoritative and the receipt is still exportable.
+  }
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function statusOf(state: ResourceState | undefined): PublicationState {
+  return state?.status ?? 'reserved';
+}
+
+function label(value: string): string {
+  return value.replace(/_/g, ' ');
+}
+
+function tone(value: string): string {
+  return STATUS_TONE[value] ?? 'neutral';
+}
+
+function resourceFilename(resource: HandoffResource): string {
+  return resource.relativePath.split('/').pop() || resource.identifier;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const chunk = 0x8000;
+  for (let index = 0; index < bytes.length; index += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
+  }
+  return btoa(binary);
+}
+
+function normalizeStatus(value: unknown): string {
+  if (!value || typeof value !== 'object') return '';
+  const record = value as Record<string, unknown>;
+  if (typeof record.status === 'string') return record.status;
+  if (typeof record.status === 'number') {
+    return ({ 1: 'PUBLISHED', 2: 'NOT_PUBLISHED', 3: 'DOWNLOADING', 4: 'DOWNLOADED', 5: 'BUILDING', 6: 'READY', 7: 'MISSING_DATA', 8: 'BUILD_FAILED', 9: 'UNSUPPORTED', 10: 'BLOCKED' } as Record<number, string>)[record.status] ?? String(record.status);
+  }
+  return '';
+}
+
+function outcomeForError(message: string): PublicationState {
+  const text = message.toLowerCase();
+  if (text.includes('declin') || text.includes('denied') || text.includes('rejected')) return 'declined';
+  return 'ambiguous';
+}
+
+async function verifyOne(resource: HandoffResource): Promise<ResourceState> {
+  try {
+    const bytes = await fetchQdnBase64(resource.service, resource.name, resource.identifier);
+    const hash = await sha256Bytes(bytes);
+    if (bytes.length !== resource.bytes || hash !== resource.sha256) {
+      return {
+        status: 'ambiguous',
+        reason: 'Read-back bytes do not match this handoff resource.',
+        txSignature: null,
+        updatedAt: nowIso(),
+        verification: {
+          transport: 'qortalRequest:FETCH_QDN_RESOURCE:base64',
+          expectedBytes: resource.bytes,
+          remoteBytes: bytes.length,
+          expectedHash: resource.sha256,
+          remoteHash: hash
+        }
+      };
+    }
+    return {
+      status: 'remote_verified',
+      reason: 'Exact QDN bytes match the intended SHA-256.',
+      txSignature: null,
+      updatedAt: nowIso(),
+      verification: { transport: 'qortalRequest:FETCH_QDN_RESOURCE:base64', expectedHash: resource.sha256, remoteHash: hash }
+    };
+  } catch (error) {
+    return {
+      status: 'pending_confirmation',
+      reason: (error as Error).message,
+      txSignature: null,
+      updatedAt: nowIso()
+    };
+  }
 }
 
 export function PublisherPage({ initialName = '', onBack }: { initialName?: string; onBack?: () => void }) {
-  const params = getRouteParams();
-  const routeName = params.get('name') || params.get('qdnName') || '';
-  const resolvedInitialName = initialName || routeName || import.meta.env.VITE_QDN_NAME || '';
-  const [qortalName, setQortalName] = useState(resolvedInitialName);
-  const [source, setSource] = useState<PublishSource>('folder');
-  const [folderFiles, setFolderFiles] = useState<FolderFileMap | null>(null);
-  const [plan, setPlan] = useState<PublishPlan | null>(null);
-  const [mode, setMode] = useState<PublishMode>('cms-json');
-  const [rows, setRows] = useState<PublishRow[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [skipExisting, setSkipExisting] = useState(true);
-  const [history, setHistory] = useState<PublishHistory>(() => loadPublishHistory());
+  const [folderName, setFolderName] = useState('');
+  const [validated, setValidated] = useState<ValidatedHandoff | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [states, setStates] = useState<Record<string, ResourceState>>({});
+  const [account, setAccount] = useState<{ address: string; publicKey?: string } | null>(null);
+  const [ownedNames, setOwnedNames] = useState<string[]>([]);
+  const [remotePresence, setRemotePresence] = useState<Record<string, 'unknown' | 'new' | 'update' | 'collision'>>({});
+  const [allowUpdates, setAllowUpdates] = useState(false);
+  const [approved, setApproved] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isPublishing, setIsPublishing] = useState(false);
-  const [progress, setProgress] = useState<PublishProgress>({ phase: 'idle', total: 0, prepared: 0, completed: 0 });
-  const hasBridge = hasQortalBridge();
-  const bridgeDiagnostics = getQortalBridgeDiagnostics();
-  const folderPickerProps = {
-    webkitdirectory: '',
-    directory: ''
-  } as React.InputHTMLAttributes<HTMLInputElement> & { webkitdirectory: string; directory: string };
+  const [notice, setNotice] = useState('');
+  const [receipt, setReceipt] = useState<ReceiptDocument | null>(null);
+  const [sessions, setSessions] = useState<Array<{ handoffId: string; status: string; updatedAt: string }>>([]);
+  const running = useRef(false);
+  const bridge = getQortalRequest();
+  const diagnostics = bridgeDiagnostics();
 
   useEffect(() => {
-    if (source === 'folder') {
-      if (!folderFiles) {
-        setPlan(null);
-        setRows([]);
-        return;
+    try {
+      const rows = Object.keys(localStorage)
+        .filter((key) => key.startsWith(STORAGE_PREFIX))
+        .map((key) => JSON.parse(localStorage.getItem(key) || '{}') as SessionState)
+        .filter((entry) => entry.handoffId)
+        .map((entry) => ({
+          handoffId: entry.handoffId,
+          status: Object.values(entry.states ?? {})[0]?.status ?? 'reserved',
+          updatedAt: entry.updatedAt ?? ''
+        }));
+      setSessions(rows);
+    } catch {
+      setSessions([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const manifest: HandoffManifest | null = validated?.manifest ?? null;
+  const targetName = manifest?.target.qdnName ?? initialName;
+  const nameOwned = account && targetName
+    ? ownedNames.some((name) => name.toLowerCase() === targetName.toLowerCase())
+    : false;
+  const selectedResources = useMemo(
+    () => orderResources(manifest?.resources ?? []).filter((resource) => selected.has(resource.id)),
+    [manifest, selected]
+  );
+  const collisionCount = Object.values(remotePresence).filter((value) => value === 'collision').length;
+  const blockedByPrereq = !bridge || !account || !nameOwned;
+
+  function updateState(resourceId: string, next: ResourceState) {
+    setStates((current) => {
+      const merged = { ...current, [resourceId]: next };
+      const handoffId = manifest?.handoffId;
+      if (handoffId) {
+        saveSession({
+          handoffId,
+          selected: [...selected],
+          states: merged,
+          accountAddress: account?.address ?? null,
+          accountName: targetName || null,
+          receipt,
+          updatedAt: nowIso()
+        });
       }
-
-      readFolderJson<PublishPlan>(folderFiles, mode === 'catalog' ? 'publish-log/catalog-publish-plan.json' : 'publish-log/publish-plan.json')
-        .then((loadedPlan) => {
-          setPlan(loadedPlan);
-          applyRows(createRows(loadedPlan, mode), mode);
-          setError(null);
-        })
-        .catch((loadError: Error) => setError(loadError.message));
-      return;
-    }
-
-    fetchJson<PublishPlan>(mode === 'catalog' ? 'publish-log/catalog-publish-plan.json' : 'publish-log/publish-plan.json')
-      .then((loadedPlan) => {
-        setPlan(loadedPlan);
-        applyRows(createRows(loadedPlan, mode), mode);
-      })
-      .catch((loadError: Error) => setError(loadError.message));
-  }, [folderFiles, mode, source]);
-
-  useEffect(() => {
-    if (plan) applyRows(createRows(plan, mode), mode);
-  }, [qortalName]);
-
-  function selectImportFolder(event: React.ChangeEvent<HTMLInputElement>) {
-    const selectedFiles = Array.from(event.target.files || []);
-    if (!selectedFiles.length) return;
-    const nextFiles: FolderFileMap = new Map();
-    for (const file of selectedFiles) {
-      nextFiles.set(normalizeFolderPath(file), file);
-    }
-    setSource('folder');
-    setFolderFiles(nextFiles);
-    setError(null);
-  }
-
-  function changeMode(nextMode: PublishMode) {
-    setMode(nextMode);
-    if (plan) applyRows(createRows(plan, nextMode), nextMode);
-  }
-
-  function applyRows(nextRows: PublishRow[], nextMode: PublishMode) {
-    const rowsWithHistory = nextRows.map((row) => {
-      const key = resourceKey(targetPublisherName(row, qortalName), row);
-      return history[key] && !isMutableCatalogResource(row)
-        ? { ...row, status: 'published' as const, message: 'Published earlier' }
-        : row;
+      return merged;
     });
-    setRows(rowsWithHistory);
-    setSelectedIds(nextMode === 'selected'
-      ? new Set()
-      : new Set(rowsWithHistory
-        .filter((row) => row.status !== 'published' && canPublishWithActiveName(row, qortalName))
-        .map((row) => row.identifier)));
   }
-
-  const summary = useMemo(() => {
-    const bytes = rows.reduce((sum, row) => sum + (row.bytes || 0), 0);
-    const blockedRows = rows.filter((row) => row.status !== 'published' && !canPublishWithActiveName(row, qortalName));
-    const blockedNames = [...new Set(blockedRows.map((row) => targetPublisherName(row, qortalName)).filter(Boolean))];
-    return {
-      count: rows.length,
-      selected: rows.filter((row) => selectedIds.has(row.identifier) && row.status !== 'published' && canPublishWithActiveName(row, qortalName)).length,
-      bytes,
-      published: rows.filter((row) => row.status === 'published').length,
-      failed: rows.filter((row) => row.status === 'failed').length,
-      blocked: blockedRows.length,
-      blockedNames
-    };
-  }, [rows, selectedIds, qortalName]);
-
-  const progressPercent = progress.total
-    ? Math.round(((progress.phase === 'completed' ? progress.completed : progress.prepared) / progress.total) * 100)
-    : 0;
-
-  function progressLabel() {
-    if (progress.phase === 'preparing') return 'Preparing resources';
-    if (progress.phase === 'confirming') return 'Waiting for Qortal confirmation';
-    if (progress.phase === 'verifying') return 'Verifying QDN results';
-    if (progress.phase === 'partial') return 'Batch partially confirmed';
-    if (progress.phase === 'completed') return 'Batch completed';
-    if (progress.phase === 'failed') return 'Batch failed';
-    return '';
-  }
-
-  function toggleRow(identifier: string) {
-    const row = rows.find((candidate) => candidate.identifier === identifier);
-    if (!row || row.status === 'published') return;
-    if (!canPublishWithActiveName(row, qortalName)) {
-      setError(`This resource must be published as ${targetPublisherName(row, qortalName)}. Change Default Qortal name and use an account that owns that name.`);
-      return;
+  async function chooseFolder(event: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+    setBusy(true);
+    setError(null);
+    setNotice('');
+    setReceipt(null);
+    setValidated(null);
+    setRemotePresence({});
+    try {
+      const map = await buildFolderMap(files);
+      const result = await validateHandoffPackage(map);
+      setValidated(result);
+      setFolderName((files[0] as File & { webkitRelativePath?: string })?.webkitRelativePath?.split('/')[0] || 'selected folder');
+      const remembered = loadSession(result.manifest.handoffId);
+      if (remembered) {
+        setStates(remembered.states ?? {});
+        setSelected(new Set(remembered.selected ?? result.manifest.resources.map((resource) => resource.id)));
+        setReceipt(remembered.receipt ?? null);
+        setNotice('Recovered the previous session for this handoff. Nothing is resubmitted automatically.');
+      } else {
+        setStates(Object.fromEntries(result.manifest.resources.map((resource) => [
+          resource.id,
+          { status: 'handoff_ready', reason: 'Validated locally; not published.', txSignature: null, updatedAt: nowIso() }
+        ])));
+        setSelected(new Set(result.manifest.resources.map((resource) => resource.id)));
+      }
+      saveSession({
+        handoffId: result.manifest.handoffId,
+        selected: [...(remembered?.selected ?? result.manifest.resources.map((resource) => resource.id))],
+        states: remembered?.states ?? {},
+        accountAddress: account?.address ?? null,
+        accountName: result.manifest.target.qdnName,
+        receipt: remembered?.receipt ?? null,
+        updatedAt: nowIso()
+      });
+    } catch (folderError) {
+      setError((folderError as Error).message);
+    } finally {
+      setBusy(false);
     }
-    setSelectedIds((current) => {
+  }
+
+  async function connectAccount() {
+    setBusy(true);
+    setError(null);
+    try {
+      const active = await getActiveAccount();
+      setAccount(active);
+      const names = await getOwnedNames(active.address);
+      setOwnedNames(names.map((entry) => entry.name));
+      setNotice('Active account loaded. Name ownership is checked locally against the names Qortal Hub reports for this account.');
+    } catch (connectError) {
+      setError((connectError as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function checkRemoteState() {
+    if (!manifest) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const presence: Record<string, 'unknown' | 'new' | 'update' | 'collision'> = {};
+      for (const resource of manifest.resources) {
+        try {
+          const status = normalizeStatus(await getResourceStatus(resource.service, resource.name, resource.identifier));
+          if (!status || status === 'NOT_PUBLISHED' || status === 'MISSING_DATA') {
+            presence[resource.id] = 'new';
+            continue;
+          }
+          const properties = await getResourceProperties(resource.service, resource.name, resource.identifier);
+          if (properties && Number.isInteger(properties.size)) {
+            presence[resource.id] = properties.size === resource.bytes ? 'update' : 'collision';
+          } else {
+            presence[resource.id] = 'unknown';
+          }
+        } catch {
+          presence[resource.id] = 'unknown';
+        }
+      }
+      setRemotePresence(presence);
+      setNotice('Remote state checked. Collisions are updates whose existing byte length differs from this handoff.');
+    } catch (checkError) {
+      setError((checkError as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function toggle(resource: HandoffResource) {
+    setSelected((current) => {
       const next = new Set(current);
-      if (next.has(identifier)) next.delete(identifier);
-      else next.add(identifier);
+      if (next.has(resource.id)) {
+        next.delete(resource.id);
+        // Dependents cannot be selected without their prerequisite.
+        for (const candidate of manifest?.resources ?? []) {
+          if (candidate.dependsOn.includes(resource.id)) next.delete(candidate.id);
+        }
+      } else {
+        const missing = resource.dependsOn.filter((dependency) => !next.has(dependency));
+        if (missing.length > 0) {
+          setError('Select dependencies first: ' + missing.join(', '));
+          return current;
+        }
+        next.add(resource.id);
+      }
       return next;
     });
   }
 
-  function selectAllRows() {
-    setSelectedIds(new Set(rows
-      .filter((row) => row.status !== 'published' && canPublishWithActiveName(row, qortalName))
-      .map((row) => row.identifier)));
+  function selectAll() {
+    setSelected(new Set((manifest?.resources ?? []).map((resource) => resource.id)));
   }
 
-  function clearSelectedRows() {
-    setSelectedIds(new Set());
+  function clearSelected() {
+    setSelected(new Set());
   }
 
-  function markHistoryPublished(publishedRows: PublishRow[]) {
-    const nextHistory = { ...history };
-    const publishedAt = new Date().toISOString();
-    for (const row of publishedRows) {
-      nextHistory[resourceKey(targetPublisherName(row, qortalName), row)] = {
-        published_at: publishedAt,
-        service: row.service,
-        identifier: row.identifier,
-        local_path: row.local_path,
-        bytes: row.bytes
-      };
+  async function runVerification(resource: HandoffResource, attempts = 4): Promise<ResourceState> {
+    let last = await verifyOne(resource);
+    if (last.status === 'remote_verified' || last.status === 'ambiguous') return last;
+    for (let attempt = 1; attempt < attempts; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      last = await verifyOne(resource);
+      if (last.status === 'remote_verified' || last.status === 'ambiguous') return last;
     }
-    setHistory(nextHistory);
-    savePublishHistory(nextHistory);
+    return last;
   }
 
-  async function qdnResourceExists(resource: PublishRow) {
-    try {
-      await requestQortal({
-        action: 'FETCH_QDN_RESOURCE',
-        service: resource.service,
-        name: resource.name || qortalName,
-        identifier: resource.identifier
-      });
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  async function createPublishResourcePayload(resource: PublishRow) {
+  function payloadFor(resource: HandoffResource): Record<string, unknown> {
+    const file = validated?.files.get(resource.relativePath);
+    if (!file) throw new Error('Missing selected payload: ' + resource.relativePath);
+    const title = typeof resource.metadata?.title === 'string' ? resource.metadata.title : resource.identifier;
     if (resource.service === 'DOCUMENT' || resource.service === 'JSON') {
-      let content = source === 'folder'
-        ? await readLocalFileText(resource.local_path)
-        : await fetch(`${CONTENT_BASE}/${resource.local_path}`).then((response) => response.text());
-      if (isManifestResource(resource, plan)) {
-        content = hydrateManifestPublisherName(content, qortalName);
-      }
       return {
-        name: resource.name || qortalName,
+        name: resource.name,
         service: resource.service,
         identifier: resource.identifier,
-        data64: toBase64(content),
+        data64: bytesToBase64(file.bytes),
         encoding: 'base64',
-        title: resourceTitle(resource),
-        description: `WordPress to Qortal demo resource: ${resource.identifier}`
+        title,
+        description: 'Qortal Migration Studio handoff ' + manifest?.handoffId
       };
     }
-
-    const filename = resource.local_path.split('/').pop() || resource.identifier;
-    const file = source === 'folder'
-      ? readLocalFile(resource.local_path)
-      : await fetch(`${CONTENT_BASE}/${resource.local_path}`)
-        .then(async (response) => {
-          const blob = await response.blob();
-          return new File([blob], filename, { type: blob.type || 'application/octet-stream' });
-        });
-
+    const filename = resourceFilename(resource);
+    const body = file.bytes.buffer.slice(file.bytes.byteOffset, file.bytes.byteOffset + file.bytes.byteLength) as ArrayBuffer;
     return {
-      name: resource.name || qortalName,
+      name: resource.name,
       service: resource.service,
       identifier: resource.identifier,
-      file,
+      file: new File([body], filename, { type: resource.contentType }),
       filename,
-      title: resourceTitle(resource),
-      description: `WordPress to Qortal demo media: ${resource.identifier}`
+      title,
+      description: 'Qortal Migration Studio handoff ' + manifest?.handoffId
     };
   }
 
-  function readLocalFile(localPath: string): File {
-    const file = folderFiles?.get(localPath);
-    if (!file) {
-      throw new Error(`Selected folder does not contain ${localPath}.`);
+  async function publishSelected() {
+    if (!manifest || !validated || !account || !nameOwned || !approved || running.current) return;
+    if (collisionCount > 0 && !allowUpdates) {
+      setError('Resolve the ' + collisionCount + ' existing-resource collision(s) before publishing.');
+      return;
     }
-    return file;
-  }
-
-  async function readLocalFileText(localPath: string): Promise<string> {
-    return readLocalFile(localPath).text();
-  }
-
-  async function publishAll() {
-    const activeRows = rows.filter((row) => selectedIds.has(row.identifier) && row.status !== 'published' && canPublishWithActiveName(row, qortalName));
-    if (!activeRows.length) return;
-
-    setIsPublishing(true);
+    running.current = true;
+    setBusy(true);
     setError(null);
-    setProgress({ phase: 'preparing', total: activeRows.length, prepared: 0, completed: 0 });
-    setRows((current) =>
-      current.map((row) => activeRows.some((active) => active.identifier === row.identifier)
-        ? { ...row, status: 'publishing', message: 'Queued in batch' }
-        : row)
-    );
-    const existingBeforePublish = new Set<string>();
-
+    setNotice('Checking which selected resources are already available with exact bytes…');
+    const outcome: Record<string, ResourceState> = { ...states };
+    const persist = () => {
+      saveSession({
+        handoffId: manifest.handoffId,
+        selected: [...selected],
+        states: outcome,
+        accountAddress: account.address,
+        accountName: targetName,
+        receipt,
+        updatedAt: nowIso()
+      });
+    };
+    const setOutcome = (resourceId: string, next: ResourceState) => {
+      outcome[resourceId] = next;
+      setStates((current) => ({ ...current, [resourceId]: next }));
+      persist();
+    };
     try {
-      const resources = [];
-      const alreadyPublishedRows: PublishRow[] = [];
-      const publishRows: PublishRow[] = [];
-      for (const [index, row] of activeRows.entries()) {
-        const existsBefore = await qdnResourceExists(row);
-        if (existsBefore && skipExisting && !isMutableCatalogResource(row)) {
-          alreadyPublishedRows.push(row);
-          setProgress({ phase: 'preparing', total: activeRows.length, prepared: index + 1, completed: alreadyPublishedRows.length });
+      const verified = new Set<string>();
+      const collisions = new Set<string>();
+      for (const resource of selectedResources) {
+        if (statusOf(outcome[resource.id]) === 'remote_verified') {
+          verified.add(resource.id);
           continue;
         }
-        if (existsBefore) existingBeforePublish.add(row.identifier);
-        resources.push(await createPublishResourcePayload(row));
-        publishRows.push(row);
-        setProgress({ phase: 'preparing', total: activeRows.length, prepared: index + 1, completed: alreadyPublishedRows.length });
+        const result = await runVerification(resource, 2);
+        if (result.status === 'remote_verified') {
+          setOutcome(resource.id, { ...result, reason: 'Already present with exact bytes; publication skipped.' });
+          verified.add(resource.id);
+        } else if (result.status === 'ambiguous') {
+          collisions.add(resource.id);
+          if (!allowUpdates) {
+            setOutcome(resource.id, {
+              status: 'blocked',
+              reason: 'Existing remote bytes differ from this handoff. Authorize updates explicitly or resolve the collision.',
+              txSignature: null,
+              updatedAt: nowIso(),
+              verification: result.verification ?? null
+            });
+          }
+        }
       }
+      if (collisions.size > 0 && !allowUpdates) {
+        throw new Error('Publishing blocked: ' + collisions.size + ' existing resource(s) have different bytes. No resource was submitted.');
+      }
+      const pendingSelected = selectedResources.filter((resource) => !verified.has(resource.id));
+      const batches = planBatches(manifest.resources, new Set(pendingSelected.map((resource) => resource.id)));
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
+        const batch = batches[batchIndex];
+        const ready = batch.filter((resource) =>
+          resource.dependsOn.every((dependency) => verified.has(dependency) || !selected.has(dependency))
+        );
+        const blocked = batch.filter((resource) => !ready.includes(resource));
+        for (const resource of blocked) {
+          setOutcome(resource.id, {
+            status: 'blocked',
+            reason: 'A dependency is not remotely verified; this resource was not submitted.',
+            txSignature: null,
+            updatedAt: nowIso()
+          });
+        }
+        if (ready.length === 0) continue;
+        setNotice('Publishing batch ' + (batchIndex + 1) + ' of ' + batches.length + ' (' + ready.length + ' resources, maximum ' + MAX_BATCH_RESOURCES + '). Qortal Hub will ask for approval.');
+        let response: unknown = null;
+        let thrown: string | null = null;
+        try {
+          response = await requestQortal({
+            action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+            resources: ready.map(payloadFor)
+          });
+        } catch (publishError) {
+          thrown = (publishError as Error).message;
+        }
+        const submittedAt = nowIso();
+        if (thrown) {
+          for (const resource of ready) {
+            setOutcome(resource.id, {
+              status: outcomeForError(thrown),
+              reason: thrown,
+              txSignature: null,
+              updatedAt: nowIso()
+            });
+          }
+        } else if (Array.isArray(response)) {
+          for (const [index, resource] of ready.entries()) {
+            const entry = response[index] as Record<string, unknown> | undefined;
+            setOutcome(resource.id, {
+              status: 'submitted',
+              reason: 'Hub returned a resource response; exact read-back is pending.',
+              txSignature: typeof entry?.signature === 'string' ? entry.signature : null,
+              updatedAt: nowIso()
+            });
+          }
+        } else {
+          const failures = (response as { error?: { unsuccessfulPublishes?: Array<Record<string, unknown>> } })?.error?.unsuccessfulPublishes ?? [];
+          const failureById = new Map(failures.map((entry) => [String(entry.identifier ?? ''), entry]));
+          for (const resource of ready) {
+            const failure = failureById.get(resource.identifier);
+            if (failure) {
+              const reason = String(failure.reason ?? 'Qortal reported an unsuccessful publish.');
+              setOutcome(resource.id, {
+                status: outcomeForError(reason),
+                reason,
+                txSignature: null,
+                updatedAt: submittedAt
+              });
+            } else {
+              setOutcome(resource.id, {
+                status: 'ambiguous',
+                reason: 'Qortal returned a partial response without a success entry; exact read-back decides.',
+                txSignature: null,
+                updatedAt: submittedAt
+              });
+            }
+          }
+        }
 
-      if (resources.length) {
-        setProgress({ phase: 'confirming', total: activeRows.length, prepared: activeRows.length, completed: alreadyPublishedRows.length });
-        await requestQortal({
-          action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
-          resources
+        for (const resource of ready) {
+          const current = outcome[resource.id];
+          if (current?.status === 'failed' || current?.status === 'declined') continue;
+          const verification = await runVerification(resource, 5);
+          setOutcome(resource.id, {
+            ...verification,
+            txSignature: current?.txSignature ?? null,
+            updatedAt: nowIso()
+          });
+          if (verification.status === 'remote_verified') verified.add(resource.id);
+        }
+
+        const unfinished = ready.some((resource) => {
+          const status = statusOf(outcome[resource.id]);
+          return status === 'pending_confirmation' || status === 'ambiguous' || status === 'failed';
         });
+        if (unfinished) {
+          setNotice('Batch paused for reconciliation. Nothing is automatically resubmitted; resume after reviewing the ambiguous, pending or failed resources.');
+          break;
+        }
       }
 
-      markHistoryPublished([...alreadyPublishedRows, ...publishRows]);
-
-      setRows((current) =>
-        current.map((row) => alreadyPublishedRows.some((active) => active.identifier === row.identifier)
-          ? { ...row, status: 'published', message: 'Already in QDN' }
-          : publishRows.some((active) => active.identifier === row.identifier)
-            ? { ...row, status: 'published', message: resources.length ? 'Published in batch' : 'Already in QDN' }
-            : activeRows.some((active) => active.identifier === row.identifier)
-              ? { ...row, status: 'skipped', message: 'Skipped' }
-              : row)
-      );
-      setSelectedIds((current) => {
-        const next = new Set(current);
-        for (const row of activeRows) next.delete(row.identifier);
-        return next;
-      });
-      setProgress({ phase: 'completed', total: activeRows.length, prepared: activeRows.length, completed: activeRows.length });
-    } catch (publishError) {
-      const message = (publishError as Error).message;
-      setProgress((current) => ({ ...current, phase: 'verifying' }));
-      const confirmedRows: PublishRow[] = [];
-      const preExistingRows: PublishRow[] = [];
-      const missingRows: PublishRow[] = [];
-
-      for (const row of activeRows) {
-        if (existingBeforePublish.has(row.identifier)) preExistingRows.push(row);
-        else if (await qdnResourceExists(row)) confirmedRows.push(row);
-        else missingRows.push(row);
+      const attempted = selectedResources.filter((resource) => outcome[resource.id] && outcome[resource.id].status !== 'handoff_ready');
+      if (attempted.length > 0) {
+        const generated = await createReceipt({
+          handoff: manifest,
+          accountAddress: account.address,
+          accountName: targetName,
+          appVersion: APP_VERSION,
+          createdAt: nowIso(),
+          results: attempted.map((resource) => ({
+            resourceId: resource.id,
+            service: resource.service,
+            name: resource.name,
+            identifier: resource.identifier,
+            status: outcome[resource.id].status,
+            reason: outcome[resource.id].reason,
+            txSignature: outcome[resource.id].txSignature,
+            submittedAt: outcome[resource.id].updatedAt,
+            confirmedAt: outcome[resource.id].status === 'remote_verified' ? outcome[resource.id].updatedAt : null,
+            verification: outcome[resource.id].verification ?? null
+          }))
+        });
+        setReceipt(generated);
+        saveSession({
+          handoffId: manifest.handoffId,
+          selected: [...selected],
+          states: outcome,
+          accountAddress: account.address,
+          accountName: targetName,
+          receipt: generated,
+          updatedAt: nowIso()
+        });
+        setNotice('Receipt generated. Import it into Qortal Migration Studio for independent read-back verification.');
       }
-
-      if (confirmedRows.length) {
-        markHistoryPublished(confirmedRows);
-      }
-
-      setRows((current) =>
-        current.map((row) => activeRows.some((active) => active.identifier === row.identifier)
-          ? confirmedRows.some((confirmed) => confirmed.identifier === row.identifier)
-            ? { ...row, status: 'published', message: `Published resource found in QDN after Qortal returned: ${message}` }
-            : preExistingRows.some((existing) => existing.identifier === row.identifier)
-              ? { ...row, status: 'failed', message: `Resource existed before this attempt; update not confirmed after: ${message}` }
-            : { ...row, status: 'failed', message }
-          : row)
-      );
-      setSelectedIds((current) => {
-        const next = new Set(current);
-        for (const row of confirmedRows) next.delete(row.identifier);
-        return next;
-      });
-      setError(confirmedRows.length
-        ? `Qortal returned "${message}", but ${confirmedRows.length} new resources appeared in QDN. Existing resources were not treated as confirmed updates.`
-        : message);
-      setProgress({
-        phase: missingRows.length || preExistingRows.length ? 'partial' : 'completed',
-        total: activeRows.length,
-        prepared: activeRows.length,
-        completed: confirmedRows.length
-      });
+    } catch (publishFailure) {
+      setError((publishFailure as Error).message);
+    } finally {
+      running.current = false;
+      setBusy(false);
+      setApproved(false);
     }
+  }
 
-    setIsPublishing(false);
+  async function copyReceipt() {
+    if (!receipt) return;
+    try {
+      await navigator.clipboard.writeText(receiptFileText(receipt));
+      setNotice('Receipt JSON copied to the clipboard.');
+    } catch {
+      setError('Clipboard access is unavailable; use Save receipt.');
+    }
   }
 
   return (
@@ -547,135 +587,164 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       <section className="publisher-header">
         {onBack && (
           <button type="button" className="back-button" onClick={onBack}>
-            <ArrowLeft size={17} />
             Back to preview
           </button>
         )}
-        <p className="eyebrow">WordPress to Qortal</p>
+        <p className="eyebrow">Universal QDN publication</p>
         <h1>Migration Publisher</h1>
         <p className="version-line">Version {APP_VERSION}</p>
         <div className="publisher-controls">
           <label>
-            Default Qortal name
-            <input value={qortalName} onChange={(event) => setQortalName(event.target.value)} />
-          </label>
-          <label>
-            Import folder
+            Handoff folder
             <input
               type="file"
-              // Chromium-only folder picker. Qortal UI runs on Chromium.
               multiple
-              {...folderPickerProps}
-              onChange={selectImportFolder}
+              // Chromium folder picker used by Qortal Hub.
+              {...{ webkitdirectory: '', directory: '' }}
+              onChange={(event) => void chooseFolder(event)}
+              disabled={busy}
             />
           </label>
-          <button type="button" disabled={!hasBridge || isPublishing || !qortalName.trim() || summary.selected === 0} onClick={publishAll}>
-            <Send size={17} />
-            Publish selected set
+          <button type="button" disabled={busy || !bridge} onClick={() => void connectAccount()}>
+            <ShieldAlert size={17} />
+            {account ? 'Refresh active account' : 'Connect Qortal account'}
           </button>
-        </div>
-        <div className="publisher-modes">
-          <button type="button" className={mode === 'demo' ? 'active' : ''} onClick={() => changeMode('demo')}>
-            Demo
+          <button type="button" disabled={busy || !validated || !account || !nameOwned} onClick={() => void checkRemoteState()}>
+            <RefreshCw size={17} />
+            Check remote state
           </button>
-          <button type="button" className={mode === 'cms-json' ? 'active' : ''} onClick={() => changeMode('cms-json')}>
-            CMS JSON
-          </button>
-          <button type="button" className={mode === 'catalog' ? 'active' : ''} onClick={() => changeMode('catalog')}>
-            Merged catalog
-          </button>
-          <button type="button" className={mode === 'images' ? 'active' : ''} onClick={() => changeMode('images')}>
-            Images
-          </button>
-          <button type="button" className={mode === 'documents' ? 'active' : ''} onClick={() => changeMode('documents')}>
-            Documents
-          </button>
-          <button type="button" className={mode === 'audio' ? 'active' : ''} onClick={() => changeMode('audio')}>
-            Audio
-          </button>
-          <button type="button" className={mode === 'video' ? 'active' : ''} onClick={() => changeMode('video')}>
-            Video
-          </button>
-          <button type="button" className={mode === 'selected' ? 'active' : ''} onClick={() => changeMode('selected')}>
-            Selected media
-          </button>
-          <button type="button" className={mode === 'full' ? 'active' : ''} onClick={() => changeMode('full')}>
-            Full media
-          </button>
-        </div>
-        <div className="publisher-toolbar">
-          <label className="publisher-toggle">
-            <input type="checkbox" checked={skipExisting} onChange={(event) => setSkipExisting(event.target.checked)} />
-            Skip already published
-          </label>
-          <button type="button" onClick={selectAllRows} disabled={rows.length === 0}>Select all</button>
-          <button type="button" onClick={clearSelectedRows} disabled={selectedIds.size === 0}>Clear</button>
         </div>
         <div className="publisher-summary">
-          <span>{summary.count} resources</span>
-          <span>{summary.selected} selected</span>
-          <span>{formatBytes(summary.bytes)}</span>
-          <span>{summary.published} published</span>
-          <span>{summary.failed} failed</span>
-          <span>{summary.blocked} require another name</span>
-          <span>{source === 'folder' ? 'local folder' : 'bundled files'}</span>
+          <span>{folderName || 'no folder selected'}</span>
+          <span>{manifest ? manifest.resources.length + ' resources' : '—'}</span>
+          <span>{selected.size} selected</span>
+          <span>{account ? account.address.slice(0, 10) + '…' : 'account not connected'}</span>
+          <span>{targetName || 'no target name'}</span>
         </div>
-        {progress.phase !== 'idle' && (
-          <div className={`publisher-progress ${progress.phase}`}>
-            <div className="publisher-progress-label">
-              <strong>{progressLabel()}</strong>
-              <span>{progressPercent}% · {progress.phase === 'completed' ? progress.completed : progress.prepared} / {progress.total}</span>
-            </div>
-            <div className="publisher-progress-track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
-              <span style={{ width: `${progressPercent}%` }} />
-            </div>
-          </div>
-        )}
-        <p className="publisher-note">
-          Select your local wp-qortal-import folder first. Resources with a configured publisher name override the default Qortal name. Use Images, Documents, Audio, Video, or Selected media to publish large media in small batches. Catalog indexes and manifests are always updated even when Skip already published is enabled.
-        </p>
-        {summary.blocked > 0 && (
+        {!bridge && (
           <p className="publisher-warning">
-            {summary.blocked} resources in this mode require another Qortal name: {summary.blockedNames.join(', ')}. Change Default Qortal name and publish from an account that owns that name.
+            Qortal request API is not available. Open this Q-App in Qortal Hub. Bridge diagnostics: injected={String(diagnostics.injectedGlobal)},
+            windowProperty={String(diagnostics.windowProperty)}, secureContext={String(diagnostics.secureContext)}, origin={diagnostics.locationOrigin}
           </p>
         )}
-        {!hasBridge && (
+        {account && !nameOwned && (
           <p className="publisher-warning">
-            Qortal request API is not available in this browser context. Bridge checks:
-            {` window=${bridgeDiagnostics.window}, globalThis=${bridgeDiagnostics.globalThis}, parent=${bridgeDiagnostics.parent}, top=${bridgeDiagnostics.top}, opener=${bridgeDiagnostics.opener}, injected=${bridgeDiagnostics.injectedGlobal}`}
+            The active account does not own {targetName}. Qortal Hub performs the authoritative check; this screen is blocked until an owning account is active.
           </p>
         )}
         {error && <p className="publisher-warning">{error}</p>}
+        {notice && <p className="publisher-note">{notice}</p>}
       </section>
 
-      <section className="publisher-list">
-        {rows.map((row) => {
-          const requiresOtherName = row.status !== 'published' && !canPublishWithActiveName(row, qortalName);
-          const status = requiresOtherName ? 'skipped' : row.status;
-          const message = requiresOtherName
-            ? `Requires ${targetPublisherName(row, qortalName)}`
-            : row.message || row.status;
+      {validated && manifest && (
+        <>
+          <section className="publisher-list">
+            <div className="publisher-toolbar">
+              <span className="publisher-note">
+                Validated {validated.summary.resources} resources and {validated.summary.bytes} bytes. Every payload hash matches handoff.json.
+              </span>
+              <button type="button" onClick={selectAll}>Select all</button>
+              <button type="button" onClick={clearSelected}>Clear</button>
+              <label className="publisher-toggle">
+                <input type="checkbox" checked={allowUpdates} onChange={(event) => setAllowUpdates(event.target.checked)} />
+                Authorize updates to existing resources ({collisionCount} collision{collisionCount === 1 ? '' : 's'})
+              </label>
+            </div>
+            {manifest.resources.map((resource) => {
+              const state = states[resource.id];
+              const status = statusOf(state);
+              const presence = remotePresence[resource.id] ?? 'unknown';
+              return (
+                <article key={resource.id} className={'publisher-row' + (presence === 'collision' && !allowUpdates ? ' blocked' : '')}>
+                  <button type="button" className="row-check" onClick={() => toggle(resource)} disabled={busy}>
+                    {selected.has(resource.id) ? <SquareCheckBig size={19} /> : <Square size={19} />}
+                  </button>
+                  <div>
+                    <strong>{resource.kind} · {resource.identifier}</strong>
+                    <span>{resource.service} · {resource.bytes} bytes · {resource.contentType} · depends on {resource.dependsOn.length}</span>
+                    <span className="publisher-hash">{resource.sha256}</span>
+                  </div>
+                  <div className={'publisher-status ' + tone(status)}>
+                    {status === 'remote_verified' && <CheckCircle2 size={18} />}
+                    {status === 'failed' && <XCircle size={18} />}
+                    {status === 'submitted' && <Play size={18} />}
+                    <span>{label(status)}{state?.reason ? ' · ' + state.reason : ''}</span>
+                  </div>
+                  <div className="publisher-presence">
+                    <span className={'presence presence-' + presence}>{presence}</span>
+                  </div>
+                </article>
+              );
+            })}
+          </section>
 
-          return (
-            <article key={row.identifier} className={`publisher-row${requiresOtherName ? ' blocked' : ''}`}>
-              <button type="button" className="row-check" onClick={() => toggleRow(row.identifier)} disabled={row.status === 'published' || requiresOtherName}>
-                {selectedIds.has(row.identifier) ? <SquareCheckBig size={19} /> : <Square size={19} />}
-              </button>
-              <div>
-                <strong>{row.identifier}</strong>
-                <span>
-                  {targetPublisherName(row, qortalName)} · {row.service} · {row.type} · {formatBytes(row.bytes)} · {row.local_path}
-                </span>
-              </div>
-              <div className={`publisher-status ${status}`}>
-                {row.status === 'published' && <CheckCircle2 size={18} />}
-                {row.status === 'failed' && <XCircle size={18} />}
-                {row.status === 'publishing' && <Play size={18} />}
-                <span>{message}</span>
-              </div>
-            </article>
-          );
-        })}
+          <section className="publisher-footer">
+            <div className="publisher-summary">
+              <span>Estimate {manifest.estimate.estimatedFee} {manifest.estimate.currency}</span>
+              <span>{Math.ceil(selected.size / MAX_BATCH_RESOURCES)} batch(es)</span>
+              <span>{manifest.estimate.label}</span>
+            </div>
+            <label className="publisher-toggle">
+              <input type="checkbox" checked={approved} onChange={(event) => setApproved(event.target.checked)} />
+              I explicitly approve publishing these {selected.size} resources and the Qortal Hub network fee.
+            </label>
+            <button
+              type="button"
+              className="publish-button"
+              disabled={busy || blockedByPrereq || !approved || selected.size === 0 || (collisionCount > 0 && !allowUpdates)}
+              onClick={() => void publishSelected()}
+            >
+              <Send size={17} />
+              {busy ? 'Working…' : 'Approve and publish selected set'}
+            </button>
+            <p className="publisher-note">
+              Signing and fee approval stay inside Qortal Hub. This Publisher never asks for a seed, private key or wallet password.
+              A READY status is not proof; each resource becomes verified only after an exact base64 read-back hash matches.
+            </p>
+          </section>
+        </>
+      )}
+
+      {receipt && (
+        <section className="publisher-receipt">
+          <FileJson size={19} />
+          <div>
+            <strong>Receipt {receipt.receiptId}</strong>
+            <span>{receipt.results.length} resource outcomes · {Object.entries(receipt.counts).map(([key, value]) => key + ': ' + value).join(' · ')}</span>
+            <span>Import this receipt into Qortal Migration Studio. It is Publisher-reported evidence, not proof of QDN read-back.</span>
+          </div>
+          <div className="publisher-receipt-actions">
+            <button type="button" onClick={() => void downloadReceipt(receipt)}>
+              <FolderOpen size={17} />
+              Save receipt
+            </button>
+            <button type="button" onClick={() => void copyReceipt()}>Copy JSON</button>
+          </div>
+        </section>
+      )}
+
+      {sessions.length > 0 && (
+        <section className="publisher-history">
+          <h2>Previous sessions</h2>
+          <p className="publisher-note">Restart recovery is local to this Hub profile. Select the same handoff folder to resume. Nothing is resubmitted automatically.</p>
+          <ul>
+            {sessions.slice(0, 10).map((session) => (
+              <li key={session.handoffId}><code>{session.handoffId}</code> · {session.status} · {session.updatedAt}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <section className="publisher-help">
+        <h2>Variant A workflow</h2>
+        <ol>
+          <li>Qortal Migration Studio prepares a portable handoff package with exact bytes and SHA-256 hashes.</li>
+          <li>Open Qortal Hub → Apps → Migration Publisher and select the whole handoff folder.</li>
+          <li>Connect the active account and confirm it owns the target Qortal name.</li>
+          <li>Review resources, dependencies and existing-resource collisions; explicitly approve the set.</li>
+          <li>Hub approves and signs each batch. This Publisher publishes at most {MAX_BATCH_RESOURCES} resources per request and stops on ambiguous or pending results.</li>
+          <li>Save the receipt, import it into Migration Studio, then run independent QDN read-back verification there.</li>
+        </ol>
       </section>
     </main>
   );

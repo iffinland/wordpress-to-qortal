@@ -19,6 +19,14 @@ const TIMEOUTS: Record<string, number> = {
   'plan.create': 20 * 60_000,
   'media.download': 60 * 60_000,
   'media.inspect': 60_000,
+  'publication.prepare': 10 * 60_000,
+  'publication.list': 30_000,
+  'publication.get': 120_000,
+  'publication.importReceipt': 120_000,
+  'publication.verify': 15 * 60_000,
+  'publication.history': 30_000,
+  'publication.resources': 30_000,
+  'publication.batches': 30_000,
   'project.open': 60_000,
   'project.inspect': 30_000,
   'diagnostics.export': 120_000,
@@ -122,6 +130,42 @@ export function registerIpc(deps: IpcDependencies): void {
 
     [IPC.mediaDownload]: async (params) => invoke('media.download', params),
     [IPC.mediaInspect]: async (params) => invoke('media.inspect', { projectId: params.projectId }),
+
+    [IPC.publicationList]: async (params) => invoke('publication.list', { projectId: params.projectId }),
+    [IPC.publicationPrepare]: async (params) => invoke('publication.prepare', {
+      projectId: params.projectId,
+      planId: params.planId,
+      selection: params.selection,
+      feePerResource: params.feePerResource,
+      feeCurrency: params.feeCurrency
+    }),
+    [IPC.publicationGet]: async (params) => invoke('publication.get', {
+      projectId: params.projectId,
+      handoffId: params.handoffId,
+      validate: params.validate !== false
+    }),
+    [IPC.publicationImportReceipt]: async (params) => invoke('publication.importReceipt', {
+      projectId: params.projectId,
+      handoffId: params.handoffId,
+      receipt: params.receipt
+    }),
+    [IPC.publicationVerify]: async (params) => invoke('publication.verify', {
+      projectId: params.projectId,
+      handoffId: params.handoffId,
+      nodeUrl: params.nodeUrl,
+      attempts: params.attempts ?? 6,
+      intervalMs: params.intervalMs ?? 1500
+    }),
+    [IPC.publicationHistory]: async (params) => invoke('publication.history', { projectId: params.projectId }),
+    [IPC.publicationResources]: async (params) => invoke('publication.resources', {
+      projectId: params.projectId,
+      handoffId: params.handoffId ?? null
+    }),
+    [IPC.publicationBatches]: async (params) => invoke('publication.batches', {
+      projectId: params.projectId,
+      handoffId: params.handoffId
+    }),
+
     [IPC.diskCheck]: async (params) => invoke('disk.check', params),
 
     [IPC.runList]: async (params) => invoke('run.list', { projectId: params.projectId }),

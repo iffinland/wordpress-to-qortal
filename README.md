@@ -44,6 +44,8 @@ This records the existing QDN catalog locally. New batches then merge with it in
 - `docs/migration-studio/PHASE-2-WORDPRESS-ADAPTER.md` - source adapters, the WordPress adapter, `qms-content@1`, discovery artifacts, and Corbett compatibility (Phase 2).
 - `docs/migration-studio/PHASE-3-PLANNING-MEDIA-IDENTITY.md` - universal site identity, QDN namespaces, batch planning, disk protection, media downloads/dedupe and conflict handling (Phase 3).
 - `docs/migration-studio/PHASE-4-DESKTOP-GUI.md` - Linux desktop app, setup wizard, secure IPC, reserved-vs-published lifecycle correction, Debian packaging and verification (Phase 4).
+- `docs/migration-studio/PHASE-5-QDN-PUBLISHING.md` - portable QDN handoff, universal Migration Publisher Q-App, controlled batches, exact read-back verification, receipts and desktop synchronization (Phase 5).
+- `docs/migration-studio/PHASE-5-VARIANT-B-FEASIBILITY.md` - secure desktop-to-Hub transfer assessment (deferred).
 
 ## Where files go
 

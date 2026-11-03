@@ -15,7 +15,7 @@ await mkdir(path.join(stage, 'bin'), { recursive: true });
 await cp(path.join(repo, 'bin/qms-host.js'), path.join(stage, 'bin/qms-host.js'));
 await writeFile(path.join(stage, 'package.json'), JSON.stringify({
   name: 'qortal-migration-studio-engine',
-  version: '0.4.0',
+  version: '0.5.0',
   private: true,
   type: 'module',
   dependencies: {

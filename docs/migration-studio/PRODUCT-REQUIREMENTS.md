@@ -6,7 +6,7 @@
 | Product working name | Qortal Migration Studio |
 | Executing agent | DeepSeek (`opencode-development` profile) |
 | Date | 2026-11-02 |
-| Status | Requirements baseline for architecture/planning; not a release commitment. Phase 3 requirements are implemented as documented in [`PHASE-3-PLANNING-MEDIA-IDENTITY.md`](PHASE-3-PLANNING-MEDIA-IDENTITY.md); Phases 4–10 remain unimplemented. |
+| Status | Requirements baseline for architecture/planning; not a release commitment. Phases 3–5 are implemented as documented in their phase documents; a real Hub-signed live publication remains unverified. Phases 6–10 remain unimplemented. |
 | Companion audit | [`PHASE-0-ARCHITECTURE-AUDIT.md`](PHASE-0-ARCHITECTURE-AUDIT.md) |
 
 > **Phase 3 implementation note (2026-11-03):** BAT-02/04/05/06, MED-01..07,
@@ -18,6 +18,12 @@
 > `IDM-03/04` prevent duplicate planning and surface conflicts; publication
 > status is still reserved for Phase 5. GUI acceptance criteria belong to
 > Phase 4.
+
+> **Phase 5 implementation note (2026-11-03):** PUB-01..08 are implemented for
+> the portable handoff and universal Publisher workflow. Exact QDN read-back
+> uses `encoding=base64`; receipts are Publisher evidence, not proof. A real
+> Hub-signed live publication and fee/transaction acceptance have not been
+> executed. See [`PHASE-5-QDN-PUBLISHING.md`](PHASE-5-QDN-PUBLISHING.md).
 
 ## 1. Product definition
 

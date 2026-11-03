@@ -267,6 +267,13 @@ Node/npm/Git, with a first-run project flow.
 
 ## 8. Phase 5 — Hub-mediated publication and verification (P0)
 
+> **Phase 5 implementation note (2026-11-03):** Variant A is implemented:
+> portable `qms-publication-handoff@1` packages, universal Publisher Q-App,
+> controlled <=20 batches, exact base64 read-back, receipt import and desktop
+> verification. Local tests pass; a real Hub-signed live publication remains
+> unverified until an authorized live test is run. See
+> [PHASE-5-QDN-PUBLISHING.md](PHASE-5-QDN-PUBLISHING.md).
+
 **Outcome:** a truthful, resumable publication flow that prepares resources,
 hands off to Qortal Hub, and verifies exact QDN content without collecting keys.
 

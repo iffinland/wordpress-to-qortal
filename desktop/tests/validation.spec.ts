@@ -48,6 +48,26 @@ describe('IPC validation', () => {
     expect(() => validateIpcPayload(IPC.mediaDownload, { projectId: 'prj_abcd', planId: '../../etc' })).toThrow(/planId/);
   });
 
+  it('bounds publication handoff, selection, receipt and node URL inputs', () => {
+    expect(validateIpcPayload(IPC.publicationPrepare, {
+      projectId: 'prj_abcd',
+      planId: 'plan_abcdefgh',
+      selection: ['post:1'],
+      feePerResource: 0.01
+    })).toMatchObject({ projectId: 'prj_abcd', planId: 'plan_abcdefgh', selection: ['post:1'] });
+    expect(() => validateIpcPayload(IPC.publicationGet, { projectId: 'prj_abcd', handoffId: '../escape' })).toThrow(/handoffId/);
+    expect(() => validateIpcPayload(IPC.publicationVerify, {
+      projectId: 'prj_abcd', handoffId: 'hof_abcdefgh12345678', nodeUrl: 'file:///etc/passwd'
+    })).toThrow(/http/);
+    expect(() => validateIpcPayload(IPC.publicationVerify, {
+      projectId: 'prj_abcd', handoffId: 'hof_abcdefgh12345678', nodeUrl: 'http://user:pass@localhost:12391'
+    })).toThrow(/credentials/);
+    expect(() => validateIpcPayload(IPC.publicationImportReceipt, {
+      projectId: 'prj_abcd', handoffId: 'hof_abcdefgh12345678', receipt: 'not-an-object'
+    })).toThrow(/receipt/);
+    expect(validateIpcPayload(IPC.publicationResources, { projectId: 'prj_abcd' })).toEqual({ projectId: 'prj_abcd', handoffId: null });
+  });
+
   it('rejects oversized payloads', () => {
     expect(() => validateIpcPayload(IPC.projectCreate, {
       name: 'x'.repeat(200),

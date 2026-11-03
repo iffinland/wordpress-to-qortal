@@ -5,9 +5,10 @@ import { Dashboard } from './components/Dashboard.js';
 import { Wizard } from './components/Wizard.js';
 import { Progress } from './components/Progress.js';
 import { History } from './components/History.js';
+import { Publishing } from './components/Publishing.js';
 import { ErrorText } from './components/Common.js';
 
-type View = 'dashboard' | 'wizard' | 'progress' | 'history';
+type View = 'dashboard' | 'wizard' | 'progress' | 'history' | 'publishing';
 
 function wizardPlanId(project: ProjectDocument): string | null {
   const settings = (project.settings ?? {}) as Record<string, unknown>;
@@ -99,6 +100,19 @@ export default function App() {
     }
   }
 
+  async function openPublishing(projectId: string) {
+    setError(null);
+    try {
+      if (!project || project.id !== projectId) {
+        const opened = await api().projects.open(projectId);
+        setProject(opened.project);
+      }
+      setView('publishing');
+    } catch (openError) {
+      setError(openError);
+    }
+  }
+
   async function backToDashboard() {
     setView('dashboard');
     setProject(null);
@@ -129,6 +143,7 @@ export default function App() {
         <div className="row wrap gap">
           {info && <span className="pill">engine {info.version}</span>}
           {settings && <span className={'pill ' + (settings.keyring.available ? 'good-text' : 'warn-text')}>{settings.keyring.available ? 'keyring available' : 'session-only credentials'}</span>}
+          {project && <button className="ghost" onClick={() => void openPublishing(project.id)}>Publishing</button>}
           <button className="ghost" onClick={() => void backToDashboard()}>Dashboard</button>
         </div>
       </header>
@@ -159,7 +174,11 @@ export default function App() {
             planId={planId}
             onBack={backToDashboard}
             onHistory={openHistory}
+            onPublishing={openPublishing}
           />
+        )}
+        {view === 'publishing' && project && (
+          <Publishing projectId={project.id} onBack={backToDashboard} />
         )}
         {view === 'history' && project && (
           <History
@@ -176,7 +195,7 @@ export default function App() {
           </div>
         )}
       </main>
-      {settings && <footer className="app-footer"><span>Workspace: {settings.dataRoot}</span><span>No publishing or signing in this phase.</span></footer>}
+      {settings && <footer className="app-footer"><span>Workspace: {settings.dataRoot}</span><span>Hub signs and approves; this app never holds wallet keys.</span></footer>}
     </div>
   );
 }

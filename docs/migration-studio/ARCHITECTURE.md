@@ -112,6 +112,15 @@ Q-App frame. The publisher is therefore a separate surface, not a desktop API.
 > A Debian package, desktop entry and icons are produced with electron-builder.
 > See [PHASE-4-DESKTOP-GUI.md](PHASE-4-DESKTOP-GUI.md).
 
+> **Phase 5 implementation note (2026-11-03):** publication is a portable
+> handoff, not a desktop write. `lib/engine/publication` builds a versioned
+> folder with exact bytes and SHA-256, validates it, imports Publisher receipts,
+> and verifies exact QDN reads through read-only Core HTTP (`encoding=base64`).
+> The universal Migration Publisher Q-App handles Hub account/name checks,
+> approval and signing. The desktop never stores wallet material. See
+> [PHASE-5-QDN-PUBLISHING.md](PHASE-5-QDN-PUBLISHING.md) and
+> [PHASE-5-VARIANT-B-FEASIBILITY.md](PHASE-5-VARIANT-B-FEASIBILITY.md).
+
 Responsibilities:
 
 - window lifecycle, menus, native folder picker, notifications;

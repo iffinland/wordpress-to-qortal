@@ -9,9 +9,10 @@ interface ProgressProps {
   planId: string | null;
   onBack: () => Promise<void>;
   onHistory: (projectId: string) => Promise<void>;
+  onPublishing?: (projectId: string) => Promise<void>;
 }
 
-export function Progress({ projectId, planId, onBack, onHistory }: ProgressProps) {
+export function Progress({ projectId, planId, onBack, onHistory, onPublishing }: ProgressProps) {
   const [plan, setPlan] = useState<PlanDocument | null>(null);
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [events, setEvents] = useState<QmsEvent[]>([]);
@@ -130,6 +131,7 @@ export function Progress({ projectId, planId, onBack, onHistory }: ProgressProps
         </div>
         <div className="row gap">
           <button onClick={() => void openDiagnostics()}>History & diagnostics</button>
+          <button className="primary" onClick={() => void onPublishing?.(projectId)} disabled={!onPublishing}>Publish through Hub</button>
           <button className="ghost" onClick={() => void onBack()}>Dashboard</button>
         </div>
       </div>

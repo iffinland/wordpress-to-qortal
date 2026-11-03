@@ -22,13 +22,13 @@ linux:
   target:
     - deb
   category: Office
-  synopsis: Prepare WordPress content for Qortal QDN
-  description: Qortal Migration Studio is a desktop application that connects to a WordPress site, plans a batch, downloads and verifies media, and prepares QDN resources locally without publishing or signing blockchain transactions.
+  synopsis: Prepare and verify WordPress-to-Qortal QDN migrations
+  description: Qortal Migration Studio prepares WordPress content and media locally, generates a portable QDN handoff with exact bytes and SHA-256 hashes, imports Migration Publisher receipts, and performs independent read-only QDN verification. Signing and approval stay in Qortal Hub.
   executableName: qortal-migration-studio
   icon: build/icons
   desktop:
     Name: Qortal Migration Studio
-    Comment: Prepare WordPress content for Qortal QDN
+    Comment: Prepare, hand off and verify WordPress-to-QDN migrations
     Categories: Office;Utility;
     Keywords: Qortal;WordPress;Migration;QDN;
     StartupWMClass: Qortal Migration Studio

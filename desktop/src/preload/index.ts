@@ -58,6 +58,21 @@ const api = {
   disk: {
     check: (projectId: string, options: Record<string, unknown> = {}) => invoke(IPC.diskCheck, { projectId, ...options })
   },
+  publication: {
+    list: (projectId: string) => invoke(IPC.publicationList, { projectId }),
+    prepare: (projectId: string, planId: string, selection: string[], options: Record<string, unknown> = {}) =>
+      invoke(IPC.publicationPrepare, { projectId, planId, selection, ...options }),
+    get: (projectId: string, handoffId: string, validate = true) =>
+      invoke(IPC.publicationGet, { projectId, handoffId, validate }),
+    importReceipt: (projectId: string, handoffId: string, receipt: Record<string, unknown>) =>
+      invoke(IPC.publicationImportReceipt, { projectId, handoffId, receipt }),
+    verify: (projectId: string, handoffId: string, nodeUrl: string, options: Record<string, unknown> = {}) =>
+      invoke(IPC.publicationVerify, { projectId, handoffId, nodeUrl, ...options }),
+    history: (projectId: string) => invoke(IPC.publicationHistory, { projectId }),
+    resources: (projectId: string, handoffId?: string | null) =>
+      invoke(IPC.publicationResources, { projectId, handoffId: handoffId ?? null }),
+    batches: (projectId: string, handoffId: string) => invoke(IPC.publicationBatches, { projectId, handoffId })
+  },
   runs: {
     list: (projectId: string) => invoke(IPC.runList, { projectId }),
     get: (projectId: string, runId: string) => invoke(IPC.runGet, { projectId, runId }),
