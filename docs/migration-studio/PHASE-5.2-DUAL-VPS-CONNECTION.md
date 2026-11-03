@@ -196,8 +196,14 @@ Do not stop Caddy or Qortal Core to fix the broker.
 - The broker accepted policy, fee quote and balance, then the signing backend
   rejected or failed the operation. No QDN transaction signature was produced,
   no QDN resource was published and no fee was charged.
-- The broker does not expose the External Auth rejection detail to the agent.
-  The exact backend reason requires read-only operator inspection on the signing
+- The resource verification code is `SIGNING_REJECTED`. In
+  `broker/src/signing/external-auth.js`, that code is produced only when the
+  External Auth `/qdn/publish` response is HTTP 401 or 403 (and the body is not
+  `approval_required`). The record-level `SIGNING_FAILED` is the broker's
+  aggregate state. This narrows the failure to an authentication, permission
+  or locked-wallet rejection, not a name/payload/fee policy failure. The exact
+  401/403 body is intentionally hidden from the agent.
+- The exact backend reason requires read-only operator inspection on the signing
   VPS:
 
   ```bash
