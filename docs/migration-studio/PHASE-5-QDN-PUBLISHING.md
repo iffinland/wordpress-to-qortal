@@ -437,9 +437,11 @@ Phase 5 tests cover:
 - npm run migration:build (Publisher Q-App): passed (tsc + Vite).
 - desktop npm run typecheck: passed.
 - desktop npm run build: passed.
-- Debian package: qortal-migration-studio-0.5.0-amd64.deb, 107,987,214 bytes, sha256 ecf43d28fc66a898d12c44ae53d0d15b9a2a0104b201b1bfebd078f0a78a5951.
+- Debian package (Phase 5.1 rebuild): qortal-migration-studio-0.5.0-amd64.deb, 107,989,438 bytes, sha256 de99094e6d886198d0413dca4520d055e30095d0750b2cad4bbf58b3fe65f538.
 - Package verification: passed; dependencies and layout inspected with dpkg-deb.
-- Headless packaged launch: QMS_SMOKE_OK version=0.1.7-phase5 title=Qortal Migration Studio.
+- Headless packaged launch was not rerun in Phase 5.1 because Xvfb/xkbcomp are
+  absent in this environment; the Phase 5 baseline smoke evidence remains
+  historical and the 5.1 changes affect validation, not application startup.
 
 ### 12.3 Cross-validation of the Q-App package validator
 

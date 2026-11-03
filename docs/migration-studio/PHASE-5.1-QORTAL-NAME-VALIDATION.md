@@ -118,7 +118,21 @@ Deterministic fixtures and mocked HTTP only; no live node was contacted.
 - Publisher `evaluateNameOwnership` requires exact name and exact owner;
   case-folded, wrong-owner and owner-less entries are blocked.
 
-## 7. Remaining uncertainty
+## 7. Local verification results
+
+- `npm test`: 170 tests passed (includes 10 Phase 5.1 name tests).
+- `npm run test:phase5`: 24 tests passed.
+- `cd desktop && npm run typecheck`: passed.
+- `cd desktop && npm test`: 28 tests passed.
+- `npm run migration:build`: passed (TypeScript + Vite, 1585 modules).
+- `cd desktop && npm run dist:deb`: passed with extracted Debian binutils
+  (`ar` is not installed system-wide).
+- `cd desktop && npm run verify:package`: passed; artifact
+  `qortal-migration-studio-0.5.0-amd64.deb`, 107,989,438 bytes,
+  sha256 `de99094e6d886198d0413dca4520d055e30095d0750b2cad4bbf58b3fe65f538`.
+- No live Qortal node, wallet, transaction or QDN publish was used.
+
+## 8. Remaining uncertainty
 
 - Java's `java.text.Normalizer`/Guava whitespace data and V8's
   `String.normalize`/`p{White_Space}` can differ for Unicode characters
