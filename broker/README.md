@@ -15,7 +15,7 @@ The broker sits between OpenClaw and External Auth:
 
 ```text
 OpenClaw (agent)
-  |  Ed25519-signed request + short-lived access grant, nonce + timestamp
+  |  persistent Ed25519 request signature, timestamp + nonce
   v
 QDN test broker (unprivileged qms-broker user, loopback/private bind)
   |  bearer token, ONLY POST /qdn/publish, fixed walletId + nodeUrl
@@ -35,8 +35,7 @@ Exact Phase 5 base64 read-back with SHA-256
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/v1/health` | Unauthenticated liveness; no sensitive data |
-| POST | `/v1/auth/refresh` | Ed25519-signed short-lived access grant; no publication work |
+| GET | `/v1/health` | Unauthenticated liveness; never blocked by the kill switch |
 | POST | `/v1/publications` | Validate, reserve budget, sign and verify one batch |
 | GET | `/v1/publications/{id}` | Read the stored publication record |
 | POST | `/v1/publications/{id}/verify` | Read-only re-verification; never signs |
@@ -94,43 +93,26 @@ byte lengths and SHA-256 values match the request. The Phase 5
   complete batch fee is reserved atomically before signing;
 - publication is rejected when the exact fee, confirmed balance or budget
   cannot be proven;
-- 15-minute access grants, renewable only by a signed request bound to the
-  registered Ed25519 key, with a configurable 7-day maximum renewable lifetime;
-- every request carries both an Ed25519 signature and a broker access grant;
+- one persistent Ed25519 identity per agent; authorization has no expiry and
+  ends only on explicit operator revocation (state) or `enabled: false`
+  (client key file);
+- every request is signed directly over method, path, body hash, timestamp and
+  nonce; no session, refresh loop or bearer credential;
 - existing QDN identities rejected unless `allowResourceUpdates` is explicitly
   enabled by an operator policy (off by default);
 - ambiguous and pending outcomes are never resubmitted automatically.
 
 ### Authentication
 
-Each request is signed with Ed25519 and must also carry a short-lived access
-grant. Headers:
+Every broker request is signed directly with the agent's persistent Ed25519
+key. There is no login, session, access grant, refresh route or token:
 
 ```text
 x-qms-key-id: agent-main-2026-11
 x-qms-timestamp: 1793700000000
 x-qms-nonce: 7vQm...
 x-qms-signature: <base64url Ed25519 signature>
-authorization: Bearer <access grant from POST /v1/auth/refresh>
 ```
-
-`POST /v1/auth/refresh` is the only route that does not require an access
-grant. It is itself Ed25519-signed and returns a grant bound to the same key:
-
-```json
-{
-  "schema": "qms-broker-access@1",
-  "keyId": "agent-main-2026-11",
-  "accessToken": "qmsa_...",
-  "expiresAt": 1793700900000,
-  "accessTtlMs": 900000,
-  "keyExpiresAt": "2026-11-10T10:00:00.000Z"
-}
-```
-
-The plaintext grant is returned once; only its SHA-256 hash is stored in broker
-state. A grant can be revoked by `revoke-key`, and it never outlives the
-operator-registered key or `auth.maxAuthorizationLifetimeMs`.
 
 Canonical string (newline separated):
 
@@ -143,10 +125,41 @@ qms-qdn-test-broker-v1
 <nonce>
 ```
 
-The broker enforces a ±120 s clock window, an in-memory nonce replay cache,
-key expiry, grant expiry, the maximum renewable lifetime and operator
-revocation. The client public keys live in a broker-owned `clients.json`; the
-agent holds only its private key and an in-memory access grant.
+The broker verifies:
+
+- the key exists in the operator-owned registry and is not disabled;
+- the key is not in the state-backed revocation list;
+- the timestamp is inside the ±120 s window;
+- the nonce is unique for that key inside `auth.nonceTtlMs`;
+- the Ed25519 signature matches the exact method, path, body bytes, timestamp
+  and nonce.
+
+A key has **no expiry**. It authenticates indefinitely until the operator runs
+`revoke-key` or sets `enabled: false` in `clients.json`. Replay claims are
+written to broker state, so a restart inside the timestamp window cannot make
+a captured request replayable. The in-memory cache remains the fast
+concurrent-duplicate gate.
+
+The client registry schema is:
+
+```json
+{
+  "schema": "qms-broker-client-keys@2",
+  "keys": [
+    {
+      "keyId": "agent-main-2026-11",
+      "publicKeyPem": "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\n",
+      "createdAt": "2026-11-03T10:00:00.000Z",
+      "enabled": true
+    }
+  ]
+}
+```
+
+Legacy entries with `issuedAt`/`expiresAt` are accepted for upgrade safety,
+but their expiry is ignored and the broker logs a migration warning. The agent
+holds only its private key; the broker never sees a wallet, seed, password or
+External Auth token.
 
 ### Operator control
 
@@ -161,9 +174,10 @@ node broker/src/control.js /run/qms-qdn-test-broker/admin.sock revoke-key '{"key
 node broker/src/control.js /run/qms-qdn-test-broker/admin.sock status
 ```
 
-`revoke-key` revokes the key and every access grant bound to it. Unrevoking a
-key does not resurrect old grants; the agent must refresh. `status` reports the
-signing credential fingerprint and expiry, never the token.
+`revoke-key` takes effect on the next request; there is no cached session to
+expire. `unrevoke-key` restores the same persistent key. `status` reports the
+signing credential fingerprint and expiry, the budget, replay-entry count and
+revocation count, never the token.
 
 An independent emergency stop also works without the broker API: create the
 configured kill-switch file (default
@@ -175,9 +189,8 @@ it on every request and fails closed if the check itself fails.
 - `src/policy.js` — request validation and policy limits;
 - `src/service.js` — preflight, budget reservation, signing orchestration,
   Phase 5 exact read-back;
-- `src/auth.js` — Ed25519 request authentication, refresh authorization and
-  replay cache;
-- `src/grants.js` — short-lived access grants (hash-only persistence);
+- `src/auth.js` — persistent Ed25519 key registry, direct request
+  authentication and in-memory replay gate;
 - `src/credentials/store.js` — last-known-good External Auth credential,
   atomic 0600 writes and validated swaps;
 - `src/credentials/socket.js` — private Unix-socket credential renewal ingress;
@@ -186,12 +199,12 @@ it on every request and fails closed if the check itself fails.
 - `src/audit.js` — append-only hash-chained audit JSONL;
 - `src/signing/external-auth.js` — narrow External Auth client;
 - `src/signing/mock.js` — deterministic test backend;
-- `src/server.js` — five-route HTTP API and Unix-socket admin server;
+- `src/server.js` — four-route HTTP API and Unix-socket admin server;
 - `src/index.js` — process entrypoint;
 - `src/control.js` — operator CLI;
 - `src/client.js` — agent-side Ed25519 client (`publish`, `getPublication`,
-  `verifyPublication`) with automatic access-grant refresh; no wallet or
-  External Auth credential.
+  `verifyPublication`) that signs every request directly; no session, refresh
+  loop, wallet or External Auth credential.
 
 ## Local development
 
@@ -209,6 +222,7 @@ See `docs/migration-studio/PHASE-5.2-TEST-PUBLISHING-BROKER.md` for the threat
 model, isolation boundaries, External Auth audit and the exact operator
 provisioning steps, and
 `docs/migration-studio/PHASE-5.2-CREDENTIAL-LIFECYCLE.md` for the automatic
-External Auth credential renewal, agent access grants, installation/upgrade and
-rollback. The broker itself never creates, imports, unlocks or backs up a
+External Auth credential renewal and
+`docs/migration-studio/PHASE-5.2-PERMANENT-AGENT-AUTH.md` for the persistent
+key model, state migration, upgrade and rollback. The broker itself never creates, imports, unlocks or backs up a
 wallet.

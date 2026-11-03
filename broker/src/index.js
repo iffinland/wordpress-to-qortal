@@ -26,6 +26,12 @@ export async function startBroker({ configPath = process.env.QMS_BROKER_CONFIG }
   if (keys.size === 0) {
     throw new BrokerError(BROKER_ERROR.AUTH_INVALID, 'At least one client key is required.');
   }
+  const legacyKeys = [...keys.values()].filter((key) => key.legacy).map((key) => key.keyId);
+  if (legacyKeys.length > 0) {
+    log('WARNING: client keys ' + legacyKeys.join(', ') +
+      ' still carry issuedAt/expiresAt; expiry is ignored and the key stays valid until revocation. ' +
+      'Migrate clients.json to schema qms-broker-client-keys@2.');
+  }
 
   const state = await BrokerState.open({ path: config.state.path, fsync: config.state.fsync });
   const recovery = await state.recoverInterrupted({ windowMs: config.policy.budgetWindowMs });

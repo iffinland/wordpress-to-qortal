@@ -20,7 +20,7 @@ audit log outside the repository, and exposes an operator-only Unix-socket kill
 switch and key revocation. Deterministic tests pass with a mock signing backend.
 The owner reports External Auth 0.2.0 and the broker installed on the signing
 VPS; this branch adds automatic External Auth session renewal and renewable
-agent access grants (see `PHASE-5.2-CREDENTIAL-LIFECYCLE.md`). The agent did not
+permanent agent authentication (see `PHASE-5.2-PERMANENT-AGENT-AUTH.md`). The agent did not
 import or unlock a wallet, did not install or modify External Auth, and did not
 publish a QDN resource or submit a transaction.
 
@@ -126,9 +126,8 @@ Trust rules:
 
 ### Routes
 
-- `GET /v1/health` — unauthenticated liveness only.
-- `POST /v1/auth/refresh` — Ed25519-signed short-lived access grant; no signing.
-- `POST /v1/publications` — one authenticated batch (Ed25519 + access grant).
+- `GET /v1/health` — unauthenticated liveness; remains 200 when disabled.
+- `POST /v1/publications` — one directly Ed25519-signed batch.
 - `GET /v1/publications/{id}` — stored record.
 - `POST /v1/publications/{id}/verify` — safe read-back re-verification.
 
@@ -150,18 +149,18 @@ Unknown paths return `404 NOT_FOUND` before authentication, including
 | Fee per transaction | No arbitrary fixed ceiling. Each resource is quoted through the node's read-only `POST /transactions/fee` using a reconstructed Core v5 ARBITRARY transaction; the quote must be an exact multiple of `GET /transactions/unitfee?txType=ARBITRARY`. Any unavailable or malformed quote fails closed |
 | Cumulative budget | 5 QORT per rolling 24 h window; the full batch fee is reserved atomically, and pending/ambiguous reservations count until resolved. Concurrent requests cannot double-spend |
 | Wallet reserve | The confirmed QORT balance must cover the batch, existing reservations and a configurable 0.1 QORT reserve; an unavailable balance fails closed |
-| Session lifetime | 15-minute access grants, refreshed only by signed `POST /v1/auth/refresh`, capped by the registered key window and a 7-day maximum renewable lifetime |
+| Authorization lifetime | None. One persistent Ed25519 key signs every request directly and stays valid until explicit operator revocation or `enabled: false` |
 | Existing identities | Core properties preflight; 404 required; existing identity rejected unless `allowResourceUpdates` is explicitly enabled (off) |
 | Exact bytes | Canonical base64, byte length and SHA-256 verified before signing |
 | Handoff integrity | Optional sealed `qms-publication-handoff@1`; Phase 5 validator plus project/target/triple/hash comparison |
-| Replay protection | ±120 s timestamp window + nonce cache + body-hash signature |
+| Replay protection | ±120 s timestamp window + in-memory nonce gate + state-persisted nonce claim (survives restart) + body-hash signature |
 | Idempotency | `requestId` + body hash; identical replay returns the stored record; conflicting reuse rejected |
 | Ambiguous/pending | Persisted without resubmission; resource identities stay locked |
 | Failed signatures | Zero charge, lock released, a new request may retry deliberately |
 | Read-back mismatch | Persisted as `ambiguous`; no retry; safe re-verification only |
 | Audit | Hash-chained JSONL, redacts payloads/secrets/signatures, verifies the entire chain at startup |
 | Emergency stop | Operator Unix socket writes state + kill-switch file; every request re-checks both and fails closed |
-| Key revocation | State-backed revocation through the operator socket; revoking a key also revokes every access grant bound to it |
+| Key revocation | State-backed revocation through the operator socket; effective on the next request and preserved across restart |
 | Credential renewal | Signing-host supervisor pushes a validated token over a private 0660 Unix socket; broker keeps the last known-good token on failure; SIGHUP also reloads |
 | Bounded I/O | Body cap, header timeout, request timeout, backend/read-back timeouts, one submission attempt |
 
@@ -283,10 +282,12 @@ configuration.
    host. The seed/password must never be sent through Telegram, the broker,
    the agent or the repository. Choose an unlock TTL that covers the intended
    test session, then lock it afterwards.
-6. **Provision the agent key.** Generate an Ed25519 keypair on the agent host:
-   `openssl genpkey -algorithm ED25519 -out agent.key` and
+6. **Provision the agent key.** Generate one persistent Ed25519 keypair on
+   the agent host: `openssl genpkey -algorithm ED25519 -out agent.key` and
    `openssl pkey -in agent.key -pubout -out agent.pub`. Put only the public
-   PEM, `issuedAt` and `expiresAt` in `clients.json`.
+   PEM, `keyId` and `createdAt` in `clients.json` using schema
+   `qms-broker-client-keys@2`. Do not add `expiresAt`; the key is valid until
+   explicit revocation.
 7. **Install broker policy.** Copy `broker/config.example.json` to
    `/etc/qms-qdn-test-broker/config.json`; replace the wallet id placeholder;
    keep the target name/owner, `DOCUMENT`-only, prefix, limits, updates-off
@@ -314,10 +315,9 @@ configuration.
 
 ## 9. Verification evidence
 
-- `npm run test:phase5.2`: **97 passed, 0 failed** after the credential
-  lifecycle change (was 68 before it).
-- Full repository `npm test`: **268 passed, 0 failed** (was 239 before the
-  credential lifecycle tests).
+- `npm run test:phase5.2`: **93 passed, 0 failed** after permanent agent
+  authorization replaced the grant layer.
+- Full repository `npm test`: **264 passed, 0 failed**.
 - `npm run test:phase5`: **24 passed, 0 failed**.
 - Production viewer and CMS builds: passed (Vite: 1585 modules; CMS bundle
   built).

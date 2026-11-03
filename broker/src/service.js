@@ -676,6 +676,15 @@ export class PublicationBroker {
     return await this.verifyAndFinalize(publicationId, keyId);
   }
 
+  /**
+   * Durable replay claim for one authenticated request. The in-memory cache in
+   * auth.js already rejects concurrent duplicates; this layer closes the
+   * timestamp window across broker restarts.
+   */
+  async claimNonce({ keyId, nonce, now = this.clock(), ttlMs = 600000 }) {
+    return this.state.claimNonce({ keyId, nonce, now, expiresAt: now + ttlMs });
+  }
+
   async status() {
     const snapshot = this.state.snapshot();
     return {
@@ -692,8 +701,7 @@ export class PublicationBroker {
       },
       signingBackend: this.backend.constructor?.name ?? 'unknown',
       credential: this.credentials ? this.credentials.status() : null,
-      activeGrants: Object.values(snapshot.accessGrants)
-        .filter((grant) => grant.revoked !== true && grant.expiresAt > this.clock()).length,
+      replayEntries: Object.keys(snapshot.requestNonces).length,
       requestSchema: REQUEST_SCHEMA
     };
   }

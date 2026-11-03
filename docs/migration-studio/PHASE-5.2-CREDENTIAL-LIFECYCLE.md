@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| Document | External Auth session renewal, broker credential reload and renewable agent authorization |
+| Document | External Auth session renewal, broker credential reload and permanent agent authorization |
 | Date | 2026-11-03 |
 | Status | Implementation and deterministic tests complete; **not installed or live-tested on the signing VPS** |
 | Scope | Development-only QDN test publishing on the owner-provisioned signing VPS |
@@ -16,14 +16,15 @@ uses the External Auth app credentials to call `POST /sessions`, pushes the new
 bearer token over a private Unix socket, and the broker validates it through a
 read-only `GET /settings` call before atomically replacing the last known-good
 token. The token never transits OpenClaw, Git, Telegram, logs or the repository.
-The agent no longer relies on a one-hour Ed25519 session: it signs a
-`POST /v1/auth/refresh` request with its registered key and receives a
-15-minute access grant; every publication request carries both the Ed25519
-signature and the grant. Grants are hash-only in broker state, revocable, and
-bounded by the operator-registered key lifetime plus a configurable maximum
-renewable lifetime. A credential reload never restarts the broker and never
-touches publication state, idempotency records, resource locks, audit state or
-budget reservations.
+The agent has one persistent Ed25519 identity and signs every broker request
+directly over method, path, body hash, timestamp and nonce. There is no
+session, access grant, refresh route or authorization lifetime: the key stays
+valid until explicit operator revocation. Replay claims are persisted in
+broker state so a restart cannot reopen a captured request. A credential
+reload never restarts the broker and never touches publication state,
+idempotency records, resource locks, audit state or budget reservations. See
+`PHASE-5.2-PERMANENT-AGENT-AUTH.md` for the key registry, migration and
+operator upgrade procedure.
 
 ## 2. External Auth audit (pinned source)
 
@@ -57,8 +58,7 @@ budget and key revocation remain the security boundary.
 
 ```text
 OpenClaw / development agent (no SSH/sudo on the signing host)
-  |  Ed25519 signature over method/path/body-hash/timestamp/nonce
-  |  + short-lived broker access grant
+  |  persistent Ed25519 signature over method/path/body-hash/timestamp/nonce
   v
 qms-broker (user qms-broker)
   |  policy, fee quotes, 5 QORT budget, locks, audit, state
@@ -85,7 +85,8 @@ Trust rules:
    event.
 5. External Auth is never restarted by the renewal path. Restarting it would
    clear sessions and wallet unlock and is an operator action.
-6. The agent's only authority is its Ed25519 key plus a short-lived grant.
+6. The agent's only authority is its persistent Ed25519 key, valid until the
+   operator revokes it.
 
 ## 4. External Auth credential renewal
 
@@ -143,35 +144,26 @@ the 0700 state directory.
 | Broker restart | Token reloaded from the 0600 file; budget/state recovered by existing crash-recovery path |
 | Supervisor or broker crash loop | No budget/state mutation from credential handling; kill switch and key revocation remain effective |
 
-## 5. Agent access grants
+## 5. Permanent agent authentication
 
-### Flow
+Every broker request is signed directly by the agent's persistent Ed25519 key.
+The broker verifies the key registry entry, the state-backed revocation list,
+a ±120 s timestamp window, a nonce, and the Ed25519 signature over the exact
+method, path, body bytes, timestamp and nonce. There is no login, session,
+access grant, refresh route or authorization lifetime.
 
-1. The agent signs `POST /v1/auth/refresh` with its registered Ed25519 key.
-   The request uses the existing canonical string and nonce/timestamp replay
-   protection. No access grant is required for this route.
-2. `authorizeKeySession` checks: key exists, not disabled/revoked, not before
-   `issuedAt`, not after `expiresAt`, and not older than
-   `auth.maxAuthorizationLifetimeMs` (default 7 days).
-3. The broker mints a random 32-byte grant, returns it once, and stores only
-   its SHA-256 hash with `keyId`, `issuedAt`, `expiresAt` and `revoked`.
-4. Every other route requires both the Ed25519 signature and
-   `Authorization: Bearer <grant>`. The grant must hash to a stored entry bound
-   to the same key and be unexpired/unrevoked.
-5. Grants default to 15 minutes. The client refreshes automatically when fewer
-   than 30 seconds remain and retries once after a grant error.
+The key registry is `/etc/qms-qdn-test-broker/clients.json` using schema
+`qms-broker-client-keys@2`: `keyId`, `publicKeyPem`, `createdAt` and an
+optional `enabled`. There is no `expiresAt`. The key remains valid until
+`revoke-key` or `enabled: false`. The private key never leaves the agent host.
 
-### Bounds and revocation
+Replay protection has two layers: an in-memory cache rejects concurrent
+duplicate nonces, and a state-persisted `requestNonces` map rejects a replay
+after a broker restart inside the timestamp window. Nonce retention is
+`auth.nonceTtlMs` (default 10 minutes), longer than the ±120 s window.
 
-- `auth.accessTtlMs`: 60 s..1 h; default 15 minutes.
-- `auth.maxAuthorizationLifetimeMs`: 1 h..30 days; default 7 days, measured
-  from the operator-registered key `issuedAt`.
-- `auth.maxGrantsPerKey`: 1..64; default 8. Oldest grants are pruned when the
-  bound is reached.
-- Operator `revoke-key` adds the key to `revokedKeys` and marks all its grants
-  revoked. `unrevoke-key` restores the key but not old grants.
-- Kill switch blocks refresh as well as publication.
-- Access tokens are never written to audit logs or state in plaintext.
+The kill switch blocks publication and read routes, but `GET /v1/health`
+remains available (200 with `disabled: true`) so liveness is observable.
 
 ## 6. Broker reload and state preservation
 
@@ -185,10 +177,11 @@ the token and its metadata. They do not:
 - clear the nonce cache or in-flight concurrency counters;
 - change the audit chain.
 
-State schema v1 is migrated to v2 on first open by adding an empty
-`accessGrants` object; every existing publication, idempotency, lock, budget
-and audit field is preserved. The migration is written atomically and only
-after validation.
+State schema is now `qms-test-broker-state@3`. v1 and v2 are migrated on
+first open: the obsolete `accessGrants` map is dropped and an empty
+`requestNonces` map is added. Every existing publication, idempotency, lock,
+budget, reservation and revocation field is preserved. The migration is
+written atomically and only after validation.
 
 ## 7. Operator installation and upgrade
 
@@ -290,7 +283,7 @@ node broker/src/control.js /run/qms-qdn-test-broker/admin.sock status
 ```
 
 Expected status fields: `disabled: true`, a credential fingerprint and expiry,
-and `activeGrants`. No token value is returned.
+`replayEntries` and `revokedKeys`. No token value is returned.
 
 Enable only for a supervised test window:
 
@@ -315,6 +308,12 @@ systemctl start qms-qdn-test-broker.service
 systemctl restart qms-auth-credential.timer
 ```
 
+This upgrade also changes agent authentication. Follow
+`PHASE-5.2-PERMANENT-AGENT-AUTH.md` sections 6.3–6.5 to convert
+`clients.json` to `qms-broker-client-keys@2`, remove the obsolete grant
+configuration fields, and migrate state to v3 before starting. There is no
+grant file to delete; the v2→v3 migration drops `accessGrants` from state.
+
 Before restarting, keep the existing token ownership valid:
 
 ```bash
@@ -324,8 +323,10 @@ chown root:qms-broker /etc/qms-qdn-test-broker
 chmod 0750 /etc/qms-qdn-test-broker
 ```
 
-The v1→v2 state migration preserves budget, reservations, idempotency and
-locks. Take a copy of `/var/lib/qms-qdn-test-broker` first.
+The v1/v2→v3 state migration preserves budget, reservations, idempotency,
+locks and revocations. Take a copy of `/var/lib/qms-qdn-test-broker` first.
+A pre-v3 broker refuses a v3 state file, so rollback requires restoring the
+pre-upgrade state copy.
 
 ### 7.7 Rollback
 
@@ -342,10 +343,10 @@ systemctl start qms-qdn-test-broker.service
 ```
 
 Recreate the `DISABLED` file before rollback if publication must remain off.
-Old broker versions ignore `accessGrants` but the state schema is now
-`qms-test-broker-state@2`; a pre-migration broker will refuse it. Roll back to
-the last commit that understands schema v2, or restore a pre-upgrade state
-copy only with operator approval.
+The state schema is now `qms-test-broker-state@3`; a pre-v3 broker will refuse
+it. Roll back to a commit that understands schema v3, or restore the
+pre-upgrade state copy as described in
+`PHASE-5.2-PERMANENT-AGENT-AUTH.md` section 6.8.
 
 ### 7.8 Revocation and emergency disable
 
@@ -355,7 +356,7 @@ touch /var/lib/qms-qdn-test-broker/DISABLED
 node broker/src/control.js /run/qms-qdn-test-broker/admin.sock \
   disable '{"reason":"incident"}'
 
-# Revoke the agent key and all its grants.
+# Revoke the agent key; effective on the next request.
 node broker/src/control.js /run/qms-qdn-test-broker/admin.sock \
   revoke-key '{"keyId":"agent-main-2026-11","reason":"incident"}'
 
@@ -372,14 +373,16 @@ not automate that restart in the supervisor.
 
 ## 8. Verification evidence
 
-- `npm run test:phase5.2`: **97 passed, 0 failed** (implementation branch).
+- `npm run test:phase5.2`: **93 passed, 0 failed** (implementation branch;
+  the grant suites were replaced by permanent-auth and state-migration tests).
 - New tests cover: credential load/validation, widened file refusal, atomic
   renewal, failed renewal retaining the old token, SIGHUP failure, socket
   permissions, socket renewal/status, supervisor skip/renew/failure/concurrency,
-  grant minting, hash-only persistence, grant expiry, wrong key, revocation,
-  grant bounds, refresh replay, forged signature, kill switch on refresh,
-  concurrent refresh, budget/reservation/idempotency preservation across
-  reload and state reopen, and audit-chain verification.
+  persistent direct-signature authentication with no expiry, wrong key, bad
+  signature, stale timestamp, replayed nonce, revocation and re-enable,
+  restart-safe replay state, kill switch with health available, and
+  budget/reservation/idempotency/lock/revocation preservation across reload and
+  state reopen, plus audit-chain verification.
 - The live signing VPS was not contacted. No External Auth call, wallet
   operation, token creation, signing or QDN publication was performed.
 
@@ -403,8 +406,9 @@ not automate that restart in the supervisor.
 6. The supervisor's systemd sandbox and file permissions are templates. Their
    live effectiveness (including group membership and socket access) is
    unverified without signing-VPS access.
-7. The agent refresh path assumes the agent host clock is within the broker's
-   ±120 s window.
+7. The direct-signature path assumes the agent host clock is within the
+   broker's ±120 s window. The agent has no refresh path and no expiry-based
+   renewal.
 
 ## 10. Safety statement
 

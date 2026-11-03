@@ -2,9 +2,10 @@ import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, re
 import { dirname } from 'node:path';
 import { BrokerError, BROKER_ERROR } from './errors.js';
 
-export const STATE_SCHEMA = 'qms-test-broker-state@2';
-export const LEGACY_STATE_SCHEMA = 'qms-test-broker-state@1';
-export const STATE_VERSION = 2;
+export const STATE_SCHEMA = 'qms-test-broker-state@3';
+export const STATE_VERSION = 3;
+export const LEGACY_STATE_SCHEMA_V1 = 'qms-test-broker-state@1';
+export const LEGACY_STATE_SCHEMA_V2 = 'qms-test-broker-state@2';
 
 function emptyState(now) {
   return {
@@ -16,7 +17,7 @@ function emptyState(now) {
     disabledAt: null,
     disabledReason: null,
     revokedKeys: [],
-    accessGrants: {},
+    requestNonces: {},
     publications: {},
     idempotency: {},
     resourceLocks: {},
@@ -30,22 +31,28 @@ function emptyState(now) {
 }
 
 /**
- * Version 1 state (Phase 5.2 fee/UFW branch) is upgraded in place without
- * touching publications, idempotency, resource locks, budget or audit data.
+ * Upgrade older state without touching publications, idempotency, resource
+ * locks, budget, reservations or audit data.
+ *
+ * v1 -> v3: the obsolete access-grant map is absent; add requestNonces.
+ * v2 -> v3: the obsolete accessGrants map is dropped and requestNonces is added.
+ *
+ * Durable request nonces are pruned by expiry at startup and on every claim.
  */
 export function migrateState(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) return data;
-  if (data.schema === LEGACY_STATE_SCHEMA && data.version === 1) {
-    return {
-      ...data,
-      schema: STATE_SCHEMA,
-      version: STATE_VERSION,
-      accessGrants: data.accessGrants && typeof data.accessGrants === 'object' && !Array.isArray(data.accessGrants)
-        ? data.accessGrants
-        : {}
-    };
-  }
-  return data;
+  const isV1 = data.schema === LEGACY_STATE_SCHEMA_V1 && data.version === 1;
+  const isV2 = data.schema === LEGACY_STATE_SCHEMA_V2 && data.version === 2;
+  if (!isV1 && !isV2) return data;
+  const { accessGrants: _droppedGrants, ...rest } = data;
+  return {
+    ...rest,
+    schema: STATE_SCHEMA,
+    version: STATE_VERSION,
+    requestNonces: data.requestNonces && typeof data.requestNonces === 'object' && !Array.isArray(data.requestNonces)
+      ? data.requestNonces
+      : {}
+  };
 }
 
 function validateState(data) {
@@ -55,7 +62,7 @@ function validateState(data) {
   if (data.schema !== STATE_SCHEMA || data.version !== STATE_VERSION) {
     throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker state schema is unsupported.');
   }
-  for (const field of ['publications', 'idempotency', 'resourceLocks', 'budget', 'accessGrants']) {
+  for (const field of ['publications', 'idempotency', 'resourceLocks', 'budget', 'requestNonces']) {
     if (!data[field] || typeof data[field] !== 'object' || Array.isArray(data[field])) {
       throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker state field is invalid: ' + field);
     }
@@ -66,13 +73,12 @@ function validateState(data) {
   if (!Number.isSafeInteger(data.budget.spentAtomic) || data.budget.spentAtomic < 0) {
     throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker budget state is invalid.');
   }
-  for (const [hash, grant] of Object.entries(data.accessGrants)) {
-    if (!/^[A-Za-z0-9_-]{43}$/.test(hash) || !grant || typeof grant !== 'object') {
-      throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker access grant state is invalid.');
+  for (const [key, entry] of Object.entries(data.requestNonces)) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{2,63}\|[A-Za-z0-9_-]{16,128}$/.test(key)) {
+      throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker request nonce state is invalid.');
     }
-    if (typeof grant.keyId !== 'string' || !Number.isSafeInteger(grant.issuedAt) ||
-        !Number.isSafeInteger(grant.expiresAt) || grant.expiresAt <= grant.issuedAt) {
-      throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker access grant entry is invalid.');
+    if (!entry || typeof entry !== 'object' || !Number.isSafeInteger(entry.expiresAt)) {
+      throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker request nonce entry is invalid.');
     }
   }
   if (!data.budget.reservations || typeof data.budget.reservations !== 'object' || Array.isArray(data.budget.reservations)) {
@@ -125,7 +131,8 @@ export class BrokerState {
 
   /**
    * A single serialized transaction boundary. Concurrent publication requests
-   * cannot double-spend the fee budget or claim the same QDN triple.
+   * cannot double-spend the fee budget, claim the same QDN triple or claim the
+   * same request nonce.
    */
   transact(fn) {
     const run = this._queue.then(async () => {
@@ -148,6 +155,23 @@ export class BrokerState {
     return Object.keys(this.data.publications).length;
   }
 
+  /**
+   * Atomically record a request nonce. Returns false when the same keyId/nonce
+   * pair was already used inside its retention window, including before a
+   * broker restart.
+   */
+  async claimNonce({ keyId, nonce, expiresAt, now = this.clock() }) {
+    return this.transact((draft) => {
+      for (const [key, entry] of Object.entries(draft.requestNonces)) {
+        if (!entry || entry.expiresAt <= now) delete draft.requestNonces[key];
+      }
+      const key = keyId + '|' + nonce;
+      if (draft.requestNonces[key]) return false;
+      draft.requestNonces[key] = { expiresAt };
+      return true;
+    });
+  }
+
   async persist() {
     const json = JSON.stringify(this.data, null, 0) + '\n';
     const tmp = this.path + '.tmp-' + process.pid;
@@ -166,12 +190,16 @@ export class BrokerState {
   /**
    * Crash recovery: any reservation that survived a process restart may have
    * been signed before the crash. Count it as spent rather than silently
-   * restoring the budget. It is never retried automatically.
+   * restoring the budget. It is never retried automatically. Expired replay
+   * entries are dropped; live ones keep the window closed across restart.
    */
   async recoverInterrupted({ windowMs = 86400000 } = {}) {
     return this.transact((draft) => {
       const now = this.clock();
       rollWindow(draft, now, windowMs);
+      for (const [key, entry] of Object.entries(draft.requestNonces)) {
+        if (!entry || entry.expiresAt <= now) delete draft.requestNonces[key];
+      }
       let recovered = 0;
       for (const publication of Object.values(draft.publications)) {
         if (publication.state === 'reserved' || publication.state === 'submitting') {

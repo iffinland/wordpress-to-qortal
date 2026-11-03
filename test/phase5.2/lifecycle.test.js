@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createAdminServer } from '../../broker/src/server.js';
+import { createAdminServer, createBrokerHttpServer } from '../../broker/src/server.js';
+import { PublicationBroker } from '../../broker/src/service.js';
 import { BrokerState } from '../../broker/src/state.js';
+import { createNonceCache, signRequest } from '../../broker/src/auth.js';
 import { verifyAuditFile } from '../../broker/src/audit.js';
 import { ExternalAuthCredentialStore } from '../../broker/src/credentials/store.js';
-import { signRequest } from '../../broker/src/auth.js';
-import { createTestBroker, startTestHttpServer, makeRequest, createClientKey } from './support/harness.js';
+import { createTestBroker, startTestHttpServer, makeRequest } from './support/harness.js';
 
 function credentialCtx() {
   const dir = mkdtempSync(join(tmpdir(), 'qms-lifecycle-cred-'));
@@ -18,116 +19,134 @@ function credentialCtx() {
   return { dir, tokenFile, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
 }
 
-test('refresh issues a short-lived grant and enforces replay, wrong key, revocation and expiry', async () => {
+async function listen(server) {
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  return 'http://127.0.0.1:' + server.address().port;
+}
+
+function signedFetch(baseUrl, key, method, path, body, { timestamp, nonce }) {
+  const bodyBytes = body === null ? Buffer.alloc(0) : Buffer.from(JSON.stringify(body), 'utf8');
+  const headers = signRequest({
+    method,
+    path,
+    bodyBytes,
+    keyId: key.keyId,
+    privateKey: key.privateKey,
+    timestamp,
+    nonce
+  });
+  if (body !== null) headers['content-type'] = 'application/json';
+  return fetch(baseUrl + path, { method, headers, body: body === null ? undefined : bodyBytes })
+    .then(async (response) => {
+      const text = await response.text();
+      let parsed;
+      try { parsed = text ? JSON.parse(text) : null; } catch { parsed = text; }
+      return { status: response.status, body: parsed };
+    });
+}
+
+async function safeClose(server) {
+  if (!server.listening) return;
+  await new Promise((resolve) => server.close(resolve));
+}
+
+async function restartBroker(harness, keys) {
+  const state = await BrokerState.open({
+    path: harness.config.state.path,
+    fsync: false,
+    clock: harness.clock
+  });
+  await state.recoverInterrupted({ windowMs: harness.config.policy.budgetWindowMs });
+  const broker = new PublicationBroker({
+    config: harness.config,
+    state,
+    audit: harness.audit,
+    backend: harness.backend,
+    fetchImpl: harness.node.fetchImpl,
+    clock: harness.clock,
+    sleep: async () => {}
+  });
+  const server = createBrokerHttpServer({
+    config: harness.config,
+    broker,
+    keys,
+    nonceCache: createNonceCache(),
+    clock: harness.clock,
+    audit: harness.audit
+  });
+  const baseUrl = await listen(server);
+  return {
+    broker,
+    state,
+    server,
+    baseUrl,
+    close: () => safeClose(server)
+  };
+}
+
+test('direct key authentication and replay protection survive a broker restart', async () => {
   const harness = await createTestBroker();
   const http = await startTestHttpServer(harness);
+  let restarted = null;
   try {
-    const first = await http.refreshAccess();
+    const body = makeRequest();
+    const timestamp = harness.clock();
+    const nonce = 'nonce-restart-replay-01';
+    const first = await http.request('POST', '/v1/publications', body, { timestamp, nonce });
     assert.equal(first.status, 200);
-    assert.equal(first.body.schema, 'qms-broker-access@1');
-    assert.equal(first.body.accessTtlMs, harness.config.auth.accessTtlMs);
-    assert.equal(typeof first.body.accessToken, 'string');
+    const before = harness.state.snapshot();
+    assert.ok(before.budget.spentAtomic > 0);
+    assert.ok(Object.keys(before.requestNonces).length > 0);
 
-    const nonce = 'nonce-replay-refresh-0001';
-    const path = '/v1/auth/refresh';
-    const bodyBytes = Buffer.from(JSON.stringify({ schema: 'qms-broker-refresh@1' }), 'utf8');
-    const signed = signRequest({
-      method: 'POST', path, bodyBytes, keyId: http.client.keyId,
-      privateKey: http.client.privateKey, timestamp: harness.clock(), nonce
-    });
-    const one = await fetch(http.baseUrl + path, { method: 'POST', headers: { ...signed, 'content-type': 'application/json' }, body: bodyBytes });
-    assert.equal(one.status, 200);
-    const replay = await fetch(http.baseUrl + path, { method: 'POST', headers: { ...signed, 'content-type': 'application/json' }, body: bodyBytes });
+    await safeClose(http.server);
+    restarted = await restartBroker(harness, http.client.keys);
+
+    const replay = await signedFetch(
+      restarted.baseUrl, http.client, 'POST', '/v1/publications', body, { timestamp, nonce }
+    );
     assert.equal(replay.status, 401);
-    assert.equal((await replay.json()).error.code, 'AUTH_REPLAY');
+    assert.equal(replay.body.error.code, 'AUTH_REPLAY');
 
-    const wrongKey = createClientKey({ keyId: 'wrong-key', issuedAt: harness.clock() - 1000, expiresAt: harness.clock() + 3600000 });
-    const forged = await fetch(http.baseUrl + path, {
-      method: 'POST',
-      headers: {
-        ...signRequest({
-          method: 'POST', path, bodyBytes, keyId: http.client.keyId,
-          privateKey: wrongKey.privateKey, timestamp: harness.clock(), nonce: 'nonce-forged-refresh-01'
-        }),
-        'content-type': 'application/json'
-      },
-      body: bodyBytes
-    });
-    assert.equal(forged.status, 401);
-    assert.equal((await forged.json()).error.code, 'AUTH_INVALID');
+    const freshBody = makeRequest();
+    const fresh = await signedFetch(
+      restarted.baseUrl, http.client, 'POST', '/v1/publications', freshBody,
+      { timestamp: harness.clock(), nonce: 'nonce-restart-fresh-01' }
+    );
+    assert.equal(fresh.status, 200);
+    assert.equal(fresh.body.publication.state, 'remote_verified');
 
-    const foreign = await http.request('GET', '/v1/publications/pub_000000000000000000000000', null, { key: wrongKey });
-    assert.equal(foreign.status, 401);
-    assert.ok(['AUTH_KEY_UNKNOWN', 'AUTH_GRANT_INVALID'].includes(foreign.body.error.code));
-
-    harness.advance(harness.config.auth.accessTtlMs + 1000);
-    const stale = await http.request('POST', '/v1/publications', makeRequest());
-    assert.equal(stale.status, 401);
-    assert.equal(stale.body.error.code, 'AUTH_GRANT_EXPIRED');
-    const refreshed = await http.refreshAccess();
-    assert.equal(refreshed.status, 200);
-  } finally {
-    await http.close();
-    harness.cleanup();
-  }
-});
-
-test('the kill switch blocks refresh and publication and re-enables cleanly', async () => {
-  const harness = await createTestBroker();
-  const http = await startTestHttpServer(harness);
-  const admin = createAdminServer({ config: harness.config, broker: harness.broker, audit: harness.audit, clock: harness.clock });
-  await admin.listen();
-  try {
-    const disable = await admin.handle(JSON.stringify({ command: 'disable', reason: 'lifecycle test' }));
-    assert.equal(disable.ok, true);
-    const refresh = await http.refreshAccess();
-    assert.equal(refresh.status, 503);
-    assert.equal(refresh.body.error.code, 'DISABLED');
-    const publish = await http.request('POST', '/v1/publications', makeRequest());
-    assert.equal(publish.status, 503);
-
-    const enable = await admin.handle(JSON.stringify({ command: 'enable', confirm: 'ENABLE' }));
-    assert.equal(enable.ok, true);
-    const after = await http.refreshAccess();
-    assert.equal(after.status, 200);
-  } finally {
-    await admin.close();
-    await http.close();
-    harness.cleanup();
-  }
-});
-
-test('concurrent refreshes mint distinct grants and stay within the bound', async () => {
-  const harness = await createTestBroker({ auth: { maxGrantsPerKey: 8 } });
-  const http = await startTestHttpServer(harness);
-  try {
-    const responses = await Promise.all(Array.from({ length: 6 }, () => http.refreshAccess()));
-    assert.equal(responses.every((response) => response.status === 200), true);
-    const tokens = new Set(responses.map((response) => response.body.accessToken));
-    assert.equal(tokens.size, 6);
-    assert.ok(Object.keys(harness.state.snapshot().accessGrants).length <= 8);
-
-    for (const response of responses) {
-      const accepted = await http.request('GET', '/v1/publications/pub_000000000000000000000000', null, { token: response.body.accessToken });
-      assert.equal(accepted.status, 400);
-      assert.equal(accepted.body.error.code, 'INVALID_REQUEST');
+    const after = restarted.state.snapshot();
+    assert.equal(after.budget.windowStart, before.budget.windowStart);
+    assert.ok(after.budget.spentAtomic > before.budget.spentAtomic);
+    assert.deepEqual(after.budget.reservations, {});
+    for (const [requestId, entry] of Object.entries(before.idempotency)) {
+      assert.deepEqual(after.idempotency[requestId], entry);
     }
+    for (const [publicationId, record] of Object.entries(before.publications)) {
+      assert.deepEqual(after.publications[publicationId], record);
+    }
+    assert.ok(Object.keys(after.requestNonces).includes(http.client.keyId + '|' + nonce));
   } finally {
-    await http.close();
+    if (restarted) await restarted.close();
+    await safeClose(http.server);
     harness.cleanup();
   }
 });
 
-test('credential reload and broker restart preserve budget, reservations, idempotency and grants', async () => {
+test('credential reload and state reopen preserve budget, reservations, idempotency, locks and key state', async () => {
   const harness = await createTestBroker();
   const http = await startTestHttpServer(harness);
   const cred = credentialCtx();
+  let restarted = null;
   try {
     const published = await http.request('POST', '/v1/publications', makeRequest());
     assert.equal(published.status, 200);
     const before = harness.state.snapshot();
     assert.ok(before.budget.spentAtomic > 0);
-    assert.ok(Object.keys(before.accessGrants).length > 0);
+    assert.ok(Object.keys(before.requestNonces).length > 0);
 
     const store = new ExternalAuthCredentialStore({
       tokenFile: cred.tokenFile,
@@ -145,7 +164,9 @@ test('credential reload and broker restart preserve budget, reservations, idempo
     assert.equal(after.budget.windowStart, before.budget.windowStart);
     assert.deepEqual(after.budget.reservations, before.budget.reservations);
     assert.deepEqual(after.idempotency, before.idempotency);
-    assert.deepEqual(after.accessGrants, before.accessGrants);
+    assert.deepEqual(after.resourceLocks, before.resourceLocks);
+    assert.deepEqual(after.revokedKeys, before.revokedKeys);
+    assert.deepEqual(after.requestNonces, before.requestNonces);
     assert.equal(verifyAuditFile(harness.config.audit.path).ok, true);
 
     // An in-flight reservation must survive a credential swap untouched.
@@ -170,20 +191,63 @@ test('credential reload and broker restart preserve budget, reservations, idempo
     await store.accept({ token: 'valid-token-cccccccccccccccccccc', expiresAt: harness.clock() + 3600000 });
     assert.deepEqual(harness.state.snapshot().budget.reservations, reserved.budget.reservations);
 
-    // Reopening the state file must retain every accounting field.
+    // Reopening the state file must retain every accounting and auth field.
     const reopened = await BrokerState.open({ path: harness.config.state.path, fsync: false, clock: harness.clock });
     assert.equal(reopened.snapshot().budget.spentAtomic, reserved.budget.spentAtomic);
     assert.deepEqual(reopened.snapshot().budget.reservations, reserved.budget.reservations);
     assert.deepEqual(reopened.snapshot().idempotency, reserved.idempotency);
-    assert.deepEqual(reopened.snapshot().accessGrants, reserved.accessGrants);
-    assert.equal(reopened.snapshot().publications.pub_ffffffffffffffffffffffff.state, 'reserved');
+    assert.deepEqual(reopened.snapshot().resourceLocks, reserved.resourceLocks);
+    assert.deepEqual(reopened.snapshot().requestNonces, reserved.requestNonces);
+    assert.deepEqual(reopened.snapshot().revokedKeys, reserved.revokedKeys);
 
-    // The old grant still authenticates after the state round trip.
-    const oldGrant = Object.values(reserved.accessGrants)[0];
-    assert.equal(oldGrant.revoked, false);
+    // A revoked key stays revoked across restart, then can be re-enabled.
+    const admin = createAdminServer({ config: harness.config, broker: harness.broker, audit: harness.audit, clock: harness.clock });
+    await admin.listen();
+    try {
+      const revoke = await admin.handle(JSON.stringify({ command: 'revoke-key', keyId: http.client.keyId, reason: 'restart test' }));
+      assert.equal(revoke.ok, true);
+    } finally {
+      await admin.close();
+    }
+    await safeClose(http.server);
+    restarted = await restartBroker(harness, http.client.keys);
+    const blocked = await signedFetch(
+      restarted.baseUrl, http.client, 'POST', '/v1/publications', makeRequest(),
+      { timestamp: harness.clock(), nonce: 'nonce-revoked-restart-01' }
+    );
+    assert.equal(blocked.status, 401);
+    assert.equal(blocked.body.error.code, 'AUTH_KEY_REVOKED');
+    assert.deepEqual(restarted.state.snapshot().revokedKeys, [http.client.keyId]);
   } finally {
-    await http.close();
+    if (restarted) await restarted.close();
+    await safeClose(http.server);
     cred.cleanup();
+    harness.cleanup();
+  }
+});
+
+test('the kill switch blocks publication but health stays available', async () => {
+  const harness = await createTestBroker();
+  const http = await startTestHttpServer(harness);
+  const admin = createAdminServer({ config: harness.config, broker: harness.broker, audit: harness.audit, clock: harness.clock });
+  await admin.listen();
+  try {
+    const disable = await admin.handle(JSON.stringify({ command: 'disable', reason: 'lifecycle test' }));
+    assert.equal(disable.ok, true);
+    const health = await fetch(http.baseUrl + '/v1/health');
+    assert.equal(health.status, 200);
+    assert.equal((await health.json()).disabled, true);
+    const publish = await http.request('POST', '/v1/publications', makeRequest());
+    assert.equal(publish.status, 503);
+    assert.equal(publish.body.error.code, 'DISABLED');
+
+    const enable = await admin.handle(JSON.stringify({ command: 'enable', confirm: 'ENABLE' }));
+    assert.equal(enable.ok, true);
+    const after = await http.request('POST', '/v1/publications', makeRequest());
+    assert.equal(after.status, 200);
+  } finally {
+    await admin.close();
+    await http.close();
     harness.cleanup();
   }
 });

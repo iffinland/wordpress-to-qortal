@@ -120,11 +120,7 @@ export function defaultConfig() {
     auth: {
       keysFile: '/etc/qms-qdn-test-broker/clients.json',
       clockSkewMs: 120000,
-      nonceTtlMs: 600000,
-      maxRequestAgeMs: 120000,
-      accessTtlMs: 900000,
-      maxAuthorizationLifetimeMs: 604800000,
-      maxGrantsPerKey: 8
+      nonceTtlMs: 600000
     },
     audit: {
       path: '/var/lib/qms-qdn-test-broker/audit.jsonl'
@@ -239,17 +235,9 @@ export function validateConfig(input) {
   cfg.auth.keysFile = requireString(cfg.auth.keysFile, 'auth.keysFile', { max: 300 });
   cfg.auth.clockSkewMs = requireInteger(cfg.auth.clockSkewMs ?? defaults.auth.clockSkewMs, 'auth.clockSkewMs', { min: 1000, max: 600000 });
   cfg.auth.nonceTtlMs = requireInteger(cfg.auth.nonceTtlMs ?? defaults.auth.nonceTtlMs, 'auth.nonceTtlMs', { min: 1000, max: 86400000 });
-  cfg.auth.maxRequestAgeMs = requireInteger(cfg.auth.maxRequestAgeMs ?? defaults.auth.maxRequestAgeMs, 'auth.maxRequestAgeMs', { min: 1000, max: 600000 });
-  cfg.auth.accessTtlMs = requireInteger(cfg.auth.accessTtlMs ?? defaults.auth.accessTtlMs, 'auth.accessTtlMs', { min: 60000, max: 3600000 });
-  cfg.auth.maxAuthorizationLifetimeMs = requireInteger(
-    cfg.auth.maxAuthorizationLifetimeMs ?? defaults.auth.maxAuthorizationLifetimeMs,
-    'auth.maxAuthorizationLifetimeMs',
-    { min: 3600000, max: 30 * 86400000 }
-  );
-  if (cfg.auth.maxAuthorizationLifetimeMs < cfg.auth.accessTtlMs * 2) {
-    fail('auth.maxAuthorizationLifetimeMs must be at least twice auth.accessTtlMs.');
+  if (cfg.auth.nonceTtlMs < cfg.auth.clockSkewMs * 2) {
+    fail('auth.nonceTtlMs must be at least twice auth.clockSkewMs so a nonce cannot expire while its timestamp window is open.');
   }
-  cfg.auth.maxGrantsPerKey = requireInteger(cfg.auth.maxGrantsPerKey ?? defaults.auth.maxGrantsPerKey, 'auth.maxGrantsPerKey', { min: 1, max: 64 });
 
   cfg.audit = requireObject(cfg.audit ?? defaults.audit, 'audit');
   cfg.audit.path = requireString(cfg.audit.path, 'audit.path', { max: 300 });

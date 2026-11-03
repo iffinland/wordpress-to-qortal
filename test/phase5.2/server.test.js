@@ -24,13 +24,13 @@ function adminRequest(socketPath, message) {
   });
 }
 
-test('serves health, publishes and reads status over authenticated HTTP', async () => {
+test('serves health, publishes and reads status over directly signed HTTP', async () => {
   const harness = await createTestBroker();
   const http = await startTestHttpServer(harness);
   try {
     const health = await fetch(http.baseUrl + '/v1/health');
     assert.equal(health.status, 200);
-    assert.equal((await health.json()).status, 'ok');
+    assert.deepEqual(await health.json(), { status: 'ok', disabled: false });
 
     const body = makeRequest();
     const response = await http.request('POST', '/v1/publications', body);
@@ -48,7 +48,7 @@ test('serves health, publishes and reads status over authenticated HTTP', async 
   }
 });
 
-test('agent client publishes, reads status and re-verifies', async () => {
+test('agent client signs every request directly with no session state', async () => {
   const harness = await createTestBroker();
   const http = await startTestHttpServer(harness);
   try {
@@ -65,13 +65,15 @@ test('agent client publishes, reads status and re-verifies', async () => {
     const verified = await client.verifyPublication(published.publication.publicationId);
     assert.equal(verified.publication.state, 'remote_verified');
     assert.equal(harness.backend.calls.length, 1);
+    assert.equal('accessToken' in client, false);
+    assert.equal('refreshAccess' in client, false);
   } finally {
     await http.close();
     harness.cleanup();
   }
 });
 
-test('rejects unauthenticated requests, replays and forbidden endpoints', async () => {
+test('rejects unauthenticated requests, replays, the removed refresh route and forbidden endpoints', async () => {
   const harness = await createTestBroker();
   const http = await startTestHttpServer(harness);
   try {
@@ -89,6 +91,10 @@ test('rejects unauthenticated requests, replays and forbidden endpoints', async 
       assert.equal(response.status, 404, path + ' must not exist');
       assert.equal((await response.json()).error.code, 'NOT_FOUND');
     }
+
+    const refresh = await fetch(http.baseUrl + '/v1/auth/refresh', { method: 'POST', body: '{}' });
+    assert.equal(refresh.status, 404);
+    assert.equal((await refresh.json()).error.code, 'NOT_FOUND');
 
     const first = await http.request('POST', '/v1/publications', makeRequest(), { nonce: 'nonce-replay-0000000001' });
     assert.equal(first.status, 200);
@@ -118,7 +124,7 @@ test('enforces the request body limit and rejects query strings', async () => {
   }
 });
 
-test('admin socket is private, disables publication and revokes keys', async () => {
+test('kill switch blocks publication but not health, and key revocation is immediate', async () => {
   const harness = await createTestBroker();
   const http = await startTestHttpServer(harness);
   const admin = createAdminServer({ config: harness.config, broker: harness.broker, audit: harness.audit, clock: harness.clock });
@@ -134,6 +140,11 @@ test('admin socket is private, disables publication and revokes keys', async () 
     const disable = await adminRequest(harness.config.admin.socketPath, { command: 'disable', reason: 'test emergency stop' });
     assert.equal(disable.ok, true);
     assert.equal(existsSync(harness.config.killSwitch.path), true);
+
+    const health = await fetch(http.baseUrl + '/v1/health');
+    assert.equal(health.status, 200);
+    assert.deepEqual(await health.json(), { status: 'ok', disabled: true });
+
     const blocked = await http.request('POST', '/v1/publications', makeRequest());
     assert.equal(blocked.status, 503);
     assert.equal(blocked.body.error.code, 'DISABLED');
@@ -146,14 +157,13 @@ test('admin socket is private, disables publication and revokes keys', async () 
 
     const revoke = await adminRequest(harness.config.admin.socketPath, { command: 'revoke-key', keyId: http.client.keyId, reason: 'test' });
     assert.equal(revoke.ok, true);
+    assert.equal(revoke.revokedGrants, undefined);
     const rejected = await http.request('POST', '/v1/publications', makeRequest());
     assert.equal(rejected.status, 401);
     assert.equal(rejected.body.error.code, 'AUTH_KEY_REVOKED');
 
     const unrevoke = await adminRequest(harness.config.admin.socketPath, { command: 'unrevoke-key', keyId: http.client.keyId });
     assert.equal(unrevoke.ok, true);
-    const refreshed = await http.refreshAccess();
-    assert.equal(refreshed.status, 200);
     const accepted = await http.request('POST', '/v1/publications', makeRequest());
     assert.equal(accepted.status, 200);
   } finally {

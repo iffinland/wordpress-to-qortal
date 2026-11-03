@@ -58,11 +58,7 @@
   "auth": {
     "keysFile": "/etc/qms-qdn-test-broker/clients.json",
     "clockSkewMs": 120000,
-    "nonceTtlMs": 600000,
-    "maxRequestAgeMs": 120000,
-    "accessTtlMs": 900000,
-    "maxAuthorizationLifetimeMs": 604800000,
-    "maxGrantsPerKey": 8
+    "nonceTtlMs": 600000
   },
   "audit": {
     "path": "/var/lib/qms-qdn-test-broker/audit.jsonl"

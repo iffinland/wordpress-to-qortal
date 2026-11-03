@@ -144,6 +144,24 @@ export function createFakeNode({ name = NAME, owner = OWNER } = {}) {
 
 export function createClientKey({
   keyId = 'agent-test',
+  createdAt = Date.now() - 1000,
+  enabled
+} = {}) {
+  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+  const keys = parseKeysConfig({
+    schema: 'qms-broker-client-keys@2',
+    keys: [{
+      keyId,
+      publicKeyPem: publicKey.export({ type: 'spki', format: 'pem' }),
+      createdAt: new Date(createdAt).toISOString(),
+      ...(enabled === undefined ? {} : { enabled })
+    }]
+  });
+  return { keyId, privateKey, keys };
+}
+
+export function createLegacyClientKey({
+  keyId = 'agent-legacy',
   issuedAt = Date.now() - 1000,
   expiresAt = Date.now() + 3600000
 } = {}) {
@@ -227,13 +245,13 @@ export async function createTestBroker(overrides = {}) {
   };
 }
 
-export async function startTestHttpServer(harness, { keyId = 'agent-test' } = {}) {
-  const client = createClientKey({ keyId, issuedAt: harness.clock() - 1000, expiresAt: harness.clock() + 3600000 });
+export async function startTestHttpServer(harness, { keyId = 'agent-test', keys = null } = {}) {
+  const client = createClientKey({ keyId, createdAt: harness.clock() - 1000 });
   const nonceCache = createNonceCache();
   const server = createBrokerHttpServer({
     config: harness.config,
     broker: harness.broker,
-    keys: client.keys,
+    keys: keys ?? client.keys,
     nonceCache,
     clock: harness.clock,
     audit: harness.audit
@@ -246,50 +264,19 @@ export async function startTestHttpServer(harness, { keyId = 'agent-test' } = {}
   const baseUrl = 'http://127.0.0.1:' + port;
   let nonceCounter = 0;
   const nextNonce = () => 'nonce-' + String(++nonceCounter).padStart(20, '0');
-  let accessToken = null;
-
-  async function refreshAccess(key = client) {
-    const path = '/v1/auth/refresh';
-    const bodyBytes = Buffer.from(JSON.stringify({ schema: 'qms-broker-refresh@1' }), 'utf8');
-    const headers = signRequest({
-      method: 'POST', path, bodyBytes, keyId: key.keyId, privateKey: key.privateKey,
-      timestamp: harness.clock(), nonce: nextNonce()
-    });
-    headers['content-type'] = 'application/json';
-    const response = await fetch(baseUrl + path, { method: 'POST', headers, body: bodyBytes });
-    const text = await response.text();
-    let parsed;
-    try { parsed = text ? JSON.parse(text) : null; } catch { parsed = text; }
-    if (response.status === 200 && key === client && typeof parsed?.accessToken === 'string') {
-      accessToken = parsed.accessToken;
-    }
-    return { status: response.status, body: parsed };
-  }
-
-  const access = await refreshAccess(client);
-  if (access.status !== 200) {
-    await new Promise((resolve) => server.close(resolve));
-    throw new Error('Test access grant failed: ' + JSON.stringify(access.body));
-  }
-  accessToken = access.body.accessToken;
-  const setAccess = (value) => { accessToken = value; };
 
   return {
     server,
     client,
     baseUrl,
-    get accessToken() { return accessToken; },
-    setAccessToken: setAccess,
-    refreshAccess,
     async request(method, path, body = null, {
       key = client,
       timestamp = harness.clock(),
       nonce = nextNonce(),
-      token = accessToken
+      headers: headerOverrides = null
     } = {}) {
       const bodyBytes = body === null ? Buffer.alloc(0) : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body), 'utf8');
-      const headers = signRequest({ method, path, bodyBytes, keyId: key.keyId, privateKey: key.privateKey, timestamp, nonce });
-      if (token) headers.authorization = 'Bearer ' + token;
+      const headers = { ...signRequest({ method, path, bodyBytes, keyId: key.keyId, privateKey: key.privateKey, timestamp, nonce }), ...(headerOverrides ?? {}) };
       if (body !== null) headers['content-type'] = 'application/json';
       const response = await fetch(baseUrl + path, { method, headers, body: body === null ? undefined : bodyBytes });
       const text = await response.text();
