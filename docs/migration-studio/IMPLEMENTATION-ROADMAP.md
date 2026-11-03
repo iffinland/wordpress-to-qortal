@@ -283,6 +283,14 @@ Node/npm/Git, with a first-run project flow.
 > pass. Live deployment is blocked on signing-host provisioning, External Auth
 > installation and operator wallet unlock; no wallet or QDN write occurred. See
 > [PHASE-5.2-TEST-PUBLISHING-BROKER.md](PHASE-5.2-TEST-PUBLISHING-BROKER.md).
+> A fee-policy correction now derives every ARBITRARY fee from Core's
+> `POST /transactions/fee` and `GET /transactions/unitfee`, removes all
+> caller-supplied fee fields and fixed per-transaction ceilings, enforces a
+> 5 QORT rolling 24 h budget with a confirmed-balance reserve, and accounts for
+> pending/ambiguous reservations. Dual-VPS firewall inspection and the
+> operator-controlled UFW procedure are documented in
+> [PHASE-5.2-DUAL-VPS-UFW-DEPLOYMENT.md](PHASE-5.2-DUAL-VPS-UFW-DEPLOYMENT.md);
+> no firewall was activated.
 
 **Outcome:** a truthful, resumable publication flow that prepares resources,
 hands off to Qortal Hub, and verifies exact QDN content without collecting keys.

@@ -54,12 +54,11 @@ export function makeResource({
 export function makeRequest(overrides = {}) {
   requestCounter += 1;
   return {
-    schema: 'qms-test-publication-request@1',
+    schema: 'qms-test-publication-request@2',
     requestId: 'req_' + String(requestCounter).padStart(8, '0'),
     projectId: 'prj_corbett-test',
     target: { name: NAME, ownerAddress: OWNER },
     resources: [makeResource()],
-    fees: { currency: 'QORT', feePerTransaction: 0.001 },
     ...overrides
   };
 }
@@ -81,6 +80,9 @@ export function createFakeNode({ name = NAME, owner = OWNER } = {}) {
   const resources = new Map();
   const calls = [];
   let forceUnavailable = false;
+  let unitFeeAtomic = 1000000;
+  let balanceQort = '10.00000000';
+  const feeQueue = [];
   const fetchImpl = async (input, init = {}) => {
     if (forceUnavailable) throw new Error('node unavailable');
     const url = new URL(typeof input === 'string' ? input : input.url);
@@ -102,6 +104,17 @@ export function createFakeNode({ name = NAME, owner = OWNER } = {}) {
       if (!resources.has(identifier)) return response(404, { error: 'not found' });
       return response(200, { status: 'READY' });
     }
+    if (parts[0] === 'transactions' && parts[1] === 'unitfee') {
+      return response(200, String(unitFeeAtomic));
+    }
+    if (parts[0] === 'transactions' && parts[1] === 'fee') {
+      const fee = feeQueue.length > 0 ? feeQueue.shift() : unitFeeAtomic;
+      return response(200, String(fee));
+    }
+    if (parts[0] === 'addresses' && parts[1] === 'balance') {
+      if (!balanceQort) return response(500, { error: 'balance unavailable' });
+      return response(200, balanceQort);
+    }
     if (parts[0] === 'arbitrary' && parts.length === 4) {
       const [, service, resourceName, identifier] = parts;
       if (service !== 'DOCUMENT' || resourceName !== name) return response(404, { error: 'not found' });
@@ -122,7 +135,10 @@ export function createFakeNode({ name = NAME, owner = OWNER } = {}) {
     corrupt(identifier, bytes) { resources.set(identifier, Buffer.from(bytes)); },
     remove(identifier) { resources.delete(identifier); },
     failAll(value = true) { forceUnavailable = value; },
-    published() { return [...resources.keys()]; }
+    published() { return [...resources.keys()]; },
+    setUnitFee(value) { unitFeeAtomic = value; },
+    queueFees(values) { feeQueue.push(...values); },
+    setBalanceQort(value) { balanceQort = value; }
   };
 }
 
@@ -149,6 +165,7 @@ export function makeConfig(overrides = {}, tmp = mkdtempSync(join(tmpdir(), 'qms
   base.qortal.nodeUrl = 'http://node.test';
   base.qortal.nameCheckTtlMs = 0;
   base.signing.backend = 'mock';
+  base.policy.walletReserveQort = '0.001';
   base.signing.externalAuth.walletId = 'mock-wallet';
   base.readback.attempts = 2;
   base.readback.intervalMs = 0;

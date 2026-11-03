@@ -34,13 +34,13 @@ test('publishes, charges the budget and verifies exact bytes', async () => {
     const result = await publish(harness, body);
     assert.equal(result.state, 'remote_verified');
     assert.equal(result.decision, 'verified');
-    assert.equal(result.chargedAtomic, 100000);
+    assert.equal(result.chargedAtomic, 1000000);
     assert.equal(result.resources[0].state, 'remote_verified');
     assert.ok(result.resources[0].txRef);
     assert.equal(harness.backend.calls.length, 1);
     assert.deepEqual(harness.node.published(), [body.resources[0].identifier]);
     const snapshot = harness.state.snapshot();
-    assert.equal(snapshot.budget.spentAtomic, 100000);
+    assert.equal(snapshot.budget.spentAtomic, 1000000);
     assert.deepEqual(snapshot.budget.reservations, {});
     assert.equal(verifyAuditFile(harness.config.audit.path).ok, true);
     const auditText = readFileSync(harness.config.audit.path, 'utf8');
@@ -48,7 +48,7 @@ test('publishes, charges the budget and verifies exact bytes', async () => {
       assert.equal(auditText.includes('"' + event + '"'), true, 'missing audit event ' + event);
     }
     assert.equal(auditText.includes('"txRef":'), true);
-    assert.equal(auditText.includes('"chargedAtomic":100000'), true);
+    assert.equal(auditText.includes('"chargedAtomic":1000000'), true);
     assert.equal(auditText.includes('REMOTE_VERIFIED'), false);
     assert.equal(auditText.includes('remote_verified'), true);
   });
@@ -78,7 +78,7 @@ test('preserves a pending signing outcome without resubmitting it', async () => 
     const result = await publish(harness, body);
     assert.equal(result.state, 'pending_confirmation');
     assert.equal(result.decision, 'pending');
-    assert.equal(result.chargedAtomic, 100000);
+    assert.equal(result.chargedAtomic, 1000000);
     assert.equal(harness.backend.calls.length, 1);
 
     const replay = await publish(harness, body);
@@ -111,7 +111,7 @@ test('keeps an ambiguous signing outcome locked and never retries it', async () 
     const body = makeRequest();
     const result = await publish(harness, body);
     assert.equal(result.state, 'ambiguous');
-    assert.equal(result.chargedAtomic, 100000);
+    assert.equal(result.chargedAtomic, 1000000);
     assert.equal(harness.backend.calls.length, 1);
 
     const replay = await publish(harness, body);
@@ -137,17 +137,17 @@ test('preserves a read-back mismatch as ambiguous without resubmission', async (
 });
 
 test('rejects cumulative fee budget exhaustion and never overspends', async () => {
-  await withBroker({ policy: { budgetQort: '0.0015' } }, async (harness) => {
+  await withBroker({ policy: { budgetQort: '0.015' } }, async (harness) => {
     const first = await publish(harness, makeRequest());
     assert.equal(first.state, 'remote_verified');
     await expectCode(publish(harness, makeRequest()), 'BUDGET_EXCEEDED');
-    assert.equal(harness.state.snapshot().budget.spentAtomic, 100000);
+    assert.equal(harness.state.snapshot().budget.spentAtomic, 1000000);
     assert.equal(harness.backend.calls.length, 1);
   });
 });
 
 test('rejects a multi-resource request whose total fee exceeds the budget before signing', async () => {
-  await withBroker({ policy: { budgetQort: '0.0015' } }, async (harness) => {
+  await withBroker({ policy: { budgetQort: '0.015' } }, async (harness) => {
     const body = makeRequest({ resources: [makeResource(), makeResource()] });
     await expectCode(publish(harness, body), 'BUDGET_EXCEEDED');
     assert.equal(harness.backend.calls.length, 0);
@@ -157,7 +157,7 @@ test('rejects a multi-resource request whose total fee exceeds the budget before
 
 test('serializes concurrent requests so the budget cannot be double-spent', async () => {
   await withBroker({
-    policy: { budgetQort: '0.0015' },
+    policy: { budgetQort: '0.015' },
     server: { maxConcurrentPublications: 2 }
   }, async (harness) => {
     const results = await Promise.allSettled([publish(harness, makeRequest()), publish(harness, makeRequest())]);
@@ -166,7 +166,7 @@ test('serializes concurrent requests so the budget cannot be double-spent', asyn
     assert.equal(fulfilled.length, 1);
     assert.equal(rejected.length, 1);
     assert.equal(rejected[0].reason.code, 'BUDGET_EXCEEDED');
-    assert.equal(harness.state.snapshot().budget.spentAtomic, 100000);
+    assert.equal(harness.state.snapshot().budget.spentAtomic, 1000000);
     assert.equal(harness.backend.calls.length, 1);
   });
 });
@@ -223,17 +223,17 @@ test('recovers an interrupted reservation conservatively as ambiguous', async ()
       draft.publications[id] = {
         publicationId: id,
         state: 'reserved',
-        reservedAtomic: 100000,
+        reservedAtomic: 1000000,
         resources: []
       };
-      draft.budget.reservations[id] = 100000;
+      draft.budget.reservations[id] = 1000000;
     });
     const recovery = await harness.state.recoverInterrupted();
     assert.equal(recovery.recovered, 1);
     const snapshot = harness.state.snapshot();
     assert.equal(snapshot.publications['pub_' + 'a'.repeat(24)].state, 'ambiguous');
-    assert.equal(snapshot.publications['pub_' + 'a'.repeat(24)].chargedAtomic, 100000);
-    assert.equal(snapshot.budget.spentAtomic, 100000);
+    assert.equal(snapshot.publications['pub_' + 'a'.repeat(24)].chargedAtomic, 1000000);
+    assert.equal(snapshot.budget.spentAtomic, 1000000);
     assert.deepEqual(snapshot.budget.reservations, {});
   });
 });

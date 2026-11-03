@@ -55,6 +55,9 @@ export class ExternalAuthSigningBackend {
       fail(BROKER_ERROR.POLICY_SERVICE, 'The signing backend only accepts DOCUMENT resources.');
     }
     if (!this.token) throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'The signing backend is not initialized.');
+    if (typeof feePerTransaction !== 'number' || !Number.isFinite(feePerTransaction) || feePerTransaction <= 0) {
+      fail(BROKER_ERROR.FEE_INVALID, 'The signing backend requires a positive, finite per-resource fee.');
+    }
     const body = JSON.stringify({
       walletId: this.walletId,
       data: dataBase64,

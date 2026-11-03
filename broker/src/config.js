@@ -84,7 +84,8 @@ export function defaultConfig() {
       nodeUrl: 'http://127.0.0.1:12391',
       targetName: REQUIRED_TARGET_NAME,
       ownerAddress: EXPECTED_TEST_OWNER,
-      nameCheckTtlMs: 60000
+      nameCheckTtlMs: 60000,
+      feeTimeoutMs: 10000
     },
     policy: {
       allowedServices: ['DOCUMENT'],
@@ -94,8 +95,8 @@ export function defaultConfig() {
       maxTransactionsPerRequest: 20,
       maxPayloadBytes: 1024 * 1024,
       maxTotalBytesPerRequest: 4 * 1024 * 1024,
-      maxFeePerTransactionQort: '0.001',
-      budgetQort: '0.05',
+      budgetQort: '5',
+      walletReserveQort: '0.1',
       budgetWindowMs: 86400000,
       sessionLifetimeMs: 3600000,
       allowResourceUpdates: false,
@@ -168,6 +169,7 @@ export function validateConfig(input) {
   if (!/^Q[1-9A-HJ-NP-Za-km-z]{20,50}$/.test(owner)) fail('qortal.ownerAddress is not a Qortal address.');
   cfg.qortal.ownerAddress = owner;
   cfg.qortal.nameCheckTtlMs = requireInteger(cfg.qortal.nameCheckTtlMs ?? defaults.qortal.nameCheckTtlMs, 'qortal.nameCheckTtlMs', { min: 0, max: 3600000 });
+  cfg.qortal.feeTimeoutMs = requireInteger(cfg.qortal.feeTimeoutMs ?? defaults.qortal.feeTimeoutMs, 'qortal.feeTimeoutMs', { min: 1000, max: 60000 });
 
   cfg.policy = requireObject(cfg.policy ?? defaults.policy, 'policy');
   const p = cfg.policy;
@@ -187,10 +189,14 @@ export function validateConfig(input) {
   p.maxTransactionsPerRequest = requireInteger(p.maxTransactionsPerRequest, 'policy.maxTransactionsPerRequest', { min: 1, max: 20 });
   p.maxPayloadBytes = requireInteger(p.maxPayloadBytes, 'policy.maxPayloadBytes', { min: 1, max: 20 * 1024 * 1024 });
   p.maxTotalBytesPerRequest = requireInteger(p.maxTotalBytesPerRequest, 'policy.maxTotalBytesPerRequest', { min: 1, max: 64 * 1024 * 1024 });
-  p.maxFeePerTransactionAtomic = qortToAtomic(p.maxFeePerTransactionQort ?? defaults.policy.maxFeePerTransactionQort, 'policy.maxFeePerTransactionQort');
+  if (Object.prototype.hasOwnProperty.call(p, 'maxFeePerTransactionQort')) {
+    fail('policy.maxFeePerTransactionQort is no longer supported; fees are derived from the node per resource.');
+  }
   p.budgetAtomic = qortToAtomic(p.budgetQort ?? defaults.policy.budgetQort, 'policy.budgetQort');
-  if (p.maxFeePerTransactionAtomic <= 0) fail('policy.maxFeePerTransactionQort must be positive.');
+  p.walletReserveAtomic = qortToAtomic(p.walletReserveQort ?? defaults.policy.walletReserveQort, 'policy.walletReserveQort');
   if (p.budgetAtomic <= 0) fail('policy.budgetQort must be positive.');
+  if (p.walletReserveAtomic < 0) fail('policy.walletReserveQort must not be negative.');
+  if (p.walletReserveAtomic >= p.budgetAtomic) fail('policy.walletReserveQort must be smaller than policy.budgetQort.');
   p.budgetWindowMs = requireInteger(p.budgetWindowMs ?? defaults.policy.budgetWindowMs, 'policy.budgetWindowMs', { min: 60000, max: 30 * 86400000 });
   p.sessionLifetimeMs = requireInteger(p.sessionLifetimeMs ?? defaults.policy.sessionLifetimeMs, 'policy.sessionLifetimeMs', { min: 60000, max: 30 * 86400000 });
   p.allowResourceUpdates = p.allowResourceUpdates === true;

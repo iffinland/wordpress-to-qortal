@@ -26,7 +26,7 @@ test('accepts a valid DOCUMENT request for the exact test name', () => {
   assert.equal(normalized.ownerAddress, OWNER);
   assert.equal(normalized.resources.length, 1);
   assert.equal(normalized.resources[0].service, 'DOCUMENT');
-  assert.equal(normalized.totalFeeAtomic, 100000);
+  assert.equal(Object.prototype.hasOwnProperty.call(normalized, 'totalFeeAtomic'), false);
   assert.equal(normalized.handoffId, null);
 });
 
@@ -106,12 +106,11 @@ test('rejects duplicate resource ids and QDN triples', () => {
   rejects(makeRequest({ resources: [third, fourth] }), 'INVALID_REQUEST');
 });
 
-test('rejects fees above the per-transaction policy and invalid fee shapes', () => {
-  rejects(makeRequest({ fees: { currency: 'QORT', feePerTransaction: 0.01 } }), 'FEE_TOO_HIGH');
-  rejects(makeRequest({ fees: { currency: 'QORT', feePerTransaction: 0 } }), 'FEE_INVALID');
-  rejects(makeRequest({ fees: { currency: 'LTC', feePerTransaction: 0.001 } }), 'FEE_INVALID');
-  rejects(makeRequest({ fees: { currency: 'QORT', feePerTransaction: '0.000000001' } }), 'FEE_INVALID');
-  rejects(makeRequest({ fees: { currency: 'QORT', feePerTransaction: -1 } }), 'FEE_INVALID');
+test('rejects any client-supplied fee field because fees are derived by the broker', () => {
+  rejects(makeRequest({ fees: { currency: 'QORT', feePerTransaction: 0.01 } }), 'INVALID_REQUEST');
+  rejects(makeRequest({ fees: { currency: 'QORT', feePerTransaction: 0.001 } }), 'INVALID_REQUEST');
+  rejects(makeRequest({ feePerTransaction: 0.01 }), 'INVALID_REQUEST');
+  rejects(makeRequest({ maxFee: '5' }), 'INVALID_REQUEST');
 });
 
 test('rejects modified payload bytes, wrong byte counts and malformed base64', () => {
@@ -149,7 +148,8 @@ test('rejects signing, wallet and node fields at the request boundary', () => {
 });
 
 test('rejects wrong schema and malformed identifiers', () => {
-  rejects(makeRequest({ schema: 'qms-test-publication-request@2' }), 'INVALID_REQUEST');
+  rejects(makeRequest({ schema: 'qms-test-publication-request@1' }), 'INVALID_REQUEST');
+  rejects(makeRequest({ schema: 'qms-test-publication-request@3' }), 'INVALID_REQUEST');
   rejects(makeRequest({ requestId: 'req_bad' }), 'INVALID_REQUEST');
   rejects(makeRequest({ projectId: 'project' }), 'INVALID_REQUEST');
   rejects(makeRequest({ requestId: 'req_ABCDEFGH' }), 'INVALID_REQUEST');

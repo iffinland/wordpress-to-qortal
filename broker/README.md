@@ -47,7 +47,7 @@ evaluation.
 
 ```json
 {
-  "schema": "qms-test-publication-request@1",
+  "schema": "qms-test-publication-request@2",
   "requestId": "req_00000001",
   "projectId": "prj_corbett-test",
   "target": {
@@ -65,7 +65,6 @@ evaluation.
       "dataBase64": "<canonical base64>"
     }
   ],
-  "fees": { "currency": "QORT", "feePerTransaction": 0.001 },
   "handoff": null
 }
 ```
@@ -84,7 +83,14 @@ byte lengths and SHA-256 values match the request. The Phase 5
   `application/json`;
 - at most 20 resources and 20 transactions per request;
 - 1 MiB per resource and 4 MiB total payload;
-- at most 0.001 QORT fee per transaction; 0.05 QORT rolling 24 h budget;
+- fees are never supplied by the caller: each resource is quoted with the
+  node's read-only `POST /transactions/fee` endpoint, cross-checked against
+  `GET /transactions/unitfee?txType=ARBITRARY`, and passed explicitly to the
+  signing backend;
+- 5 QORT rolling 24 h budget with a 0.1 QORT confirmed-wallet reserve; the
+  complete batch fee is reserved atomically before signing;
+- publication is rejected when the exact fee, confirmed balance or budget
+  cannot be proven;
 - 1 hour maximum authorization session lifetime;
 - existing QDN identities rejected unless `allowResourceUpdates` is explicitly
   enabled by an operator policy (off by default);

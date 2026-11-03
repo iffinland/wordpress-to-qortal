@@ -151,6 +151,22 @@ test('maps authorization rejection, client failure and missing receipts', async 
   } finally { cleanup(wrongSigner.dir); }
 });
 
+test('refuses a non-positive or non-finite fee before calling the backend', async () => {
+  const ctx = setup();
+  try {
+    await ctx.backend.open();
+    for (const fee of [0, -0.01, Number.NaN, Number.POSITIVE_INFINITY, '0.01']) {
+      await assert.rejects(
+        ctx.backend.publish({ service: 'DOCUMENT', name: 'developer iffi', identifier: 'qms-dev-test', dataBase64: 'eA==', feePerTransaction: fee }),
+        (error) => error.code === 'FEE_INVALID'
+      );
+    }
+    assert.equal(ctx.calls.length, 0);
+  } finally {
+    cleanup(ctx.dir);
+  }
+});
+
 test('refuses to publish a non-DOCUMENT service', async () => {
   const ctx = setup();
   try {

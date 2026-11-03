@@ -4,6 +4,7 @@ import { BrokerError, BROKER_ERROR, fail } from './errors.js';
 import { atomicToQort, formatQort } from './amounts.js';
 import { validatePublicationRequest, REQUEST_SCHEMA } from './policy.js';
 import { resourceKey, rollWindow, windowSpent } from './state.js';
+import { createFeeOracle } from './fees.js';
 import { sha256Hex } from './util.js';
 import { verifyNameOwnership, verifyResources } from '../../lib/engine/publication/remote.js';
 
@@ -36,6 +37,7 @@ export class PublicationBroker {
     state,
     audit,
     backend,
+    feeOracle = null,
     fetchImpl = globalThis.fetch,
     clock = () => Date.now(),
     sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
@@ -46,6 +48,12 @@ export class PublicationBroker {
     this.audit = audit;
     this.backend = backend;
     this.fetchImpl = fetchImpl;
+    this.feeOracle = feeOracle ?? createFeeOracle({
+      fetchImpl,
+      nodeUrl: config.qortal.nodeUrl,
+      timeoutMs: config.qortal.feeTimeoutMs,
+      clock
+    });
     this.clock = clock;
     this.sleep = sleep;
     this.killSwitchExists = killSwitchExists;
@@ -120,6 +128,75 @@ export class PublicationBroker {
     return { state: 'exists' };
   }
 
+  async quoteAndCheckBalance(request) {
+    let quote;
+    try {
+      quote = await this.feeOracle.quoteResources({
+        name: request.targetName,
+        resources: request.resources,
+        timestamp: this.clock()
+      });
+    } catch (error) {
+      this.audit.append('publication_fee_quote_failed', {
+        requestId: request.requestId,
+        code: error.code ?? 'FEE_UNAVAILABLE'
+      });
+      throw error;
+    }
+    const byId = new Map(quote.quotes.map((entry) => [entry.id, entry.feeAtomic]));
+    let totalFeeAtomic = 0;
+    const resources = request.resources.map((resource) => {
+      const feeAtomic = byId.get(resource.id);
+      if (!Number.isSafeInteger(feeAtomic) || feeAtomic <= 0) {
+        fail(BROKER_ERROR.FEE_MISMATCH, 'The per-resource fee quote is missing or invalid.', {
+          details: { resourceId: resource.id }
+        });
+      }
+      totalFeeAtomic += feeAtomic;
+      return { ...resource, feeAtomic };
+    });
+    if (!Number.isSafeInteger(totalFeeAtomic) || totalFeeAtomic <= 0) {
+      fail(BROKER_ERROR.FEE_INVALID, 'The batch fee total is outside the supported range.');
+    }
+
+    let balanceAtomic;
+    try {
+      balanceAtomic = await this.feeOracle.confirmedBalance(this.config.qortal.ownerAddress);
+    } catch (error) {
+      this.audit.append('publication_balance_check_failed', {
+        requestId: request.requestId,
+        code: error.code ?? 'BALANCE_UNAVAILABLE'
+      });
+      throw error;
+    }
+    const pendingAtomic = Object.values(this.state.snapshot().budget.reservations ?? {})
+      .reduce((sum, value) => sum + Number(value || 0), 0);
+    const requiredAtomic = totalFeeAtomic + this.config.policy.walletReserveAtomic + pendingAtomic;
+    if (!Number.isSafeInteger(requiredAtomic)) {
+      fail(BROKER_ERROR.BALANCE_UNAVAILABLE, 'The required wallet balance is outside the supported range.');
+    }
+    if (balanceAtomic < requiredAtomic) {
+      fail(BROKER_ERROR.BALANCE_INSUFFICIENT, 'The confirmed wallet balance does not cover the batch, pending reservations and the configured reserve.', {
+        details: {
+          balanceAtomic,
+          requiredAtomic,
+          batchAtomic: totalFeeAtomic,
+          reserveAtomic: this.config.policy.walletReserveAtomic,
+          pendingAtomic
+        }
+      });
+    }
+    this.audit.append('publication_fee_quoted', {
+      requestId: request.requestId,
+      unitFeeAtomic: quote.unitFeeAtomic,
+      totalFeeAtomic,
+      balanceAtomic,
+      pendingAtomic,
+      reserveAtomic: this.config.policy.walletReserveAtomic
+    });
+    return { resources, totalFeeAtomic, unitFeeAtomic: quote.unitFeeAtomic, balanceAtomic };
+  }
+
   async preflight(request) {
     await this.verifyName();
     const collisions = [];
@@ -157,7 +234,6 @@ export class PublicationBroker {
         requestHash: bodyHash,
         resources: request.resources.length,
         bytes: request.totalBytes,
-        reservedAtomic: request.totalFeeAtomic,
         handoffId: request.handoffId
       });
 
@@ -182,9 +258,19 @@ export class PublicationBroker {
         throw error;
       }
 
+      let funding;
+      try {
+        funding = await this.quoteAndCheckBalance(request);
+      } catch (error) {
+        this.audit.append('publication_denied', {
+          keyId, requestId: request.requestId, code: error.code ?? 'FEE_PREFLIGHT_FAILED'
+        });
+        throw error;
+      }
+
       let reservation;
       try {
-        reservation = await this.state.transact((draft) => {
+        reservation = await this.state.transact(async (draft) => {
           if (draft.disabled) fail(BROKER_ERROR.DISABLED, 'The broker is disabled.');
           const replay = draft.idempotency[request.requestId];
           if (replay) {
@@ -203,12 +289,27 @@ export class PublicationBroker {
             }
           }
           const spent = windowSpent(draft, now, this.config.policy.budgetWindowMs);
-          if (spent + request.totalFeeAtomic > this.config.policy.budgetAtomic) {
+          if (spent + funding.totalFeeAtomic > this.config.policy.budgetAtomic) {
             fail(BROKER_ERROR.BUDGET_EXCEEDED, 'The cumulative fee budget would be exceeded.', {
               details: {
                 spentAtomic: spent,
-                requestedAtomic: request.totalFeeAtomic,
+                requestedAtomic: funding.totalFeeAtomic,
                 budgetAtomic: this.config.policy.budgetAtomic
+              }
+            });
+          }
+          const pendingNow = Object.values(draft.budget.reservations ?? {})
+            .reduce((sum, value) => sum + Number(value || 0), 0);
+          const requiredNow = funding.totalFeeAtomic + this.config.policy.walletReserveAtomic + pendingNow;
+          const balanceNow = await this.feeOracle.confirmedBalance(this.config.qortal.ownerAddress);
+          if (balanceNow < requiredNow) {
+            fail(BROKER_ERROR.BALANCE_INSUFFICIENT, 'The confirmed wallet balance no longer covers this batch, reservations and the reserve.', {
+              details: {
+                balanceAtomic: balanceNow,
+                requiredAtomic: requiredNow,
+                batchAtomic: funding.totalFeeAtomic,
+                reserveAtomic: this.config.policy.walletReserveAtomic,
+                pendingAtomic: pendingNow
               }
             });
           }
@@ -228,7 +329,7 @@ export class PublicationBroker {
             clientKeyId: keyId,
             handoffId: request.handoffId,
             updateExisting: preflight.updateExisting,
-            resources: request.resources.map((resource) => ({
+            resources: funding.resources.map((resource) => ({
               id: resource.id,
               service: resource.service,
               name: request.targetName,
@@ -236,18 +337,20 @@ export class PublicationBroker {
               contentType: resource.contentType,
               bytes: resource.bytes,
               sha256: resource.sha256,
+              feeAtomic: resource.feeAtomic,
               state: 'reserved',
               txRef: null,
               verification: null
             })),
-            feePerTransactionAtomic: request.feePerTransactionAtomic,
-            totalFeeAtomic: request.totalFeeAtomic,
-            reservedAtomic: request.totalFeeAtomic,
+            unitFeeAtomic: funding.unitFeeAtomic,
+            totalFeeAtomic: funding.totalFeeAtomic,
+            reservedAtomic: funding.totalFeeAtomic,
+            balanceAtReservationAtomic: balanceNow,
             chargedAtomic: 0,
             verification: null
           };
           draft.idempotency[request.requestId] = { publicationId: id, bodyHash, at: now };
-          draft.budget.reservations[id] = request.totalFeeAtomic;
+          draft.budget.reservations[id] = funding.totalFeeAtomic;
           for (const resource of request.resources) {
             const key = resourceKey({ ...resource, name: request.targetName });
             draft.resourceLocks[key] = { publicationId: id, state: 'reserved', at: now };
@@ -273,11 +376,12 @@ export class PublicationBroker {
         keyId,
         requestId: request.requestId,
         publicationId,
-        reservedAtomic: request.totalFeeAtomic,
+        reservedAtomic: funding.totalFeeAtomic,
+        unitFeeAtomic: funding.unitFeeAtomic,
         budgetAtomic: this.config.policy.budgetAtomic
       });
 
-      return await this.submitReserved(publicationId, request, keyId);
+      return await this.submitReserved(publicationId, { ...request, resources: funding.resources, totalFeeAtomic: funding.totalFeeAtomic }, keyId);
     } finally {
       this.inFlight -= 1;
       this.releaseWaiters();
@@ -327,7 +431,7 @@ export class PublicationBroker {
           name: request.targetName,
           identifier: resource.identifier,
           dataBase64: resource.dataBase64,
-          feePerTransaction: Number(atomicToQort(request.feePerTransactionAtomic))
+          feePerTransaction: Number(atomicToQort(resource.feeAtomic))
         });
       } catch (error) {
         outcome = {
@@ -338,7 +442,7 @@ export class PublicationBroker {
       }
 
       if (outcome.state === 'signed') {
-        charged += request.feePerTransactionAtomic;
+        charged += resource.feeAtomic;
         signedCount += 1;
         await this.setPublicationState(publicationId, (record) => {
           const target = record.resources.find((entry) => entry.id === resource.id);
@@ -356,7 +460,7 @@ export class PublicationBroker {
           resourceId: resource.id,
           identifier: resource.identifier,
           txRef: outcome.signature,
-          feeAtomic: request.feePerTransactionAtomic
+          feeAtomic: resource.feeAtomic
         });
         if (stopReason) break;
       } else if (outcome.state === 'rejected' || outcome.state === 'failed') {
@@ -392,7 +496,10 @@ export class PublicationBroker {
       }
     }
 
-    const chargedAtomic = ['ambiguous', 'pending'].includes(stopReason) && signedCount === 0
+    // Any unknown or pending signing outcome reserves the whole batch: a
+    // signed-but-unconfirmed or unknown transaction may still settle, so the
+    // budget must not be freed. Definite failures only charge signed resources.
+    const chargedAtomic = ['ambiguous', 'pending'].includes(stopReason)
       ? request.totalFeeAtomic
       : charged;
 

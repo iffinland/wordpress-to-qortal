@@ -8,10 +8,9 @@ import {
   isSha256,
   sha256Bytes
 } from './util.js';
-import { qortToAtomic, ATOMIC_PER_QORT } from './amounts.js';
 import { assertHandoffManifest, HANDOFF_SCHEMA } from '../../lib/engine/publication/handoff.js';
 
-export const REQUEST_SCHEMA = 'qms-test-publication-request@1';
+export const REQUEST_SCHEMA = 'qms-test-publication-request@2';
 const REQUEST_ID = /^req_[a-z0-9]{8,40}$/;
 const PROJECT_ID = /^prj_[a-z0-9][a-z0-9-]{3,47}$/;
 const RESOURCE_ID = /^res_[a-z0-9]{8,40}$/;
@@ -50,25 +49,6 @@ function validateTarget(target, config) {
     fail(BROKER_ERROR.POLICY_OWNER, 'The target owner address is not the configured test owner.');
   }
   return { name: target.name, ownerAddress: target.ownerAddress };
-}
-
-function validateFees(fees, config, resourceCount) {
-  assertExactKeys(fees, ['currency', 'feePerTransaction'], 'fees');
-  if (fees.currency !== 'QORT') {
-    fail(BROKER_ERROR.FEE_INVALID, 'Only QORT transaction fees are supported.');
-  }
-  const feePerTransactionAtomic = qortToAtomic(fees.feePerTransaction, 'fees.feePerTransaction');
-  if (feePerTransactionAtomic <= 0) {
-    fail(BROKER_ERROR.FEE_INVALID, 'fees.feePerTransaction must be greater than zero.');
-  }
-  if (feePerTransactionAtomic > config.policy.maxFeePerTransactionAtomic) {
-    fail(BROKER_ERROR.FEE_TOO_HIGH, 'The fee per transaction exceeds the configured policy maximum.');
-  }
-  const totalFeeAtomic = feePerTransactionAtomic * resourceCount;
-  if (!Number.isSafeInteger(totalFeeAtomic)) {
-    fail(BROKER_ERROR.FEE_INVALID, 'The total fee is outside the supported range.');
-  }
-  return { feePerTransactionAtomic, totalFeeAtomic };
 }
 
 function compareHandoff(handoff, request, config) {
@@ -118,7 +98,7 @@ function compareHandoff(handoff, request, config) {
 export function validatePublicationRequest({ body, config }) {
   assertObject(body, 'request');
   rejectSecretShapedFields(body);
-  assertExactKeys(body, ['schema', 'requestId', 'projectId', 'target', 'resources', 'fees', 'handoff'], 'request');
+  assertExactKeys(body, ['schema', 'requestId', 'projectId', 'target', 'resources', 'handoff'], 'request');
   if (body.schema !== REQUEST_SCHEMA) {
     fail(BROKER_ERROR.INVALID_REQUEST, 'Unsupported request schema: ' + String(body.schema));
   }
@@ -192,7 +172,6 @@ export function validatePublicationRequest({ body, config }) {
     });
   }
 
-  const fees = validateFees(body.fees, config, resources.length);
   const handoffId = compareHandoff(body.handoff, { requestId, projectId, target, resources }, config);
 
   return {
@@ -203,12 +182,6 @@ export function validatePublicationRequest({ body, config }) {
     ownerAddress: target.ownerAddress,
     resources,
     totalBytes,
-    feePerTransactionAtomic: fees.feePerTransactionAtomic,
-    totalFeeAtomic: fees.totalFeeAtomic,
     handoffId
   };
-}
-
-export function feeForResource(atomic) {
-  return atomic / ATOMIC_PER_QORT;
 }
