@@ -347,7 +347,7 @@ Properties:
   empty afterwards.
 - **Verification**: EA `GET /health`, API key loaded in
   `/proc/<pid>/environ` (name check only), broker `GET /v1/health`, admin
-  `status` with a non-null credential, clients registry schema/key,
+  `status` ok, a non-empty renewed token file, clients registry schema/key,
   `credential.sock`, timer state, token file presence, and diagnostics markers
   in both installed trees. No private Ed25519 verification key is needed.
 - **Rollback**: automatic on error and explicit via `--rollback`; restores

@@ -372,7 +372,6 @@ verify_all() {
   wait_socket "$ADMIN_SOCKET" || die "admin socket not ready: $ADMIN_SOCKET"
   node "$BROKER_SRC_DIR/control.js" "$ADMIN_SOCKET" status >"$BACKUP_DIR/admin-status.json"
   grep -Eq '"ok":true' "$BACKUP_DIR/admin-status.json" || die "admin status not ok"
-  grep -Eq '"credential":\{' "$BACKUP_DIR/admin-status.json" || die "broker credential status missing"
   if [ "$expected_disabled" = "true" ]; then
     [ -e "$KILL_SWITCH_FILE" ] || die "kill switch was preexisting but is now missing"
   else
