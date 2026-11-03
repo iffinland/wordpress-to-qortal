@@ -152,6 +152,8 @@ test('admin socket is private, disables publication and revokes keys', async () 
 
     const unrevoke = await adminRequest(harness.config.admin.socketPath, { command: 'unrevoke-key', keyId: http.client.keyId });
     assert.equal(unrevoke.ok, true);
+    const refreshed = await http.refreshAccess();
+    assert.equal(refreshed.status, 200);
     const accepted = await http.request('POST', '/v1/publications', makeRequest());
     assert.equal(accepted.status, 200);
   } finally {

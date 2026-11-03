@@ -37,6 +37,7 @@ export class PublicationBroker {
     state,
     audit,
     backend,
+    credentials = null,
     feeOracle = null,
     fetchImpl = globalThis.fetch,
     clock = () => Date.now(),
@@ -47,6 +48,7 @@ export class PublicationBroker {
     this.state = state;
     this.audit = audit;
     this.backend = backend;
+    this.credentials = credentials;
     this.fetchImpl = fetchImpl;
     this.feeOracle = feeOracle ?? createFeeOracle({
       fetchImpl,
@@ -689,6 +691,9 @@ export class PublicationBroker {
         budgetQort: formatQort(this.config.policy.budgetAtomic)
       },
       signingBackend: this.backend.constructor?.name ?? 'unknown',
+      credential: this.credentials ? this.credentials.status() : null,
+      activeGrants: Object.values(snapshot.accessGrants)
+        .filter((grant) => grant.revoked !== true && grant.expiresAt > this.clock()).length,
       requestSchema: REQUEST_SCHEMA
     };
   }

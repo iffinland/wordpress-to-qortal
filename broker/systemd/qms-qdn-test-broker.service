@@ -10,6 +10,7 @@ User=qms-broker
 Group=qms-broker
 Environment=QMS_BROKER_CONFIG=/etc/qms-qdn-test-broker/config.json
 ExecStart=/usr/bin/node /opt/qms-qdn-test-broker/broker/src/index.js
+ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5s
 UMask=0077
@@ -31,7 +32,7 @@ SystemCallArchitectures=native
 CapabilityBoundingSet=
 AmbientCapabilities=
 ReadWritePaths=/var/lib/qms-qdn-test-broker /run/qms-qdn-test-broker
-InaccessiblePaths=/var/lib/qortal-external-auth /etc/qortal-external-auth
+InaccessiblePaths=/var/lib/qortal-external-auth /etc/qortal-external-auth /etc/qms-qdn-auth-credential
 
 [Install]
 WantedBy=multi-user.target

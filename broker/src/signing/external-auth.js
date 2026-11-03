@@ -1,31 +1,8 @@
-import { readFileSync, statSync } from 'node:fs';
 import { BrokerError, BROKER_ERROR, fail } from '../errors.js';
 import { sha256Hex } from '../util.js';
+import { readTokenFile } from '../credentials/store.js';
 
 const PUBLISH_PATH = '/qdn/publish';
-
-function assertTokenFile(file) {
-  let info;
-  try {
-    info = statSync(file);
-  } catch (error) {
-    fail(BROKER_ERROR.UNAVAILABLE, 'Unable to stat the External Auth token file.', { cause: error.message });
-  }
-  if (!info.isFile()) fail(BROKER_ERROR.UNAVAILABLE, 'The External Auth token path is not a regular file.');
-  if ((info.mode & 0o077) !== 0) {
-    fail(BROKER_ERROR.UNAVAILABLE, 'The External Auth token file must not be readable by group or other users.');
-  }
-  let token;
-  try {
-    token = readFileSync(file, 'utf8').trim();
-  } catch (error) {
-    fail(BROKER_ERROR.UNAVAILABLE, 'Unable to read the External Auth token file.', { cause: error.message });
-  }
-  if (!/^[A-Za-z0-9._~+\/-]{20,4096}$/.test(token)) {
-    fail(BROKER_ERROR.UNAVAILABLE, 'The External Auth token file does not contain a plausible bearer token.');
-  }
-  return token;
-}
 
 /**
  * Narrow client for Qortal External Auth. It deliberately exposes exactly one
@@ -35,26 +12,50 @@ function assertTokenFile(file) {
  * development agent.
  */
 export class ExternalAuthSigningBackend {
-  constructor({ baseUrl, walletId, tokenFile, timeoutMs = 60000, expectedAddress, fetchImpl = globalThis.fetch }) {
+  constructor({
+    baseUrl,
+    walletId,
+    tokenFile,
+    timeoutMs = 60000,
+    expectedAddress,
+    fetchImpl = globalThis.fetch,
+    credentialStore = null
+  }) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.walletId = walletId;
     this.tokenFile = tokenFile;
     this.timeoutMs = timeoutMs;
     this.expectedAddress = expectedAddress;
     this.fetchImpl = fetchImpl;
+    this.credentialStore = credentialStore;
     this.token = null;
   }
 
   async open() {
-    this.token = assertTokenFile(this.tokenFile);
+    if (this.credentialStore) {
+      if (!this.credentialStore.token) await this.credentialStore.open();
+    } else {
+      this.token = readTokenFile(this.tokenFile);
+    }
     return this;
+  }
+
+  /**
+   * Read the current token on every publish. A validated SIGHUP/socket reload
+   * therefore takes effect for the next transaction without restarting the
+   * broker or touching state, budget reservations or the nonce cache.
+   */
+  currentToken() {
+    if (this.credentialStore) return this.credentialStore.current();
+    if (!this.token) throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'The signing backend is not initialized.');
+    return this.token;
   }
 
   async publish({ service, name, identifier, dataBase64, feePerTransaction }) {
     if (service !== 'DOCUMENT') {
       fail(BROKER_ERROR.POLICY_SERVICE, 'The signing backend only accepts DOCUMENT resources.');
     }
-    if (!this.token) throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'The signing backend is not initialized.');
+    const token = this.currentToken();
     if (typeof feePerTransaction !== 'number' || !Number.isFinite(feePerTransaction) || feePerTransaction <= 0) {
       fail(BROKER_ERROR.FEE_INVALID, 'The signing backend requires a positive, finite per-resource fee.');
     }
@@ -74,7 +75,7 @@ export class ExternalAuthSigningBackend {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          authorization: 'Bearer ' + this.token
+          authorization: 'Bearer ' + token
         },
         body,
         signal: controller.signal,

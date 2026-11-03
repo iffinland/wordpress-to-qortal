@@ -4,7 +4,7 @@
 | --- | --- |
 | Document | Policy broker, External Auth assessment and operator deployment model |
 | Date | 2026-11-03 |
-| Status | Implementation and deterministic verification complete; live deployment **not provisioned** |
+| Status | Implementation and deterministic verification complete; owner reports the signing host provisioned, but this branch's credential lifecycle is **not installed** and no live publish was performed |
 | Scope | Development-only autonomous QDN test publication infrastructure |
 | Product boundary | The user-facing Migration Studio workflow still uses Qortal Hub approval (Phase 5) |
 
@@ -18,8 +18,11 @@ URL, then verifies exact QDN bytes and SHA-256 through the existing Phase 5
 read-back code. It persists atomic budget state and an append-only hash-chained
 audit log outside the repository, and exposes an operator-only Unix-socket kill
 switch and key revocation. Deterministic tests pass with a mock signing backend.
-No wallet was imported or unlocked, External Auth was not installed, and no QDN
-resource or transaction was created.
+The owner reports External Auth 0.2.0 and the broker installed on the signing
+VPS; this branch adds automatic External Auth session renewal and renewable
+agent access grants (see `PHASE-5.2-CREDENTIAL-LIFECYCLE.md`). The agent did not
+import or unlock a wallet, did not install or modify External Auth, and did not
+publish a QDN resource or submit a transaction.
 
 ## 2. Read-only security preflight
 
@@ -38,7 +41,7 @@ wallet was changed.
 | Balance | `GET /addresses/balance/Qip...` → `5.02000000` | 5.02 QORT confirmed |
 | Node API exposure | `http://169.58.135.102:12391` answered read-only status calls from the agent host | Public reachability observed; hardening is an operator task |
 | Node OS user/process owner | No SSH access | **Unknown; must be documented by the operator** |
-| Wallet secret isolation | Host not provisioned | **Unverified; requires the provisioning tests below** |
+| Wallet secret isolation | Owner reports separate `qortal-auth` user and 0700 wallet directory | **Unverified by the agent; no signing-VPS access** |
 
 The node's public API being reachable does **not** grant signing authority. The
 test wallet is not on the OpenClaw host and no wallet file was read.
@@ -58,6 +61,9 @@ Source audited read-only:
 | --- | --- | --- |
 | Bind address | Default `127.0.0.1:3191`; Docker example publishes `0.0.0.0:3191` | Loopback is required; the Docker example is unsafe |
 | Auth | `POST /apps/register` → app secret; `POST /sessions` → bearer token | Bearer token is a signing credential and must live only on the signing host |
+| Session lifetime | Default `sessionTtlSeconds=3600`; sessions are in-memory only and have no refresh/revoke route | Renewal is `POST /sessions` with the app secret; an External Auth restart clears sessions and wallet unlock |
+| Session scopes | `POST /sessions` stores `['*']`; routes do not check `session.scopes` | Actual authority is `appId + walletId + permission`, not the scopes array |
+| App self-administration | Any valid session can call `POST /permissions/set` and `POST /settings` for its own app | The app token must never reach the agent; External Auth is not an isolation boundary |
 | Permissions | Scopes include `SIGN_TRANSACTION` and `PUBLISH_QDN_RESOURCE`; modes `ask`, `session`, `persistent` | The broker token must have only `PUBLISH_QDN_RESOURCE`; never `SIGN_TRANSACTION` |
 | Publish API | `POST /qdn/publish` accepts `walletId`, `data` (base64), `service`, `registeredName`, `identifier`, optional metadata, `fee`, `nodeUrl`, `password` | Caller controls target name, service, identifier, fee and node URL; External Auth itself enforces no allowlist |
 | Arbitrary signing | `POST /tx/sign` signs caller-supplied `unsignedBytes` under `SIGN_TRANSACTION` | Must be unreachable to the agent and unused by the broker |
@@ -84,9 +90,12 @@ phase.
 │ qms-broker (unprivileged)    │  policy, budget, resource locks, audit
 │ 127.0.0.1 or RFC1918:3199    │  no admin route over TCP
 │ Unix admin socket 0600       │  disable / enable / revoke key
+│ credential.sock 0660         │  renewed token from supervisor
 └──────────────┬───────────────┘
                │ bearer token; ONLY POST /qdn/publish
                │ fixed walletId, fixed nodeUrl, fixed fee policy
+               │ <-- qms-auth-supervisor pushes a renewed token;
+               │     broker validates GET /settings, writes 0600, swaps in memory
                ▼
 ┌──────────────────────────────┐
 │ qortal-auth (unprivileged)   │  wallet dir 0700, loopback 3191
@@ -118,7 +127,8 @@ Trust rules:
 ### Routes
 
 - `GET /v1/health` — unauthenticated liveness only.
-- `POST /v1/publications` — one authenticated batch.
+- `POST /v1/auth/refresh` — Ed25519-signed short-lived access grant; no signing.
+- `POST /v1/publications` — one authenticated batch (Ed25519 + access grant).
 - `GET /v1/publications/{id}` — stored record.
 - `POST /v1/publications/{id}/verify` — safe read-back re-verification.
 
@@ -140,7 +150,7 @@ Unknown paths return `404 NOT_FOUND` before authentication, including
 | Fee per transaction | No arbitrary fixed ceiling. Each resource is quoted through the node's read-only `POST /transactions/fee` using a reconstructed Core v5 ARBITRARY transaction; the quote must be an exact multiple of `GET /transactions/unitfee?txType=ARBITRARY`. Any unavailable or malformed quote fails closed |
 | Cumulative budget | 5 QORT per rolling 24 h window; the full batch fee is reserved atomically, and pending/ambiguous reservations count until resolved. Concurrent requests cannot double-spend |
 | Wallet reserve | The confirmed QORT balance must cover the batch, existing reservations and a configurable 0.1 QORT reserve; an unavailable balance fails closed |
-| Session lifetime | Ed25519 key `issuedAt` → `expiresAt`, capped by policy (1 h) |
+| Session lifetime | 15-minute access grants, refreshed only by signed `POST /v1/auth/refresh`, capped by the registered key window and a 7-day maximum renewable lifetime |
 | Existing identities | Core properties preflight; 404 required; existing identity rejected unless `allowResourceUpdates` is explicitly enabled (off) |
 | Exact bytes | Canonical base64, byte length and SHA-256 verified before signing |
 | Handoff integrity | Optional sealed `qms-publication-handoff@1`; Phase 5 validator plus project/target/triple/hash comparison |
@@ -151,7 +161,8 @@ Unknown paths return `404 NOT_FOUND` before authentication, including
 | Read-back mismatch | Persisted as `ambiguous`; no retry; safe re-verification only |
 | Audit | Hash-chained JSONL, redacts payloads/secrets/signatures, verifies the entire chain at startup |
 | Emergency stop | Operator Unix socket writes state + kill-switch file; every request re-checks both and fails closed |
-| Key revocation | State-backed revocation through the operator socket |
+| Key revocation | State-backed revocation through the operator socket; revoking a key also revokes every access grant bound to it |
+| Credential renewal | Signing-host supervisor pushes a validated token over a private 0660 Unix socket; broker keeps the last known-good token on failure; SIGHUP also reloads |
 | Bounded I/O | Body cap, header timeout, request timeout, backend/read-back timeouts, one submission attempt |
 
 ### Fee derivation and budget accounting
@@ -280,6 +291,10 @@ configuration.
    `/etc/qms-qdn-test-broker/config.json`; replace the wallet id placeholder;
    keep the target name/owner, `DOCUMENT`-only, prefix, limits, updates-off
    and loopback/private bind. Install the systemd unit and tmpfiles entry.
+   Install `qms-auth-credential.service` and `.timer`, create the
+   `qms-auth-supervisor` user with supplementary group `qms-broker`, and put
+   the app credentials in `/etc/qms-qdn-auth-credential/app.json` (0600). See
+   `PHASE-5.2-CREDENTIAL-LIFECYCLE.md` for exact commands.
 8. **Start disabled.** Create
    `/var/lib/qms-qdn-test-broker/DISABLED` before first start. Verify health,
    socket mode and logs, then enable through the operator socket.
@@ -299,8 +314,10 @@ configuration.
 
 ## 9. Verification evidence
 
-- `node --test test/phase5.2/*.test.js`: **68 passed, 0 failed**.
-- Full repository `npm test`: **239 passed, 0 failed**.
+- `npm run test:phase5.2`: **97 passed, 0 failed** after the credential
+  lifecycle change (was 68 before it).
+- Full repository `npm test`: **268 passed, 0 failed** (was 239 before the
+  credential lifecycle tests).
 - `npm run test:phase5`: **24 passed, 0 failed**.
 - Production viewer and CMS builds: passed (Vite: 1585 modules; CMS bundle
   built).
@@ -327,25 +344,32 @@ operator/owner:
 
 1. No authorized SSH/root access from the OpenClaw host to
    `169.58.135.102`; the node OS user and process identity are unknown.
-2. No dedicated signing host, OS users, tmpfiles, systemd units or firewall
-   rules are deployed.
-3. External Auth v0.2.0 is not installed, configured, or live-tested on this
-   node; API compatibility is based on source audit, not a live call.
-4. No External Auth app/token or `PUBLISH_QDN_RESOURCE` permission exists.
-5. The test wallet has not been unlocked (and must not be unlocked by the
-   agent); no live signing was attempted.
-6. No WireGuard/private-network path and no Ed25519 client key are provisioned
-   for the agent.
+2. The owner reports the signing host, OS users, External Auth 0.2.0,
+   broker, test wallet, `PUBLISH_QDN_RESOURCE` permission and Ed25519 client
+   key as provisioned. The agent cannot verify host state without SSH access.
+3. The credential-lifecycle supervisor, its systemd timer, the app secret and
+   the upgraded broker are **not installed**; the existing token flow remains
+   manual until the operator applies this branch.
+4. API compatibility and the new `GET /settings` validation are based on the
+   pinned source and mock tests, not a live External Auth call.
+5. The test wallet has not been unlocked by the agent and must not be; no live
+   signing was attempted.
+6. The private-network path and client key exist per owner report, but the
+   agent has not used them for a live request in this phase.
 7. The Qortal node API is currently reachable on a public interface; the
    operator must firewall it or bind it to loopback before adoption.
 8. No owner authorization exists for a live synthetic QDN publish.
 9. Host-level isolation (wallet unreadable by `qms-broker`, no agent SSH/sudo,
    no public signing/admin ports) cannot be verified until the host exists.
-10. Token rotation and audit-log shipping are manual procedures, not automated.
+10. Token rotation is automated by the supervisor design but **not installed**
+    on the signing VPS; audit-log shipping remains manual.
+11. The supervisor/systemd sandbox, app-secret file ownership and socket
+    permissions are templates until the operator installs them.
 
-Until items 1–9 are completed and evidenced, the correct status is
-**implementation complete, deployment blocked**. Do not describe the system as
-live or proven against the real wallet.
+Until items 1–11 are completed and evidenced, the correct status is
+**implementation complete; credential-lifecycle upgrade pending operator
+installation**. Do not describe the system as live or proven against the real
+wallet.
 
 ## 11. Safety statement
 
@@ -353,8 +377,9 @@ During Phase 5.2:
 
 - no wallet was imported, created, unlocked, backed up or exported;
 - no seed, private key or wallet password was requested or transmitted;
-- no External Auth instance was installed or activated on the production node;
-- no Qortal Core configuration was changed;
+- the owner provisioned and activated External Auth on the signing VPS; the
+  agent did not install, configure, restart or modify it;
+- no Qortal Core configuration or signing-VPS service was changed by the agent;
 - no QDN resource was published and no transaction was submitted;
 - the only network calls to the test node were read-only name, balance, status
   and health checks.

@@ -1,0 +1,9 @@
+{
+  "schema": "qms-auth-credential-supervisor@1",
+  "baseUrl": "http://127.0.0.1:3191",
+  "appSecretFile": "/etc/qms-qdn-auth-credential/app.json",
+  "socketPath": "/run/qms-qdn-test-broker/credential.sock",
+  "statePath": "/var/lib/qms-auth-credential/state.json",
+  "renewBeforeMs": 1200000,
+  "timeoutMs": 15000
+}

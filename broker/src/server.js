@@ -3,7 +3,8 @@ import { createServer as createNetServer } from 'node:net';
 import { chmodSync, existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { BrokerError, BROKER_ERROR } from './errors.js';
-import { authenticateRequest } from './auth.js';
+import { authenticateRequest, authorizeKeySession } from './auth.js';
+import { issueAccessGrant, grantFingerprint, revokeKeyGrants } from './grants.js';
 
 const MAX_ADMIN_LINE = 8192;
 
@@ -78,11 +79,16 @@ export function createBrokerHttpServer({ config, broker, keys, nonceCache, clock
       if (req.method === 'GET' && pathname === '/v1/health') {
         return json(res, broker.isDisabled() ? 503 : 200, { status: broker.isDisabled() ? 'disabled' : 'ok' });
       }
-      if (pathname !== '/v1/publications' &&
+      const isRefresh = pathname === '/v1/auth/refresh';
+      if (!isRefresh && pathname !== '/v1/publications' &&
           !/^\/v1\/publications\/pub_[a-f0-9]{24}(\/verify)?$/.test(pathname)) {
         return json(res, 404, { error: { code: 'NOT_FOUND', message: 'No such broker endpoint.' } });
       }
-      if (req.method !== 'POST' && req.method !== 'GET') {
+      if (isRefresh && req.method !== 'POST') {
+        res.setHeader('allow', 'POST');
+        return json(res, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } });
+      }
+      if (!isRefresh && req.method !== 'POST' && req.method !== 'GET') {
         res.setHeader('allow', 'GET, POST');
         return json(res, 405, { error: { code: 'METHOD_NOT_ALLOWED', message: 'Method not allowed.' } });
       }
@@ -90,7 +96,62 @@ export function createBrokerHttpServer({ config, broker, keys, nonceCache, clock
       if (req.method === 'POST') {
         bodyBytes = await readBody(req, config.server.maxBodyBytes);
       }
+      const now = clock();
       const revokedKeys = new Set(broker.state.snapshot().revokedKeys);
+      const keyId = req.headers['x-qms-key-id'];
+      if (isRefresh) {
+        const session = authorizeKeySession({
+          keys,
+          keyId,
+          revokedKeys,
+          now,
+          maxAuthorizationLifetimeMs: config.auth.maxAuthorizationLifetimeMs
+        });
+        authenticateRequest({
+          method: req.method,
+          path: pathname,
+          bodyBytes,
+          headers: req.headers,
+          keys,
+          revokedKeys,
+          nonceCache,
+          now,
+          clockSkewMs: config.auth.clockSkewMs,
+          nonceTtlMs: config.auth.nonceTtlMs,
+          requireGrant: false
+        });
+        broker.assertEnabled();
+        const issuedAt = now;
+        const issued = await broker.state.transact((draft) => {
+          if (draft.disabled) {
+            throw new BrokerError(BROKER_ERROR.DISABLED, 'The QDN test publisher is disabled.');
+          }
+          return issueAccessGrant({
+            draft,
+            keyId: session.keyId,
+            now: issuedAt,
+            ttlMs: config.auth.accessTtlMs,
+            maxGrantsPerKey: config.auth.maxGrantsPerKey
+          });
+        });
+        audit?.append('access_grant_issued', {
+          keyId: session.keyId,
+          grant: grantFingerprint(issued.hash),
+          expiresAt: new Date(issued.grant.expiresAt).toISOString()
+        });
+        return json(res, 200, {
+          schema: 'qms-broker-access@1',
+          keyId: session.keyId,
+          accessToken: issued.token,
+          expiresAt: issued.grant.expiresAt,
+          accessTtlMs: config.auth.accessTtlMs,
+          keyExpiresAt: new Date(session.expiresAt).toISOString()
+        });
+      }
+      const accessToken = req.headers['x-qms-access-token'] ??
+        (typeof req.headers.authorization === 'string' && req.headers.authorization.startsWith('Bearer ')
+          ? req.headers.authorization.slice(7)
+          : null);
       const auth = authenticateRequest({
         method: req.method,
         path: pathname,
@@ -99,17 +160,20 @@ export function createBrokerHttpServer({ config, broker, keys, nonceCache, clock
         keys,
         revokedKeys,
         nonceCache,
-        now: clock(),
+        now,
         clockSkewMs: config.auth.clockSkewMs,
         nonceTtlMs: config.auth.nonceTtlMs,
-        sessionLifetimeMs: config.policy.sessionLifetimeMs
+        accessToken,
+        grants: broker.state.snapshot().accessGrants,
+        requireGrant: true
       });
       broker.assertEnabled();
       audit?.append('api_request', {
         keyId: auth.keyId,
         method: req.method,
         path: pathname,
-        remoteAddress: req.socket.remoteAddress ?? null
+        remoteAddress: req.socket.remoteAddress ?? null,
+        grant: auth.grantHash ? grantFingerprint(auth.grantHash) : null
       });
 
       if (req.method === 'POST' && pathname === '/v1/publications') {
@@ -206,11 +270,17 @@ export function createAdminServer({ config, broker, audit, clock = () => Date.no
         if (typeof message.keyId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{2,63}$/.test(message.keyId)) {
           return { ok: false, error: 'invalid_key_id' };
         }
+        let revokedGrants = 0;
         await broker.state.transact((draft) => {
           if (!draft.revokedKeys.includes(message.keyId)) draft.revokedKeys.push(message.keyId);
+          revokedGrants = revokeKeyGrants(draft, message.keyId);
         });
-        audit?.append('key_revoked', { keyId: message.keyId, reason: message.reason ?? null });
-        return { ok: true, keyId: message.keyId, revoked: true };
+        audit?.append('key_revoked', {
+          keyId: message.keyId,
+          reason: message.reason ?? null,
+          revokedGrants
+        });
+        return { ok: true, keyId: message.keyId, revoked: true, revokedGrants };
       }
       case 'unrevoke-key': {
         if (typeof message.keyId !== 'string') return { ok: false, error: 'invalid_key_id' };

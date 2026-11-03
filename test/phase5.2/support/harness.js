@@ -245,13 +245,51 @@ export async function startTestHttpServer(harness, { keyId = 'agent-test' } = {}
   const { port } = server.address();
   const baseUrl = 'http://127.0.0.1:' + port;
   let nonceCounter = 0;
+  const nextNonce = () => 'nonce-' + String(++nonceCounter).padStart(20, '0');
+  let accessToken = null;
+
+  async function refreshAccess(key = client) {
+    const path = '/v1/auth/refresh';
+    const bodyBytes = Buffer.from(JSON.stringify({ schema: 'qms-broker-refresh@1' }), 'utf8');
+    const headers = signRequest({
+      method: 'POST', path, bodyBytes, keyId: key.keyId, privateKey: key.privateKey,
+      timestamp: harness.clock(), nonce: nextNonce()
+    });
+    headers['content-type'] = 'application/json';
+    const response = await fetch(baseUrl + path, { method: 'POST', headers, body: bodyBytes });
+    const text = await response.text();
+    let parsed;
+    try { parsed = text ? JSON.parse(text) : null; } catch { parsed = text; }
+    if (response.status === 200 && key === client && typeof parsed?.accessToken === 'string') {
+      accessToken = parsed.accessToken;
+    }
+    return { status: response.status, body: parsed };
+  }
+
+  const access = await refreshAccess(client);
+  if (access.status !== 200) {
+    await new Promise((resolve) => server.close(resolve));
+    throw new Error('Test access grant failed: ' + JSON.stringify(access.body));
+  }
+  accessToken = access.body.accessToken;
+  const setAccess = (value) => { accessToken = value; };
+
   return {
     server,
     client,
     baseUrl,
-    async request(method, path, body = null, { key = client, timestamp = harness.clock(), nonce = 'nonce-' + String(++nonceCounter).padStart(20, '0') } = {}) {
+    get accessToken() { return accessToken; },
+    setAccessToken: setAccess,
+    refreshAccess,
+    async request(method, path, body = null, {
+      key = client,
+      timestamp = harness.clock(),
+      nonce = nextNonce(),
+      token = accessToken
+    } = {}) {
       const bodyBytes = body === null ? Buffer.alloc(0) : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body), 'utf8');
       const headers = signRequest({ method, path, bodyBytes, keyId: key.keyId, privateKey: key.privateKey, timestamp, nonce });
+      if (token) headers.authorization = 'Bearer ' + token;
       if (body !== null) headers['content-type'] = 'application/json';
       const response = await fetch(baseUrl + path, { method, headers, body: body === null ? undefined : bodyBytes });
       const text = await response.text();

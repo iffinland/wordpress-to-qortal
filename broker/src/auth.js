@@ -2,6 +2,7 @@ import { createPrivateKey, createPublicKey, sign as cryptoSign, verify as crypto
 import { readFileSync } from 'node:fs';
 import { BrokerError, BROKER_ERROR, fail } from './errors.js';
 import { sha256Hex } from './util.js';
+import { validateAccessGrant } from './grants.js';
 
 export const AUTH_SCHEMA = 'qms-broker-auth@1';
 const SIGNING_PREFIX = 'qms-qdn-test-broker-v1';
@@ -80,6 +81,45 @@ export function loadKeysFile(file) {
 }
 
 /**
+ * Refresh authorization bound to a registered key. This is the only path that
+ * mints access grants. The operator-registered key window and the deployment
+ * maximum renewable lifetime are both hard bounds; a grant never extends them.
+ */
+export function authorizeKeySession({
+  keys,
+  keyId,
+  revokedKeys = new Set(),
+  now = Date.now(),
+  clockSkewMs = 120000,
+  maxAuthorizationLifetimeMs = Infinity
+}) {
+  if (!keyId) fail(BROKER_ERROR.AUTH_REQUIRED, 'A client key id is required.');
+  if (typeof keyId !== 'string' || !KEY_ID.test(keyId)) {
+    fail(BROKER_ERROR.AUTH_INVALID, 'The client key id is malformed.');
+  }
+  const key = keys.get(keyId);
+  if (!key) fail(BROKER_ERROR.AUTH_KEY_UNKNOWN, 'Unknown client key.');
+  if (key.disabled || revokedKeys.has(keyId)) {
+    fail(BROKER_ERROR.AUTH_KEY_REVOKED, 'The client key is revoked or disabled.');
+  }
+  if (now < key.issuedAt - clockSkewMs) {
+    fail(BROKER_ERROR.AUTH_INVALID, 'The client key is not active yet.');
+  }
+  if (now > key.expiresAt) {
+    fail(BROKER_ERROR.AUTH_EXPIRED, 'The client key has expired.');
+  }
+  if (Number.isFinite(maxAuthorizationLifetimeMs) && now - key.issuedAt > maxAuthorizationLifetimeMs) {
+    fail(BROKER_ERROR.AUTH_EXPIRED, 'The maximum renewable authorization lifetime has been exceeded.');
+  }
+  return {
+    keyId,
+    expiresAt: Number.isFinite(maxAuthorizationLifetimeMs)
+      ? Math.min(key.expiresAt, key.issuedAt + maxAuthorizationLifetimeMs)
+      : key.expiresAt
+  };
+}
+
+/**
  * In-memory replay cache. The request timestamp window bounds the lifetime of
  * an entry; a broker restart loses the cache but cannot extend that window.
  */
@@ -122,7 +162,9 @@ export function authenticateRequest({
   now = Date.now(),
   clockSkewMs = 120000,
   nonceTtlMs = 600000,
-  sessionLifetimeMs = 3600000
+  accessToken = null,
+  grants = null,
+  requireGrant = true
 }) {
   const keyId = headers['x-qms-key-id'];
   const timestampRaw = headers['x-qms-timestamp'];
@@ -157,8 +199,9 @@ export function authenticateRequest({
   if (now > key.expiresAt) {
     fail(BROKER_ERROR.AUTH_EXPIRED, 'The client key has expired.');
   }
-  if (now - key.issuedAt > sessionLifetimeMs) {
-    fail(BROKER_ERROR.AUTH_EXPIRED, 'The authorization session lifetime has been exceeded.');
+  let grant = null;
+  if (requireGrant) {
+    grant = validateAccessGrant({ grants, token: accessToken, keyId, now });
   }
   if (!nonceCache.remember(keyId, nonce, now + nonceTtlMs, now)) {
     fail(BROKER_ERROR.AUTH_REPLAY, 'The request nonce has already been used.');
@@ -173,7 +216,14 @@ export function authenticateRequest({
   if (!valid) {
     fail(BROKER_ERROR.AUTH_INVALID, 'The request signature is invalid.');
   }
-  return { keyId, timestamp, nonce, expiresAt: Math.min(key.expiresAt, key.issuedAt + sessionLifetimeMs) };
+  return {
+    keyId,
+    timestamp,
+    nonce,
+    keyExpiresAt: key.expiresAt,
+    grantHash: grant?.hash ?? null,
+    grantExpiresAt: grant?.grant.expiresAt ?? null
+  };
 }
 
 export function signRequest({ method, path, bodyBytes, keyId, privateKey, timestamp = Date.now(), nonce }) {

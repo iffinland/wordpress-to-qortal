@@ -1,10 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createNonceCache, authenticateRequest, signRequest } from '../../broker/src/auth.js';
+import { createNonceCache, authenticateRequest, signRequest, authorizeKeySession } from '../../broker/src/auth.js';
+import { issueAccessGrant } from '../../broker/src/grants.js';
 import { createClientKey } from './support/harness.js';
 
 const NOW = Date.parse('2026-11-03T10:00:00.000Z');
 let nonceCounter = 0;
+
+function grantFor(key, { now = NOW, ttlMs = 900000 } = {}) {
+  const draft = { accessGrants: {} };
+  const issued = issueAccessGrant({ draft, keyId: key.keyId, now, ttlMs, maxGrantsPerKey: 8 });
+  return { accessToken: issued.token, grants: draft.accessGrants };
+}
 
 function baseArgs(key, overrides = {}) {
   const bodyBytes = overrides.bodyBytes ?? Buffer.from('{"hello":"world"}', 'utf8');
@@ -21,18 +28,21 @@ function baseArgs(key, overrides = {}) {
     timestamp,
     nonce
   });
+  const grant = overrides.grant ?? grantFor(key, { now: overrides.grantIssuedAt ?? NOW, ttlMs: overrides.grantTtlMs ?? 900000 });
   return {
     method,
     path,
     bodyBytes,
     headers: { ...headers, ...(overrides.headers ?? {}) },
-    keys: key.keys,
+    keys: overrides.keys ?? key.keys,
     revokedKeys: overrides.revokedKeys ?? new Set(),
     nonceCache: overrides.nonceCache ?? createNonceCache(),
     now: overrides.now ?? NOW,
     clockSkewMs: overrides.clockSkewMs ?? 120000,
     nonceTtlMs: overrides.nonceTtlMs ?? 600000,
-    sessionLifetimeMs: overrides.sessionLifetimeMs ?? 3600000
+    accessToken: overrides.accessToken !== undefined ? overrides.accessToken : grant.accessToken,
+    grants: grant.grants,
+    requireGrant: overrides.requireGrant ?? true
   };
 }
 
@@ -43,11 +53,12 @@ function expectCode(args, code) {
   });
 }
 
-test('accepts a correctly signed request', () => {
+test('accepts a correctly signed request with an access grant', () => {
   const key = createClientKey({ issuedAt: NOW - 1000, expiresAt: NOW + 3600000 });
   const auth = authenticateRequest(baseArgs(key));
   assert.equal(auth.keyId, key.keyId);
   assert.equal(auth.timestamp, NOW);
+  assert.equal(typeof auth.grantHash, 'string');
 });
 
 test('rejects missing authentication headers', () => {
@@ -57,9 +68,7 @@ test('rejects missing authentication headers', () => {
 
 test('rejects unknown keys', () => {
   const key = createClientKey({ keyId: 'unknown-key', issuedAt: NOW - 1000, expiresAt: NOW + 3600000 });
-  const args = baseArgs(key);
-  args.keys = new Map();
-  expectCode(args, 'AUTH_KEY_UNKNOWN');
+  expectCode(baseArgs(key, { keys: new Map() }), 'AUTH_KEY_UNKNOWN');
 });
 
 test('rejects revoked keys', () => {
@@ -67,12 +76,45 @@ test('rejects revoked keys', () => {
   expectCode(baseArgs(key, { revokedKeys: new Set([key.keyId]) }), 'AUTH_KEY_REVOKED');
 });
 
-test('rejects expired keys and expired authorization sessions', () => {
+test('rejects expired keys', () => {
   const expired = createClientKey({ keyId: 'expired-key', issuedAt: NOW - 7200000, expiresAt: NOW - 1000 });
   expectCode(baseArgs(expired), 'AUTH_EXPIRED');
+});
 
-  const longSession = createClientKey({ keyId: 'long-session', issuedAt: NOW - 7200000, expiresAt: NOW + 3600000 });
-  expectCode(baseArgs(longSession, { sessionLifetimeMs: 3600000 }), 'AUTH_EXPIRED');
+test('requires a grant and rejects missing, malformed, expired and wrong-key grants', () => {
+  const key = createClientKey({ issuedAt: NOW - 1000, expiresAt: NOW + 3600000 });
+  expectCode(baseArgs(key, { accessToken: null }), 'AUTH_GRANT_REQUIRED');
+  expectCode(baseArgs(key, { accessToken: 'not-a-grant' }), 'AUTH_GRANT_INVALID');
+
+  const expired = grantFor(key, { now: NOW - 3600000, ttlMs: 60000 });
+  expectCode(baseArgs(key, { grant: expired }), 'AUTH_GRANT_EXPIRED');
+
+  const other = createClientKey({ keyId: 'other-key', issuedAt: NOW - 1000, expiresAt: NOW + 3600000 });
+  const foreign = grantFor(other);
+  expectCode(baseArgs(key, { grant: foreign }), 'AUTH_GRANT_INVALID');
+});
+
+test('allows refresh authentication without an access grant', () => {
+  const key = createClientKey({ issuedAt: NOW - 1000, expiresAt: NOW + 3600000 });
+  const auth = authenticateRequest(baseArgs(key, { requireGrant: false }));
+  assert.equal(auth.grantHash, null);
+});
+
+test('authorizeKeySession enforces the registered key and maximum renewable lifetime', () => {
+  const key = createClientKey({ issuedAt: NOW - 7200000, expiresAt: NOW + 3600000 });
+  const session = authorizeKeySession({
+    keys: key.keys, keyId: key.keyId, now: NOW, maxAuthorizationLifetimeMs: 86400000
+  });
+  assert.equal(session.keyId, key.keyId);
+
+  assert.throws(() => authorizeKeySession({
+    keys: key.keys, keyId: key.keyId, now: NOW, maxAuthorizationLifetimeMs: 3600000
+  }), (error) => error.code === 'AUTH_EXPIRED');
+
+  const revoked = createClientKey({ keyId: 'revoked-refresh', issuedAt: NOW - 1000, expiresAt: NOW + 3600000 });
+  assert.throws(() => authorizeKeySession({
+    keys: revoked.keys, keyId: revoked.keyId, revokedKeys: new Set([revoked.keyId]), now: NOW
+  }), (error) => error.code === 'AUTH_KEY_REVOKED');
 });
 
 test('rejects stale and future timestamps outside the clock window', () => {

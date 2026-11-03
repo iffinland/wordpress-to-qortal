@@ -2,8 +2,9 @@ import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, re
 import { dirname } from 'node:path';
 import { BrokerError, BROKER_ERROR } from './errors.js';
 
-export const STATE_SCHEMA = 'qms-test-broker-state@1';
-export const STATE_VERSION = 1;
+export const STATE_SCHEMA = 'qms-test-broker-state@2';
+export const LEGACY_STATE_SCHEMA = 'qms-test-broker-state@1';
+export const STATE_VERSION = 2;
 
 function emptyState(now) {
   return {
@@ -15,6 +16,7 @@ function emptyState(now) {
     disabledAt: null,
     disabledReason: null,
     revokedKeys: [],
+    accessGrants: {},
     publications: {},
     idempotency: {},
     resourceLocks: {},
@@ -27,6 +29,25 @@ function emptyState(now) {
   };
 }
 
+/**
+ * Version 1 state (Phase 5.2 fee/UFW branch) is upgraded in place without
+ * touching publications, idempotency, resource locks, budget or audit data.
+ */
+export function migrateState(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return data;
+  if (data.schema === LEGACY_STATE_SCHEMA && data.version === 1) {
+    return {
+      ...data,
+      schema: STATE_SCHEMA,
+      version: STATE_VERSION,
+      accessGrants: data.accessGrants && typeof data.accessGrants === 'object' && !Array.isArray(data.accessGrants)
+        ? data.accessGrants
+        : {}
+    };
+  }
+  return data;
+}
+
 function validateState(data) {
   if (!data || typeof data !== 'object' || Array.isArray(data)) {
     throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker state is not an object.');
@@ -34,7 +55,7 @@ function validateState(data) {
   if (data.schema !== STATE_SCHEMA || data.version !== STATE_VERSION) {
     throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker state schema is unsupported.');
   }
-  for (const field of ['publications', 'idempotency', 'resourceLocks', 'budget']) {
+  for (const field of ['publications', 'idempotency', 'resourceLocks', 'budget', 'accessGrants']) {
     if (!data[field] || typeof data[field] !== 'object' || Array.isArray(data[field])) {
       throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker state field is invalid: ' + field);
     }
@@ -44,6 +65,15 @@ function validateState(data) {
   }
   if (!Number.isSafeInteger(data.budget.spentAtomic) || data.budget.spentAtomic < 0) {
     throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker budget state is invalid.');
+  }
+  for (const [hash, grant] of Object.entries(data.accessGrants)) {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(hash) || !grant || typeof grant !== 'object') {
+      throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker access grant state is invalid.');
+    }
+    if (typeof grant.keyId !== 'string' || !Number.isSafeInteger(grant.issuedAt) ||
+        !Number.isSafeInteger(grant.expiresAt) || grant.expiresAt <= grant.issuedAt) {
+      throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker access grant entry is invalid.');
+    }
   }
   if (!data.budget.reservations || typeof data.budget.reservations !== 'object' || Array.isArray(data.budget.reservations)) {
     throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker budget reservations are invalid.');
@@ -85,7 +115,11 @@ export class BrokerState {
     } catch {
       throw new BrokerError(BROKER_ERROR.UNAVAILABLE, 'Broker state is not valid JSON; refusing to start.');
     }
-    this.data = validateState(parsed);
+    const migrated = migrateState(parsed);
+    this.data = validateState(migrated);
+    if (parsed.schema !== migrated.schema || parsed.version !== migrated.version) {
+      await this.persist();
+    }
     return this;
   }
 

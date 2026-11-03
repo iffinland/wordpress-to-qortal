@@ -36,7 +36,6 @@
     "budgetQort": "5",
     "walletReserveQort": "0.1",
     "budgetWindowMs": 86400000,
-    "sessionLifetimeMs": 3600000,
     "allowResourceUpdates": false,
     "minIdentifierLength": 8,
     "maxIdentifierLength": 64
@@ -48,14 +47,22 @@
       "walletId": "REPLACE_WITH_EXTERNAL_AUTH_WALLET_ID",
       "tokenFile": "/etc/qms-qdn-test-broker/external-auth-token",
       "timeoutMs": 60000,
-      "expectedAddress": "QipPqwJeLtx89dXcSkY7vimMUNT8Gy5k2E"
+      "expectedAddress": "QipPqwJeLtx89dXcSkY7vimMUNT8Gy5k2E",
+      "credentialSocket": {
+        "enabled": true,
+        "path": "/run/qms-qdn-test-broker/credential.sock",
+        "mode": "0660"
+      }
     }
   },
   "auth": {
     "keysFile": "/etc/qms-qdn-test-broker/clients.json",
     "clockSkewMs": 120000,
     "nonceTtlMs": 600000,
-    "maxRequestAgeMs": 120000
+    "maxRequestAgeMs": 120000,
+    "accessTtlMs": 900000,
+    "maxAuthorizationLifetimeMs": 604800000,
+    "maxGrantsPerKey": 8
   },
   "audit": {
     "path": "/var/lib/qms-qdn-test-broker/audit.jsonl"

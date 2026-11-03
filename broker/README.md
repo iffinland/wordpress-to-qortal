@@ -15,10 +15,12 @@ The broker sits between OpenClaw and External Auth:
 
 ```text
 OpenClaw (agent)
-  |  Ed25519-signed HTTPS/private-network requests, nonce + timestamp
+  |  Ed25519-signed request + short-lived access grant, nonce + timestamp
   v
 QDN test broker (unprivileged qms-broker user, loopback/private bind)
   |  bearer token, ONLY POST /qdn/publish, fixed walletId + nodeUrl
+  |  <-- renewed token pushed over /run/qms-qdn-test-broker/credential.sock
+  |      by qms-auth-supervisor (separate user, holds the app secret)
   v
 Qortal External Auth (qortal-auth user, 127.0.0.1:3191, wallet dir 0700)
   |  Qortal Core transaction submission
@@ -34,6 +36,7 @@ Exact Phase 5 base64 read-back with SHA-256
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/v1/health` | Unauthenticated liveness; no sensitive data |
+| POST | `/v1/auth/refresh` | Ed25519-signed short-lived access grant; no publication work |
 | POST | `/v1/publications` | Validate, reserve budget, sign and verify one batch |
 | GET | `/v1/publications/{id}` | Read the stored publication record |
 | POST | `/v1/publications/{id}/verify` | Read-only re-verification; never signs |
@@ -91,21 +94,43 @@ byte lengths and SHA-256 values match the request. The Phase 5
   complete batch fee is reserved atomically before signing;
 - publication is rejected when the exact fee, confirmed balance or budget
   cannot be proven;
-- 1 hour maximum authorization session lifetime;
+- 15-minute access grants, renewable only by a signed request bound to the
+  registered Ed25519 key, with a configurable 7-day maximum renewable lifetime;
+- every request carries both an Ed25519 signature and a broker access grant;
 - existing QDN identities rejected unless `allowResourceUpdates` is explicitly
   enabled by an operator policy (off by default);
 - ambiguous and pending outcomes are never resubmitted automatically.
 
 ### Authentication
 
-Each request is signed with Ed25519. Headers:
+Each request is signed with Ed25519 and must also carry a short-lived access
+grant. Headers:
 
 ```text
 x-qms-key-id: agent-main-2026-11
 x-qms-timestamp: 1793700000000
 x-qms-nonce: 7vQm...
 x-qms-signature: <base64url Ed25519 signature>
+authorization: Bearer <access grant from POST /v1/auth/refresh>
 ```
+
+`POST /v1/auth/refresh` is the only route that does not require an access
+grant. It is itself Ed25519-signed and returns a grant bound to the same key:
+
+```json
+{
+  "schema": "qms-broker-access@1",
+  "keyId": "agent-main-2026-11",
+  "accessToken": "qmsa_...",
+  "expiresAt": 1793700900000,
+  "accessTtlMs": 900000,
+  "keyExpiresAt": "2026-11-10T10:00:00.000Z"
+}
+```
+
+The plaintext grant is returned once; only its SHA-256 hash is stored in broker
+state. A grant can be revoked by `revoke-key`, and it never outlives the
+operator-registered key or `auth.maxAuthorizationLifetimeMs`.
 
 Canonical string (newline separated):
 
@@ -119,8 +144,9 @@ qms-qdn-test-broker-v1
 ```
 
 The broker enforces a ±120 s clock window, an in-memory nonce replay cache,
-key expiry, session lifetime and operator revocation. The client public keys
-live in a broker-owned `clients.json`; the agent holds only its private key.
+key expiry, grant expiry, the maximum renewable lifetime and operator
+revocation. The client public keys live in a broker-owned `clients.json`; the
+agent holds only its private key and an in-memory access grant.
 
 ### Operator control
 
@@ -132,7 +158,12 @@ node broker/src/control.js /run/qms-qdn-test-broker/admin.sock status
 node broker/src/control.js /run/qms-qdn-test-broker/admin.sock disable '{"reason":"incident"}'
 node broker/src/control.js /run/qms-qdn-test-broker/admin.sock enable '{"confirm":"ENABLE"}'
 node broker/src/control.js /run/qms-qdn-test-broker/admin.sock revoke-key '{"keyId":"agent-main-2026-11","reason":"rotation"}'
+node broker/src/control.js /run/qms-qdn-test-broker/admin.sock status
 ```
+
+`revoke-key` revokes the key and every access grant bound to it. Unrevoking a
+key does not resurrect old grants; the agent must refresh. `status` reports the
+signing credential fingerprint and expiry, never the token.
 
 An independent emergency stop also works without the broker API: create the
 configured kill-switch file (default
@@ -144,16 +175,23 @@ it on every request and fails closed if the check itself fails.
 - `src/policy.js` — request validation and policy limits;
 - `src/service.js` — preflight, budget reservation, signing orchestration,
   Phase 5 exact read-back;
-- `src/auth.js` — Ed25519 request authentication and replay cache;
+- `src/auth.js` — Ed25519 request authentication, refresh authorization and
+  replay cache;
+- `src/grants.js` — short-lived access grants (hash-only persistence);
+- `src/credentials/store.js` — last-known-good External Auth credential,
+  atomic 0600 writes and validated swaps;
+- `src/credentials/socket.js` — private Unix-socket credential renewal ingress;
+- `src/credentials/supervisor.js` — signing-host-local session renewal CLI;
 - `src/state.js` — atomic broker state, budget ledger, resource locks;
 - `src/audit.js` — append-only hash-chained audit JSONL;
 - `src/signing/external-auth.js` — narrow External Auth client;
 - `src/signing/mock.js` — deterministic test backend;
-- `src/server.js` — four-route HTTP API and Unix-socket admin server;
+- `src/server.js` — five-route HTTP API and Unix-socket admin server;
 - `src/index.js` — process entrypoint;
 - `src/control.js` — operator CLI;
 - `src/client.js` — agent-side Ed25519 client (`publish`, `getPublication`,
-  `verifyPublication`); no wallet or External Auth credential.
+  `verifyPublication`) with automatic access-grant refresh; no wallet or
+  External Auth credential.
 
 ## Local development
 
@@ -169,5 +207,8 @@ The mock backend is only allowed by the entrypoint with
 
 See `docs/migration-studio/PHASE-5.2-TEST-PUBLISHING-BROKER.md` for the threat
 model, isolation boundaries, External Auth audit and the exact operator
-provisioning steps. The broker itself never creates, imports, unlocks or
-backs up a wallet.
+provisioning steps, and
+`docs/migration-studio/PHASE-5.2-CREDENTIAL-LIFECYCLE.md` for the automatic
+External Auth credential renewal, agent access grants, installation/upgrade and
+rollback. The broker itself never creates, imports, unlocks or backs up a
+wallet.

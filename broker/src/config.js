@@ -98,7 +98,6 @@ export function defaultConfig() {
       budgetQort: '5',
       walletReserveQort: '0.1',
       budgetWindowMs: 86400000,
-      sessionLifetimeMs: 3600000,
       allowResourceUpdates: false,
       minIdentifierLength: 8,
       maxIdentifierLength: 64
@@ -110,14 +109,22 @@ export function defaultConfig() {
         walletId: '',
         tokenFile: '/etc/qms-qdn-test-broker/external-auth-token',
         timeoutMs: 60000,
-        expectedAddress: EXPECTED_TEST_OWNER
+        expectedAddress: EXPECTED_TEST_OWNER,
+        credentialSocket: {
+          enabled: true,
+          path: '/run/qms-qdn-test-broker/credential.sock',
+          mode: '0660'
+        }
       }
     },
     auth: {
       keysFile: '/etc/qms-qdn-test-broker/clients.json',
       clockSkewMs: 120000,
       nonceTtlMs: 600000,
-      maxRequestAgeMs: 120000
+      maxRequestAgeMs: 120000,
+      accessTtlMs: 900000,
+      maxAuthorizationLifetimeMs: 604800000,
+      maxGrantsPerKey: 8
     },
     audit: {
       path: '/var/lib/qms-qdn-test-broker/audit.jsonl'
@@ -198,7 +205,6 @@ export function validateConfig(input) {
   if (p.walletReserveAtomic < 0) fail('policy.walletReserveQort must not be negative.');
   if (p.walletReserveAtomic >= p.budgetAtomic) fail('policy.walletReserveQort must be smaller than policy.budgetQort.');
   p.budgetWindowMs = requireInteger(p.budgetWindowMs ?? defaults.policy.budgetWindowMs, 'policy.budgetWindowMs', { min: 60000, max: 30 * 86400000 });
-  p.sessionLifetimeMs = requireInteger(p.sessionLifetimeMs ?? defaults.policy.sessionLifetimeMs, 'policy.sessionLifetimeMs', { min: 60000, max: 30 * 86400000 });
   p.allowResourceUpdates = p.allowResourceUpdates === true;
   p.minIdentifierLength = requireInteger(p.minIdentifierLength ?? defaults.policy.minIdentifierLength, 'policy.minIdentifierLength', { min: 4, max: 64 });
   p.maxIdentifierLength = requireInteger(p.maxIdentifierLength ?? defaults.policy.maxIdentifierLength, 'policy.maxIdentifierLength', { min: p.minIdentifierLength, max: 64 });
@@ -214,12 +220,36 @@ export function validateConfig(input) {
   if (expectedAddress !== cfg.qortal.ownerAddress) {
     fail('signing.externalAuth.expectedAddress must equal qortal.ownerAddress.');
   }
+  const credentialSocket = requireObject(
+    cfg.signing.externalAuth.credentialSocket ?? defaults.signing.externalAuth.credentialSocket,
+    'signing.externalAuth.credentialSocket'
+  );
+  credentialSocket.enabled = credentialSocket.enabled !== false;
+  const socketPath = requireString(credentialSocket.path, 'signing.externalAuth.credentialSocket.path', { max: 300 });
+  if (!socketPath.startsWith('/')) fail('signing.externalAuth.credentialSocket.path must be absolute.');
+  if (/[\u0000\n\r]/.test(socketPath)) fail('signing.externalAuth.credentialSocket.path contains control characters.');
+  credentialSocket.path = socketPath;
+  credentialSocket.mode = requireString(credentialSocket.mode ?? '0660', 'signing.externalAuth.credentialSocket.mode', { pattern: /^0[0-7]{3}$/, max: 4 });
+  if (credentialSocket.enabled && (parseInt(credentialSocket.mode, 8) & 0o007) !== 0) {
+    fail('signing.externalAuth.credentialSocket.mode must not grant world access.');
+  }
+  cfg.signing.externalAuth.credentialSocket = credentialSocket;
 
   cfg.auth = requireObject(cfg.auth ?? defaults.auth, 'auth');
   cfg.auth.keysFile = requireString(cfg.auth.keysFile, 'auth.keysFile', { max: 300 });
   cfg.auth.clockSkewMs = requireInteger(cfg.auth.clockSkewMs ?? defaults.auth.clockSkewMs, 'auth.clockSkewMs', { min: 1000, max: 600000 });
   cfg.auth.nonceTtlMs = requireInteger(cfg.auth.nonceTtlMs ?? defaults.auth.nonceTtlMs, 'auth.nonceTtlMs', { min: 1000, max: 86400000 });
   cfg.auth.maxRequestAgeMs = requireInteger(cfg.auth.maxRequestAgeMs ?? defaults.auth.maxRequestAgeMs, 'auth.maxRequestAgeMs', { min: 1000, max: 600000 });
+  cfg.auth.accessTtlMs = requireInteger(cfg.auth.accessTtlMs ?? defaults.auth.accessTtlMs, 'auth.accessTtlMs', { min: 60000, max: 3600000 });
+  cfg.auth.maxAuthorizationLifetimeMs = requireInteger(
+    cfg.auth.maxAuthorizationLifetimeMs ?? defaults.auth.maxAuthorizationLifetimeMs,
+    'auth.maxAuthorizationLifetimeMs',
+    { min: 3600000, max: 30 * 86400000 }
+  );
+  if (cfg.auth.maxAuthorizationLifetimeMs < cfg.auth.accessTtlMs * 2) {
+    fail('auth.maxAuthorizationLifetimeMs must be at least twice auth.accessTtlMs.');
+  }
+  cfg.auth.maxGrantsPerKey = requireInteger(cfg.auth.maxGrantsPerKey ?? defaults.auth.maxGrantsPerKey, 'auth.maxGrantsPerKey', { min: 1, max: 64 });
 
   cfg.audit = requireObject(cfg.audit ?? defaults.audit, 'audit');
   cfg.audit.path = requireString(cfg.audit.path, 'audit.path', { max: 300 });

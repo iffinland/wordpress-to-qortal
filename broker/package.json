@@ -1,6 +1,6 @@
 {
   "name": "qms-qdn-test-broker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Policy broker for isolated QDN test publishing in Qortal Migration Studio.",
