@@ -64,9 +64,17 @@ export function makeRequest(overrides = {}) {
 }
 
 function response(status, body) {
+  const contentType = typeof body === 'string'
+    ? (body.trim().startsWith('<') ? 'text/html' : 'text/plain')
+    : 'application/json';
   return {
     status,
     ok: status >= 200 && status < 300,
+    headers: {
+      get(name) {
+        return String(name).toLowerCase() === 'content-type' ? contentType : null;
+      }
+    },
     async json() {
       return typeof body === 'string' ? JSON.parse(body) : body;
     },
