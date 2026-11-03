@@ -1,8 +1,11 @@
 # Vendor patches
 
 These patches are maintained against pinned upstream revisions. They are
-**not** pushed to third-party repositories and must be applied by the operator
-on the signing VPS (see the operator deployment script).
+**not** pushed to third-party repositories. The Phase 5.2 deployment script
+does not apply this patch: the broker now sends the atomic fee that Core
+expects, so the External Auth restart (and possible wallet relock) is not
+required for the fee fix. The patch is stored for upstream review or a later
+operator-approved hardening step.
 
 ## qortal-external-auth-0.2.0-qdn-publish.patch
 
@@ -22,8 +25,8 @@ on the signing VPS (see the operator deployment script).
 Verify before applying:
 
 ```bash
-git -C /opt/qortal-external-auth rev-parse HEAD   # must be the pinned commit
-git -C /opt/qortal-external-auth apply --check patches/qortal-external-auth-0.2.0-qdn-publish.patch
+git -C /home/iffiolen/qortal-external-auth-src rev-parse HEAD   # must be the pinned commit
+git -C /home/iffiolen/qortal-external-auth-src apply --check /home/iffiolen/qms-broker-deploy/patches/qortal-external-auth-0.2.0-qdn-publish.patch
 ```
 
 The operator script performs the same check and is idempotent (it detects an

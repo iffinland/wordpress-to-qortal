@@ -219,31 +219,35 @@ Guarantees:
 Script: `broker/scripts/deploy-phase5.2-external-auth-fix.sh`.
 
 ```bash
-# On the signing VPS, from the repository checkout, as root:
-./broker/scripts/deploy-phase5.2-external-auth-fix.sh --check
-./broker/scripts/deploy-phase5.2-external-auth-fix.sh --yes
-# only on failure or explicit rollback:
-./broker/scripts/deploy-phase5.2-external-auth-fix.sh --rollback /var/backups/qms-phase5.2/<stamp>
+# Single idempotent command on the signing VPS, from the actual checkout:
+cd /home/iffiolen/qms-broker-deploy
+sudo ./broker/scripts/deploy-phase5.2-external-auth-fix.sh --yes
+# Optional read-only preview; not a required step:
+sudo ./broker/scripts/deploy-phase5.2-external-auth-fix.sh --check
+# Only on failure or explicit rollback:
+sudo ./broker/scripts/deploy-phase5.2-external-auth-fix.sh --rollback /var/backups/qms-phase5.2/<stamp>
 ```
 
 Properties:
 
-- **Idempotent**: detects an already-applied patch (reverse check), re-copies
-  sources, and re-verifies. Re-running `--yes` is safe.
-- **Preflight**: pinned EA commit, patch applicability, unit existence, config
-  and state permissions, no wildcard bind on 3199/8443, ≥2 GiB free.
-- **Current state capture**: systemd states, EA HEAD/porcelain, config/state/
-  audit SHA-256, kill-switch pre-existence, logs into the backup directory.
-- **Backups**: EA source file, broker sources, broker config, state, audit.
-  Tokens, wallet files and keys are never copied.
-- **Ordering**: engage kill switch → stop broker → stop credential timer →
-  apply EA patch → build → restart EA → deploy broker → start timer and one
-  renewal → start broker → release kill switch (only if it did not pre-exist).
-- **Verification**: EA `GET /health`, broker `GET /v1/health` with
-  `status":"ok"`, budget numbers, signed `GET /v1/publications/pub_000…`
-  expecting `400 INVALID_REQUEST` for the fake id (proves Ed25519 auth without
-  a transaction; an unauthenticated request is `401 AUTH_*`). Older documents
-  said `PUBLICATION_NOT_FOUND`; the current broker has no such code.
+- **Idempotent**: copies the corrected broker sources, preserves config/clients/
+  state/audit, and re-runs safely. `--yes` is the single deployment command.
+- **Preflight**: actual layout paths, unit existence, config/clients/state
+  permissions, active External Auth, no wildcard bind on 3199/8443, ≥2 GiB free.
+- **Current state capture**: systemd states, repo HEAD, config/clients/state/
+  audit SHA-256, kill-switch pre-existence, logs in the backup directory.
+- **Backups**: installed broker sources/scripts, broker config, clients registry,
+  state, audit. No External Auth source and no secrets are copied.
+- **Ordering**: engage kill switch → stop broker → stop credential timer/service
+  → install broker code → start broker → wait for health and credential.sock →
+  release kill switch (only if it did not pre-exist) → start credential timer and
+  service → verify.
+- **External Auth**: not patched, rebuilt or restarted. The broker atomic-fee
+  fix is sufficient; the vendor patch remains upstream-only and does not cause a
+  wallet relock during this deployment.
+- **Verification**: EA `GET /health`, broker `GET /v1/health`, admin socket
+  `status`, clients registry schema/key, credential socket, timer and kill-switch
+  state. No private Ed25519 verification key is required on the signing VPS.
 - **Rollback**: automatic on error and explicit via `--rollback`; restores
   sources/config/state, rebuilds, restarts services and leaves the kill switch
   engaged.
@@ -324,7 +328,7 @@ not created and no key is issued in this task.
 
 ## 11. Remaining blockers and next step
 
-1. Operator runs `--check`, then `--yes` on the signing VPS.
+1. Operator runs the single `--yes` command on the signing VPS from `/home/iffiolen/qms-broker-deploy`; `--check` is optional preview only.
 2. Operator submits **one** new test publication with a new identifier.
 3. Read `GET /v1/publications/{id}`; the record now shows
    `diagnostic.httpStatus` and `errorCode`.
