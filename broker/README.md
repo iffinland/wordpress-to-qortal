@@ -220,10 +220,18 @@ The mock backend is only allowed by the entrypoint with
 
 For the External Auth publishing failure analysis, the fee/atomic-unit fix,
 redacted Core signing diagnostics, the Core API key requirement for
-`POST /arbitrary/.../base64`, the one operator deployment script
-(`broker/scripts/deploy-phase5.2-core-rejection-fix.sh`), the post-restart
-wallet unlock helper and the restricted SSH maintenance design, see
+`POST /arbitrary/.../base64`, the final operator deployment script
+(`broker/scripts/deploy-phase5.2-core-rejection-fix.sh`), the config-resolved
+token path, the pre-broker session provisioner, the conditional wallet unlock
+step and the restricted SSH maintenance design, see
 `docs/migration-studio/PHASE-5.2-EXTERNAL-AUTH-FAILURE-ANALYSIS.md`.
+
+The final deployment does not patch or rebuild External Auth. It reads
+`signing.externalAuth.tokenFile` from the installed broker config, provisions a
+replacement External Auth session before starting the broker, and lets the
+normal credential supervisor renew it through `credential.sock` afterwards. If
+the Core API key is already configured and loaded, External Auth is not
+restarted and no wallet unlock is required.
 
 See `docs/migration-studio/PHASE-5.2-TEST-PUBLISHING-BROKER.md` for the threat
 model, isolation boundaries, External Auth audit and the exact operator

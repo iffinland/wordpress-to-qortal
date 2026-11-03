@@ -290,11 +290,11 @@ chmod 0700 /var/lib/qms-qdn-test-broker
 chown qms-broker:qms-broker \
   /var/lib/qms-qdn-test-broker/state.json \
   /var/lib/qms-qdn-test-broker/audit.jsonl \
-  /etc/qms-qdn-test-broker/external-auth-token
+  /var/lib/qms-qdn-test-broker/external-auth-token
 chmod 0600 \
   /var/lib/qms-qdn-test-broker/state.json \
   /var/lib/qms-qdn-test-broker/audit.jsonl \
-  /etc/qms-qdn-test-broker/external-auth-token
+  /var/lib/qms-qdn-test-broker/external-auth-token
 stat -c '%U:%G %a %n' \
   /etc/qms-qdn-test-broker \
   /etc/qms-qdn-test-broker/clients.json \

@@ -285,9 +285,11 @@ sends `X-API-KEY` when it is set. External Auth also collapsed Core's
 structured 401 into generic free text, which the broker could only report as
 `CORE_REQUEST_REJECTED`.
 
-The complete analysis, sanitized diagnostic contract, regenerated External Auth
-patches, tests, the idempotent operator script
-(`deploy-phase5.2-core-rejection-fix.sh`) and the post-restart wallet unlock
-step are in
+The complete analysis, sanitized diagnostic contract, tests, the final
+idempotent operator script (`deploy-phase5.2-core-rejection-fix.sh`), the
+config-resolved token path, the pre-broker session provisioner and the
+conditional wallet unlock step are in
 [`PHASE-5.2-EXTERNAL-AUTH-FAILURE-ANALYSIS.md`](PHASE-5.2-EXTERNAL-AUTH-FAILURE-ANALYSIS.md).
-Do not publish again until the operator applies that fix and unlocks the wallet.
+The final correction does not patch or rebuild External Auth. Do not publish
+again until the operator applies that fix and, only if the script restarted
+External Auth, unlocks the wallet.

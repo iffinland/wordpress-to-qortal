@@ -107,7 +107,7 @@ export function defaultConfig() {
       externalAuth: {
         baseUrl: 'http://127.0.0.1:3191',
         walletId: '',
-        tokenFile: '/etc/qms-qdn-test-broker/external-auth-token',
+        tokenFile: '/var/lib/qms-qdn-test-broker/external-auth-token',
         timeoutMs: 60000,
         expectedAddress: EXPECTED_TEST_OWNER,
         credentialSocket: {

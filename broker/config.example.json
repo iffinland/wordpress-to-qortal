@@ -45,7 +45,7 @@
     "externalAuth": {
       "baseUrl": "http://127.0.0.1:3191",
       "walletId": "REPLACE_WITH_EXTERNAL_AUTH_WALLET_ID",
-      "tokenFile": "/etc/qms-qdn-test-broker/external-auth-token",
+      "tokenFile": "/var/lib/qms-qdn-test-broker/external-auth-token",
       "timeoutMs": 60000,
       "expectedAddress": "QipPqwJeLtx89dXcSkY7vimMUNT8Gy5k2E",
       "credentialSocket": {

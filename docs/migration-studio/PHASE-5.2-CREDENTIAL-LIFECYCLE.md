@@ -105,7 +105,7 @@ Trust rules:
 - The broker's credential socket calls `ExternalAuthCredentialStore.accept`:
   validates token shape and expiry bounds, calls `GET /settings` with the new
   bearer token, writes the token atomically to
-  `/etc/qms-qdn-test-broker/external-auth-token` with mode 0600, then swaps the
+  `/var/lib/qms-qdn-test-broker/external-auth-token` with mode 0600, then swaps the
   in-memory token.
 - On success it records a non-secret state file and the broker appends
   `credential_renewed` with a SHA-256 fingerprint and expiry.
@@ -118,7 +118,7 @@ Trust rules:
 | Path | Owner:group | Mode | Purpose |
 | --- | --- | --- | --- |
 | `/etc/qms-qdn-test-broker` | `root:qms-broker` | 0750 | broker config, client public keys |
-| `/etc/qms-qdn-test-broker/external-auth-token` | `qms-broker:qms-broker` | 0600 | broker's durable last-known-good token |
+| `/var/lib/qms-qdn-test-broker/external-auth-token` | `qms-broker:qms-broker` | 0600 | broker's durable last-known-good token |
 | `/etc/qms-qdn-auth-credential` | `root:qms-auth-supervisor` | 0700 | supervisor config and app secret |
 | `/etc/qms-qdn-auth-credential/app.json` | `qms-auth-supervisor:qms-auth-supervisor` | 0600 | appId + appSecret |
 | `/etc/qms-qdn-auth-credential/supervisor.json` | `qms-auth-supervisor:qms-auth-supervisor` | 0600 | loopback URL, socket/state paths |
@@ -258,19 +258,25 @@ install -m 0640 -o root -g qms-broker broker/config.example.json \
 # Replace walletId and keep the fixed name/owner/policy.
 ```
 
-Ensure `/etc/qms-qdn-test-broker/external-auth-token` exists, is owned by
+Ensure `/var/lib/qms-qdn-test-broker/external-auth-token` exists, is owned by
 `qms-broker`, mode 0600, and contains the current valid token before the first
 broker start:
 
 ```bash
-chown qms-broker:qms-broker /etc/qms-qdn-test-broker/external-auth-token
-chmod 0600 /etc/qms-qdn-test-broker/external-auth-token
+chown qms-broker:qms-broker /var/lib/qms-qdn-test-broker/external-auth-token
+chmod 0600 /var/lib/qms-qdn-test-broker/external-auth-token
 chown root:qms-broker /etc/qms-qdn-test-broker
 chmod 0750 /etc/qms-qdn-test-broker
 ```
 
 The supervisor cannot bootstrap the very first token because the broker must
-already be listening on the credential socket.
+already be listening on the credential socket. The final deployment script
+therefore runs `broker/scripts/provision-external-auth-token.js` as the
+supervisor user after External Auth is healthy and before the broker starts. It
+creates one session from the existing supervisor config/app credentials, writes
+the token to a private staging file, and the deployment installs it at the
+config-resolved `signing.externalAuth.tokenFile` path as `qms-broker` 0600. The
+normal supervisor then renews through the socket after startup.
 
 ### 7.5 Start and verify
 
@@ -317,8 +323,8 @@ grant file to delete; the v2→v3 migration drops `accessGrants` from state.
 Before restarting, keep the existing token ownership valid:
 
 ```bash
-chown qms-broker:qms-broker /etc/qms-qdn-test-broker/external-auth-token
-chmod 0600 /etc/qms-qdn-test-broker/external-auth-token
+chown qms-broker:qms-broker /var/lib/qms-qdn-test-broker/external-auth-token
+chmod 0600 /var/lib/qms-qdn-test-broker/external-auth-token
 chown root:qms-broker /etc/qms-qdn-test-broker
 chmod 0750 /etc/qms-qdn-test-broker
 ```

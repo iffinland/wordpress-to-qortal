@@ -241,7 +241,7 @@ with dedicated unprivileged users), separate from the OpenClaw host.
 - Broker data: `/var/lib/qms-qdn-test-broker` (state + audit), owner
   `qms-broker`, mode 0700.
 - Secrets: External Auth bearer token in
-  `/etc/qms-qdn-test-broker/external-auth-token`, owner `qms-broker`, mode
+  `/var/lib/qms-qdn-test-broker/external-auth-token`, owner `qms-broker`, mode
   0600. Client public keys in `clients.json`; the agent private key never
   leaves the agent host.
 - Network:

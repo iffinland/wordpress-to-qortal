@@ -1,17 +1,19 @@
 # Phase 5.2 — External Auth publishing failure analysis and fix
 
 Status: fee fix deployed; the remaining HTTP 400 is traced to the next Core
-gate (API key enforcement) and the diagnostic contract is fixed. Operator
-deployment is pending.
-No QDN transaction was submitted during this work.
+gate (API key enforcement) and the diagnostic contract is fixed. The final
+deployment correction is ready for operator execution. No live QDN transaction
+or signing-VPS change was performed during development.
 
 > **Update 2026-11-03 (later):** the atomic-fee broker fix is deployed and the
 > broker now sends `fee=1000000`. The publish still returns HTTP 400
 > (`pub_bb1a16b4915a4ee8df9ef917`, identifier `qms-dev-final-001`,
-> `CORE_REQUEST_REJECTED`). Section 12 identifies the next gate, records the
-> confirmed diagnostic-contract defect and describes the corrected deployment.
-> The previously stored fee patch was **corrupt and never applicable**; both
-> patches were regenerated and verified from the pinned commit.
+> `CORE_REQUEST_REJECTED`). Section 12 identifies the next gate and records the
+> confirmed diagnostic-contract defect. Section 8 describes the final deployment
+> correction: no External Auth patch or rebuild, a config-resolved token path,
+> and a replacement session provisioned before the broker starts. The previously
+> stored fee patch was **corrupt and never applicable**; both patches were
+> regenerated and verified from the pinned commit before the fee fix was deployed.
 
 ## 1. Scope and pinned sources
 
@@ -315,10 +317,17 @@ Guarantees:
   private key marker and a cookie; none appears in the outcome, record or audit
   JSONL.
 
-## 8. One operator deployment procedure
+## 8. One operator deployment procedure (final correction)
 
 Script: `broker/scripts/deploy-phase5.2-core-rejection-fix.sh`.
 Wallet helper: `broker/scripts/operator-unlock-external-auth.sh`.
+Pre-broker provisioner: `broker/scripts/provision-external-auth-token.js`.
+
+The atomic-fee broker fix and the External Auth diagnostics are already
+deployed. The final deployment therefore does not patch or rebuild External
+Auth. It only installs the corrected broker code, verifies and configures the
+Core API key, provisions a valid External Auth session before the broker starts,
+and renews it through the normal credential supervisor after startup.
 
 ```bash
 # 0) Read-only preview (no changes):
@@ -330,12 +339,9 @@ sudo ./broker/scripts/deploy-phase5.2-core-rejection-fix.sh --check
 sudo ./broker/scripts/deploy-phase5.2-core-rejection-fix.sh --yes \
   --core-api-key-file /qortal/apikey.txt
 
-# 2) Operator-only wallet unlock after the External Auth restart
-#    (password is prompted, never logged):
+# Only when the script says External Auth was restarted (one action):
 sudo /opt/qms-qdn-test-broker/broker/scripts/operator-unlock-external-auth.sh \
   --wallet-id <EXTERNAL_AUTH_WALLET_ID>
-
-# 3) One new publication with a NEW identifier, then read the diagnostic.
 
 # Only on failure or explicit rollback:
 sudo ./broker/scripts/deploy-phase5.2-core-rejection-fix.sh \
@@ -344,54 +350,44 @@ sudo ./broker/scripts/deploy-phase5.2-core-rejection-fix.sh \
 
 Properties:
 
-- **Idempotent**: patch state is detected by source markers; applied patches are
-  skipped, fresh ones are applied with `git apply`, conflicts abort before any
-  service is touched. Broker files are copied only; config/clients/state/audit
-  are preserved. Re-running is safe.
-- **Preflight**: layout paths, unit existence, users, config/clients/state
-  permissions, no wildcard bind on 3199/8443, ≥2 GiB free, mirror checks for both
-  patches, and Core API key presence. Conflicts and an inconsistent patch order
-  fail closed.
+- **Token path**: resolved at runtime from the installed broker config
+  `signing.externalAuth.tokenFile`; the current installation uses
+  `/var/lib/qms-qdn-test-broker/external-auth-token`. The old `/etc/...` path is
+  never assumed. The resolved path is used for backup metadata, provisioning,
+  verification and rollback.
+- **Pre-broker session**: after the conditional External Auth restart and
+  health check, the provisioner uses the existing supervisor config and 0600
+  app credentials to call `POST /sessions` and read-only `GET /settings`, then
+  writes the token to a private staging file. The script installs it at the
+  configured path as `qms-broker:qms-broker`, mode 0600, before starting the
+  broker. The credential socket is not used for this step because it does not
+  exist yet.
 - **Core API key**: resolved from `--core-api-key-file`, an existing
   `/etc/qortal-external-auth/node-api-key.env`, or an existing unit
   `Environment=`. It is validated with read-only `GET /admin/apikey/test`
-  before anything is restarted (the key is passed to Node through the
-  environment, never on a command line). It is written to a 0600 root-owned
-  EnvironmentFile; a systemd drop-in adds `EnvironmentFile=-` to the External
-  Auth unit. Source, state and token values are never printed.
-- **Backups**: installed broker sources/scripts, broker config, clients registry,
-  state, audit, External Auth `dist`, External Auth unit/drop-ins, and the
-  existing key EnvironmentFile (0600). No wallet store, seed, private key or
-  broker token value is copied.
-- **Ordering**: capture/backup → engage kill switch → stop broker → stop
-  credential timer/service → configure Core API key → apply External Auth
-  patches → build External Auth → install `dist` → install broker code →
-  `systemctl restart qortal-external-auth` → wait for EA health and verify the
-  key is in the process environment → start broker → wait for health and
-  `credential.sock` → release kill switch (only if it did not pre-exist) →
-  start credential timer + one-shot service (new session/token) → verify.
-- **Wallet relock**: an External Auth restart discards in-memory sessions and
-  the unlocked wallet cache. The script deliberately does not unlock anything;
-  it prints the exact helper command. Publishing before the unlock returns
-  `SIGNING_REJECTED`/`WALLET_LOCKED`, not a silent retry.
-- **Credential renewal**: sessions are in-memory in External Auth 0.2.0, so the
-  broker token is invalid after the restart. The one-shot
-  `qms-auth-credential.service` runs after the broker is listening and writes a
-  fresh token through `credential.sock`. The script fails if the token file is
-  empty afterwards.
-- **Verification**: EA `GET /health`, API key loaded in
-  `/proc/<pid>/environ` (name check only), broker `GET /v1/health`, admin
-  `status` ok, a non-empty renewed token file, clients registry schema/key,
-  `credential.sock`, timer state, token file presence, and diagnostics markers
-  in both installed trees. No private Ed25519 verification key is needed.
-- **Rollback**: automatic on error and explicit via `--rollback`; restores
-  broker sources/config/state/audit, External Auth `dist`, unit/drop-ins and
-  the previous key file, restarts External Auth and the broker, renews the
-  token, and leaves the kill switch engaged. The operator must unlock again.
-- No port is opened, `tailscale serve`/`ufw`/Caddy are not touched, no wallet
-  is modified and no secret is printed.
-
-The script was not executed and the signing VPS was not accessed.
+  before any change. If the EnvironmentFile, drop-in and running process
+  already carry the key, External Auth is not restarted and no unlock is
+  required. Otherwise the key is written to a 0600 root-owned EnvironmentFile,
+  a systemd drop-in adds `EnvironmentFile=-`, and External Auth is restarted
+  once. Values are never printed.
+- **Ordering**: preflight -> validate key -> backup -> engage kill switch -> stop
+  broker -> stop credential timer/service -> install broker code -> configure key
+  (conditional restart) -> wait for External Auth health -> provision replacement
+  session -> start broker -> wait for health and credential socket -> release kill
+  switch (only if it did not pre-exist) -> start credential timer/service ->
+  force one post-start supervisor renewal through the socket -> verify.
+- **Wallet relock**: only an External Auth restart invalidates sessions and
+  relocks the wallet. The script never unlocks anything; it prints exactly one
+  helper command when a restart occurred, and states that no unlock is required
+  otherwise.
+- **Rollback**: restores the previous broker tree, config, clients, state,
+  audit, External Auth drop-in and key EnvironmentFile; restarts External Auth;
+  provisions a fresh token before starting the broker; leaves the kill switch
+  engaged. It prints one unlock action.
+- **Preserved**: app credentials, wallet identity, broker config/clients/state,
+  budgets, revocations, audit, Tailscale, Caddy, UFW and Qortal names.
+- No patch application, `npm ci`, External Auth rebuild, private Ed25519 key,
+  wallet password, token value or live QDN transaction is used.
 
 ## 9. Restricted SSH maintenance design (design only, not applied)
 
@@ -451,51 +447,48 @@ not created and no key is issued in this task.
 
 ## 10. Verification performed
 
-Local, no signing-VPS access:
+Final correction (2026-11-03), local, no signing-VPS access:
 
-- `npm run test:phase5.2`: **111 tests, 111 pass, 0 fail**.
-- `npm test` (full repository): **282 tests, 282 pass, 0 fail**.
-- External Auth `npm run build` (auth-core + auth-daemon `tsc`): OK.
-- External Auth focused diagnostics suite: **5 tests, 5 pass, 0 fail**.
-- External Auth full daemon suite: **141 tests, 139 pass, 2 fail**, both
-  `daemon startup timeout` in integration tests while the repository suite ran
-  concurrently. Re-run alone: **3 tests, 3 pass, 0 fail**. The failures are
-  timing/resource contention in the upstream harness, not assertion failures
-  and not in the patched publish path.
-- Both patches applied sequentially to a clean worktree at the pinned commit
-  `7e5d498`: `P1_OK`, `P2_OK`.
-- Deployment layout/ordering suite: **3 tests, 3 pass, 0 fail**, including the
-  realistic preflight fixture and the patch-completeness check that catches the
-  previously truncated fee patch.
-- `bash -n` for both operator scripts: OK; every broker `.js` passed
-  `node --check` in the deployment test.
-- Mock-Core chain test asserts the exact
-  `/arbitrary/DOCUMENT/developer%20iffi/qms-dev-final-002/base64?fee=1000000`
-  request, identifier forwarding, base64 body, and the mapping of Core 401 JSON
-  to `CORE_API_KEY_MISSING`; the same test proves a configured key reaches the
-  signed path.
-- Redaction tests inject a 64-character token and an 88-character
-  signature-sized value plus a Bearer token, seed phrase, private key marker and
-  cookie; none reaches the outcome, record or audit JSONL.
-- The viewer and desktop packages were not modified, so their suites were not
-  re-run for this broker/External Auth change.
+- `npm run test:phase5.2`: **114 tests, 114 pass, 0 fail**.
+- `npm test` (full repository): **286 tests, 286 pass, 0 fail**.
+- Deployment suite `test/phase5.2/deploy-script-layout.test.js`: **6 tests,
+  6 pass, 0 fail**. It covers:
+  - a non-default token path read from the installed broker config;
+  - replacement session provisioned before the broker starts;
+  - conditional External Auth restart and exactly one unlock action;
+  - an already-configured key with no restart and no unlock;
+  - provisioning failure rolls back and never starts the broker;
+  - explicit rollback restores the previous tree but provisions a fresh token
+    first;
+  - no private Ed25519 key is required.
+- `bash -n` for the deployment and unlock scripts; `node --check` for the
+  provisioner and every broker `.js`.
+- The final correction does not patch or rebuild External Auth; the earlier
+  patch/build verification remains historical context only.
+
+Earlier patch-era verification (before the final correction): both patches
+applied to the pinned External Auth commit; the External Auth focused
+diagnostics suite passed; two upstream integration tests timed out only while
+the repository suite ran concurrently and passed alone. These results no longer
+describe the final deployment.
 
 ## 11. Remaining blockers and next step
 
 1. Operator runs `--check`, then
    `--yes --core-api-key-file /path/to/apikey.txt` from
-   `/home/iffiolen/qms-broker-deploy`. This patches, rebuilds and restarts
-   External Auth, installs the Core API key, installs the broker, and renews
-   the credential.
-2. Operator runs `operator-unlock-external-auth.sh --wallet-id <id>` once,
-   because the External Auth restart relocked the wallet.
+   `/home/iffiolen/qms-broker-deploy`. The script installs the broker code,
+   configures the Core API key, provisions the replacement session before the
+   broker starts, and renews it through the normal supervisor.
+2. If and only if the output says External Auth was restarted, the operator
+   runs exactly one `operator-unlock-external-auth.sh --wallet-id <id>`
+   command, because the restart relocked the wallet.
 3. Operator submits **one** new test publication with a new identifier (not
    `qms-dev-final-001`).
 4. Read `GET /v1/publications/{id}`; the record now shows
    `diagnostic.httpStatus`, `errorCode`, `stage`, `coreStatus` and
    `coreMessage`.
-5. Apply the decision tree in §12.4. Do not resubmit an ambiguous outcome and
-   do not retry the failed identifier.
+5. Apply the decision tree in section 12.4. Do not resubmit an ambiguous
+   outcome and do not retry the failed identifier.
 
 No QDN transaction, wallet operation, token exposure, External Auth admin
 action or signing-VPS change was performed during development.
@@ -594,3 +587,18 @@ every Core JSON rejection became `CORE_REQUEST_REJECTED` — including
 
 No live publication, wallet operation, token read or signing-VPS change was
 performed while producing this update.
+
+## 13. Final deployment correction verification (2026-11-03)
+
+- `node --test test/phase5.2/deploy-script-layout.test.js`: 6 tests, 6 pass.
+- Fixture coverage: non-default token path read from the installed config;
+  replacement session provisioned before broker start; conditional External
+  Auth restart and exactly one unlock action; already-configured key with no
+  restart and no unlock; provisioning failure rolls back and never starts the
+  broker; explicit rollback restores the previous tree but provisions a fresh
+  token first; no private Ed25519 key is required.
+- The deployment script resolves the token path from
+  `signing.externalAuth.tokenFile` and never falls back to the old
+  `/etc/qms-qdn-test-broker/external-auth-token` assumption.
+- No signing-VPS access, live QDN transaction, wallet import/unlock, UFW,
+  Tailscale or Caddy change was performed.
