@@ -6,7 +6,7 @@
 | Product working name | Qortal Migration Studio |
 | Executing agent | DeepSeek (`opencode-development` profile) |
 | Date | 2026-11-02 |
-| Status | Phase 0 complete; Phases 1–3 implemented on dedicated agent branches; Phases 4–10 not started |
+| Status | Phase 0–4 implemented on dedicated agent branches (Phase 4 desktop prototype); Phases 5–10 not started |
 | Companion documents | [Audit](PHASE-0-ARCHITECTURE-AUDIT.md), [Requirements](PRODUCT-REQUIREMENTS.md), [Architecture](ARCHITECTURE.md) |
 
 ## 1. How to use this roadmap
@@ -224,6 +224,12 @@ operator workflows.
 
 ## 7. Phase 4 — Desktop shell and Linux packaging prototype (P0)
 
+**Status: implemented as a prototype (2026-11-03).** See
+[PHASE-4-DESKTOP-GUI.md](PHASE-4-DESKTOP-GUI.md). The engine, secure Electron
+shell, wizard, plan review, progress, history/diagnostics and `.deb` build are
+implemented and tested with fixtures. Full `dpkg -i` installation in a graphical
+VM and keyring persistence remain unverified.
+
 **Outcome:** a usable guided desktop app on Debian-based Linux, without requiring
 Node/npm/Git, with a first-run project flow.
 
@@ -240,7 +246,9 @@ Node/npm/Git, with a first-run project flow.
 ### Acceptance criteria
 
 1. **AC4.1** A clean Debian/Ubuntu VM with no Node.js/npm/Git installs the
-   `.deb` and launches from the desktop menu.
+   `.deb` and launches from the desktop menu. **Partially verified:** the package
+   was extracted with `dpkg-deb -x` and launched headlessly with no Node/npm/Git
+   in PATH; a full graphical `dpkg -i` install remains unverified.
 2. **AC4.2** First-run wizard reaches a validated project and a 15-post dry plan
    without a terminal.
 3. **AC4.3** The UI stays responsive during scan/download; progress and errors
@@ -249,9 +257,13 @@ Node/npm/Git, with a first-run project flow.
 5. **AC4.5** Renderer has no direct Node/filesystem/network access; preload API
    is allowlisted and validated.
 6. **AC4.6** Secrets are stored in the OS keyring; logs/diagnostics redact them.
+   **Partially verified:** diagnostics redaction and session-only fallback are
+   tested; a real desktop keyring session was not available.
 7. **AC4.7** Uninstall preserves user projects unless explicitly removed.
 8. **AC4.8** The `.deb` includes engine version metadata and a support bundle
-   command.
+   command. **Partially verified:** engine/desktop versions are exposed and
+   metadata-only diagnostics export exists; there is no separate CLI support
+   bundle command.
 
 ## 8. Phase 5 — Hub-mediated publication and verification (P0)
 

@@ -44,7 +44,11 @@
     "package:cms-qapp": "node scripts/createCmsQappZip.js --profile=corbettreport",
     "package:tester-bundle": "node scripts/createTesterBundle.js",
     "package:release": "npm run package:zip && npm run package:migration-qapp && npm run package:cms-qapp",
-    "test:phase3": "node --test test/phase3/*.test.js"
+    "test:phase3": "node --test test/phase3/*.test.js",
+    "test:phase4": "node --test test/phase4/*.test.js",
+    "test:desktop": "npm --prefix desktop test",
+    "desktop:build": "npm --prefix desktop run build",
+    "desktop:deb": "npm --prefix desktop run dist:deb"
   },
   "engines": {
     "node": ">=20.0.0"

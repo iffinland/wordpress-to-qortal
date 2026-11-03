@@ -27,12 +27,15 @@ test('the default plan selects exactly 15 items and subsequent plans do not dupl
   const second = await env.handle.planning.create({ estimateMedia: false });
   assert.equal(second.status, 'completed');
   assert.equal(second.stats.selected, 5);
-  assert.equal(second.stats.unchanged, 15);
+  // Reserved locally is not unchanged: nothing was published.
+  assert.equal(second.stats.reserved, 15);
+  assert.equal(second.stats.unchanged, 0);
 
   const third = await env.handle.planning.create({ estimateMedia: false });
   assert.equal(third.status, 'completed');
   assert.equal(third.stats.selected, 0);
-  assert.equal(third.stats.unchanged, 20);
+  assert.equal(third.stats.reserved, 20);
+  assert.equal(third.stats.unchanged, 0);
 });
 
 test('batch size is configurable, deterministic and invalid values are rejected', async (t) => {

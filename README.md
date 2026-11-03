@@ -43,6 +43,7 @@ This records the existing QDN catalog locally. New batches then merge with it in
 - `docs/migration-studio/PHASE-1-ENGINE.md` - Qortal Migration Studio engine, storage, events, and CLI (Phase 1).
 - `docs/migration-studio/PHASE-2-WORDPRESS-ADAPTER.md` - source adapters, the WordPress adapter, `qms-content@1`, discovery artifacts, and Corbett compatibility (Phase 2).
 - `docs/migration-studio/PHASE-3-PLANNING-MEDIA-IDENTITY.md` - universal site identity, QDN namespaces, batch planning, disk protection, media downloads/dedupe and conflict handling (Phase 3).
+- `docs/migration-studio/PHASE-4-DESKTOP-GUI.md` - Linux desktop app, setup wizard, secure IPC, reserved-vs-published lifecycle correction, Debian packaging and verification (Phase 4).
 
 ## Where files go
 
@@ -153,3 +154,65 @@ Discovery artifacts live under
 batches are referenced by `latest.json`. See
 `docs/migration-studio/PHASE-2-WORDPRESS-ADAPTER.md` for the contract, schema,
 identity/hash rules, Corbett golden evidence, and limitations.
+
+
+## Qortal Migration Studio desktop app (Phase 4)
+
+The universal desktop prototype lives in `desktop/`. It is an independent
+package (`qortal-migration-studio`) and does not rename or replace the legacy
+toolkit. It connects to the real Phase 1–3 engine over a local stdio JSON-RPC
+host, so domain logic stays in the engine and the React renderer has no Node or
+filesystem access.
+
+~~~bash
+cd desktop
+npm install
+npm run build
+npm run test          # 24 desktop tests
+npm run smoke         # needs a display; use Xvfb/CI display where available
+npm run prepare:engine
+npx electron-builder --linux deb
+~~~
+
+The installable artifact is written to
+`desktop/release/qortal-migration-studio-0.4.0-amd64.deb` (not committed). It
+bundles Electron, the engine and the engine's runtime dependencies; the target
+machine does not need Node.js, npm or Git. Project data lives in
+`$XDG_DATA_HOME/qortal-migration-studio` (or `~/.local/share/...`), outside the
+installation directory, and survives an ordinary uninstall.
+
+Screens:
+
+1. **Project dashboard** — create/open, source and destination, last activity,
+   active/interrupted operations, reserved work, safe archive, history.
+2. **Setup wizard** — source adapter capabilities, WordPress connection and
+   validation, Qortal name/title/description with read-only generated identity,
+   import/disk/media preferences, plan review from `qms-plan@1`.
+3. **Preparation/progress** — structured engine events, persisted progress,
+   cancellation, checkpoint/resume (pause is not advertised).
+4. **History/diagnostics** — mapping publication states, plans, runs, media,
+   disk, conflict resolution and metadata-only diagnostic export.
+
+### Reserved is not published
+
+Phase 4 corrects a Phase 3 lifecycle issue: a reserved QDN mapping is no longer
+classified as `unchanged` on repeated planning. Repeated plans count reserved
+items separately, keep their identifiers stable and keep them recoverable with
+`--include-reserved` (or the wizard's recovery toggle). Work becomes
+`remote_verified`/`published` only after future Phase 5 read-back; identical
+hashes or local files never imply publication.
+
+### Security boundary
+
+- Electron: `contextIsolation: true`, `nodeIntegration: false`, sandboxed
+  renderer, no webviews, controlled navigation and a fixed preload API.
+- Every IPC request is validated against a strict allowlist in the main process;
+  unknown channels and malformed payloads are rejected.
+- WordPress credentials are memory-only unless the user opts into libsecret
+  storage and a keyring is available; there is no plaintext fallback.
+- Wallet seeds, private keys and wallet passwords are never requested.
+- Diagnostics exclude credentials, auth headers, cookies, wallet material and
+  content bodies.
+
+See `docs/migration-studio/PHASE-4-DESKTOP-GUI.md` for the architecture,
+package layout, verification evidence, limitations and MX Linux validation plan.

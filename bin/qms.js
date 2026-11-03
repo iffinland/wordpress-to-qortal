@@ -37,7 +37,7 @@ Usage:
   qms plan create <projectId> [--batch-size <n>] [--after <iso>] [--before <iso>]
                   [--modified-after <iso>] [--modified-before <iso>]
                   [--content-types post,page] [--statuses publish] [--search <text>]
-                  [--no-media-estimates] [--allow-external] [--json]
+                  [--include-reserved] [--no-media-estimates] [--allow-external] [--json]
   qms plan list <projectId> [--json]
   qms plan get <projectId> <planId> [--json]
   qms media download <projectId> --plan <planId> [--concurrency <n>]
@@ -196,7 +196,8 @@ function formatPlanSummary(result) {
     'plan ' + result.planId + ': ' + result.status,
     'batch: ' + result.plan.batchId,
     'selected: ' + result.stats.selected + ' of ' + result.stats.scanned + ' scanned',
-    'classification: new ' + result.stats.new + ', modified ' + result.stats.modified + ', unchanged ' + result.stats.unchanged + ', route_changed ' + result.stats.route_changed + ', conflict ' + result.stats.conflict,
+    'classification: new ' + result.stats.new + ', modified ' + result.stats.modified + ', unchanged ' + result.stats.unchanged + ', reserved ' + (result.stats.reserved ?? 0) + ', route_changed ' + result.stats.route_changed + ', conflict ' + result.stats.conflict,
+    'pending publication: ' + (result.plan.pendingPublication?.count ?? 0) + ' reserved/prepared (never published)',
     'media: ' + result.media.count + ' files, ' + result.media.knownBytes + ' known bytes, ' + result.media.unknownCount + ' unknown, ' + result.media.missingCount + ' missing, ' + result.media.skippedExternal + ' external',
     'estimated fee: ' + (result.estimates?.estimatedFee ?? 0) + ' ' + (result.estimates?.feeCurrency ?? 'QORT') + ' for ' + (result.estimates?.totalResources ?? 0) + ' resources (estimate only)',
     'disk: ' + (result.disk.fits ? 'fits' : 'BLOCKED') + ' (free ' + result.disk.availableBytes + ', projected ' + result.disk.projectedBytes + ', reserve ' + result.disk.reserveBytes + ')',
@@ -380,7 +381,10 @@ async function main() {
               ? { includeRouteChanges: parseBooleanFlag(flags['include-route-changes']) }
               : {}),
             ...(flags['max-scan-items'] !== undefined ? { maxScanItems: Number(flags['max-scan-items']) } : {}),
-            ...(flags['fee-per-resource'] !== undefined ? { feePerResource: Number(flags['fee-per-resource']) } : {})
+            ...(flags['fee-per-resource'] !== undefined ? { feePerResource: Number(flags['fee-per-resource']) } : {}),
+            ...(flags['include-reserved'] !== undefined
+              ? { includeReserved: parseBooleanFlag(flags['include-reserved']) }
+              : {})
           },
           disk: overrides.disk,
           media: overrides.media,

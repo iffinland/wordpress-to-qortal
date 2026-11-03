@@ -102,7 +102,15 @@ Q-App frame. The publisher is therefore a separate surface, not a desktop API.
 
 ## 3. Component architecture
 
-### 3.1 Desktop shell (proposed: Electron)
+### 3.1 Desktop shell (Phase 4 prototype: Electron)
+
+> **Phase 4 implementation note (2026-11-03):** the shell is implemented in
+> `desktop/` as Electron + React + TypeScript. The renderer is sandboxed with
+> context isolation and no Node integration; a narrow preload API validates every
+> request in the main process. The engine runs as a stdio JSON-RPC child using
+> Electron's bundled Node runtime, so the installed app needs no external Node.
+> A Debian package, desktop entry and icons are produced with electron-builder.
+> See [PHASE-4-DESKTOP-GUI.md](PHASE-4-DESKTOP-GUI.md).
 
 Responsibilities:
 

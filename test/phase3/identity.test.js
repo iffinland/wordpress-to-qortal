@@ -169,7 +169,8 @@ test('a target change requires an explicit migration and preserves identifiers f
   const secondPlan = await env.handle.planning.create({ batchSize: 2, estimateMedia: false });
   assert.equal(secondPlan.status, 'completed');
   assert.equal(secondPlan.stats.selected, 0);
-  assert.equal(secondPlan.stats.unchanged, 2);
+  assert.equal(secondPlan.stats.reserved, 2);
+  assert.equal(secondPlan.stats.unchanged, 0);
 
   const prefixPreview = await env.handle.identity.migrationPreview({ target: { resourcePrefix: 'syn' } });
   const prefixApplied = await env.handle.identity.applyMigration({ token: prefixPreview.token });

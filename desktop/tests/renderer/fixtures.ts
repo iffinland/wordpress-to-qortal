@@ -1,0 +1,190 @@
+import { vi } from 'vitest';
+import type { AdapterInfo, DesktopSettings, PlanDocument, ProjectDocument, QmsApi } from '../../src/shared/types.js';
+
+export const siteId = 'site_0123456789abcdef0123456789abcdef';
+export const namespace = 'nsabcdefghijklmn';
+
+export function adapter(overrides: Partial<AdapterInfo> = {}): AdapterInfo {
+  return {
+    id: 'wordpress',
+    displayName: 'WordPress',
+    version: '1.0.0',
+    contract: 'qms-source-adapter@1',
+    contractVersion: 1,
+    capabilities: {
+      contentTypes: ['post', 'page'],
+      terms: ['category', 'tag'],
+      assets: { images: true, audio: true, video: true, documents: true, embeds: true },
+      states: ['publish', 'draft'],
+      incremental: { new: true, modified: true },
+      authentication: ['none', 'application_password'],
+      limits: {},
+      unsupported: { comments: 'reported-not-migrated' }
+    },
+    ...overrides
+  };
+}
+
+export function project(overrides: Partial<ProjectDocument> = {}): ProjectDocument {
+  return {
+    id: 'prj_abcdefgh',
+    name: 'Demo publication',
+    slug: 'demo-publication',
+    createdAt: '2026-11-01T10:00:00.000Z',
+    updatedAt: '2026-11-03T10:00:00.000Z',
+    archivedAt: null,
+    profileId: null,
+    resourcePrefix: 'qms',
+    siteId,
+    siteNamespace: namespace,
+    sourceAdapter: 'wordpress',
+    sourceBaseUrl: 'https://example.org',
+    targetQdnName: 'DemoQortalName',
+    siteName: 'Demo publication',
+    storageRoot: '/home/user/.local/share/qortal-migration-studio/projects/prj_abcdefgh',
+    schema: 'qms-project@1',
+    version: 1,
+    source: { adapter: 'wordpress', baseUrl: 'https://example.org' },
+    target: { qdnName: 'DemoQortalName', siteName: 'Demo publication', siteDescription: 'A demo' },
+    settings: {
+      desktopWizard: {
+        step: 5,
+        completedSteps: [1, 2, 3, 4],
+        adapterId: 'wordpress',
+        sourceUrl: 'https://example.org',
+        authMode: 'none',
+        connection: { status: 'completed', report: { ok: true, auth: { mode: 'none', authenticated: true } } },
+        targetQdnName: 'DemoQortalName',
+        siteTitle: 'Demo publication',
+        siteDescription: 'A demo',
+        preferences: { batchSize: 15, contentTypes: ['post'], reserveGib: 0, maxRunGib: 0, maxFileMib: 256, maxFiles: 500, unknownPolicy: 'reject', allowExternalMedia: false, concurrency: 4 },
+        planId: null,
+        updatedAt: '2026-11-03T10:00:00.000Z'
+      }
+    },
+    template: {},
+    identity: { siteId, namespace, createdAt: '2026-11-01T10:00:00.000Z' },
+    ...overrides
+  };
+}
+
+export function settings(overrides: Partial<DesktopSettings> = {}): DesktopSettings {
+  return {
+    dataRoot: '/home/user/.local/share/qortal-migration-studio',
+    configFile: '/home/user/.config/qortal-migration-studio/desktop-config.json',
+    keyring: { available: false, backend: 'session-memory', persistentCredentials: false },
+    appVersion: '0.4.0',
+    platform: 'linux',
+    arch: 'x64',
+    packaged: false,
+    ...overrides
+  };
+}
+
+export function plan(): PlanDocument {
+  return {
+    schema: 'qms-plan@1',
+    planId: 'plan_abcdefgh',
+    projectId: 'prj_abcdefgh',
+    siteId,
+    namespace,
+    target: { qdnName: 'DemoQortalName', resourcePrefix: 'qms' },
+    status: 'ready',
+    batchId: 'batch_test',
+    runId: 'run_abcdefgh',
+    filters: {},
+    config: {},
+    selection: { selected: 1, batchSize: 15 },
+    stats: { selected: 1, new: 1, modified: 0, unchanged: 0, route_changed: 0, reserved: 1, conflict: 0, unsupported: 0 },
+    entries: [{
+      id: 'item_1',
+      sourceKey: 'post:1',
+      contentType: 'post',
+      title: 'First post',
+      slug: 'first-post',
+      status: 'new',
+      contentHash: 'sha256:abc',
+      routeHash: 'sha256:def',
+      mediaCount: 0,
+      qdn: { service: 'DOCUMENT', name: 'DemoQortalName', identifier: 'qms-ns-conabc' },
+      publicationStatus: 'reserved',
+      localPreparation: 'reserved',
+      pendingPublication: true
+    }],
+    media: [],
+    mediaSummary: { count: 0, knownCount: 0, knownBytes: 0, unknownCount: 0, missingCount: 0 },
+    pendingPublication: { count: 1, prepared: 0, reserved: 1, entries: [], note: 'Reserved locally; never counted as published.' },
+    estimates: { contentResources: 1, mediaResources: 0, totalResources: 1, feePerResource: 0.01, estimatedFee: 0.01, feeCurrency: 'QORT', note: 'estimate only' },
+    disk: { availableBytes: 1000000000, reserveBytes: 0, projectedBytes: 1000, fits: true },
+    conflicts: [],
+    warnings: [],
+    errors: [],
+    createdAt: '2026-11-03T10:00:00.000Z'
+  };
+}
+
+export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
+  const base: QmsApi = {
+    app: {
+      info: vi.fn(async () => ({ apiVersion: 'qms-engine@1', version: '0.1.6-phase4', dataRoot: '/data', repoRoot: '/repo', sourceContract: 'qms-source-adapter@1', contentSchema: 'qms-content@1', planSchema: 'qms-plan@1', identitySchema: 'qms-identity-state@1', eventSchema: 'qms-event@1', adapters: [adapter()] })),
+      settings: vi.fn(async () => settings()),
+      setDataRoot: vi.fn(async () => settings()),
+      openPath: vi.fn(async () => ({ opened: true, path: '/tmp' }))
+    },
+    projects: {
+      list: vi.fn(async () => [project()]),
+      inspect: vi.fn(async () => ({
+        project: project() as never,
+        identity: { siteId, namespace, target: { qdnName: 'DemoQortalName' }, mappingCount: 1, pendingPublicationCount: 1, preparedCount: 0, publishedCount: 0, unresolvedConflicts: 0 },
+        runs: [],
+        plans: [],
+        lastActivity: '2026-11-03T10:00:00.000Z',
+        activeRuns: 0,
+        interruptedRuns: 0
+      })),
+      create: vi.fn(async () => project() as never),
+      open: vi.fn(async () => ({ project: project(), snapshot: {} })),
+      snapshot: vi.fn(async () => ({})),
+      archive: vi.fn(async () => ({ archived: true })),
+      update: vi.fn(async () => ({ project: project() })),
+      saveWizard: vi.fn(async () => ({ project: project() }))
+    },
+    sources: {
+      list: vi.fn(async () => [adapter()]),
+      capabilities: vi.fn(async () => adapter()),
+      validate: vi.fn(async () => ({ runId: 'run_test', status: 'completed', report: { ok: true, adapter: 'wordpress', adapterVersion: '1.0.0', auth: { mode: 'none', authenticated: true }, site: { name: 'Demo' }, counts: {}, contentTypes: ['post', 'page'], unsupported: {}, warnings: [] } })),
+      discover: vi.fn(async () => ({}))
+    },
+    identity: {
+      get: vi.fn(async () => ({ identity: {}, mappings: [], conflicts: [] })),
+      validateTarget: vi.fn(async () => ({ qdnName: 'DemoQortalName', resourcePrefix: 'qms' })),
+      migrationPreview: vi.fn(async () => ({})),
+      applyMigration: vi.fn(async () => ({})),
+      resolveConflict: vi.fn(async () => ({}))
+    },
+    plans: {
+      list: vi.fn(async () => []),
+      create: vi.fn(async () => ({ runId: 'run_test', status: 'completed', planId: 'plan_abcdefgh', plan: plan(), stats: plan().stats, media: plan().mediaSummary, disk: plan().disk })),
+      get: vi.fn(async () => ({ plan: plan(), record: { planId: 'plan_abcdefgh', status: 'ready', batchId: 'batch_test', selectedCount: 1, conflictCount: 0, createdAt: '2026-11-03T10:00:00.000Z' }, planFile: '/tmp/plan.json' }))
+    },
+    media: {
+      download: vi.fn(async () => ({ runId: 'run_test', status: 'completed', planId: 'plan_abcdefgh', counts: { verified: 0 } })),
+      inspect: vi.fn(async () => ({ assets: [], totals: { assets: 0, bytes: 0, itemRefs: 0, referencedAssets: 0 }, downloads: {}, receipts: [], parts: { count: 0, bytes: 0 } }))
+    },
+    disk: { check: vi.fn(async () => ({ availableBytes: 1000000000, reserveBytes: 0, fits: true })) },
+    runs: {
+      list: vi.fn(async () => []),
+      get: vi.fn(async () => ({})),
+      events: vi.fn(async () => []),
+      cancel: vi.fn(async () => ({ cancelRequested: true }))
+    },
+    credentials: {
+      status: vi.fn(async () => ({ available: false, backend: 'session-memory' })),
+      forget: vi.fn(async () => ({}))
+    },
+    diagnostics: { export: vi.fn(async () => ({ path: '/data/exports/diagnostics.json', bytes: 123, createdAt: '2026-11-03T10:00:00.000Z' })) },
+    events: { on: vi.fn(() => () => {}) }
+  };
+  return { ...base, ...overrides };
+}
+

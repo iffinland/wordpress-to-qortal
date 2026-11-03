@@ -1,0 +1,58 @@
+appId: org.iffinland.qortal-migration-studio
+productName: Qortal Migration Studio
+copyright: Copyright (c) 2026 Qortal Migration Studio contributors
+artifactName: qortal-migration-studio-${version}-${arch}.${ext}
+asar: true
+compression: normal
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - package.json
+extraResources:
+  - from: engine-runtime
+    to: engine
+    filter:
+      - "**/*"
+      - "!**/*.md"
+      - "!**/*.map"
+linux:
+  target:
+    - deb
+  category: Office
+  synopsis: Prepare WordPress content for Qortal QDN
+  description: Qortal Migration Studio is a desktop application that connects to a WordPress site, plans a batch, downloads and verifies media, and prepares QDN resources locally without publishing or signing blockchain transactions.
+  executableName: qortal-migration-studio
+  icon: build/icons
+  desktop:
+    Name: Qortal Migration Studio
+    Comment: Prepare WordPress content for Qortal QDN
+    Categories: Office;Utility;
+    Keywords: Qortal;WordPress;Migration;QDN;
+    StartupWMClass: Qortal Migration Studio
+deb:
+  maintainer: Qortal Migration Studio contributors <maintainers@example.invalid>
+  vendor: Qortal Migration Studio
+  priority: optional
+  category: office
+  compression: gz
+  depends:
+    - "libgtk-3-0 | libgtk-3-0t64"
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - "libatspi2.0-0 | libatspi2.0-0t64"
+    - libuuid1
+    - libsecret-1-0
+    - "libasound2 | libasound2t64"
+    - libgbm1
+    - libdrm2
+  recommends:
+    - gnome-keyring
+    - libayatana-appindicator3-1
+publish: null
+
