@@ -1,3 +1,5 @@
+import { checkQortalName } from './name.ts';
+
 export const HANDOFF_SCHEMA = 'qms-publication-handoff@1';
 export const HANDOFF_VERSION = 1;
 export const RECEIPT_SCHEMA = 'qms-publication-receipt@1';
@@ -135,6 +137,12 @@ function assertString(value: unknown, label: string, pattern?: RegExp, max = 200
   return value;
 }
 
+function assertQortalName(value: unknown, label: string): string {
+  const checked = checkQortalName(value);
+  if (!checked.ok) fail(label + ': ' + checked.message);
+  return checked.name;
+}
+
 function assertInteger(value: unknown, label: string, min = 0, max = 20 * 1024 * 1024 * 1024): number {
   if (!Number.isInteger(value) || (value as number) < min || (value as number) > max) fail(label + ' is invalid.');
   return value as number;
@@ -188,7 +196,7 @@ export async function validateHandoffPackage(files: Map<string, PackageFile>): P
   assertString(record.siteId, 'siteId', /^site_[a-z0-9]{16,64}$/);
   assertString(record.siteNamespace, 'siteNamespace', /^ns[a-z2-7]{8,40}$/);
   const target = assertObject(record.target, 'target');
-  const targetName = assertString(target.qdnName, 'target.qdnName', undefined, 40);
+  const targetName = assertQortalName(target.qdnName, 'target.qdnName');
   const estimate = assertObject(record.estimate, 'estimate');
   assertString(estimate.label, 'estimate.label', undefined, 160);
   const resourcesValue = record.resources;
@@ -210,7 +218,7 @@ export async function validateHandoffPackage(files: Map<string, PackageFile>): P
     if (!(kind in KIND_PHASE)) fail('Unsupported resource kind: ' + kind);
     const service = assertString(resource.service, 'resource.service', undefined, 20);
     if (!PUBLISHABLE_SERVICES.includes(service)) fail('Unsupported service: ' + service);
-    const name = assertString(resource.name, 'resource.name', undefined, 40);
+    const name = assertQortalName(resource.name, 'resource.name');
     if (name !== targetName) fail('Resource name does not match the handoff target name.');
     const identifier = assertString(resource.identifier, 'resource.identifier', /^[a-z0-9][a-z0-9_-]{0,63}$/);
     const triple = service + '|' + name + '|' + identifier;

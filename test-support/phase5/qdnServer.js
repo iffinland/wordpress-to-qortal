@@ -10,8 +10,11 @@ function key(service, name, identifier) {
  * verification, including encoding=base64, so binary hash comparisons are
  * tested without a live Qortal node.
  */
-export async function startQdnServer({ resources = [], status = 'READY' } = {}) {
+export async function startQdnServer({ resources = [], names = [], status = 'READY' } = {}) {
   const store = new Map();
+  const nameStore = new Map();
+  const requests = [];
+  for (const record of names) nameStore.set(record.lookupName ?? record.name, record);
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url, 'http://127.0.0.1');
     const parts = url.pathname.split('/').filter(Boolean);
@@ -19,6 +22,13 @@ export async function startQdnServer({ resources = [], status = 'READY' } = {}) 
       response.writeHead(code, { 'content-type': 'application/json' });
       response.end(JSON.stringify(body));
     };
+    requests.push(request.url);
+    if (parts[0] === 'names' && parts.length === 2) {
+      const requested = decodeURIComponent(parts[1]);
+      const record = nameStore.get(requested);
+      if (!record) return sendJson(404, { error: 'name unknown' });
+      return sendJson(200, record);
+    }
     if (parts[0] === 'arbitrary' && parts[1] === 'resource' && parts[2] === 'properties') {
       const record = store.get(key(parts[3], parts[4], parts[5]));
       if (!record) return sendJson(404, { error: 'not found' });
@@ -56,6 +66,14 @@ export async function startQdnServer({ resources = [], status = 'READY' } = {}) 
   const baseUrl = 'http://127.0.0.1:' + address.port;
   return {
     url: baseUrl,
+    requests,
+    setName(record) {
+      nameStore.set(record.lookupName ?? record.name, record);
+      return record;
+    },
+    removeName(name) {
+      nameStore.delete(name);
+    },
     set(record) {
       store.set(key(record.service, record.name, record.identifier), {
         ...record,

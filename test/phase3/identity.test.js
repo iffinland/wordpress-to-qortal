@@ -227,8 +227,21 @@ test('colliding target triples are refused as conflicts and can be resolved expl
 
 test('identity helpers reject invalid names, unsafe overwrites and overlong identifiers', () => {
   assert.equal(validateQortalName('Valid_Name-9'), 'Valid_Name-9');
-  for (const bad of ['ab', '-leading', 'trailing-', 'has space', 'x'.repeat(QORTAL_NAME_MAX_LENGTH + 1)]) {
-    assert.throws(() => validateQortalName(bad), /Invalid Qortal name|name is required/);
+  // Qortal Core has no ASCII whitelist and allows internal spaces, hyphens and
+  // Unicode; the exact display name must survive unchanged.
+  for (const valid of ['-leading', 'trailing-', 'developer iffi', 'Café']) {
+    assert.equal(validateQortalName(valid), valid);
+  }
+  for (const bad of [
+    'ab',
+    ' padded ',
+    'double  space',
+    'tab\there',
+    'control\u0001char',
+    'x'.repeat(QORTAL_NAME_MAX_LENGTH + 1),
+    'é'.repeat(21)
+  ]) {
+    assert.throws(() => validateQortalName(bad), /Qortal names|name is required/);
   }
   const identity = newIdentityState({
     siteIdentity: newSiteIdentity({ clock: { nowIso: () => '2026-01-01T00:00:00.000Z' } }),

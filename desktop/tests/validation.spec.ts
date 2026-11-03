@@ -16,6 +16,32 @@ describe('IPC validation', () => {
     expect((result.settings as Record<string, unknown>).desktopWizard).toBeUndefined();
   });
 
+  it('accepts exact Qortal display names with spaces and Unicode, and enforces UTF-8 byte bounds', () => {
+    const result = validateIpcPayload(IPC.projectCreate, {
+      name: 'x',
+      source: {},
+      target: { qdnName: 'developer iffi' }
+    });
+    expect((result.target as Record<string, unknown>).qdnName).toBe('developer iffi');
+
+    const unicode = validateIpcPayload(IPC.projectCreate, {
+      name: 'x',
+      source: {},
+      target: { qdnName: 'Café 日本語' }
+    });
+    expect((unicode.target as Record<string, unknown>).qdnName).toBe('Café 日本語');
+
+    for (const qdnName of [' developer iffi', 'developer iffi ', 'developer  iffi', 'developer\tiffi', 'developer\u0001iffi']) {
+      expect(() => validateIpcPayload(IPC.projectCreate, { name: 'x', source: {}, target: { qdnName } })).toThrow(/target\.qdnName/);
+    }
+    expect(() => validateIpcPayload(IPC.projectCreate, {
+      name: 'x', source: {}, target: { qdnName: 'é'.repeat(21) }
+    })).toThrow(/UTF-8 bytes/);
+    expect(validateIpcPayload(IPC.projectCreate, {
+      name: 'x', source: {}, target: { qdnName: 'é'.repeat(20) }
+    })).toMatchObject({ target: { qdnName: 'é'.repeat(20) } });
+  });
+
   it('rejects relative workspace paths and non-http source URLs', () => {
     expect(() => validateIpcPayload(IPC.setDataRoot, { path: 'relative/dir' })).toThrow(IpcValidationError);
     expect(() => validateIpcPayload(IPC.projectCreate, {

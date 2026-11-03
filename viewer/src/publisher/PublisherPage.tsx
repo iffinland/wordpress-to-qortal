@@ -22,6 +22,7 @@ import {
   getResourceStatus,
   requestQortal
 } from './bridge';
+import { evaluateNameOwnership, type OwnedName } from './ownership';
 import { createReceipt, downloadReceipt, receiptFileText, type ReceiptDocument } from './receipt';
 import { APP_VERSION } from '../version';
 
@@ -161,7 +162,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [states, setStates] = useState<Record<string, ResourceState>>({});
   const [account, setAccount] = useState<{ address: string; publicKey?: string } | null>(null);
-  const [ownedNames, setOwnedNames] = useState<string[]>([]);
+  const [ownedNames, setOwnedNames] = useState<OwnedName[]>([]);
   const [remotePresence, setRemotePresence] = useState<Record<string, 'unknown' | 'new' | 'update' | 'collision'>>({});
   const [allowUpdates, setAllowUpdates] = useState(false);
   const [approved, setApproved] = useState(false);
@@ -194,9 +195,12 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
 
   const manifest: HandoffManifest | null = validated?.manifest ?? null;
   const targetName = manifest?.target.qdnName ?? initialName;
-  const nameOwned = account && targetName
-    ? ownedNames.some((name) => name.toLowerCase() === targetName.toLowerCase())
-    : false;
+  const ownership = evaluateNameOwnership({
+    targetName,
+    accountAddress: account?.address,
+    ownedNames
+  });
+  const nameOwned = ownership.state === 'verified';
   const selectedResources = useMemo(
     () => orderResources(manifest?.resources ?? []).filter((resource) => selected.has(resource.id)),
     [manifest, selected]
@@ -272,7 +276,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       const active = await getActiveAccount();
       setAccount(active);
       const names = await getOwnedNames(active.address);
-      setOwnedNames(names.map((entry) => entry.name));
+      setOwnedNames(names);
       setNotice('Active account loaded. Name ownership is checked locally against the names Qortal Hub reports for this account.');
     } catch (connectError) {
       setError((connectError as Error).message);
@@ -640,7 +644,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
         )}
         {account && !nameOwned && (
           <p className="publisher-warning">
-            The active account does not own {targetName}. Qortal Hub performs the authoritative check; this screen is blocked until an owning account is active.
+            {ownership.message || ('The active account does not own ' + targetName + '. Qortal Hub performs the authoritative check; this screen is blocked until an owning account is active.')}
           </p>
         )}
         {error && <p className="publisher-warning">{error}</p>}

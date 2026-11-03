@@ -1,4 +1,5 @@
 import { IPC } from './channels.js';
+import { checkQortalName } from './qortalName.js';
 
 export class IpcValidationError extends Error {
   code = 'IPC_INVALID_INPUT';
@@ -14,7 +15,7 @@ const RUN_ID = /^run_[a-z0-9]{8,40}$/;
 const CONFLICT_ID = /^cnf_[a-z0-9]{8,40}$/;
 const TOKEN = /^mig_[a-z0-9]{8,64}$/;
 const HANDOFF_ID = /^hof_[a-z0-9]{8,40}$/;
-const QORTAL_NAME = /^[A-Za-z0-9](?:[A-Za-z0-9_-]{1,38}[A-Za-z0-9])$/;
+
 const SECRET_KEY = /(password|passwd|secret|token|apikey|api_key|seed|privatekey|private_key|wallet|authorization|cookie)/i;
 const MAX_STRING = 20_000;
 const MAX_PAYLOAD_BYTES = 1_000_000;
@@ -164,8 +165,14 @@ export function sanitizeSource(input: unknown): Dict {
 
 export function sanitizeTarget(input: unknown): Dict {
   const target = object(input, 'target', { optional: true });
-  const qdnName = text(target.qdnName, 'target.qdnName', { optional: true, max: 40 });
-  if (qdnName && !QORTAL_NAME.test(qdnName)) fail('target.qdnName has an invalid format.');
+  // Do not trim or otherwise rewrite the registered display name. Core allows
+  // internal spaces and non-ASCII text, and the exact bytes must survive the
+  // handoff, receipt and ownership check.
+  const qdnName = text(target.qdnName, 'target.qdnName', { optional: true, max: 200, trim: false });
+  if (qdnName) {
+    const checked = checkQortalName(qdnName);
+    if (!checked.ok) fail('target.qdnName: ' + checked.message);
+  }
   return {
     ...(qdnName ? { qdnName } : {}),
     ...(target.siteName !== undefined ? { siteName: text(target.siteName, 'target.siteName', { optional: true, max: 200 }) } : {}),
