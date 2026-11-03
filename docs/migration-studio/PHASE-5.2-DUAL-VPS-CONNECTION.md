@@ -217,7 +217,47 @@ Do not stop Caddy or Qortal Core to fix the broker.
   publication until the cause is understood; there is no signed transaction to
   duplicate, but repeated failures should not become a probing loop.
 
-## 8. What remains unverified
+## 8. Second publication attempt after External Auth repair
+
+After the operator created a valid session, set `PUBLISH_QDN_RESOURCE` to
+persistent and unlocked the wallet, health and authenticated read-only
+requests still worked. A second, new publication was attempted:
+
+- requestId: `req_dualvps002`
+- publicationId: `pub_8c1650c0aa97b978b92b442b`
+- identifier: `qms-dev-hello-002`, 18 bytes, SHA-256
+  `080b1e0d001484bc6b009e380f4f9b8099a9091deb1519880ba594eb5bb8edff`
+- result: `state=failed`, `code=SIGNING_FAILED`,
+  resource verification `SIGNING_FAILED`
+- fee quoted: `1,000,000` atomic = `0.01 QORT`; reserved/charged `0`
+- `txRef=null`; balance at reservation `502,000,000` atomic = `5.02 QORT`
+
+This is a different failure class from the first attempt. In
+`broker/src/signing/external-auth.js`, `SIGNING_REJECTED` is produced by
+HTTP 401/403, while `SIGNING_FAILED` is produced by any other non-OK
+(non-5xx) response. The second attempt therefore passed authentication,
+permission and wallet readiness, but External Auth returned a 4xx rejection
+for the publish request itself.
+
+Source inspection of External Auth 0.2.0 shows
+`publishQdnResource()` builds the Core path as
+`/arbitrary/${service}/${resolvedName}` without `encodeURIComponent` on
+the registered name. The exact test name contains an internal space, so the
+Core URL construction is the prime suspect. The exact 4xx body is still only
+available in External Auth logs; the broker intentionally hides it.
+
+Read-only operator checks around `2026-11-03T19:26:25Z` (21:26:25 EET):
+
+```bash
+journalctl -u qortal-external-auth --since '2026-11-03 21:25:00' --no-pager
+journalctl -u qms-qdn-test-broker --since '2026-11-03 21:25:00' --no-pager
+tail -n 100 /var/lib/qms-qdn-test-broker/audit.jsonl
+```
+
+Do not retry either failed publication until the exact 4xx body is understood;
+no transaction signature exists, but repeated probing should be avoided.
+
+## 9. What remains unverified
 
 - Tailscale Serve on 8443 is not configured yet.
 - Tailscale HTTPS certificate issuance and tailnet ACL restriction are
