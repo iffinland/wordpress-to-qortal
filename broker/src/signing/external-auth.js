@@ -4,6 +4,47 @@ import { readTokenFile } from '../credentials/store.js';
 
 const PUBLISH_PATH = '/qdn/publish';
 
+const ERROR_CODE = /^[a-z][a-z0-9_]{2,63}$/;
+
+const KNOWN_ERROR_CODES = new Map([
+  ['unauthorized', 'UNAUTHORIZED'],
+  ['approval_required', 'APPROVAL_REQUIRED'],
+  ['wallet_locked', 'WALLET_LOCKED'],
+  ['wallet_not_found', 'WALLET_NOT_FOUND'],
+  ['publish_failed', 'PUBLISH_FAILED']
+]);
+
+/**
+ * Convert an External Auth error body into a bounded, non-sensitive code.
+ * Raw backend text can contain Core paths, names, request parameters or
+ * echoed input, so it is classified rather than stored.
+ */
+export function classifyExternalAuthError(parsed) {
+  const raw = typeof parsed?.error === 'string' ? parsed.error.trim() : '';
+  if (!raw) return 'UNKNOWN';
+  const known = KNOWN_ERROR_CODES.get(raw);
+  if (known) return known;
+  if (ERROR_CODE.test(raw)) return raw.toUpperCase();
+  if (/^name not registered/i.test(raw)) return 'CORE_NAME_NOT_REGISTERED';
+  if (/^data not supplied/i.test(raw)) return 'CORE_DATA_MISSING';
+  if (/^request failed: \d+$/i.test(raw)) return 'CORE_HTTP_ERROR';
+  return 'CORE_REQUEST_REJECTED';
+}
+
+function classificationForStatus(status) {
+  if (status === 401 || status === 403) return 'AUTH';
+  if (status >= 500) return 'BACKEND';
+  return 'REQUEST';
+}
+
+function diagnosticFor(status, parsed) {
+  return {
+    httpStatus: status,
+    errorClass: classificationForStatus(status),
+    errorCode: classifyExternalAuthError(parsed)
+  };
+}
+
 /**
  * Narrow client for Qortal External Auth. It deliberately exposes exactly one
  * operation: publish one DOCUMENT resource. It never calls /tx/sign,
@@ -51,13 +92,17 @@ export class ExternalAuthSigningBackend {
     return this.token;
   }
 
-  async publish({ service, name, identifier, dataBase64, feePerTransaction }) {
+  async publish({ service, name, identifier, dataBase64, feeAtomic }) {
     if (service !== 'DOCUMENT') {
       fail(BROKER_ERROR.POLICY_SERVICE, 'The signing backend only accepts DOCUMENT resources.');
     }
     const token = this.currentToken();
-    if (typeof feePerTransaction !== 'number' || !Number.isFinite(feePerTransaction) || feePerTransaction <= 0) {
-      fail(BROKER_ERROR.FEE_INVALID, 'The signing backend requires a positive, finite per-resource fee.');
+    // External Auth 0.2.0 forwards "fee" verbatim to Core's
+    // "/arbitrary/...?fee=" query parameter, where it binds to a Java Long in
+    // atomic units (100000000 = 1 QORT). A QORT decimal such as 0.01 fails
+    // Core parameter binding before the name is validated.
+    if (!Number.isSafeInteger(feeAtomic) || feeAtomic <= 0) {
+      fail(BROKER_ERROR.FEE_INVALID, 'The signing backend requires a positive safe-integer atomic per-resource fee.');
     }
     const body = JSON.stringify({
       walletId: this.walletId,
@@ -65,7 +110,7 @@ export class ExternalAuthSigningBackend {
       service,
       registeredName: name,
       identifier,
-      fee: feePerTransaction
+      fee: feeAtomic
     });
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -100,12 +145,14 @@ export class ExternalAuthSigningBackend {
     } catch {
       parsed = null;
     }
+    const diagnostic = response.ok ? null : diagnosticFor(response.status, parsed);
     if (response.status === 401 || response.status === 403) {
       return {
         state: 'rejected',
         code: parsed?.error === 'approval_required' ? 'SIGNING_APPROVAL_REQUIRED' : 'SIGNING_REJECTED',
         message: 'The signing backend rejected the publication request.',
-        evidence: { status: response.status, error: parsed?.error ?? null }
+        diagnostic,
+        evidence: { status: response.status, errorCode: diagnostic.errorCode }
       };
     }
     if (response.status >= 500) {
@@ -113,7 +160,8 @@ export class ExternalAuthSigningBackend {
         state: 'ambiguous',
         code: 'SIGNING_BACKEND_UNAVAILABLE',
         message: 'The signing backend failed after receiving the request; the outcome is unknown.',
-        evidence: { status: response.status }
+        diagnostic,
+        evidence: { status: response.status, errorCode: diagnostic.errorCode }
       };
     }
     if (!response.ok) {
@@ -121,7 +169,8 @@ export class ExternalAuthSigningBackend {
         state: 'failed',
         code: 'SIGNING_FAILED',
         message: 'The signing backend refused the publication request.',
-        evidence: { status: response.status, error: parsed?.error ?? null }
+        diagnostic,
+        evidence: { status: response.status, errorCode: diagnostic.errorCode }
       };
     }
     const result = parsed && typeof parsed === 'object' && parsed.result ? parsed.result : parsed;

@@ -237,3 +237,54 @@ test('recovers an interrupted reservation conservatively as ambiguous', async ()
     assert.deepEqual(snapshot.budget.reservations, {});
   });
 });
+
+test('persists a bounded External Auth diagnostic on the record and in the audit ledger', async () => {
+  const diagnostic = { httpStatus: 400, errorClass: 'REQUEST', errorCode: 'CORE_REQUEST_REJECTED' };
+  await withBroker({
+    backendResults: [{
+      state: 'failed',
+      code: 'SIGNING_FAILED',
+      diagnostic,
+      evidence: { status: 400, errorCode: 'CORE_REQUEST_REJECTED' }
+    }]
+  }, async (harness) => {
+    const body = makeRequest();
+    const result = await publish(harness, body);
+    assert.equal(result.state, 'failed');
+    assert.deepEqual(result.diagnostic, diagnostic);
+    assert.deepEqual(result.resources[0].verification.diagnostic, diagnostic);
+    assert.equal(result.resources[0].verification.code, 'SIGNING_FAILED');
+    assert.equal(result.chargedAtomic, 0);
+
+    const audit = readFileSync(harness.config.audit.path, 'utf8')
+      .trim().split('\n').map((line) => JSON.parse(line));
+    const failed = audit.filter((entry) => entry.event === 'publication_signing_failed');
+    assert.equal(failed.length, 1);
+    assert.equal(failed[0].httpStatus, 400);
+    assert.equal(failed[0].errorClass, 'REQUEST');
+    assert.equal(failed[0].errorCode, 'CORE_REQUEST_REJECTED');
+    assert.equal(verifyAuditFile(harness.config.audit.path).ok, true);
+  });
+});
+
+test('drops an unsafe backend diagnostic instead of persisting free text or secrets', async () => {
+  await withBroker({
+    backendResults: [{
+      state: 'failed',
+      code: 'SIGNING_FAILED',
+      diagnostic: {
+        httpStatus: 400,
+        errorClass: 'REQUEST',
+        errorCode: 'Bearer eyJhbGciOiJIUzI1NiJ9 /arbitrary/DOCUMENT/developer iffi'
+      }
+    }]
+  }, async (harness) => {
+    const result = await publish(harness, makeRequest());
+    assert.equal(result.state, 'failed');
+    assert.equal(result.diagnostic, null);
+    assert.equal(result.resources[0].verification.diagnostic, undefined);
+    const raw = readFileSync(harness.config.audit.path, 'utf8');
+    assert.equal(raw.includes('eyJhbGciOiJIUzI1NiJ9'), false);
+    assert.equal(raw.includes('developer iffi'), false);
+  });
+});

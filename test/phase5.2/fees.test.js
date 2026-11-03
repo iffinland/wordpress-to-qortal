@@ -66,7 +66,7 @@ test('quotes per-resource fees from the node and records each exact amount', asy
     assert.deepEqual(result.resources.map((entry) => entry.feeAtomic), [1000000, 1000000]);
     assert.equal(harness.node.calls.some((call) => call.startsWith('/transactions/unitfee')), true);
     assert.equal(harness.node.calls.filter((call) => call === '/transactions/fee').length, 2);
-    assert.equal(harness.backend.calls[0].feePerTransaction, 0.01);
+    assert.equal(harness.backend.calls[0].feeAtomic, 1000000);
   });
 });
 

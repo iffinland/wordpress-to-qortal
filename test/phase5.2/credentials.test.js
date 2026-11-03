@@ -179,7 +179,7 @@ test('the signing backend uses a renewed token on the next publish without resta
     await backend.open();
     const request = {
       service: 'DOCUMENT', name: 'developer iffi', identifier: 'qms-dev-reload',
-      dataBase64: Buffer.from('reload').toString('base64'), feePerTransaction: 0.001
+      dataBase64: Buffer.from('reload').toString('base64'), feeAtomic: 1000000
     };
     assert.equal((await backend.publish(request)).state, 'signed');
     await store.accept({ token: TOKEN_B, expiresAt: NOW + 3600000 });

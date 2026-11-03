@@ -22,7 +22,7 @@ export function createMockSigningBackend({
         name: request.name,
         identifier: request.identifier,
         bytes: Buffer.from(request.dataBase64, 'base64').length,
-        feePerTransaction: request.feePerTransaction,
+        feeAtomic: request.feeAtomic,
         at: clock()
       };
       calls.push(record);

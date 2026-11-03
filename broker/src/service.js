@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { BrokerError, BROKER_ERROR, fail } from './errors.js';
-import { atomicToQort, formatQort } from './amounts.js';
+import { formatQort } from './amounts.js';
 import { validatePublicationRequest, REQUEST_SCHEMA } from './policy.js';
 import { resourceKey, rollWindow, windowSpent } from './state.js';
 import { createFeeOracle } from './fees.js';
@@ -16,6 +16,23 @@ function nowIso(clock) {
 
 function publicRecord(record) {
   return structuredClone(record);
+}
+
+const SAFE_DIAGNOSTIC_CODE = /^[A-Z][A-Z0-9_]{2,63}$/;
+const SAFE_ERROR_CLASSES = new Set(['AUTH', 'REQUEST', 'BACKEND', 'UNKNOWN']);
+
+/**
+ * A signing backend is untrusted input. Persist only a bounded status/code
+ * triple so a backend or upstream error body can never reach publication
+ * records or the audit ledger.
+ */
+function safeDiagnostic(diagnostic) {
+  if (!diagnostic || typeof diagnostic !== 'object') return null;
+  const { httpStatus, errorClass, errorCode } = diagnostic;
+  if (!Number.isInteger(httpStatus) || httpStatus < 100 || httpStatus > 599) return null;
+  if (!SAFE_ERROR_CLASSES.has(errorClass)) return null;
+  if (typeof errorCode !== 'string' || !SAFE_DIAGNOSTIC_CODE.test(errorCode)) return null;
+  return { httpStatus, errorClass, errorCode };
 }
 
 function classifyReadback(result) {
@@ -433,7 +450,10 @@ export class PublicationBroker {
           name: request.targetName,
           identifier: resource.identifier,
           dataBase64: resource.dataBase64,
-          feePerTransaction: Number(atomicToQort(resource.feeAtomic))
+          // Core binds /arbitrary?fee= to a Long in atomic units. Sending a
+          // QORT decimal (0.01) fails before name validation; the reserved
+          // atomic value must be forwarded unchanged.
+          feeAtomic: resource.feeAtomic
         });
       } catch (error) {
         outcome = {
@@ -466,14 +486,29 @@ export class PublicationBroker {
         });
         if (stopReason) break;
       } else if (outcome.state === 'rejected' || outcome.state === 'failed') {
+        const diagnostic = safeDiagnostic(outcome.diagnostic);
         await this.setPublicationState(publicationId, (record) => {
           const target = record.resources.find((entry) => entry.id === resource.id);
           target.state = 'failed';
-          target.verification = { state: 'failed', code: outcome.code ?? 'SIGNING_FAILED' };
+          target.verification = {
+            state: 'failed',
+            code: outcome.code ?? 'SIGNING_FAILED',
+            ...(diagnostic ? { diagnostic } : {})
+          };
         });
         stopReason = outcome.state;
         this.audit.append('publication_signing_failed', {
-          keyId, publicationId, resourceId: resource.id, code: outcome.code ?? 'SIGNING_FAILED'
+          keyId,
+          publicationId,
+          resourceId: resource.id,
+          code: outcome.code ?? 'SIGNING_FAILED',
+          ...(diagnostic
+            ? {
+                httpStatus: diagnostic.httpStatus,
+                errorClass: diagnostic.errorClass,
+                errorCode: diagnostic.errorCode
+              }
+            : {})
         });
       } else if (outcome.state === 'pending') {
         await this.setPublicationState(publicationId, (record) => {
@@ -486,14 +521,29 @@ export class PublicationBroker {
           keyId, publicationId, resourceId: resource.id, code: outcome.code ?? 'SIGNING_PENDING'
         });
       } else {
+        const diagnostic = safeDiagnostic(outcome.diagnostic);
         await this.setPublicationState(publicationId, (record) => {
           const target = record.resources.find((entry) => entry.id === resource.id);
           target.state = 'pending_confirmation';
-          target.verification = { state: 'ambiguous', code: outcome.code ?? 'SIGNING_UNKNOWN' };
+          target.verification = {
+            state: 'ambiguous',
+            code: outcome.code ?? 'SIGNING_UNKNOWN',
+            ...(diagnostic ? { diagnostic } : {})
+          };
         });
         stopReason = 'ambiguous';
         this.audit.append('publication_signing_ambiguous', {
-          keyId, publicationId, resourceId: resource.id, code: outcome.code ?? 'SIGNING_UNKNOWN'
+          keyId,
+          publicationId,
+          resourceId: resource.id,
+          code: outcome.code ?? 'SIGNING_UNKNOWN',
+          ...(diagnostic
+            ? {
+                httpStatus: diagnostic.httpStatus,
+                errorClass: diagnostic.errorClass,
+                errorCode: diagnostic.errorCode
+              }
+            : {})
         });
       }
     }
@@ -528,6 +578,8 @@ export class PublicationBroker {
         record.decision = 'failed';
         record.code = 'SIGNING_FAILED';
         record.message = 'The signing backend rejected or failed the publication.';
+        const failedTarget = record.resources.find((entry) => entry.state === 'failed');
+        record.diagnostic = failedTarget?.verification?.diagnostic ?? null;
       } else {
         record.state = 'submitted';
         record.decision = 'accepted';

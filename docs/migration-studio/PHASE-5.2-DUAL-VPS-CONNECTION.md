@@ -266,3 +266,18 @@ no transaction signature exists, but repeated probing should be avoided.
 - No authenticated broker request, signer check, fee quote, budget reservation,
   QDN publication or read-back was performed.
 - The signing-VPS SSH boundary was not bypassed.
+
+## 10. Resolution of the second failure (2026-11-03, later analysis)
+
+The name-space suspicion in §8 is disproven for this payload. Node's `fetch`
+percent-encodes the internal space to `%20` before the request reaches Core, and
+Core binds the `fee` query parameter before looking up the name. The actual
+deterministic defect is a fee unit mismatch: the broker converted the reserved
+`1000000` atomic fee to `0.01` QORT, External Auth 0.2.0 forwarded
+`fee=0.01`, and Core's `@QueryParam("fee") Long` cannot bind a decimal. That
+is the observed non-401/403 4xx.
+
+The fix, full error-path map, diagnostics/redaction design, External Auth patch,
+operator deployment script and restricted SSH maintenance design are in
+[`PHASE-5.2-EXTERNAL-AUTH-FAILURE-ANALYSIS.md`](PHASE-5.2-EXTERNAL-AUTH-FAILURE-ANALYSIS.md).
+Do not publish again until the operator applies that fix.

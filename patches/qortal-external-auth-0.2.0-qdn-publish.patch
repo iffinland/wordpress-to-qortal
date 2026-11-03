@@ -1,0 +1,58 @@
+diff --git a/packages/auth-daemon/src/index.ts b/packages/auth-daemon/src/index.ts
+index 6ffc1f3..bcd74f1 100644
+--- a/packages/auth-daemon/src/index.ts
++++ b/packages/auth-daemon/src/index.ts
+@@ -2871,19 +2871,29 @@ const publishQdnResource = async (appId: string, payload: any) => {
+   const nodeUrl = getNodeUrl(appId, payload);
+   const privateKey = await getSigningKey(appId, payload);
+ 
+-  const resolvedFee =
+-    fee ??
+-    (async () => {
+-      const timestamp = Date.now();
+-      const res = await getNode(
+-        nodeUrl,
+-        `/transactions/unitfee?txType=ARBITRARY&timestamp=${timestamp}`
++  // Core binds the /arbitrary?fee= query parameter to a Java Long in atomic
++  // units (100000000 = 1 QORT). Never forward a QORT decimal such as 0.01:
++  // Core rejects the request before validating the registered name.
++  let feeValue: number;
++  if (fee === undefined || fee === null || fee === '') {
++    const timestamp = Date.now();
++    const res = await getNode(
++      nodeUrl,
++      `/transactions/unitfee?txType=ARBITRARY&timestamp=${timestamp}`
++    );
++    const text = (await res.text()).trim();
++    feeValue = Number(text);
++    if (!Number.isSafeInteger(feeValue) || feeValue <= 0) {
++      throw new Error('node returned an invalid ARBITRARY unit fee');
++    }
++  } else {
++    feeValue = typeof fee === 'number' ? fee : Number(String(fee).trim());
++    if (!Number.isSafeInteger(feeValue) || feeValue <= 0) {
++      throw new Error(
++        'fee must be a positive integer atomic amount (1000000 = 0.01 QORT); QORT decimals are not accepted'
+       );
+-      const text = await res.text();
+-      return Number(text);
+-    })();
+-
+-  const feeValue = await resolvedFee;
++    }
++  }
+   const hasFileSource = Boolean(filePath || payload?.file);
+   const isZipFile =
+     payload?.isZip === true ||
+@@ -2904,8 +2914,10 @@ const publishQdnResource = async (appId: string, payload: any) => {
+     preview: preview === true ? true : undefined,
+   });
+ 
+-  let basePath = `/arbitrary/${service}/${resolvedName}`;
+-  if (identifier) basePath += `/${identifier}`;
++  // Encode each raw path segment exactly once. A registered name may contain
++  // spaces, Unicode and other characters that are not safe as a raw URL path.
++  let basePath = `/arbitrary/${encodeURIComponent(String(service))}/${encodeURIComponent(String(resolvedName))}`;
++  if (identifier) basePath += `/${encodeURIComponent(String(identifier))}`;
+ 
+   let unsignedBytes = '';
