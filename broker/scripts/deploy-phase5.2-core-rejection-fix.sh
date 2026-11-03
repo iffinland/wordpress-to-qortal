@@ -282,8 +282,7 @@ deploy_broker() {
 
 configure_core_api_key() {
   log "configuring the External Auth Core API key"
-  resolve_core_key
-  verify_core_key
+  [ -n "${CORE_KEY:-}" ] || resolve_core_key
   install -d -m 0750 -o root -g root "$(dirname "$EA_KEY_ENV_FILE")"
   local tmp="$EA_KEY_ENV_FILE.qms-new.$$"
   ( umask 077; printf 'QORTAL_AUTH_NODE_API_KEY=%s\n' "$CORE_KEY" >"$tmp" )
@@ -459,6 +458,13 @@ run_deploy() {
   fi
   require_root
   [ "$MODE" = "--yes" ] || die "refusing to change the signing VPS without --yes"
+
+  # Validate the key before any change so a bad key cannot trigger a rollback
+  # that restarts External Auth and relocks the wallet for nothing.
+  resolve_core_key
+  verify_core_key
+  log "Core API key validated against $CORE_URL"
+
   trap on_error ERR
 
   capture_state
