@@ -174,7 +174,44 @@ If other Serve handlers exist, remove only the 8443 broker handler with
 `tailscale serve status` and the appropriate service-specific clear command.
 Do not stop Caddy or Qortal Core to fix the broker.
 
-## 7. What remains unverified
+## 7. Execution evidence — 2026-11-03
+
+- Tailscale HTTPS endpoint verified:
+  `https://vmi3490660.tailb239e8.ts.net:8443/v1/health` returned
+  `{"status":"ok","disabled":false}`.
+- Authenticated read-only request with keyId `agent-main-2026-11` reached the
+  broker: a signed `GET /v1/publications/pub_000000000000000000000000`
+  returned `400 PUBLICATION_NOT_FOUND`, not `401`. The Ed25519 path, clock
+  window and ACL are working.
+- One minimal DOCUMENT publication was attempted:
+  - requestId: `req_dualvps001`
+  - publicationId: `pub_6b1dbeb87370fd7bfab9f28c`
+  - identifier: `qms-dev-hello-001`, 14 bytes, SHA-256
+    `70be144d2672880e1f9bd2841cf8f3d98aa4a2d0159eddef22ab4c4ff7c731df`
+  - result: `state=failed`, `code=SIGNING_FAILED`,
+    `verification=SIGNING_REJECTED`
+  - fee quoted: `1,000,000` atomic = `0.01 QORT`
+  - reserved/charged: `0`; `txRef=null`; balance at reservation
+    `502,000,000` atomic = `5.02 QORT`
+- The broker accepted policy, fee quote and balance, then the signing backend
+  rejected or failed the operation. No QDN transaction signature was produced,
+  no QDN resource was published and no fee was charged.
+- The broker does not expose the External Auth rejection detail to the agent.
+  The exact backend reason requires read-only operator inspection on the signing
+  VPS:
+
+  ```bash
+  journalctl -u qms-qdn-test-broker -n 100 --no-pager
+  journalctl -u qortal-external-auth -n 100 --no-pager
+  tail -n 50 /var/lib/qms-qdn-test-broker/audit.jsonl
+  ```
+
+  Check the External Auth session, `PUBLISH_QDN_RESOURCE` permission, wallet
+  unlock state and any rejected payload/name detail. Do not retry the
+  publication until the cause is understood; there is no signed transaction to
+  duplicate, but repeated failures should not become a probing loop.
+
+## 8. What remains unverified
 
 - Tailscale Serve on 8443 is not configured yet.
 - Tailscale HTTPS certificate issuance and tailnet ACL restriction are
