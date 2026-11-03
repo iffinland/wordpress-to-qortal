@@ -20,11 +20,26 @@ function publicRecord(record) {
 
 const SAFE_DIAGNOSTIC_CODE = /^[A-Z][A-Z0-9_]{2,63}$/;
 const SAFE_ERROR_CLASSES = new Set(['AUTH', 'REQUEST', 'BACKEND', 'UNKNOWN']);
+const SAFE_STAGES = new Set(['fee', 'upload', 'convert', 'process', 'wallet', 'request']);
+const SAFE_CORE_MESSAGE = /^[\x20-\x7e]{1,200}$/;
+
+function boundedCoreMessage(value) {
+  if (typeof value !== 'string') return null;
+  const collapsed = value
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!collapsed) return null;
+  const bounded = collapsed.replace(/[A-Za-z0-9+/=_-]{48,}/g, '[redacted]').slice(0, 200);
+  if (bounded === '[redacted]') return null;
+  return SAFE_CORE_MESSAGE.test(bounded) ? bounded : null;
+}
 
 /**
  * A signing backend is untrusted input. Persist only a bounded status/code
- * triple so a backend or upstream error body can never reach publication
- * records or the audit ledger.
+ * tuple plus, when present, the sanitized Core stage/status/reason, so a
+ * backend or upstream error body can never reach publication records or the
+ * audit ledger.
  */
 function safeDiagnostic(diagnostic) {
   if (!diagnostic || typeof diagnostic !== 'object') return null;
@@ -32,7 +47,30 @@ function safeDiagnostic(diagnostic) {
   if (!Number.isInteger(httpStatus) || httpStatus < 100 || httpStatus > 599) return null;
   if (!SAFE_ERROR_CLASSES.has(errorClass)) return null;
   if (typeof errorCode !== 'string' || !SAFE_DIAGNOSTIC_CODE.test(errorCode)) return null;
-  return { httpStatus, errorClass, errorCode };
+  const safe = { httpStatus, errorClass, errorCode };
+  if (SAFE_STAGES.has(diagnostic.stage)) safe.stage = diagnostic.stage;
+  if (
+    Number.isInteger(diagnostic.coreStatus) &&
+    diagnostic.coreStatus >= 100 &&
+    diagnostic.coreStatus <= 599
+  ) {
+    safe.coreStatus = diagnostic.coreStatus;
+  }
+  const coreMessage = boundedCoreMessage(diagnostic.coreMessage);
+  if (coreMessage) safe.coreMessage = coreMessage;
+  return safe;
+}
+
+function diagnosticAuditFields(diagnostic) {
+  if (!diagnostic) return {};
+  return {
+    httpStatus: diagnostic.httpStatus,
+    errorClass: diagnostic.errorClass,
+    errorCode: diagnostic.errorCode,
+    ...(diagnostic.stage ? { stage: diagnostic.stage } : {}),
+    ...(diagnostic.coreStatus ? { coreStatus: diagnostic.coreStatus } : {}),
+    ...(diagnostic.coreMessage ? { coreMessage: diagnostic.coreMessage } : {})
+  };
 }
 
 function classifyReadback(result) {
@@ -502,13 +540,7 @@ export class PublicationBroker {
           publicationId,
           resourceId: resource.id,
           code: outcome.code ?? 'SIGNING_FAILED',
-          ...(diagnostic
-            ? {
-                httpStatus: diagnostic.httpStatus,
-                errorClass: diagnostic.errorClass,
-                errorCode: diagnostic.errorCode
-              }
-            : {})
+          ...diagnosticAuditFields(diagnostic)
         });
       } else if (outcome.state === 'pending') {
         await this.setPublicationState(publicationId, (record) => {
@@ -537,13 +569,7 @@ export class PublicationBroker {
           publicationId,
           resourceId: resource.id,
           code: outcome.code ?? 'SIGNING_UNKNOWN',
-          ...(diagnostic
-            ? {
-                httpStatus: diagnostic.httpStatus,
-                errorClass: diagnostic.errorClass,
-                errorCode: diagnostic.errorCode
-              }
-            : {})
+          ...diagnosticAuditFields(diagnostic)
         });
       }
     }

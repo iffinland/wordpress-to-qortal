@@ -56,3 +56,4 @@ index 6ffc1f3..bcd74f1 100644
 +  if (identifier) basePath += `/${encodeURIComponent(String(identifier))}`;
  
    let unsignedBytes = '';
+ 

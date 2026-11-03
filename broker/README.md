@@ -219,8 +219,10 @@ The mock backend is only allowed by the entrypoint with
 ## Deployment
 
 For the External Auth publishing failure analysis, the fee/atomic-unit fix,
-redacted signing diagnostics, the one operator deployment script and the
-restricted SSH maintenance design, see
+redacted Core signing diagnostics, the Core API key requirement for
+`POST /arbitrary/.../base64`, the one operator deployment script
+(`broker/scripts/deploy-phase5.2-core-rejection-fix.sh`), the post-restart
+wallet unlock helper and the restricted SSH maintenance design, see
 `docs/migration-studio/PHASE-5.2-EXTERNAL-AUTH-FAILURE-ANALYSIS.md`.
 
 See `docs/migration-studio/PHASE-5.2-TEST-PUBLISHING-BROKER.md` for the threat

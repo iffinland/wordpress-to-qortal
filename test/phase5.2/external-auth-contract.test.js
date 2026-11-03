@@ -59,7 +59,9 @@ async function startExternalAuth(coreUrl) {
     const raw = await readBody(req);
     const payload = JSON.parse(raw);
     received.push(payload);
-    const basePath = `/arbitrary/${payload.service}/${payload.registeredName}/base64`;
+    let basePath = `/arbitrary/${payload.service}/${payload.registeredName}`;
+    if (payload.identifier) basePath += `/${payload.identifier}`;
+    basePath += '/base64';
     const query = new URLSearchParams({ fee: String(payload.fee) }).toString();
     const coreResponse = await fetch(coreUrl + basePath + '?' + query, {
       method: 'POST',
@@ -105,13 +107,14 @@ test('atomic fee + space-containing name produce exactly one safe Core path', as
     assert.equal(outcome.signature, 'ContractSignature');
     assert.equal(externalAuth.received.length, 1);
     assert.equal(externalAuth.received[0].fee, 1000000);
+    assert.equal(externalAuth.received[0].identifier, 'qms-dev-hello-003');
     assert.equal(core.requests.length, 1);
     assert.equal(core.requests[0].method, 'POST');
     // Node fetch percent-encodes the internal space; %20 is decoded by Core
     // back to the exact registered display name.
     assert.equal(
       core.requests[0].url,
-      '/arbitrary/DOCUMENT/developer%20iffi/base64?fee=1000000'
+      '/arbitrary/DOCUMENT/developer%20iffi/qms-dev-hello-003/base64?fee=1000000'
     );
   } finally {
     core.server.close();

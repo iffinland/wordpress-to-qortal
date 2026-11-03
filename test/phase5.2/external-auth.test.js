@@ -265,3 +265,87 @@ test('refuses to publish a non-DOCUMENT service', async () => {
     cleanup(ctx.dir);
   }
 });
+
+test('prefers a structured Core diagnostic over the generic error token', async () => {
+  const ctx = setup({
+    status: 400,
+    result: {
+      error: 'publish_failed',
+      diagnostic: {
+        stage: 'upload',
+        coreStatus: 401,
+        coreErrorCode: 'CORE_API_KEY_MISSING',
+        coreMessage: "Missing 'X-API-KEY' header"
+      }
+    }
+  });
+  try {
+    await ctx.backend.open();
+    const outcome = await publish(ctx);
+    assert.equal(outcome.state, 'failed');
+    assert.equal(outcome.code, 'SIGNING_FAILED');
+    assert.deepEqual(outcome.diagnostic, {
+      httpStatus: 400,
+      errorClass: 'REQUEST',
+      errorCode: 'CORE_API_KEY_MISSING',
+      stage: 'upload',
+      coreStatus: 401,
+      coreMessage: "Missing 'X-API-KEY' header"
+    });
+  } finally {
+    cleanup(ctx.dir);
+  }
+});
+
+test('collapses unknown Core codes and redacts long values in structured messages', async () => {
+  const secret = 'Z'.repeat(64);
+  const ctx = setup({
+    status: 400,
+    result: {
+      error: 'publish_failed',
+      diagnostic: {
+        stage: 'process',
+        coreStatus: 500,
+        coreErrorCode: 'CORE_SOMETHING_NEW',
+        coreMessage: 'upstream said ' + secret
+      }
+    }
+  });
+  try {
+    await ctx.backend.open();
+    const outcome = await publish(ctx);
+    assert.equal(outcome.diagnostic.errorCode, 'CORE_REQUEST_REJECTED');
+    assert.equal(outcome.diagnostic.stage, 'process');
+    assert.equal(outcome.diagnostic.coreStatus, 500);
+    assert.equal(outcome.diagnostic.coreMessage, 'upstream said [redacted]');
+    assert.equal(JSON.stringify(outcome).includes(secret), false);
+  } finally {
+    cleanup(ctx.dir);
+  }
+});
+
+test('drops malformed structured diagnostics instead of trusting them', async () => {
+  const ctx = setup({
+    status: 400,
+    result: {
+      error: 'publish_failed',
+      diagnostic: {
+        stage: 'DROP TABLE',
+        coreStatus: 9999,
+        coreErrorCode: 'not-a-core-code',
+        coreMessage: 'x'.repeat(5000)
+      }
+    }
+  });
+  try {
+    await ctx.backend.open();
+    const outcome = await publish(ctx);
+    assert.deepEqual(outcome.diagnostic, {
+      httpStatus: 400,
+      errorClass: 'REQUEST',
+      errorCode: 'CORE_REQUEST_REJECTED'
+    });
+  } finally {
+    cleanup(ctx.dir);
+  }
+});

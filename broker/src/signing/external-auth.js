@@ -5,6 +5,33 @@ import { readTokenFile } from '../credentials/store.js';
 const PUBLISH_PATH = '/qdn/publish';
 
 const ERROR_CODE = /^[a-z][a-z0-9_]{2,63}$/;
+const CORE_MESSAGE = /^[\x20-\x7e]{1,200}$/;
+const PUBLISH_STAGES = new Set(['fee', 'upload', 'convert', 'process', 'wallet', 'request']);
+
+/**
+ * Stable Core rejection codes External Auth is allowed to report. Anything
+ * outside this set is collapsed to CORE_REQUEST_REJECTED. The set mirrors
+ * packages/auth-daemon/src/publishDiagnostics.ts in External Auth 0.2.0.
+ */
+const CORE_ERROR_CODES = new Set([
+  'CORE_API_KEY_NOT_GENERATED',
+  'CORE_API_KEY_MISSING',
+  'CORE_API_KEY_INVALID',
+  'CORE_NAME_NOT_REGISTERED',
+  'CORE_BLOCKCHAIN_NEEDS_SYNC',
+  'CORE_ADDRESS_UNKNOWN',
+  'CORE_DATA_MISSING',
+  'CORE_INVALID_SIGNATURE',
+  'CORE_TRANSACTION_INVALID',
+  'CORE_TRANSFORMATION_ERROR',
+  'CORE_QUERY_PARAMETER_INVALID',
+  'CORE_NO_TIME_SYNC',
+  'CORE_REPOSITORY_ISSUE',
+  'CORE_INVALID_DATA',
+  'CORE_UNAUTHORIZED',
+  'CORE_REQUEST_REJECTED',
+  'CORE_HTTP_ERROR'
+]);
 
 const KNOWN_ERROR_CODES = new Map([
   ['unauthorized', 'UNAUTHORIZED'],
@@ -15,11 +42,36 @@ const KNOWN_ERROR_CODES = new Map([
 ]);
 
 /**
+ * Collapse control characters and redact anything long enough to be a token,
+ * signature, seed or payload blob. Mirrors the External Auth sanitizer so a
+ * backend cannot widen the bound by returning more than it should.
+ */
+export function sanitizeCoreMessage(value) {
+  if (typeof value !== 'string') return null;
+  const collapsed = value
+    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!collapsed) return null;
+  const bounded = collapsed.replace(/[A-Za-z0-9+/=_-]{48,}/g, '[redacted]').slice(0, 200);
+  if (bounded === '[redacted]') return null;
+  return CORE_MESSAGE.test(bounded) ? bounded : null;
+}
+
+/**
  * Convert an External Auth error body into a bounded, non-sensitive code.
  * Raw backend text can contain Core paths, names, request parameters or
- * echoed input, so it is classified rather than stored.
+ * echoed input, so it is classified rather than stored. A structured
+ * diagnostic (External Auth 0.2.0 + Core diagnostics patch) wins over text
+ * classification, and only allowlisted codes are accepted.
  */
 export function classifyExternalAuthError(parsed) {
+  const structured = parsed?.diagnostic?.coreErrorCode;
+  if (typeof structured === 'string') {
+    // A structured diagnostic is authoritative: never fall back to the
+    // generic "publish_failed" token when External Auth reported a Core code.
+    return CORE_ERROR_CODES.has(structured) ? structured : 'CORE_REQUEST_REJECTED';
+  }
   const raw = typeof parsed?.error === 'string' ? parsed.error.trim() : '';
   if (!raw) return 'UNKNOWN';
   const known = KNOWN_ERROR_CODES.get(raw);
@@ -38,11 +90,25 @@ function classificationForStatus(status) {
 }
 
 function diagnosticFor(status, parsed) {
-  return {
+  const diagnostic = {
     httpStatus: status,
     errorClass: classificationForStatus(status),
     errorCode: classifyExternalAuthError(parsed)
   };
+  const structured = parsed?.diagnostic;
+  if (structured && typeof structured === 'object') {
+    if (PUBLISH_STAGES.has(structured.stage)) diagnostic.stage = structured.stage;
+    if (
+      Number.isInteger(structured.coreStatus) &&
+      structured.coreStatus >= 100 &&
+      structured.coreStatus <= 599
+    ) {
+      diagnostic.coreStatus = structured.coreStatus;
+    }
+    const message = sanitizeCoreMessage(structured.coreMessage);
+    if (message) diagnostic.coreMessage = message;
+  }
+  return diagnostic;
 }
 
 /**

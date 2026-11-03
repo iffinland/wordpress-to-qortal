@@ -277,7 +277,17 @@ deterministic defect is a fee unit mismatch: the broker converted the reserved
 `fee=0.01`, and Core's `@QueryParam("fee") Long` cannot bind a decimal. That
 is the observed non-401/403 4xx.
 
-The fix, full error-path map, diagnostics/redaction design, External Auth patch,
-operator deployment script and restricted SSH maintenance design are in
+After the fee fix was deployed the same publish still returned HTTP 400. The
+next gate in Core 6.1.9 is `Security.checkApiCallAllowed()` on
+`POST /arbitrary/{service}/{name}/{identifier}/base64`; the deployment never
+configured `QORTAL_AUTH_NODE_API_KEY` for External Auth, and External Auth only
+sends `X-API-KEY` when it is set. External Auth also collapsed Core's
+structured 401 into generic free text, which the broker could only report as
+`CORE_REQUEST_REJECTED`.
+
+The complete analysis, sanitized diagnostic contract, regenerated External Auth
+patches, tests, the idempotent operator script
+(`deploy-phase5.2-core-rejection-fix.sh`) and the post-restart wallet unlock
+step are in
 [`PHASE-5.2-EXTERNAL-AUTH-FAILURE-ANALYSIS.md`](PHASE-5.2-EXTERNAL-AUTH-FAILURE-ANALYSIS.md).
-Do not publish again until the operator applies that fix.
+Do not publish again until the operator applies that fix and unlocks the wallet.

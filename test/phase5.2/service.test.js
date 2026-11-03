@@ -288,3 +288,62 @@ test('drops an unsafe backend diagnostic instead of persisting free text or secr
     assert.equal(raw.includes('developer iffi'), false);
   });
 });
+
+test('persists the sanitized Core gate diagnostic on the record and audit ledger', async () => {
+  const diagnostic = {
+    httpStatus: 400,
+    errorClass: 'REQUEST',
+    errorCode: 'CORE_API_KEY_MISSING',
+    stage: 'upload',
+    coreStatus: 401,
+    coreMessage: "Missing 'X-API-KEY' header"
+  };
+  await withBroker({
+    backendResults: [{
+      state: 'failed',
+      code: 'SIGNING_FAILED',
+      diagnostic,
+      evidence: { status: 400, errorCode: 'CORE_API_KEY_MISSING' }
+    }]
+  }, async (harness) => {
+    const result = await publish(harness, makeRequest());
+    assert.equal(result.state, 'failed');
+    assert.deepEqual(result.diagnostic, diagnostic);
+    assert.deepEqual(result.resources[0].verification.diagnostic, diagnostic);
+    assert.equal(result.chargedAtomic, 0);
+
+    const audit = readFileSync(harness.config.audit.path, 'utf8')
+      .trim().split('\n').map((line) => JSON.parse(line));
+    const failed = audit.filter((entry) => entry.event === 'publication_signing_failed');
+    assert.equal(failed.length, 1);
+    assert.equal(failed[0].errorCode, 'CORE_API_KEY_MISSING');
+    assert.equal(failed[0].stage, 'upload');
+    assert.equal(failed[0].coreStatus, 401);
+    assert.equal(failed[0].coreMessage, "Missing 'X-API-KEY' header");
+    assert.equal(verifyAuditFile(harness.config.audit.path).ok, true);
+  });
+});
+
+test('drops malformed Core diagnostic extras while keeping the bounded triple', async () => {
+  await withBroker({
+    backendResults: [{
+      state: 'failed',
+      code: 'SIGNING_FAILED',
+      diagnostic: {
+        httpStatus: 400,
+        errorClass: 'REQUEST',
+        errorCode: 'CORE_REQUEST_REJECTED',
+        stage: 'NOT_A_STAGE',
+        coreStatus: 9999,
+        coreMessage: 12345
+      }
+    }]
+  }, async (harness) => {
+    const result = await publish(harness, makeRequest());
+    assert.deepEqual(result.diagnostic, {
+      httpStatus: 400,
+      errorClass: 'REQUEST',
+      errorCode: 'CORE_REQUEST_REJECTED'
+    });
+  });
+});

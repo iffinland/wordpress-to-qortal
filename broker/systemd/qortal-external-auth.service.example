@@ -12,6 +12,12 @@ Environment=QORTAL_AUTH_HOST=127.0.0.1
 Environment=QORTAL_AUTH_PORT=3191
 Environment=QORTAL_AUTH_DATA_DIR=/var/lib/qortal-external-auth
 Environment=QORTAL_AUTH_NODE_URL=http://127.0.0.1:12391
+# Core gates POST /arbitrary/{service}/{name}/{identifier}/base64 with
+# Security.checkApiCallAllowed(). localAuthBypassEnabled defaults to false, so
+# publishing needs a node API key. Keep it in a 0600 EnvironmentFile; never put
+# the value in this unit file or in the repository.
+EnvironmentFile=-/etc/qortal-external-auth/node-api-key.env
+Environment=QORTAL_AUTH_NODE_API_KEY_MODE=auto
 Environment=NODE_ENV=production
 WorkingDirectory=/opt/qortal-external-auth
 ExecStart=/usr/bin/node /opt/qortal-external-auth/packages/auth-daemon/dist/index.js
