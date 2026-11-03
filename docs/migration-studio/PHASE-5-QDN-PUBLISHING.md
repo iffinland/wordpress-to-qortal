@@ -208,6 +208,22 @@ returned ownership list; otherwise publication is blocked before approval.
 The authoritative check remains in Hub/Core. The local check is a preflight and
 does not replace Hub's own getAllUserNames check before publishing.
 
+### 5.1 Exact registered names
+
+Qortal Core validates a name by UTF-8 byte length (3..40), NFKC display
+normalization (no leading/trailing or repeated whitespace, no zero-width
+characters) and an address check. Core has no ASCII character whitelist:
+internal spaces and Unicode letters are valid. Phase 5.1 removed the obsolete
+local regex. See
+`docs/migration-studio/PHASE-5.1-QORTAL-NAME-VALIDATION.md` for the Core audit
+and evidence.
+
+Identity, ownership, handoff targets, resource names and receipts use the exact
+registered display string. Core's `reducedName` is a uniqueness/search key only
+and is never accepted as identity. Ownership requires both the exact returned
+`name` and the exact `owner` address; a case-folded match, reducedName match,
+missing name, wrong owner or unavailable node is `blocked`.
+
 Before approval, the Publisher can query:
 
 - GET_QDN_RESOURCE_STATUS for presence;
@@ -302,6 +318,11 @@ lossy for binary data. Phase 5 therefore:
 
 The status endpoint is advisory. Even READY still requires the exact byte read.
 
+Names in HTTP path segments are raw values encoded exactly once with
+`encodeURIComponent`: spaces become `%20`, never `+`, and `%` is escaped to
+`%25`. The ownership lookup and exact read-back share this rule, and an
+already-encoded name must not be passed in (no double encoding).
+
 ## 9. Receipts and desktop synchronization
 
 Receipt schema: qms-publication-receipt@1.
@@ -385,9 +406,9 @@ Implemented controls:
 ### 12.1 Tests
 
 ~~~bash
-npm test                 # 160 tests
-npm run test:phase5      # 14 tests
-cd desktop && npm test   # 27 tests
+npm test                 # 170 tests
+npm run test:phase5      # 24 tests
+cd desktop && npm test   # 28 tests
 ~~~
 
 Phase 5 tests cover:
@@ -406,7 +427,10 @@ Phase 5 tests cover:
 - restart recovery and history;
 - host publication methods;
 - desktop IPC validation and renderer workflow;
-- no wallet secret fields and no false published labels.
+- no wallet secret fields and no false published labels;
+- exact space-containing names, UTF-8 byte bounds, NFKC normalization,
+  reducedName non-identity, URL encoding and exact name+owner checks
+  (Phase 5.1).
 
 ### 12.2 Builds
 

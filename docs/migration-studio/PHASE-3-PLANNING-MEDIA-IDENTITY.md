@@ -110,14 +110,17 @@ identifier = <prefix>-<namespace>-<kind><base32(sha256(sourceKey))[0..16]>
 
 ### 3.3 Qortal name validation
 
-`target.qdnName` is required for planning. Phase 3 accepts 3–40 characters,
-starting and ending with an alphanumeric, with alphanumerics, `_` or `-` inside.
-Invalid names fail with `TARGET_NAME_REQUIRED` or `TARGET_NAME_INVALID` before
-a plan is written.
+`target.qdnName` is required for planning. Phase 5.1 aligned validation with
+Qortal Core: 3–40 **UTF-8 bytes**, already in Core's NFKC display form (no
+leading/trailing or repeated whitespace, no zero-width/control characters), and
+not an address. Internal spaces and Unicode letters are valid; Core has no ASCII
+whitelist. The exact registered display string is preserved. Invalid names fail
+with `TARGET_NAME_REQUIRED` or `TARGET_NAME_INVALID` before a plan is written.
 
-**Unverified:** the exact character set accepted by the deployed Qortal Core
-version must be re-confirmed in Phase 4/5. The publisher remains the final
-authority; a target name that Core rejects must fail before approval.
+**Verified in Phase 5.1.** See
+`docs/migration-studio/PHASE-5.1-QORTAL-NAME-VALIDATION.md`. The publisher remains
+the final authority; remote ownership is checked separately against the exact
+registered name and owner address.
 
 ### 3.4 Same name, multiple sites
 
@@ -510,8 +513,10 @@ Cleanup may delete a local asset only when:
   live WordPress site, QDN resource or Qortal node was contacted.
 - **No publish verification.** Phase 3 mappings are `reserved`; only Phase 5 can
   mark them `published` after exact read-back.
-- **Qortal name rule uncertainty.** The exact Core name character set must be
-  confirmed in Phase 4/5.
+- **Qortal name rule uncertainty.** Resolved for display validation in Phase
+  5.1 against Qortal Core 6.1.9. Remaining Unicode-version and address-lookalike
+  caveats are documented in
+  `docs/migration-studio/PHASE-5.1-QORTAL-NAME-VALIDATION.md`.
 - **HEAD estimates are not authoritative.** A server may change size/content
   after HEAD; the downloader rechecks byte count and hashes, but a changed file
   is a new revision, not an update of the old one.
