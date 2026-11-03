@@ -423,6 +423,11 @@ Local, no signing-VPS access:
 - `npm test` (full repository): **282 tests, 282 pass, 0 fail**.
 - External Auth `npm run build` (auth-core + auth-daemon `tsc`): OK.
 - External Auth focused diagnostics suite: **5 tests, 5 pass, 0 fail**.
+- External Auth full daemon suite: **141 tests, 139 pass, 2 fail**, both
+  `daemon startup timeout` in integration tests while the repository suite ran
+  concurrently. Re-run alone: **3 tests, 3 pass, 0 fail**. The failures are
+  timing/resource contention in the upstream harness, not assertion failures
+  and not in the patched publish path.
 - Both patches applied sequentially to a clean worktree at the pinned commit
   `7e5d498`: `P1_OK`, `P2_OK`.
 - Deployment layout/ordering suite: **3 tests, 3 pass, 0 fail**, including the
@@ -472,7 +477,7 @@ order:
 | --- | --- | --- | --- |
 | 1 | Route match | `ArbitraryResource.java` `@Path("/{service}/{name}/{identifier}/base64")` | 404 |
 | 2 | `fee` binds to Java `Long` | same method, `@QueryParam("fee") Long fee` | 400/404 before the method |
-| 3 | **`Security.checkApiCallAllowed(request)`** | `ArbitraryResource.java:1654` (identifier variant), `Security.java:31-68` | **401 JSON** |
+| 3 | **`Security.checkApiCallAllowed(request)`** | `ArbitraryResource.java:1665-1700` (identifier variant; the no-identifier route is 1620-1654), `Security.java:31-68` | **401 JSON** |
 | 4 | `Service.valueOf(service)` | same method | 400/500 |
 | 5 | Registered-name lookup | `ArbitraryResource.upload()` | 400 `Name not registered` |
 | 6 | Chain sync | `upload()` | 400 `BLOCKCHAIN_NEEDS_SYNC` |
