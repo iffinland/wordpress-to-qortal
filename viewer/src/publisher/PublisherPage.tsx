@@ -411,8 +411,10 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
     try {
       const verified = new Set<string>();
       const collisions = new Set<string>();
+      const blockedRetry = new Set<string>();
       for (const resource of selectedResources) {
-        if (statusOf(outcome[resource.id]) === 'remote_verified') {
+        const prior = statusOf(outcome[resource.id]);
+        if (prior === 'remote_verified') {
           verified.add(resource.id);
           continue;
         }
@@ -420,6 +422,15 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
         if (result.status === 'remote_verified') {
           setOutcome(resource.id, { ...result, reason: 'Already present with exact bytes; publication skipped.' });
           verified.add(resource.id);
+        } else if (['submitted', 'pending_confirmation', 'ambiguous'].includes(prior)) {
+          blockedRetry.add(resource.id);
+          setOutcome(resource.id, {
+            status: 'blocked',
+            reason: 'An earlier attempt has no confirmed outcome. Reconcile it before any retry; ambiguous writes are never resubmitted automatically.',
+            txSignature: outcome[resource.id]?.txSignature ?? null,
+            updatedAt: nowIso(),
+            verification: result.verification ?? null
+          });
         } else if (result.status === 'ambiguous') {
           collisions.add(resource.id);
           if (!allowUpdates) {
@@ -436,7 +447,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       if (collisions.size > 0 && !allowUpdates) {
         throw new Error('Publishing blocked: ' + collisions.size + ' existing resource(s) have different bytes. No resource was submitted.');
       }
-      const pendingSelected = selectedResources.filter((resource) => !verified.has(resource.id));
+      const pendingSelected = selectedResources.filter((resource) => !verified.has(resource.id) && !blockedRetry.has(resource.id));
       const batches = planBatches(manifest.resources, new Set(pendingSelected.map((resource) => resource.id)));
       for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
         const batch = batches[batchIndex];
