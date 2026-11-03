@@ -1,0 +1,74 @@
+{
+  "server": {
+    "host": "127.0.0.1",
+    "port": 3199,
+    "requestTimeoutMs": 30000,
+    "headersTimeoutMs": 10000,
+    "maxBodyBytes": 8388608,
+    "maxConcurrentPublications": 1
+  },
+  "admin": {
+    "socketPath": "/run/qms-qdn-test-broker/admin.sock",
+    "enabled": true
+  },
+  "qortal": {
+    "nodeUrl": "http://127.0.0.1:12391",
+    "targetName": "developer iffi",
+    "ownerAddress": "QipPqwJeLtx89dXcSkY7vimMUNT8Gy5k2E",
+    "nameCheckTtlMs": 60000
+  },
+  "policy": {
+    "allowedServices": [
+      "DOCUMENT"
+    ],
+    "allowedContentTypes": [
+      "text/plain",
+      "text/markdown",
+      "text/html",
+      "application/json"
+    ],
+    "identifierPrefix": "qms-dev-",
+    "maxResourcesPerRequest": 20,
+    "maxTransactionsPerRequest": 20,
+    "maxPayloadBytes": 1048576,
+    "maxTotalBytesPerRequest": 4194304,
+    "maxFeePerTransactionQort": "0.001",
+    "budgetQort": "0.05",
+    "budgetWindowMs": 86400000,
+    "sessionLifetimeMs": 3600000,
+    "allowResourceUpdates": false,
+    "minIdentifierLength": 8,
+    "maxIdentifierLength": 64
+  },
+  "signing": {
+    "backend": "external-auth",
+    "externalAuth": {
+      "baseUrl": "http://127.0.0.1:3191",
+      "walletId": "REPLACE_WITH_EXTERNAL_AUTH_WALLET_ID",
+      "tokenFile": "/etc/qms-qdn-test-broker/external-auth-token",
+      "timeoutMs": 60000,
+      "expectedAddress": "QipPqwJeLtx89dXcSkY7vimMUNT8Gy5k2E"
+    }
+  },
+  "auth": {
+    "keysFile": "/etc/qms-qdn-test-broker/clients.json",
+    "clockSkewMs": 120000,
+    "nonceTtlMs": 600000,
+    "maxRequestAgeMs": 120000
+  },
+  "audit": {
+    "path": "/var/lib/qms-qdn-test-broker/audit.jsonl"
+  },
+  "state": {
+    "path": "/var/lib/qms-qdn-test-broker/state.json",
+    "fsync": true
+  },
+  "killSwitch": {
+    "path": "/var/lib/qms-qdn-test-broker/DISABLED"
+  },
+  "readback": {
+    "attempts": 4,
+    "intervalMs": 1500,
+    "timeoutMs": 20000
+  }
+}

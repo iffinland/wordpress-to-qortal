@@ -1,0 +1,93 @@
+/**
+ * Broker-local typed errors. Codes are stable and safe to log.
+ */
+export const BROKER_ERROR = Object.freeze({
+  AUTH_REQUIRED: 'AUTH_REQUIRED',
+  AUTH_INVALID: 'AUTH_INVALID',
+  AUTH_EXPIRED: 'AUTH_EXPIRED',
+  AUTH_REPLAY: 'AUTH_REPLAY',
+  AUTH_KEY_UNKNOWN: 'AUTH_KEY_UNKNOWN',
+  AUTH_KEY_REVOKED: 'AUTH_KEY_REVOKED',
+  DISABLED: 'DISABLED',
+  INVALID_REQUEST: 'INVALID_REQUEST',
+  POLICY_NAME: 'POLICY_NAME',
+  POLICY_OWNER: 'POLICY_OWNER',
+  POLICY_SERVICE: 'POLICY_SERVICE',
+  POLICY_IDENTIFIER: 'POLICY_IDENTIFIER',
+  POLICY_CONTENT_TYPE: 'POLICY_CONTENT_TYPE',
+  PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
+  TOO_MANY_RESOURCES: 'TOO_MANY_RESOURCES',
+  FEE_INVALID: 'FEE_INVALID',
+  FEE_TOO_HIGH: 'FEE_TOO_HIGH',
+  BUDGET_EXCEEDED: 'BUDGET_EXCEEDED',
+  RESOURCE_EXISTS: 'RESOURCE_EXISTS',
+  RESOURCE_PENDING: 'RESOURCE_PENDING',
+  IDEMPOTENCY_CONFLICT: 'IDEMPOTENCY_CONFLICT',
+  NODE_UNAVAILABLE: 'NODE_UNAVAILABLE',
+  NAME_NOT_VERIFIED: 'NAME_NOT_VERIFIED',
+  HANDOFF_INVALID: 'HANDOFF_INVALID',
+  HASH_MISMATCH: 'HASH_MISMATCH',
+  SIGNING_REJECTED: 'SIGNING_REJECTED',
+  SIGNING_FAILED: 'SIGNING_FAILED',
+  UNAVAILABLE: 'UNAVAILABLE',
+  INTERNAL: 'INTERNAL'
+});
+
+const STATUS = Object.freeze({
+  AUTH_REQUIRED: 401,
+  AUTH_INVALID: 401,
+  AUTH_EXPIRED: 401,
+  AUTH_REPLAY: 401,
+  AUTH_KEY_UNKNOWN: 401,
+  AUTH_KEY_REVOKED: 401,
+  DISABLED: 503,
+  INVALID_REQUEST: 400,
+  POLICY_NAME: 403,
+  POLICY_OWNER: 403,
+  POLICY_SERVICE: 403,
+  POLICY_IDENTIFIER: 403,
+  POLICY_CONTENT_TYPE: 403,
+  PAYLOAD_TOO_LARGE: 413,
+  TOO_MANY_RESOURCES: 403,
+  FEE_INVALID: 400,
+  FEE_TOO_HIGH: 403,
+  BUDGET_EXCEEDED: 409,
+  RESOURCE_EXISTS: 409,
+  RESOURCE_PENDING: 409,
+  IDEMPOTENCY_CONFLICT: 409,
+  NODE_UNAVAILABLE: 503,
+  NAME_NOT_VERIFIED: 409,
+  HANDOFF_INVALID: 400,
+  HASH_MISMATCH: 400,
+  SIGNING_REJECTED: 403,
+  SIGNING_FAILED: 502,
+  UNAVAILABLE: 503,
+  INTERNAL: 500
+});
+
+export class BrokerError extends Error {
+  constructor(code, message, options = {}) {
+    super(message, options.cause ? { cause: options.cause } : undefined);
+    this.name = 'BrokerError';
+    this.code = code;
+    this.status = options.status ?? STATUS[code] ?? 500;
+    this.details = options.details ?? {};
+  }
+
+  toJSON() {
+    return { code: this.code, message: this.message, details: this.details };
+  }
+}
+
+export function fail(code, message, details) {
+  throw new BrokerError(code, message, { details });
+}
+
+export function isBrokerError(error) {
+  return error instanceof BrokerError;
+}
+
+export function toBrokerError(error, fallback = BROKER_ERROR.INTERNAL) {
+  if (error instanceof BrokerError) return error;
+  return new BrokerError(fallback, error instanceof Error ? error.message : String(error), { cause: error });
+}

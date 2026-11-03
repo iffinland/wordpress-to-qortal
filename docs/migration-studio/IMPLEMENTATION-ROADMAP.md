@@ -274,6 +274,16 @@ Node/npm/Git, with a first-run project flow.
 > unverified until an authorized live test is run. See
 > [PHASE-5-QDN-PUBLISHING.md](PHASE-5-QDN-PUBLISHING.md).
 
+> **Phase 5.2 implementation note (2026-11-03):** A development-only policy
+> broker for autonomous QDN test publication is implemented in `broker/` with
+> Ed25519 request authentication, exact-name/owner/service/identifier/payload
+> policy, atomic fee budgets, crash-safe state, hash-chained audit and an
+> operator Unix-socket kill switch. It calls External Auth only through
+> `POST /qdn/publish` and reuses Phase 5 exact read-back. Deterministic tests
+> pass. Live deployment is blocked on signing-host provisioning, External Auth
+> installation and operator wallet unlock; no wallet or QDN write occurred. See
+> [PHASE-5.2-TEST-PUBLISHING-BROKER.md](PHASE-5.2-TEST-PUBLISHING-BROKER.md).
+
 **Outcome:** a truthful, resumable publication flow that prepares resources,
 hands off to Qortal Hub, and verifies exact QDN content without collecting keys.
 

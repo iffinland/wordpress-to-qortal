@@ -1,0 +1,14 @@
+{
+  "name": "qms-qdn-test-broker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Policy broker for isolated QDN test publishing in Qortal Migration Studio.",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "cd .. && node --test test/phase5.2/*.test.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,34 @@
+# Example only. Do not install on the production Qortal node during Phase 5.2.
+[Unit]
+Description=Qortal External Auth signing daemon (loopback only)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=qortal-auth
+Group=qortal-auth
+Environment=QORTAL_AUTH_HOST=127.0.0.1
+Environment=QORTAL_AUTH_PORT=3191
+Environment=QORTAL_AUTH_DATA_DIR=/var/lib/qortal-external-auth
+Environment=QORTAL_AUTH_NODE_URL=http://127.0.0.1:12391
+Environment=NODE_ENV=production
+WorkingDirectory=/opt/qortal-external-auth
+ExecStart=/usr/bin/node /opt/qortal-external-auth/packages/auth-daemon/dist/index.js
+Restart=on-failure
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+CapabilityBoundingSet=
+ReadWritePaths=/var/lib/qortal-external-auth
+InaccessiblePaths=/etc/qms-qdn-test-broker
+
+[Install]
+WantedBy=multi-user.target
