@@ -171,6 +171,40 @@ Latent risk remains for names containing `#`, `?`, `%` or `\`, which the URL
 parser would treat as fragment/query/escape/separator. The upstream patch
 encodes every path segment once and therefore closes that class.
 
+## 5.1 Qortal Hub comparison (a9588f4)
+
+Pinned reference: `Qortal/Qortal-Hub` commit
+`a9588f4d4c93271cbfcddd9f4242b2cbeeff6605`, `src/qdn/publish/publish.ts`.
+
+Qortal Hub sequence:
+
+1. `GET /names/{name}` preflight.
+2. `GET /transactions/unitfee?txType=ARBITRARY&timestamp=...` for the atomic fee.
+3. `POST /arbitrary/{service}/{name}/{identifier}/base64?fee={atomic}` with the raw
+   Base64 body; for a custom node Hub appends `&apiKey={key}` to the query.
+4. `POST /transactions/convert` with the Base58 unsigned transaction.
+5. Base58-decode the unsigned and converted bytes, sign with Ed25519, append the
+   signature.
+6. `POST /transactions/process?apiVersion=2` with the signed Base58 bytes.
+
+External Auth 0.2.0 follows the same path, identifier forwarding, Base64 body,
+atomic fee, convert/sign/append order and process call. The only material
+difference is the Core API key channel: Hub always sends `apiKey` in the query
+for a custom node; External Auth sends `X-API-KEY` only when
+`QORTAL_AUTH_NODE_API_KEY` is configured. Core `6.1.9`
+`Security.checkApiCallAllowed()` rejects the identifier/Base64 route when that
+header is absent. This is a deployment/configuration gap, not a publishing
+protocol mismatch.
+
+The smallest correct fix is to configure the existing Core API key for External
+Auth (and keep the header channel; it is equivalent and safer than a query
+parameter). `broker/scripts/deploy-phase5.2-core-rejection-fix.sh` installs the
+broker/External Auth patches, writes the key drop-in, restarts External Auth and
+requires the operator to run `operator-unlock-external-auth.sh` once. It does
+not change the request shape or any other infrastructure.
+
+No live publication was submitted during this comparison.
+
 ## 6. Fixes
 
 ### 6.1 Broker (deployed by the operator script)
