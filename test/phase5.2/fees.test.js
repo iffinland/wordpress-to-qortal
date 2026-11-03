@@ -146,6 +146,23 @@ test('keeps pending and ambiguous charges inside the rolling budget', async () =
   });
 });
 
+test('charges that finalize after a window boundary count in the new window', async () => {
+  let current;
+  await withBroker({
+    backendResults: [() => {
+      current.advance(2 * 86400000);
+      return { state: 'signed' };
+    }]
+  }, async (harness) => {
+    current = harness;
+    const result = await publish(harness, makeRequest());
+    assert.equal(result.state, 'remote_verified');
+    const snapshot = harness.state.snapshot();
+    assert.equal(snapshot.budget.spentAtomic, 1000000);
+    assert.equal(snapshot.budget.windowStart, harness.clock());
+  });
+});
+
 test('serialized reservations cannot overcommit the confirmed wallet balance', async () => {
   await withBroker({
     policy: { budgetQort: '5', walletReserveQort: '0.001' },

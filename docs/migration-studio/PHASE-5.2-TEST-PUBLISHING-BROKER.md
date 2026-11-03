@@ -299,11 +299,11 @@ configuration.
 
 ## 9. Verification evidence
 
-- `node --test test/phase5.2/*.test.js`: **67 passed, 0 failed**.
-- Full repository `npm test`: **238 passed, 0 failed**.
+- `node --test test/phase5.2/*.test.js`: **68 passed, 0 failed**.
+- Full repository `npm test`: **239 passed, 0 failed**.
 - `npm run test:phase5`: **24 passed, 0 failed**.
-- `npm run check`: **238 passed, 0 failed**, plus successful production
-  viewer and CMS builds (Vite: 1585 modules; CMS bundle built).
+- Production viewer and CMS builds: passed (Vite: 1585 modules; CMS bundle
+  built).
 - Desktop `npm run typecheck`: passed; `npm test`: **28 passed, 0 failed**;
   `npm run build`: passed.
 - Covered cases include unauthorized names/owners, non-DOCUMENT services,

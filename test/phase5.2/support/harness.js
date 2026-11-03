@@ -183,10 +183,11 @@ export async function createTestBroker(overrides = {}) {
   const tmp = mkdtempSync(join(tmpdir(), 'qms-broker-'));
   let now = Date.parse('2026-11-03T10:00:00.000Z');
   const clock = () => now;
-  const config = makeConfig(overrides, tmp);
-  const node = createFakeNode(overrides.fakeNode ?? {});
+  const { backendResults, fakeNode, ...configOverrides } = overrides;
+  const config = makeConfig(configOverrides, tmp);
+  const node = createFakeNode(fakeNode ?? {});
   const backend = createMockSigningBackend({
-    results: overrides.backendResults ?? [],
+    results: backendResults ?? [],
     onSigned: (request, outcome) => {
       if (outcome.remote === false) return;
       if (outcome.corruptRemote === true) {

@@ -507,6 +507,7 @@ export class PublicationBroker {
       const record = draft.publications[publicationId];
       if (!record) fail(BROKER_ERROR.INVALID_REQUEST, 'Publication not found.');
       delete draft.budget.reservations[publicationId];
+      rollWindow(draft, this.clock(), this.config.policy.budgetWindowMs);
       draft.budget.spentAtomic += chargedAtomic;
       record.chargedAtomic = chargedAtomic;
       record.reservedAtomic = 0;

@@ -33,7 +33,7 @@ export async function startBroker({ configPath = process.env.QMS_BROKER_CONFIG }
   }
 
   const state = await BrokerState.open({ path: config.state.path, fsync: config.state.fsync });
-  const recovery = await state.recoverInterrupted();
+  const recovery = await state.recoverInterrupted({ windowMs: config.policy.budgetWindowMs });
   if (recovery.recovered > 0) log('marked ' + recovery.recovered + ' interrupted publication(s) as ambiguous');
   const audit = AuditLog.open({ path: config.audit.path });
   const broker = new PublicationBroker({ config, state, audit, backend });

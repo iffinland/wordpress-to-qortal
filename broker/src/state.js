@@ -134,8 +134,10 @@ export class BrokerState {
    * been signed before the crash. Count it as spent rather than silently
    * restoring the budget. It is never retried automatically.
    */
-  async recoverInterrupted() {
+  async recoverInterrupted({ windowMs = 86400000 } = {}) {
     return this.transact((draft) => {
+      const now = this.clock();
+      rollWindow(draft, now, windowMs);
       let recovered = 0;
       for (const publication of Object.values(draft.publications)) {
         if (publication.state === 'reserved' || publication.state === 'submitting') {
@@ -147,7 +149,7 @@ export class BrokerState {
           publication.message = 'The broker restarted while publication was in flight; the outcome is unknown.';
           publication.chargedAtomic = charged;
           publication.reservedAtomic = 0;
-          publication.updatedAt = new Date(this.clock()).toISOString();
+          publication.updatedAt = new Date(now).toISOString();
           recovered += 1;
         }
       }
