@@ -1,0 +1,39 @@
+{
+  "schema": "qms-qdn-content@1",
+  "version": 1,
+  "id": "src_wordpress_post_1",
+  "content_type": "post",
+  "identity": {
+    "slug": "engine-post"
+  },
+  "title": "Engine Published Post",
+  "dates": {
+    "published_at": "2026-10-24T00:00:00.000Z",
+    "modified_at": "2026-10-24T00:00:00.000Z"
+  },
+  "body": {
+    "format": "html",
+    "html": "<p>Published by the Phase 5 engine payload format.</p>",
+    "text": "Published by the Phase 5 engine payload format.",
+    "excerpt_html": "<p>Engine format.</p>",
+    "excerpt_text": "Engine format."
+  },
+  "authors": [
+    {
+      "name": "Engine Author",
+      "address": "QEngineAddress11111111111111111111"
+    }
+  ],
+  "terms": {
+    "categories": [
+      {
+        "key": "1",
+        "name": "Engine News",
+        "slug": "engine-news"
+      }
+    ],
+    "tags": []
+  },
+  "media": [],
+  "content_hash": "hash-engine-post"
+}

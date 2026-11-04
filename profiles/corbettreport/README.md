@@ -21,3 +21,11 @@ Build the dedicated apps from the repository root:
 npm run package:migration-qapp
 npm run package:cms-qapp
 ```
+
+## Migration Studio compatibility
+
+Qortal Migration Studio Phase 2 uses this profile as a read-only compatibility
+record. It preserves the `cr` prefix and every `cr-*` QDN identifier, and its
+golden tests compare the adapter's legacy view against the real Corbett
+converter output. The profile file itself, the existing CLI commands, batch
+state and QDN identifiers are unchanged.

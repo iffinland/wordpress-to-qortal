@@ -1,0 +1,39 @@
+{
+  "schema": "qms-cms-manifest@1",
+  "version": 1,
+  "generated_at": "2026-10-30T12:00:00.000Z",
+  "site": {
+    "id": "site-fixture",
+    "title": "Fixture Site",
+    "tagline": "A neutral fixture publication",
+    "description": "Fixture catalog used by the generic CMS tests.",
+    "owner_name": "QortalDemo",
+    "public_author": "Fixture Editor"
+  },
+  "entrypoints": {
+    "posts": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-posts" },
+    "pages": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-pages" },
+    "categories": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-categories" },
+    "tags": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-tags" },
+    "media": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-media" }
+  },
+  "resources": {
+    "by_path": {},
+    "by_identifier": {
+      "qms-fixture-posts": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-posts", "local_path": "index/posts.json" },
+      "qms-fixture-pages": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-pages", "local_path": "index/pages.json" },
+      "qms-fixture-categories": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-categories", "local_path": "index/categories.json" },
+      "qms-fixture-tags": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-tags", "local_path": "index/tags.json" },
+      "qms-fixture-media": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-media", "local_path": "index/media.json" },
+      "qms-fixture-post-hello": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-post-hello", "local_path": "content/post-hello.json" },
+      "qms-fixture-post-design": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-post-design", "local_path": "content/post-design.json" },
+      "qms-fixture-post-history": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-post-history", "local_path": "content/post-history.json" },
+      "qms-fixture-page-about": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-page-about", "local_path": "content/page-about.json" },
+      "qms-fixture-page-contact": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-page-contact", "local_path": "content/page-contact.json" }
+    },
+    "by_source_url": {
+      "https://example.org/media/hero.jpg": { "service": "IMAGE", "name": "QortalDemo", "identifier": "qms-fixture-image-hero" }
+    }
+  },
+  "counts": { "posts": 3, "pages": 2, "categories": 3, "tags": 3 }
+}

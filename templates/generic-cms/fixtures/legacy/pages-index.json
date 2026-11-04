@@ -1,0 +1,25 @@
+{
+  "schema": "qms-legacy-corbett-index@1",
+  "type": "pages",
+  "count": 1,
+  "entries": [
+    {
+      "type": "page",
+      "source_id": 901,
+      "old_url": "https://corbett.example/golden-page/",
+      "public_author": "Corbett",
+      "slug": "golden-page",
+      "title": "Golden Page",
+      "date": "2023-01-01T00:00:00",
+      "published_at": "2023-01-01T00:00:00Z",
+      "modified": "2023-01-01T00:00:00",
+      "modified_at": "2023-01-01T00:00:00Z",
+      "status": "publish",
+      "summary": "Golden page summary",
+      "categories": [],
+      "tags": [],
+      "featured_media": null,
+      "file": "page-golden.json"
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+{
+  "description": "Legacy Corbett convertPost output and route rewriting; generated with convertPost.",
+  "site": "https://corbett.example",
+  "rawPost": {
+    "id": 900,
+    "slug": "golden-post",
+    "link": "https://corbett.example/golden-post/",
+    "title": {
+      "rendered": "Golden &amp; Post"
+    },
+    "content": {
+      "rendered": "<p>Hello &amp; welcome to the <a href=\"/about/\">About</a> and <a href=\"https://example.org/out\">outside</a>.</p><img src=\"/wp-content/uploads/one.jpg\" alt=\"One\"><img data-lazy-src=\"/wp-content/uploads/lazy.jpg\" srcset=\"/wp-content/uploads/lazy-300.jpg 300w, /wp-content/uploads/lazy-600.jpg 600w\"><audio src=\"/wp-content/uploads/audio.mp3\"></audio><video src=\"/wp-content/uploads/video.mp4\"></video><a href=\"/wp-content/uploads/doc.pdf\">Doc</a><iframe src=\"https://www.youtube.com/embed/abc\"></iframe>"
+    },
+    "excerpt": {
+      "rendered": "<p>Golden excerpt &amp; summary</p>"
+    },
+    "date": "2024-01-02T03:04:05",
+    "date_gmt": "2024-01-02T03:04:05",
+    "modified": "2024-02-03T04:05:06",
+    "modified_gmt": "2024-02-03T04:05:06",
+    "status": "publish",
+    "author": 7,
+    "featured_media": 301,
+    "categories": [
+      1,
+      2
+    ],
+    "tags": [
+      10
+    ],
+    "format": "standard"
+  },
+  "attachments": [
+    {
+      "id": 302,
+      "source_url": "https://corbett.example/wp-content/uploads/doc.pdf",
+      "media_type": "file",
+      "mime_type": "application/pdf",
+      "title": {
+        "rendered": "Doc"
+      }
+    }
+  ],
+  "featuredMedia": {
+    "id": 301,
+    "source_url": "https://corbett.example/wp-content/uploads/featured.jpg",
+    "media_type": "image",
+    "mime_type": "image/jpeg",
+    "title": {
+      "rendered": "Featured"
+    },
+    "alt_text": "Featured image"
+  },
+  "options": {
+    "publicAuthorName": "Corbett",
+    "importerVersion": "0.1.5"
+  },
+  "expectedLegacy": {
+    "type": "post",
+    "source": "wordpress",
+    "source_id": 900,
+    "old_url": "https://corbett.example/golden-post/",
+    "public_author": "Corbett",
+    "slug": "golden-post",
+    "title": "Golden & Post",
+    "date": "2024-01-02T03:04:05",
+    "published_at": "2024-01-02T03:04:05Z",
+    "modified": "2024-02-03T04:05:06",
+    "modified_at": "2024-02-03T04:05:06Z",
+    "status": "publish",
+    "excerpt": "<p>Golden excerpt &amp; summary</p>",
+    "excerpt_text": "Golden excerpt & summary",
+    "content_html": "<p>Hello &amp; welcome to the <a href=\"/about/\">About</a> and <a href=\"https://example.org/out\">outside</a>.</p><img src=\"/wp-content/uploads/one.jpg\" alt=\"One\"><img data-lazy-src=\"/wp-content/uploads/lazy.jpg\" srcset=\"/wp-content/uploads/lazy-300.jpg 300w, /wp-content/uploads/lazy-600.jpg 600w\"><audio src=\"/wp-content/uploads/audio.mp3\"></audio><video src=\"/wp-content/uploads/video.mp4\"></video><a href=\"/wp-content/uploads/doc.pdf\">Doc</a><iframe src=\"https://www.youtube.com/embed/abc\"></iframe>",
+    "content_text": "Hello & welcome to the About and outside.Doc",
+    "summary": "Golden excerpt & summary",
+    "categories": [
+      1,
+      2
+    ],
+    "tags": [
+      10
+    ],
+    "featured_media": 301,
+    "attachments": [
+      {
+        "source_id": 302,
+        "source_url": "https://corbett.example/wp-content/uploads/doc.pdf",
+        "media_type": "file",
+        "mime_type": "application/pdf",
+        "title": "Doc"
+      }
+    ],
+    "links": {
+      "internal": [
+        "/about/",
+        "/wp-content/uploads/doc.pdf"
+      ],
+      "external": [
+        "https://example.org/out"
+      ]
+    },
+    "media": {
+      "images": [
+        "/wp-content/uploads/one.jpg",
+        "/wp-content/uploads/lazy.jpg",
+        "/wp-content/uploads/lazy-300.jpg",
+        "/wp-content/uploads/lazy-600.jpg"
+      ],
+      "audio": [
+        "/wp-content/uploads/audio.mp3"
+      ],
+      "video": [
+        "/wp-content/uploads/video.mp4"
+      ],
+      "documents": [
+        "/wp-content/uploads/doc.pdf"
+      ],
+      "embeds": [
+        "https://www.youtube.com/embed/abc"
+      ]
+    },
+    "import": {
+      "imported_at": "1970-01-01T00:00:00.000Z",
+      "importer_version": "0.1.5"
+    }
+  },
+  "urlMap": {
+    "https://corbett.example/about/": {
+      "qapp_route": "#/pages/about"
+    },
+    "https://corbett.example/golden-post/": {
+      "qapp_route": "#/posts/golden-post"
+    }
+  },
+  "expectedRewrittenHtml": "<p>Hello &amp; welcome to the <a href=\"#/pages/about\" data-web2-href=\"/about/\">About</a> and <a href=\"https://example.org/out\">outside</a>.</p><img src=\"/wp-content/uploads/one.jpg\" alt=\"One\"><img data-lazy-src=\"/wp-content/uploads/lazy.jpg\" srcset=\"/wp-content/uploads/lazy-300.jpg 300w, /wp-content/uploads/lazy-600.jpg 600w\"><audio src=\"/wp-content/uploads/audio.mp3\"></audio><video src=\"/wp-content/uploads/video.mp4\"></video><a href=\"/wp-content/uploads/doc.pdf\">Doc</a><iframe src=\"https://www.youtube.com/embed/abc\"></iframe>"
+}

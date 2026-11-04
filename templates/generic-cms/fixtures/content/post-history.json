@@ -1,0 +1,45 @@
+{
+  "schema": "qms-qdn-content@1",
+  "version": 1,
+  "id": "post-history",
+  "content_type": "post",
+  "identity": {
+    "slug": "older-archive-entry"
+  },
+  "title": "An Older Archive Entry",
+  "dates": {
+    "published_at": "2024-05-01T09:00:00.000Z",
+    "modified_at": "2024-05-01T09:00:00.000Z"
+  },
+  "body": {
+    "format": "html",
+    "html": "<p>This entry exercises the archive route for a previous year.</p>",
+    "text": "This entry exercises the archive route.",
+    "excerpt_html": "<p>Archive routing uses published dates from the catalog.</p>",
+    "excerpt_text": "Archive routing uses published dates from the catalog."
+  },
+  "authors": [
+    {
+      "name": "Fixture Editor",
+      "address": "QFixtureAddress1111111111111111111"
+    }
+  ],
+  "terms": {
+    "categories": [
+      {
+        "key": "cat-archive",
+        "name": "Archive",
+        "slug": "archive"
+      }
+    ],
+    "tags": [
+      {
+        "key": "tag-history",
+        "name": "History",
+        "slug": "history"
+      }
+    ]
+  },
+  "media": [],
+  "content_hash": "sha256-history"
+}

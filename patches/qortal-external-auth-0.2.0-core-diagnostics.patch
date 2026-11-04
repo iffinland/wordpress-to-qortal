@@ -1,0 +1,400 @@
+diff --git a/packages/auth-daemon/src/index.ts b/packages/auth-daemon/src/index.ts
+index bcd74f1..944af8f 100644
+--- a/packages/auth-daemon/src/index.ts
++++ b/packages/auth-daemon/src/index.ts
+@@ -28,6 +28,7 @@ import {
+ import { FileStore, type SettingsDefaults } from './store';
+ import { getDataDir } from './config';
+ import { requiredQortalAmountText } from './amounts';
++import { nodeErrorDiagnostic, throwNodeError } from './publishDiagnostics';
+ import { createGroupSecretKey, GroupKeyError, parseGroupKeyInput, reserveGroupKeyPublication } from './groupKeys';
+ import { groupKeyResourceTimestamp, parseGroupKeyUpdateInput, updateGroupSecretKey, type GroupKeyUpdateInput } from './groupKeyUpdates';
+ import { getGroupSetup, readGroupKeyPublication } from './groupSetup';
+@@ -1732,7 +1733,8 @@ const postNode = async (
+   nodeUrl: string,
+   path: string,
+   body?: string,
+-  contentType = 'application/json'
++  contentType = 'application/json',
++  publishStage?: string
+ ) => {
+   const response = await nodeFetch(nodeUrl, path, {
+     method: 'POST',
+@@ -1742,26 +1744,32 @@ const postNode = async (
+     body,
+   });
+   if (!response.ok) {
+-    const text = await response.text();
+-    throw new Error(text || `Request failed: ${response.status}`);
++    return throwNodeError(response, publishStage);
+   }
+   return response;
+ };
+ 
+-const getNode = async (nodeUrl: string, path: string) => {
++const getNode = async (
++  nodeUrl: string,
++  path: string,
++  publishStage?: string
++) => {
+   const response = await nodeFetch(nodeUrl, path, { method: 'GET' });
+   if (!response.ok) {
+-    const text = await response.text();
+-    throw new Error(text || `Request failed: ${response.status}`);
++    return throwNodeError(response, publishStage);
+   }
+   return response;
+ };
+ 
+-const requestNode = async (nodeUrl: string, path: string, init: RequestInit) => {
++const requestNode = async (
++  nodeUrl: string,
++  path: string,
++  init: RequestInit,
++  publishStage?: string
++) => {
+   const response = await nodeFetch(nodeUrl, path, init);
+   if (!response.ok) {
+-    const text = await response.text();
+-    throw new Error(text || `Request failed: ${response.status}`);
++    return throwNodeError(response, publishStage);
+   }
+   return response;
+ };
+@@ -2809,26 +2817,28 @@ const normalizeTags = (tags: any) => {
+ const readUnsignedPublishBytes = async (response: Response) => {
+   const text = (await response.text()).trim();
+   if (!text) {
+-    throw new Error('publish returned empty unsigned bytes');
++    const error: any = new Error('publish returned empty unsigned bytes');
++    error.nodeStatus = response.status;
++    error.publishStage = 'upload';
++    throw error;
+   }
+   if (text.startsWith('{') || text.startsWith('[')) {
++    let message: unknown;
+     try {
+       const parsed = JSON.parse(text);
+-      const message =
++      message =
+         parsed?.message ||
+         parsed?.error ||
+         parsed?.data?.message ||
+         parsed?.data?.error;
+-      if (message) {
+-        throw new Error(String(message));
+-      }
+-    } catch (error: any) {
+-      if (error instanceof Error) {
+-        throw error;
+-      }
+-      throw new Error(text);
++    } catch {
++      message = text;
+     }
+-    throw new Error(text);
++    const error: any = new Error(String(message || text));
++    error.nodeStatus = response.status;
++    if (typeof message === 'string') error.nodeMessage = message;
++    error.publishStage = 'upload';
++    throw error;
+   }
+   return text;
+ };
+@@ -2879,7 +2889,8 @@ const publishQdnResource = async (appId: string, payload: any) => {
+     const timestamp = Date.now();
+     const res = await getNode(
+       nodeUrl,
+-      `/transactions/unitfee?txType=ARBITRARY&timestamp=${timestamp}`
++      `/transactions/unitfee?txType=ARBITRARY&timestamp=${timestamp}`,
++      'fee'
+     );
+     const text = (await res.text()).trim();
+     feeValue = Number(text);
+@@ -2980,7 +2991,8 @@ const publishQdnResource = async (appId: string, payload: any) => {
+     const finalizeResponse = await requestNode(
+       nodeUrl,
+       `${basePath}/finalize${finalizeQuery}`,
+-      { method: 'POST' }
++      { method: 'POST' },
++      'upload'
+     );
+     unsignedBytes = await readUnsignedPublishBytes(finalizeResponse);
+   } else {
+@@ -3055,7 +3067,8 @@ const publishQdnResource = async (appId: string, payload: any) => {
+       nodeUrl,
+       `${uploadPath}${queryParams}`,
+       body,
+-      contentType
++      contentType,
++      'upload'
+     );
+     unsignedBytes = await readUnsignedPublishBytes(uploadResponse);
+   }
+@@ -3064,7 +3077,8 @@ const publishQdnResource = async (appId: string, payload: any) => {
+     nodeUrl,
+     '/transactions/convert',
+     unsignedBytes,
+-    'text/plain'
++    'text/plain',
++    'convert'
+   );
+   const bytesForSigningBase58 = await convertResponse.text();
+   const signedBytesBase58 = signBytes(
+@@ -3078,7 +3092,8 @@ const publishQdnResource = async (appId: string, payload: any) => {
+     nodeUrl,
+     '/transactions/process?apiVersion=2',
+     signedBytesBase58,
+-    'text/plain'
++    'text/plain',
++    'process'
+   );
+   return readNodeResponse(processResponse);
+ };
+@@ -4580,12 +4595,27 @@ instance.post(
+       });
+       return reply.code(403).send({ error: 'wallet_locked' });
+     }
++    const coreDiagnostic = nodeErrorDiagnostic(error);
+     safeAudit({
+       action: 'publish_failed',
+       appId: session.appId,
+       walletId: payload.walletId,
+-      meta: { error: error?.message || 'publish_failed' },
++      meta: coreDiagnostic
++        ? {
++            error: 'CORE_PUBLISH_REJECTED',
++            ...(coreDiagnostic.stage ? { stage: coreDiagnostic.stage } : {}),
++            coreStatus: coreDiagnostic.coreStatus,
++            coreErrorCode: coreDiagnostic.coreErrorCode,
++          }
++        : { error: error?.message || 'publish_failed' },
+     });
++    if (coreDiagnostic) {
++      // Stable token plus the sanitized Core reason. The raw Core body is
++      // never returned, logged or persisted.
++      return reply
++        .code(400)
++        .send({ error: 'publish_failed', diagnostic: coreDiagnostic });
++    }
+     return reply.code(400).send({ error: error?.message || 'publish_failed' });
+   }
+   }
+@@ -5699,15 +5729,29 @@ instance.post(
+       });
+       return reply.code(403).send({ error: 'wallet_locked' });
+     }
++    const coreDiagnostic = nodeErrorDiagnostic(error);
+     safeAudit({
+       action: 'qortal_request_failed',
+       appId: session.appId,
+       walletId: body.payload?.walletId,
+-      meta: {
+-        requestType: body.requestType,
+-        error: error?.message || 'request_failed',
+-      },
++      meta: coreDiagnostic
++        ? {
++            requestType: body.requestType,
++            error: 'CORE_PUBLISH_REJECTED',
++            ...(coreDiagnostic.stage ? { stage: coreDiagnostic.stage } : {}),
++            coreStatus: coreDiagnostic.coreStatus,
++            coreErrorCode: coreDiagnostic.coreErrorCode,
++          }
++        : {
++            requestType: body.requestType,
++            error: error?.message || 'request_failed',
++          },
+     });
++    if (coreDiagnostic) {
++      return reply
++        .code(400)
++        .send({ error: 'publish_failed', diagnostic: coreDiagnostic });
++    }
+     return reply.code(400).send({ error: error?.message || 'request_failed' });
+   }
+   }
+diff --git a/packages/auth-daemon/src/publishDiagnostics.ts b/packages/auth-daemon/src/publishDiagnostics.ts
+new file mode 100644
+index 0000000..0215161
+--- /dev/null
++++ b/packages/auth-daemon/src/publishDiagnostics.ts
+@@ -0,0 +1,90 @@
++/**
++ * Sanitized Qortal Core rejection details for QDN publishing.
++ *
++ * Core answers a rejected publish with a structured body such as
++ * {"error":401,"message":"Missing 'X-API-KEY' header"}. The daemon previously
++ * collapsed that into a plain Error message, so callers could only see a
++ * generic request failure. These helpers keep the HTTP status and a bounded,
++ * non-sensitive Core reason. They never include request bodies, authorization
++ * headers, tokens, wallet material or full payloads.
++ */
++
++export const CORE_PUBLISH_ERROR_CODES: Array<[RegExp, string]> = [
++  [/api key not generated/i, 'CORE_API_KEY_NOT_GENERATED'],
++  [/missing\s+['"]?x-api-key['"]?/i, 'CORE_API_KEY_MISSING'],
++  [/api key invalid/i, 'CORE_API_KEY_INVALID'],
++  [/name not registered/i, 'CORE_NAME_NOT_REGISTERED'],
++  [/blockchain needs sync/i, 'CORE_BLOCKCHAIN_NEEDS_SYNC'],
++  [/address unknown/i, 'CORE_ADDRESS_UNKNOWN'],
++  [/data not supplied/i, 'CORE_DATA_MISSING'],
++  [/invalid signature/i, 'CORE_INVALID_SIGNATURE'],
++  [/transaction invalid/i, 'CORE_TRANSACTION_INVALID'],
++  [/transformation error/i, 'CORE_TRANSFORMATION_ERROR'],
++  [/bad query parameter/i, 'CORE_QUERY_PARAMETER_INVALID'],
++  [/no time sync/i, 'CORE_NO_TIME_SYNC'],
++  [/repository issue/i, 'CORE_REPOSITORY_ISSUE'],
++  [/invalid data/i, 'CORE_INVALID_DATA'],
++  [/unauthorized/i, 'CORE_UNAUTHORIZED'],
++];
++
++export type CorePublishDiagnostic = {
++  stage?: string;
++  coreStatus: number;
++  coreErrorCode: string;
++  coreMessage?: string;
++};
++
++/** Collapse control characters and redact anything long enough to be a secret. */
++export const sanitizeCoreMessage = (value: unknown): string | undefined => {
++  if (typeof value !== 'string') return undefined;
++  const collapsed = value
++    .replace(/[\u0000-\u001f\u007f]+/g, ' ')
++    .replace(/\s+/g, ' ')
++    .trim();
++  if (!collapsed) return undefined;
++  const redacted = collapsed.replace(/[A-Za-z0-9+/=_-]{48,}/g, '[redacted]').slice(0, 200);
++  if (redacted === '[redacted]') return undefined;
++  return redacted;
++};
++
++export const classifyCoreError = (message: unknown): string => {
++  const text = typeof message === 'string' ? message : '';
++  for (const [pattern, code] of CORE_PUBLISH_ERROR_CODES) {
++    if (pattern.test(text)) return code;
++  }
++  return 'CORE_REQUEST_REJECTED';
++};
++
++export const nodeErrorDiagnostic = (error: any): CorePublishDiagnostic | null => {
++  if (!error || !Number.isInteger(error.nodeStatus)) return null;
++  const coreMessage = sanitizeCoreMessage(error.nodeMessage);
++  return {
++    ...(typeof error.publishStage === 'string' ? { stage: error.publishStage } : {}),
++    coreStatus: error.nodeStatus,
++    coreErrorCode: classifyCoreError(coreMessage),
++    ...(coreMessage ? { coreMessage } : {}),
++  };
++};
++
++/** Throw a diagnostic-carrying error for a non-2xx Core response. */
++export const throwNodeError = async (
++  response: Response,
++  publishStage?: string
++): Promise<never> => {
++  const text = await response.text();
++  let coreMessage: string | undefined;
++  try {
++    const parsed = JSON.parse(text);
++    const candidate = parsed?.message ?? parsed?.error;
++    if (typeof candidate === 'string') coreMessage = candidate;
++  } catch {
++    coreMessage = text;
++  }
++  const safeMessage =
++    sanitizeCoreMessage(coreMessage) || `Request failed: ${response.status}`;
++  const error: any = new Error(safeMessage);
++  error.nodeStatus = response.status;
++  error.nodeMessage = coreMessage;
++  if (publishStage) error.publishStage = publishStage;
++  throw error;
++};
+diff --git a/packages/auth-daemon/test/publish-diagnostics.test.ts b/packages/auth-daemon/test/publish-diagnostics.test.ts
+new file mode 100644
+index 0000000..e7a51f3
+--- /dev/null
++++ b/packages/auth-daemon/test/publish-diagnostics.test.ts
+@@ -0,0 +1,82 @@
++import test from 'node:test';
++import assert from 'node:assert/strict';
++import {
++  classifyCoreError,
++  nodeErrorDiagnostic,
++  sanitizeCoreMessage,
++  throwNodeError,
++} from '../src/publishDiagnostics';
++
++test('classifies the Core API key gate messages', () => {
++  assert.equal(
++    classifyCoreError("Missing 'X-API-KEY' header"),
++    'CORE_API_KEY_MISSING'
++  );
++  assert.equal(classifyCoreError('API key not generated'), 'CORE_API_KEY_NOT_GENERATED');
++  assert.equal(classifyCoreError('API key invalid'), 'CORE_API_KEY_INVALID');
++});
++
++test('classifies name and transaction rejections that previously looked generic', () => {
++  assert.equal(
++    classifyCoreError('Name not registered: developer iffi'),
++    'CORE_NAME_NOT_REGISTERED'
++  );
++  assert.equal(
++    classifyCoreError('Transaction invalid: INVALID_SIGNATURE'),
++    'CORE_TRANSACTION_INVALID'
++  );
++  assert.equal(classifyCoreError('something else'), 'CORE_REQUEST_REJECTED');
++});
++
++test('structured Core 401 becomes a bounded diagnostic with a stage', async () => {
++  const response = new Response(
++    JSON.stringify({ error: 401, message: "Missing 'X-API-KEY' header", timestamp: 1 }),
++    { status: 401, headers: { 'content-type': 'application/json' } }
++  );
++  await assert.rejects(
++    throwNodeError(response, 'upload'),
++    (error: any) => {
++      assert.equal(error.nodeStatus, 401);
++      assert.equal(error.publishStage, 'upload');
++      const diagnostic = nodeErrorDiagnostic(error);
++      assert.deepEqual(diagnostic, {
++        stage: 'upload',
++        coreStatus: 401,
++        coreErrorCode: 'CORE_API_KEY_MISSING',
++        coreMessage: "Missing 'X-API-KEY' header",
++      });
++      return true;
++    }
++  );
++});
++
++test('a Core body cannot leak tokens, seeds or long payload blobs', async () => {
++  const token = 'A'.repeat(64);
++  const seed = 'seed words that must never be persisted';
++  const response = new Response(
++    JSON.stringify({
++      error: 401,
++      message: `Missing 'X-API-KEY' header ${token} ${seed} ${'Q'.repeat(88)}`,
++    }),
++    { status: 401, headers: { 'content-type': 'application/json' } }
++  );
++  await assert.rejects(
++    throwNodeError(response, 'upload'),
++    (error: any) => {
++      const diagnostic = nodeErrorDiagnostic(error);
++      const serialized = JSON.stringify(diagnostic);
++      assert.ok(!serialized.includes(token));
++      assert.ok(!serialized.includes('Q'.repeat(88)));
++      assert.ok(serialized.includes('[redacted]'));
++      assert.ok(serialized.length < 400);
++      return true;
++    }
++  );
++});
++
++test('control characters are collapsed and the message is truncated', () => {
++  const message = sanitizeCoreMessage('line1\nline2\u0000\u001b ' + 'word '.repeat(100));
++  assert.ok(message);
++  assert.ok(!message.includes('\n'));
++  assert.equal(message.length, 200);
++});

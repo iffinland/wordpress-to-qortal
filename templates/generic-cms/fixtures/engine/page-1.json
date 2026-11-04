@@ -1,0 +1,33 @@
+{
+  "schema": "qms-qdn-content@1",
+  "version": 1,
+  "id": "src_wordpress_page_1",
+  "content_type": "page",
+  "identity": {
+    "slug": "engine-page"
+  },
+  "title": "Engine Published Page",
+  "dates": {
+    "published_at": "2026-10-24T00:00:00.000Z",
+    "modified_at": "2026-10-24T00:00:00.000Z"
+  },
+  "body": {
+    "format": "html",
+    "html": "<p>An engine-format page.</p>",
+    "text": "An engine-format page.",
+    "excerpt_html": "<p>Engine page.</p>",
+    "excerpt_text": "Engine page."
+  },
+  "authors": [
+    {
+      "name": "Engine Author",
+      "address": "QEngineAddress11111111111111111111"
+    }
+  ],
+  "terms": {
+    "categories": [],
+    "tags": []
+  },
+  "media": [],
+  "content_hash": "hash-engine-page"
+}

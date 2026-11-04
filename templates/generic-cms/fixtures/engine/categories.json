@@ -1,0 +1,15 @@
+{
+  "schema": "qms-qdn-index@1",
+  "version": 1,
+  "type": "categories",
+  "count": 1,
+  "entries": [
+    {
+      "key": "1",
+      "source_id": 1,
+      "name": "Engine News",
+      "slug": "engine-news",
+      "contentId": "src_wordpress_post_1"
+    }
+  ]
+}

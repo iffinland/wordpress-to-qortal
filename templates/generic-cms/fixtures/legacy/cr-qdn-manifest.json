@@ -1,0 +1,193 @@
+{
+  "version": "0.1.5",
+  "generated_at": "2026-09-01T00:00:00.000Z",
+  "profile_id": "corbettreport",
+  "identifier_prefix": "cr",
+  "identifiers": {
+    "qdn_manifest": "cr-qdn-manifest",
+    "posts_index": "cr-posts-index",
+    "pages_index": "cr-pages-index",
+    "categories": "cr-categories",
+    "tags": "cr-tags",
+    "media_map": "cr-media-map",
+    "url_map": "cr-url-map",
+    "import_manifest": "cr-import-manifest"
+  },
+  "qdn_name": "Corbett",
+  "canonical_site_name": "Corbett",
+  "qdn_content_name": "Corbett",
+  "qdn_media_name": "",
+  "publisher_names": [
+    "Corbett"
+  ],
+  "coauthor_names": [
+    "AgoristMarket",
+    "iffi"
+  ],
+  "public_author": "Corbett",
+  "entrypoints": {
+    "posts_index": {
+      "type": "index",
+      "service": "DOCUMENT",
+      "name": "Corbett",
+      "identifier": "cr-posts-index"
+    },
+    "pages_index": {
+      "type": "index",
+      "service": "DOCUMENT",
+      "name": "Corbett",
+      "identifier": "cr-pages-index"
+    },
+    "categories": {
+      "type": "index",
+      "service": "DOCUMENT",
+      "name": "Corbett",
+      "identifier": "cr-categories"
+    },
+    "tags": {
+      "type": "index",
+      "service": "DOCUMENT",
+      "name": "Corbett",
+      "identifier": "cr-tags"
+    },
+    "media_map": {
+      "type": "index",
+      "service": "DOCUMENT",
+      "name": "Corbett",
+      "identifier": "cr-media-map"
+    },
+    "url_map": {
+      "type": "index",
+      "service": "DOCUMENT",
+      "name": "Corbett",
+      "identifier": "cr-url-map"
+    }
+  },
+  "resources": {
+    "by_path": {
+      "converted/posts-index.json": {
+        "type": "index",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-posts-index"
+      },
+      "converted/pages-index.json": {
+        "type": "index",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-pages-index"
+      },
+      "converted/categories.json": {
+        "type": "index",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-categories"
+      },
+      "converted/tags.json": {
+        "type": "index",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-tags"
+      },
+      "converted/media-map.json": {
+        "type": "index",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-media-map"
+      },
+      "converted/url-map.json": {
+        "type": "index",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-url-map"
+      },
+      "converted/post-golden.json": {
+        "type": "post",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-post-900"
+      },
+      "converted/page-golden.json": {
+        "type": "page",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-page-901"
+      }
+    },
+    "by_identifier": {
+      "cr-posts-index": {
+        "type": "index",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-posts-index",
+        "local_path": "legacy/posts-index.json"
+      },
+      "cr-pages-index": {
+        "type": "index",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-pages-index",
+        "local_path": "legacy/pages-index.json"
+      },
+      "cr-categories": {
+        "type": "index",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-categories",
+        "local_path": "legacy/categories.json"
+      },
+      "cr-tags": {
+        "type": "index",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-tags",
+        "local_path": "legacy/tags.json"
+      },
+      "cr-media-map": {
+        "type": "index",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-media-map",
+        "local_path": "legacy/media-map.json"
+      },
+      "cr-url-map": {
+        "type": "index",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-url-map",
+        "local_path": "legacy/url-map.json"
+      },
+      "cr-post-900": {
+        "type": "post",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-post-900",
+        "local_path": "legacy/post-golden.json"
+      },
+      "cr-page-901": {
+        "type": "page",
+        "service": "DOCUMENT",
+        "name": "Corbett",
+        "identifier": "cr-page-901",
+        "local_path": "legacy/page-golden.json"
+      }
+    },
+    "by_source_url": {
+      "https://corbett.example/wp-content/uploads/featured.jpg": {
+        "type": "image",
+        "service": "IMAGE",
+        "name": "Corbett",
+        "identifier": "cr-media-301"
+      }
+    }
+  },
+  "linked_only_media": [],
+  "summary": {
+    "posts": 1,
+    "pages": 1,
+    "indexes": 6,
+    "media": 1,
+    "linked_only_media": 0,
+    "total_publish_resources": 9
+  }
+}

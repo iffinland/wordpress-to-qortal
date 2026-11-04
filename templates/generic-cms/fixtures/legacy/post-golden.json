@@ -1,0 +1,46 @@
+{
+  "type": "post",
+  "source": "wordpress",
+  "source_id": 900,
+  "old_url": "https://corbett.example/golden-post/",
+  "public_author": "Corbett",
+  "slug": "golden-post",
+  "title": "Golden Post",
+  "date": "2024-01-02T03:04:05",
+  "published_at": "2024-01-02T03:04:05Z",
+  "modified": "2024-02-03T04:05:06",
+  "modified_at": "2024-02-03T04:05:06Z",
+  "status": "publish",
+  "excerpt": "<p>Golden excerpt and summary</p>",
+  "excerpt_text": "Golden excerpt and summary",
+  "content_html": "<p>Golden legacy body with <a href=\"https://example.org/out\">outside</a>.</p><img src=\"/wp-content/uploads/featured.jpg\" alt=\"Featured\">",
+  "content_text": "Golden legacy body with outside.",
+  "summary": "Golden excerpt and summary",
+  "categories": [
+    1
+  ],
+  "tags": [
+    10
+  ],
+  "featured_media": 301,
+  "attachments": [],
+  "links": {
+    "internal": [],
+    "external": [
+      "https://example.org/out"
+    ]
+  },
+  "media": {
+    "images": [
+      "/wp-content/uploads/featured.jpg"
+    ],
+    "audio": [],
+    "video": [],
+    "documents": [],
+    "embeds": []
+  },
+  "import": {
+    "imported_at": "1970-01-01T00:00:00.000Z",
+    "importer_version": "0.1.5"
+  }
+}
