@@ -2,16 +2,37 @@
 
 <!-- alpha-release-version: 0.6.1 -->
 
-## 0.6.1 alpha — published
+## 0.6.1 alpha.2 — current
 
-Qortal Migration Studio **0.6.1 alpha** is published as a GitHub prerelease:
-<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.1>.
+Qortal Migration Studio **0.6.1 alpha.2** is the current GitHub prerelease:
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.2>.
 
-The release ships all three artifacts:
+The release ships the same three artifacts from the current main commit:
 
-- [Qortal Migration Studio 0.6.1 .deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-studio_0.6.1_amd64.deb)
-- [Migration Publisher Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-publisher-v0.6.1.zip)
-- [Generic CMS Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-generic-cms-v0.6.1.zip)
+- [Qortal Migration Studio 0.6.1 .deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-studio_0.6.1_amd64.deb)
+- [Migration Publisher Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-publisher-v0.6.1.zip)
+- [Generic CMS Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-generic-cms-v0.6.1.zip)
+
+The Publisher Q-App displays version **0.6.1-alpha.2**.
+
+### What changed in alpha.2
+
+- **Publisher target name.** The Publisher no longer shows "A target Qortal name
+  is required" before a package is loaded. It has an editable **Target Qortal
+  name** field prefilled from the handoff, preselects the name when the connected
+  account owns exactly one, and offers a picker when it owns several. A loaded
+  package stays bound to the name in its handoff.
+- **Generic CMS Admin.** Admin is in the default navigation, renders before
+  catalog gating, and states its preconditions when no catalog is published.
+  Runtime navigation injects Admin for an already published
+  `qms-cms-config.json`.
+- **Live publication proof.** Publishing a package with the deployed Migration
+  Publisher worked. The catalog manifest
+  `DOCUMENT/developer iffi/qms-cms-manifest` read back with the exact expected
+  SHA-256. The CMS displayed content only when opened with the correct name
+  (`qortal://WEBSITE/developer%20iffi/` or `?name=developer%20iffi`).
+  That run covered DOCUMENT resources; IMAGE and APP/WEBSITE publication remain
+  a supervised first test.
 
 The beginner path needs no development tools: download the .deb, verify
 `SHA256SUMS`, install with apt, and follow the first-run guide. The two ZIPs are
@@ -20,13 +41,18 @@ owner must publish it with wallet approval. The Generic CMS can be published as
 either an APP or a WEBSITE where the verified package and current application
 flow support that service.
 
-0.6.1 adds the standalone Migration Publisher Q-App, one-file Publisher
-packages and Generic CMS APP/WEBSITE deployment. The **0.6.0 binary remains the
-older first alpha and does not contain these 0.6.1 integrations**; do not use it
-to infer 0.6.1 behaviour.
-
 Detailed 0.6.1 evidence and limitations:
 [../RELEASE-0.6.1-ALPHA.md](../RELEASE-0.6.1-ALPHA.md).
+
+## 0.6.1 alpha.1 — previous
+
+The first 0.6.1 prerelease remains available and unchanged at
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.1>.
+It introduced the standalone Migration Publisher Q-App, one-file Publisher
+packages and Generic CMS APP/WEBSITE deployment. It does not contain the
+alpha.2 target-name and Admin-reachability fixes. The **0.6.0 binary remains the
+older first alpha and does not contain these 0.6.1 integrations**; do not use it
+to infer 0.6.1 behaviour.
 
 ## 0.6.0 — first public alpha
 

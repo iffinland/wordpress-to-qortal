@@ -92,6 +92,24 @@ Downloading the Generic CMS ZIP or opening this wizard does **not** deploy a
 website to QDN. Publishing happens only through the explicit Hub approval flow
 in the next guide.
 
+### Publisher target name
+
+When you open the exported package in **Migration Publisher**, the **Target
+Qortal name** field is prefilled from the handoff and can still be edited. If
+the connected account owns exactly one name, that name is preselected. If the
+account owns several names, the Publisher offers a picker and asks you to choose
+the exact one. The resources in a loaded package are bound to the name in its
+handoff, so a different name cannot silently retarget them. Confirm the exact
+name before checking remote state or publishing.
+
+### Generic CMS Admin
+
+The Generic CMS now shows **Admin** in its default navigation and opens the
+Admin view even before a catalog exists. The page explains the two
+preconditions: a published `qms-cms-manifest` under this site's exact QDN
+name, and a signed-in account that owns that name. Admin remains read-only until
+both are true. It does not sign or publish anything.
+
 ## 8. What to do next
 
 - [MIGRATION-WALKTHROUGH.md](MIGRATION-WALKTHROUGH.md) continues from the plan

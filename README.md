@@ -6,22 +6,22 @@ normalizes the content, downloads and de-duplicates supported media, prepares
 deterministic QDN batches, hands them to a separate Qortal Hub publishing app,
 and verifies the resulting QDN resources byte-for-byte.
 
-## Download Qortal Migration Studio 0.6.1 alpha
+## Download Qortal Migration Studio 0.6.1 alpha.2
 
 The release ships three files. Most people need the desktop application; the
 two Q-App ZIPs are for publishing and for the public website runtime.
 
 | What you need | Download | What it does |
 | --- | --- | --- |
-| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.6.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-studio_0.6.1_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
-| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-publisher-v0.6.1.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
-| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-generic-cms-v0.6.1.zip) | The neutral website/APP Q-App that renders a published QDN catalog. It is the site runtime, not the migration tool. |
+| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.6.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-studio_0.6.1_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
+| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-publisher-v0.6.1.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
+| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-generic-cms-v0.6.1.zip) | The neutral website/APP Q-App that renders a published QDN catalog. It is the site runtime, not the migration tool. |
 
-Also download [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/SHA256SUMS),
-[sbom.cdx.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/sbom.cdx.json)
-and [provenance.intoto.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/provenance.intoto.json)
+Also download [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/SHA256SUMS),
+[sbom.cdx.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/sbom.cdx.json)
+and [provenance.intoto.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/provenance.intoto.json)
 to verify the files. Release page:
-<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.1>.
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.2>.
 
 **Who needs what**
 
@@ -57,10 +57,14 @@ migrate, or by the Qortal project.
 
 ## Alpha status
 
-Version **0.6.1** is the latest published alpha. It adds the standalone
-Migration Publisher Q-App, single-file Publisher packages and Generic CMS
-APP deployment. The release artifacts are published, but the live
-mixed-service acceptance gate has not been performed. Read
+Version **0.6.1 alpha.2** is the latest published alpha. It adds the
+standalone Migration Publisher Q-App, single-file Publisher packages and
+Generic CMS APP deployment, and fixes the Publisher target-name gate and
+Generic CMS Admin reachability. A live DOCUMENT publication through the
+deployed Migration Publisher completed: the package published, the catalog
+manifest read back with the exact expected SHA-256, and the CMS rendered its
+content when opened under the correct Qortal name. General APP/WEBSITE and
+IMAGE acceptance is still outstanding. Read
 [docs/migration-studio/alpha/KNOWN-ISSUES.md](docs/migration-studio/alpha/KNOWN-ISSUES.md)
 before you rely on any build.
 
@@ -70,18 +74,20 @@ Important limitations:
 - Only Debian 12 and Debian 13 were installed and launch-tested. Debian-based
   systems such as MX Linux 23 are an intended compatibility target but were not
   executed for this release.
-- No live mixed-service QDN publication was performed during release
-  validation. No wallet was accessed. The only authorized signing path is the
-  development broker, which permits DOCUMENT-only test resources on one
-  development name and cannot publish IMAGE or APP resources.
-- The user-facing Qortal Hub signed-publication flow, the single-file Publisher
-  package and the Generic CMS APP bundle are implemented and covered by
-  deterministic tests, but the full mixed-service flow has **not completed live
-  acceptance**. Treat the first real publication as a supervised test.
+- Live acceptance is **partial**. A DOCUMENT-only package published through
+  the deployed development Migration Publisher and its catalog manifest read
+  back with the exact expected SHA-256. That run did not publish IMAGE or
+  APP/WEBSITE resources, so the full mixed-service flow is still not
+  live-accepted. Treat the first APP/WEBSITE publication as a supervised test.
 - The generic Migration Publisher Q-App is built and validated as a deployable
-  artifact. It is **not publicly deployed** yet; deployment needs the owner's
-  registered name and wallet approval. See
+  artifact, and a development deployment under the name `developer iffi` has
+  published a real package. A general shared public deployment still needs the
+  owner's registered name and wallet approval. See
   [PUBLISHER-QAPP-DEPLOYMENT.md](docs/migration-studio/PUBLISHER-QAPP-DEPLOYMENT.md).
+- The Generic CMS only reads its catalog when it can determine the exact Qortal
+  name it is running under. Open it as `qortal://WEBSITE/<name>/` or add
+  `?name=<encoded name>` to the URL. Without the name it shows its empty or
+  unverified state rather than guessing.
 - Launch verification used a headless X server (Xvfb), not a complete graphical
   session with a real keyring unlock prompt.
 - One source adapter exists (WordPress REST). Windows and macOS are not
@@ -102,7 +108,7 @@ or any development tools.
 ## Download, install and launch
 
 1. Download
-   [qortal-migration-studio_0.6.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-studio_0.6.1_amd64.deb)
+   [qortal-migration-studio_0.6.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-studio_0.6.1_amd64.deb)
    and the release assets `SHA256SUMS`, `sbom.cdx.json` and
    `provenance.intoto.json`.
 2. Verify the checksum (see [Security](#security-and-checksums)).
@@ -131,8 +137,12 @@ uninstalling the package does not delete projects, media, handoffs or history.
    downloads supported media and writes a plan. Nothing is published.
 4. Prepare a Publisher package: QMS exports one `.zip` containing the exact
    handoff and (optionally) the CMS APP bundle.
-5. In Qortal Hub open **Migration Publisher**, select the ZIP, verify account and
-   name ownership, review resources and the live fee quote, then approve.
+5. In Qortal Hub open **Migration Publisher** and select the ZIP. The
+   **Target Qortal name** field is prefilled from the handoff and stays
+   editable. When the connected account owns exactly one name it is
+   preselected; when it owns several, choose the exact name from the picker.
+   A package remains bound to the name recorded in its handoff. Verify account
+   and name ownership, review resources and the live fee quote, then approve.
 6. Import the Publisher receipt, run independent exact QDN verification and
    open the published website once the APP is verified.
 
@@ -218,6 +228,16 @@ does not publish or sign; its admin route only stages imported items in a local
 adoption queue and requires the signed-in account to own the configured QDN
 name.
 
+**Admin** is part of the default navigation and renders before any catalog
+gating, so a missing manifest is explained instead of hiding the entry. The
+page states its two preconditions explicitly: a published `qms-cms-manifest`
+with its indexes under this site's exact QDN name, and a signed-in account that
+owns that name. Runtime navigation also injects **Admin** for an already
+published `qms-cms-config.json` that predates this change. When you redeploy a
+site that already has a `qms-cms-config.json`, preserve that file in the new
+bundle; replacing the bundle without it drops the site-specific title,
+navigation, theme and manifest identifier.
+
 ```bash
 cd templates/generic-cms
 npm install
@@ -276,8 +296,8 @@ Verify the published hash before installing:
 
 ```bash
 sha256sum qortal-migration-studio_0.6.1_amd64.deb
-# Expected for v0.6.1-alpha.1:
-# 2b32d59cca24f7510581f6f40fba8002509a6c2ef248dfb4792e31a426398886
+# Compare the output with this artifact's line in SHA256SUMS
+# from the v0.6.1-alpha.2 release page.
 sha256sum -c SHA256SUMS
 ```
 

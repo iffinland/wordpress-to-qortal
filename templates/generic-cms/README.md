@@ -13,7 +13,7 @@ CMS bundle for you; deploying this neutral ZIP by hand is optional.
 ## Beginner path (no development tools)
 
 1. Download
-   [qortal-migration-generic-cms-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-generic-cms-v0.6.1.zip)
+   [qortal-migration-generic-cms-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-generic-cms-v0.6.1.zip)
    and verify it against `SHA256SUMS`.
 2. Inspect the root: it contains `index.html` and `assets/` with no parent
    folder.
@@ -25,6 +25,10 @@ No Node.js, npm, Git, compiler or manual build is required for this path.
 ## Features
 
 - Configurable title, tagline, navigation, colors and typography in cms.config.json.
+- **Admin** in the default navigation. It renders before catalog gating, so a
+  missing manifest is explained instead of the entry disappearing. Runtime
+  navigation also injects Admin for an already published `qms-cms-config.json`
+  that predates this change.
 - Routes: home, posts, post, page, category, tag, archive, search and admin/import.
 - Reads qms-cms-manifest@1, the Phase 5 qms-qdn-manifest@1 output, and the legacy
   cr-qdn-manifest shape through one read-only adapter.
@@ -74,7 +78,9 @@ template never rewrites published resources.
 ## Administrative actions
 
 The admin/import route stages items in a local adoption queue. It does not sign
-or publish anything. Owner mode requires:
+or publish anything. The page states its preconditions explicitly: a published
+`qms-cms-manifest` with its indexes under this site's exact QDN name, and a
+signed-in account that owns that name. Owner mode additionally requires:
 
 1. A Qortal account from GET_USER_ACCOUNT.
 2. The account's name list from GET_ACCOUNT_NAMES to include the configured QDN
@@ -82,7 +88,17 @@ or publish anything. Owner mode requires:
 3. If GET /names/<name> is reachable, the name record owner must equal the
    account address.
 
-Without a verified owner identity the page remains read-only.
+Without a published catalog, owner identity or a verified name, the page remains
+read-only. Admin stays reachable so the missing precondition is visible.
+
+The site must be opened under a URL that carries its exact QDN name, for
+example `qortal://WEBSITE/developer%20iffi/` or `?name=developer%20iffi`.
+Otherwise the app cannot determine which name's catalog to read and shows an
+empty or unverified state.
+
+When redeploying an existing site, preserve its `qms-cms-config.json` in the
+new bundle. It carries the site title, tagline, navigation, theme and manifest
+identifier; without it the bundle falls back to the build-time defaults.
 
 ## Output
 
