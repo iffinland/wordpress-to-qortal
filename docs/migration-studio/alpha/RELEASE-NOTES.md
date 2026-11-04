@@ -26,6 +26,9 @@ The Publisher Q-App displays version **0.6.1-alpha.2**.
   catalog gating, and states its preconditions when no catalog is published.
   Runtime navigation injects Admin for an already published
   `qms-cms-config.json`.
+- **CMS name decoding.** The Generic CMS percent-decodes the QDN name from Hub
+  globals and from the URL before looking up its catalog, so an encoded name
+  such as `developer%20iffi` resolves to the exact registered name.
 - **Live publication proof.** Publishing a package with the deployed Migration
   Publisher worked. The catalog manifest
   `DOCUMENT/developer iffi/qms-cms-manifest` read back with the exact expected

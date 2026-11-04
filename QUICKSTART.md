@@ -34,7 +34,9 @@ name.
 The Generic CMS can only read the catalog when it knows the exact Qortal name it
 runs under. Open it as `qortal://WEBSITE/<name>/` (for example
 `qortal://WEBSITE/developer%20iffi/`) or append `?name=<encoded name>`.
-Without that name the site shows its empty or unverified state. If you redeploy
+Percent-encoded names from the URL or Hub globals are decoded before lookup, so
+`developer%20iffi` and `developer iffi` mean the same name. Without that name
+the site shows its empty or unverified state. If you redeploy
 a CMS that already has a `qms-cms-config.json`, keep that file in the new
 bundle.
 

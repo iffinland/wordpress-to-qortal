@@ -91,7 +91,8 @@ Document these operational behaviours whenever they change:
   before catalog gating and its runtime injection for an existing
   `qms-cms-config.json`;
 - the requirement to open the CMS under its exact Qortal name
-  (`qortal://WEBSITE/<name>/` or `?name=<encoded name>`);
+  (`qortal://WEBSITE/<name>/` or `?name=<encoded name>`), including the
+  percent-decoding of names from Hub globals and the URL before lookup;
 - the redeploy rule: preserve an existing `qms-cms-config.json` in the new
   bundle.
 

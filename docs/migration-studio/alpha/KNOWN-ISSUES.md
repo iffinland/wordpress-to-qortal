@@ -58,7 +58,8 @@ Downloading an artifact is not deployment or live validation.
   read. A Hub build that blocks both paths reports `blocked`, not verified.
 - The Generic CMS reads its catalog only when the URL carries the exact Qortal
   name, for example `qortal://WEBSITE/developer%20iffi/` or
-  `?name=developer%20iffi`. Without the name it cannot choose a catalog and
+  `?name=developer%20iffi`. Percent-encoded names from the URL or Hub globals
+  are decoded before lookup. Without the name it cannot choose a catalog and
   shows an empty or unverified state.
 - Redeploying a CMS bundle without its existing `qms-cms-config.json` loses the
   site title, nav, theme and manifest identifier. Preserve that file when it
