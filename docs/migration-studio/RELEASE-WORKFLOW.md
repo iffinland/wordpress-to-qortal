@@ -58,8 +58,8 @@ npm run release:prepare -- --tag=v<version>-alpha.<n>
 
 The tag argument selects the immutable prerelease tag. `releaseTag()` defaults
 to `alpha.1`, so any later alpha iteration must pass its tag explicitly — for
-example `npm run release:prepare -- --tag=v0.6.1-alpha.1` followed by
-`npm run release:publish -- --tag=v0.6.1-alpha.1`. The manifest records that
+example `npm run release:prepare -- --tag=v0.6.1-alpha.2` followed by
+`npm run release:publish -- --tag=v0.6.1-alpha.2`. The manifest records that
 exact tag, and the publisher refuses to touch an existing release.
 
 It **fails the release** when any required artifact is missing, a ZIP is invalid
@@ -120,8 +120,8 @@ export PATH=/home/iffi/.local/bin:$PATH
 cd /home/iffi/dev-workspace/docs/releases/<version>
 
 cd /home/iffi/dev-workspace/projects/wordpress-to-qortal
-npm run release:prepare -- --tag=v0.6.1-alpha.1   # optional if already prepared
-npm run release:publish -- --tag=v0.6.1-alpha.1
+npm run release:prepare -- --tag=v0.6.1-alpha.2   # optional if already prepared
+npm run release:publish -- --tag=v0.6.1-alpha.2
 ```
 
 If a release for the tag already exists, the publisher stops. Inspect it with

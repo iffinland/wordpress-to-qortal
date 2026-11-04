@@ -2,7 +2,7 @@
 
 These are release-gate facts, not a substitute for testing your own site. The
 0.6.1 release is published as a prerelease with all three artifacts:
-<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.1>.
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.2>.
 Downloading an artifact is not deployment or live validation.
 
 ## Blocking or unverified release gates
