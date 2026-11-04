@@ -104,6 +104,11 @@ by the lockfile and its integrity metadata. The project does not rebuild
 Chromium. The reproducibility check compares the complete .deb SHA-256, not
 only its payload.
 
+Verified result: a clean checkout of commit 8ba3f4b was rebuilt with
+SOURCE_DATE_EPOCH=1793794057 and produced a byte-identical
+qortal-migration-studio_0.6.0_amd64.deb with SHA-256
+6c957543c4c2934f6fcb52634d00b40ab37e5d2b26fb8c2e8f1032f56a32029e.
+
 ### 3.2 Signing status
 
 | Item | Status |
@@ -227,8 +232,12 @@ artifact. Summary:
 - Install matrix: Debian 13 (trixie) and Debian 12 (bookworm) both passed the
   real apt/dpkg install, GUI smoke and 17-step engine flow, then removal,
   reinstall and read-back of the preserved project.
-- Artifact: qortal-migration-studio_0.6.0_amd64.deb
-- SHA-256: recorded in SHA256SUMS and RELEASE-STATE.json
+- Artifact: qortal-migration-studio_0.6.0_amd64.deb (108,147,012 bytes)
+- SHA-256: 6c957543c4c2934f6fcb52634d00b40ab37e5d2b26fb8c2e8f1032f56a32029e
+- Source commit: 8ba3f4b3ee8bed8eab9d9b18277713614553868c
+- Clean-checkout reproducibility: byte-identical SHA-256
+- Security scan: 0 secret findings, 0 forbidden names, 0 production high/critical advisories
+- Checksums: also recorded in SHA256SUMS and RELEASE-STATE.json
 - SBOM: CycloneDX 1.5, generated from committed lockfiles
 - Provenance: in-toto Statement v1 with SLSA v1 predicate shape
 - Signing: unsigned alpha

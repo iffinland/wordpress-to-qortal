@@ -49,6 +49,10 @@ const summary = {
     steps: entry.steps,
     limitations: entry.limitations
   })),
+  harnessNotes: [
+    'The disposable rootfs pre-creates messagebus and staff groups with GID 0 and uses a no-op adduser wrapper because a single-UID user namespace cannot map service-account GIDs during dpkg postinst scripts.',
+    'Package installation, dpkg database state, Xvfb launch and engine execution are real; only host systemd service startup is absent.'
+  ],
   unverifiedGates: [
     {
       gate: 'MX Linux 23 install',

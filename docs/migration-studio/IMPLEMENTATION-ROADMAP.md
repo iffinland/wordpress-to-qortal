@@ -538,9 +538,10 @@ for long-lived projects.
 
 ### Acceptance criteria
 
-1. **AC9.1** Clean checkout builds the `.deb` reproducibly (same inputs produce
-   equivalent output/checksums within documented constraints). Verified by the
-   `release:repro` clean-checkout SHA-256 comparison.
+1. [x] **AC9.1** Clean checkout builds the `.deb` reproducibly (same inputs
+   produce equivalent output/checksums within documented constraints). The clean
+   rebuild from commit 8ba3f4b produced a byte-identical SHA-256
+   (6c957543c4c2934f6fcb52634d00b40ab37e5d2b26fb8c2e8f1032f56a32029e).
 2. [x] **AC9.2** Install and primary flows pass on at least two Debian-based
    distributions. Verified on Debian 13 (trixie) and Debian 12 (bookworm) with
    real apt/dpkg installs, Xvfb GUI smoke, 17 engine flow steps, removal and
@@ -549,8 +550,9 @@ for long-lived projects.
    Root 415/415; Phase 5.2 118/118; Phase 7 24/24; Phase 8 23/23; content 7/7;
    Corbett 11/11; generic CMS 19/19; desktop 43/43; typecheck clean; all builds
    and the package/security gates pass.
-4. **AC9.4** Artifact checksum/SBOM/provenance match the source commit. Enforced
-   by `release:verify` against the built artifact and commit.
+4. [x] **AC9.4** Artifact checksum/SBOM/provenance match the source commit.
+   `release:verify` checks the artifact SHA-256 against artifact.json,
+   build-info.json, the provenance subject, the SBOM component and the commit.
 5. [x] **AC9.5** No secrets or generated test data are in the artifact. The
    security payload scan reports zero secret findings and zero forbidden names;
    production dependency audits report zero high/critical issues.
