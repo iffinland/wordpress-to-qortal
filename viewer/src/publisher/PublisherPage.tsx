@@ -23,7 +23,8 @@ import {
   getResourceStatus,
   requestQortal
 } from './bridge';
-import { evaluateNameOwnership, type OwnedName } from './ownership';
+import type { OwnedName } from './ownership';
+import { preselectTargetName, resolveTargetGate, targetPhaseMessage } from './targetState';
 import { createReceipt, downloadReceipt, receiptFileText, type ReceiptDocument } from './receipt';
 import { APP_VERSION } from '../version';
 
@@ -247,6 +248,8 @@ async function verifyOne(resource: HandoffResource): Promise<ResourceState> {
 
 export function PublisherPage({ initialName = '', onBack }: { initialName?: string; onBack?: () => void }) {
   const [folderName, setFolderName] = useState('');
+  const [targetName, setTargetName] = useState(initialName);
+  const [nameAttempted, setNameAttempted] = useState(false);
   const [validated, setValidated] = useState<ValidatedHandoff | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [states, setStates] = useState<Record<string, ResourceState>>({});
@@ -284,13 +287,16 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   }, []);
 
   const manifest: HandoffManifest | null = validated?.manifest ?? null;
-  const targetName = manifest?.target.qdnName ?? initialName;
-  const ownership = evaluateNameOwnership({
-    targetName,
-    accountAddress: account?.address,
-    ownedNames
+  const targetGate = resolveTargetGate({
+    manifestName: manifest?.target.qdnName ?? null,
+    packageLoaded: Boolean(manifest),
+    manualName: targetName,
+    accountAddress: account?.address ?? null,
+    accountConnected: Boolean(account),
+    ownedNames,
+    attempted: nameAttempted
   });
-  const nameOwned = ownership.state === 'verified';
+  const nameOwned = targetGate.canProceed;
   const selectedResources = useMemo(
     () => orderResources(manifest?.resources ?? []).filter((resource) => selected.has(resource.id)),
     [manifest, selected]
@@ -330,6 +336,8 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       const map = isZip ? await buildFolderMapFromZip(files[0]) : await buildFolderMap(files);
       const result = await validateHandoffPackage(map);
       setValidated(result);
+      setTargetName(result.manifest.target.qdnName);
+      setNameAttempted(false);
       setFolderName(isZip ? files[0].name : ((files[0] as File & { webkitRelativePath?: string })?.webkitRelativePath?.split('/')[0] || 'selected folder'));
       const remembered = loadSession(result.manifest.handoffId);
       if (remembered) {
@@ -368,7 +376,15 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       setAccount(active);
       const names = await getOwnedNames(active.address);
       setOwnedNames(names);
-      setNotice('Active account loaded. Name ownership is checked locally against the names Qortal Hub reports for this account.');
+      setTargetName((current) => preselectTargetName({
+        manifestName: manifest?.target.qdnName ?? null,
+        currentName: current,
+        accountConnected: true,
+        ownedNames: names
+      }));
+      setNotice(names.length === 1
+        ? 'Active account loaded. Target name preselected from its single owned name; verify it before checking remote state.'
+        : 'Active account loaded. ' + (names.length > 1 ? 'Choose the exact owned name from the list.' : 'Enter the exact target Qortal name.'));
     } catch (connectError) {
       setError((connectError as Error).message);
     } finally {
@@ -397,7 +413,12 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   }
 
   async function checkRemoteState() {
+    setNameAttempted(true);
     if (!manifest) return;
+    if (!targetGate.canProceed) {
+      setError(targetGate.warning || 'Verify the exact target name and owning account before checking remote state.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -511,6 +532,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   }
 
   async function publishSelected() {
+    setNameAttempted(true);
     if (!manifest || !validated || !account || !nameOwned || !approved || running.current) return;
     if (collisionCount > 0 && !allowUpdates) {
       setError('Resolve the ' + collisionCount + ' existing-resource collision(s) before publishing.');
@@ -758,17 +780,57 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
             <ShieldAlert size={17} />
             {account ? 'Refresh active account' : 'Connect Qortal account'}
           </button>
-          <button type="button" disabled={busy || !validated || !account || !nameOwned} onClick={() => void checkRemoteState()}>
+          <button type="button" disabled={busy || !validated || !account} onClick={() => void checkRemoteState()}>
             <RefreshCw size={17} />
             Check remote state
           </button>
         </div>
+        <div className={'publisher-state ' + targetGate.phase} role="status" aria-live="polite">
+          <strong>{targetGate.phase === 'package-loaded' ? 'Publisher package loaded' : 'Load the Publisher package (.zip)'}</strong>
+          <span>{targetGate.phase === 'package-loaded' && manifest
+            ? manifest.handoffId + ' · ' + manifest.resources.length + ' resources · target ' + manifest.target.qdnName
+            : targetPhaseMessage(targetGate.phase)}</span>
+        </div>
+        <section className="publisher-name" aria-labelledby="publisher-target-name-label">
+          <label id="publisher-target-name-label" htmlFor="publisher-target-name">Target Qortal name</label>
+          <div className="publisher-name__row">
+            <input
+              id="publisher-target-name"
+              type="text"
+              value={targetName}
+              onChange={(event) => setTargetName(event.target.value)}
+              placeholder="Exact registered Qortal name"
+              autoComplete="off"
+              spellCheck={false}
+              disabled={busy}
+              list={ownedNames.length > 0 ? 'publisher-owned-names' : undefined}
+            />
+            {ownedNames.length > 1 && (
+              <select
+                aria-label="Owned Qortal names"
+                value={ownedNames.some((entry) => entry.name === targetName) ? targetName : ''}
+                onChange={(event) => setTargetName(event.target.value)}
+                disabled={busy}
+              >
+                <option value="">Choose an owned name…</option>
+                {ownedNames.map((entry) => <option key={entry.name} value={entry.name}>{entry.name}</option>)}
+              </select>
+            )}
+          </div>
+          <datalist id="publisher-owned-names">
+            {ownedNames.map((entry) => <option key={entry.name} value={entry.name} />)}
+          </datalist>
+          <p className="publisher-note">
+            Names are matched exactly (NFKC, no case-folding). A reduced or renamed form is never treated as ownership evidence.
+            {targetGate.phase === 'package-loaded' ? ' A loaded package is bound to ' + (manifest?.target.qdnName ?? '') + '.' : ''}
+          </p>
+        </section>
         <div className="publisher-summary">
-          <span>{folderName || 'no folder selected'}</span>
+          <span>{folderName || 'no package loaded'}</span>
           <span>{manifest ? manifest.resources.length + ' resources' : '—'}</span>
           <span>{selected.size} selected</span>
           <span>{account ? account.address.slice(0, 10) + '…' : 'account not connected'}</span>
-          <span>{targetName || 'no target name'}</span>
+          <span>{targetName ? 'target: ' + targetName : 'target name not set'}</span>
         </div>
         {!bridge && (
           <p className="publisher-warning">
@@ -776,11 +838,13 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
             windowProperty={String(diagnostics.windowProperty)}, secureContext={String(diagnostics.secureContext)}, origin={diagnostics.locationOrigin}
           </p>
         )}
-        {account && !nameOwned && (
-          <p className="publisher-warning">
-            {ownership.message || ('The active account does not own ' + targetName + '. Qortal Hub performs the authoritative check; this screen is blocked until an owning account is active.')}
+        {targetGate.showValidation && targetGate.ownership.state === 'verified' && !targetGate.boundToPackage && (
+          <p className="publisher-ok" role="status">
+            <CheckCircle2 size={17} />
+            Name ownership verified for {targetGate.name}. Qortal Hub still performs the authoritative check before signing.
           </p>
         )}
+        {targetGate.warning && <p className="publisher-warning" role="alert">{targetGate.warning}</p>}
         {error && <p className="publisher-warning">{error}</p>}
         {notice && <p className="publisher-note">{notice}</p>}
       </section>

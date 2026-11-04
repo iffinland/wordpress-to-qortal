@@ -107,6 +107,7 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
     setIdentityLoading(true);
+    setIdentityNotice('');
     (resolveViewerIdentity({ qdnName: discoverQdnName(cmsConfig.admin.qdnName || '') }) as Promise<ViewerIdentity>)
       .then((next) => {
         if (!cancelled) {
@@ -124,7 +125,9 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, []);
+    // The runtime qms-cms-config.json can supply admin.qdnName after first paint;
+    // re-resolve identity so owner mode is not stuck on the build-time default.
+  }, [cmsConfig.admin.qdnName]);
 
   useEffect(() => {
     const siteId = dataset ? dataset.site.id : cmsConfig.site.id;
@@ -214,20 +217,6 @@ export function App() {
     if (route.kind === 'tag') return <TermPage dataset={dataset} kind="tag" slug={route.slug} page={route.page} />;
     if (route.kind === 'archive') return <ArchivePage dataset={dataset} year={route.year} month={route.month} page={route.page} />;
     if (route.kind === 'search') return <SearchPage dataset={dataset} query={route.query} />;
-    if (route.kind === 'admin') {
-      return (
-        <AdminPage
-          dataset={dataset}
-          identity={identity}
-          identityLoading={identityLoading}
-          identityNotice={identityNotice}
-          adoptionQueue={adoptionQueue}
-          onAdopt={adopt}
-          onRemove={remove}
-          onRefresh={() => setReloadToken((value) => value + 1)}
-        />
-      );
-    }
     if (route.kind === 'post') {
       const item = dataset.posts.find((entry) => entry.slug === route.slug) || null;
       const related = previousAndNext(dataset.posts, route.slug);
@@ -261,10 +250,23 @@ export function App() {
   }
 
   const showGlobalNotice = dataset && (dataset.state === 'partial' || dataset.state === 'stale');
+  const adminRequested = route.kind === 'admin';
 
   return (
     <Layout config={cmsConfig} route={route} viewer={identity} viewerLoading={identityLoading} templateVersion={templateVersion}>
-      {loading && !dataset ? (
+      {adminRequested ? (
+        <AdminPage
+          dataset={dataset}
+          loading={loading}
+          identity={identity}
+          identityLoading={identityLoading}
+          identityNotice={identityNotice}
+          adoptionQueue={adoptionQueue}
+          onAdopt={adopt}
+          onRemove={remove}
+          onRefresh={() => setReloadToken((value) => value + 1)}
+        />
+      ) : loading && !dataset ? (
         <div className="page" aria-busy="true">
           <StateNotice state="loading" title="Loading the QDN catalog..." message="Reading the manifest and indexes from QDN." />
         </div>

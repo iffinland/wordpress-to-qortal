@@ -10,6 +10,7 @@ import { TermPage } from '../src/pages/TermPage';
 import { ArchivePage } from '../src/pages/ArchivePage';
 import { SearchPage } from '../src/pages/SearchPage';
 import { AdminPage } from '../src/pages/AdminPage';
+import { App } from '../src/App';
 import { NotFoundPage } from '../src/pages/NotFoundPage';
 import { StateNotice } from '../src/components/StateNotice';
 import { cmsConfig } from '../src/config/cmsConfig';
@@ -170,5 +171,65 @@ describe('generic CMS routes render from the fixture manifest', () => {
     expect(reader).toContain('Read-only mode');
     expect(reader).toMatch(/<fieldset class="admin-fieldset" disabled/);
     expect(reader).toContain('disabled');
+  });
+});
+
+describe('admin preconditions stay visible without a published catalog', () => {
+  const noop = {
+    onAdopt: () => ({ ok: false, message: 'unavailable' }),
+    onRemove: () => undefined,
+    onRefresh: () => undefined
+  };
+
+  it('explains that publishing must happen first instead of rendering an empty menu', () => {
+    const html = render(
+      <AdminPage dataset={null} loading={false} identity={null} identityLoading={false} identityNotice="Qortal identity could not be resolved." adoptionQueue={[]} {...noop} />,
+      { kind: 'admin' }
+    );
+    expect(html).toContain('No published catalog is available yet');
+    expect(html).toContain('Publish the site with the Migration Publisher first');
+    expect(html).toContain('Import is unavailable until a published catalog exists');
+    expect(html).toMatch(/<fieldset class="admin-fieldset" disabled/);
+    expect(html).toContain('Qortal identity could not be resolved');
+  });
+
+  it('keeps the admin page reachable while the catalog is loading', () => {
+    const html = render(
+      <AdminPage dataset={null} loading identity={null} identityLoading adoptionQueue={[]} identityNotice="" {...noop} />,
+      { kind: 'admin' }
+    );
+    expect(html).toContain('Reading the published catalog...');
+    expect(html).toContain('Admin and import');
+  });
+
+  it('shows the catalog error and disables import rather than hiding the reason', () => {
+    const errorDataset: CmsDataset = {
+      ...dataset,
+      state: 'error',
+      source: 'error',
+      message: 'The qms-cms-manifest could not be read.',
+      notices: [{ code: 'catalog-load-failed', level: 'error', message: 'The qms-cms-manifest could not be read.' }],
+      availability: { posts: false, pages: false, categories: false, tags: false },
+      posts: [],
+      pages: [],
+      categories: [],
+      tags: []
+    };
+    const html = render(
+      <AdminPage dataset={errorDataset} loading={false} identity={ownerIdentity} identityLoading={false} identityNotice="" adoptionQueue={[]} {...noop} />,
+      { kind: 'admin' }
+    );
+    expect(html).toContain('Catalog unavailable');
+    expect(html).toContain('The qms-cms-manifest could not be read.');
+    expect(html).toMatch(/<fieldset class="admin-fieldset" disabled/);
+  });
+
+  it('renders the admin route directly instead of the global catalog error', () => {
+    window.location.hash = '#/admin';
+    const html = renderToStaticMarkup(<App />);
+    expect(html).toContain('Admin and import');
+    expect(html).toContain('Reading the published catalog...');
+    expect(html).not.toContain('Loading the QDN catalog...');
+    window.location.hash = '';
   });
 });

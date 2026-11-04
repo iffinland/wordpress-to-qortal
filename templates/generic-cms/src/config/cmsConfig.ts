@@ -7,6 +7,20 @@ export const baseCmsConfig: CmsTemplateConfig = __CMS_CONFIG__;
 export const cmsConfig: CmsTemplateConfig = baseCmsConfig;
 export const templateVersion: string = __CMS_TEMPLATE_VERSION__;
 
+/**
+ * The runtime config is generated per site and older Publisher builds omitted
+ * the Admin entry. Keep the owner-gated admin route reachable for an already
+ * published qms-cms-config.json by appending the entry when it is missing.
+ */
+export function ensureAdminNavigation(config: CmsTemplateConfig): CmsTemplateConfig {
+  const hasAdmin = config.navigation.some((item) => {
+    const href = String(item.href || '').replace(/\/+$/, '');
+    return href === '#/admin';
+  });
+  if (hasAdmin) return config;
+  return { ...config, navigation: [...config.navigation, { label: 'Admin', href: '#/admin' }] };
+}
+
 function isObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -67,7 +81,7 @@ export async function loadRuntimeCmsConfig(): Promise<RuntimeCmsConfig> {
     if (!validation.ok) {
       return { config: baseCmsConfig, source: 'build', notice: 'Runtime CMS configuration is invalid; using build defaults.' };
     }
-    return { config: merged as CmsTemplateConfig, source: 'runtime', notice: '' };
+    return { config: ensureAdminNavigation(merged as CmsTemplateConfig), source: 'runtime', notice: '' };
   } catch {
     return { config: baseCmsConfig, source: 'build', notice: 'Runtime CMS configuration is unavailable; using build defaults.' };
   }

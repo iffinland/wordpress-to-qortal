@@ -8,7 +8,8 @@ function safeId(value: string) {
 }
 
 export function AdminPage(props: {
-  dataset: CmsDataset;
+  dataset: CmsDataset | null;
+  loading?: boolean;
   identity: ViewerIdentity | null;
   identityLoading: boolean;
   identityNotice: string;
@@ -20,14 +21,19 @@ export function AdminPage(props: {
   const [selected, setSelected] = useState<string[]>([]);
   const [message, setMessage] = useState('');
   const owner = Boolean(props.identity && props.identity.owner);
-  const items = [...props.dataset.posts, ...props.dataset.pages];
+  const items = props.dataset ? [...props.dataset.posts, ...props.dataset.pages] : [];
   const selectedItems = items.filter((item) => selected.includes(item.id));
+  const catalogReady = Boolean(props.dataset && props.dataset.state !== 'error');
 
   const toggle = (id: string) => {
     setSelected((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
   };
 
   const adopt = () => {
+    if (!props.dataset) {
+      setMessage('Import requires a published catalog. Publish the site with Qortal Migration Studio first.');
+      return;
+    }
     const result = props.onAdopt(selectedItems);
     setMessage(result.message);
     if (result.ok) setSelected([]);
@@ -41,14 +47,41 @@ export function AdminPage(props: {
         publish or modify QDN resources.
       </p>
 
-      <div className="admin-toolbar">
-        <button type="button" className="button button--ghost" onClick={props.onRefresh}>Refresh catalog</button>
-        {props.dataset.generatedAt ? <span className="muted">Catalog generated <time dateTime={props.dataset.generatedAt}>{formatDate(props.dataset.generatedAt)}</time></span> : null}
-      </div>
-
-      {props.dataset.state === 'error' ? (
-        <StateNotice state="error" title="Catalog unavailable" message={props.dataset.message} notices={props.dataset.notices} />
-      ) : null}
+      <section className="admin-section" aria-labelledby="precondition-title">
+        <h2 id="precondition-title">Preconditions</h2>
+        <p className="muted">
+          Admin and import need two things: a published <code>qms-cms-manifest</code> with its indexes under this
+          site's exact QDN name, and the signed-in account that owns that name. This page stays reachable before the
+          catalog exists so the missing precondition is visible instead of the menu appearing broken.
+        </p>
+        {!props.dataset ? (
+          <StateNotice
+            state={props.loading ? 'loading' : 'partial'}
+            title={props.loading ? 'Reading the published catalog...' : 'No published catalog is available yet'}
+            message={props.loading
+              ? 'Admin stays reachable while the QDN catalog loads.'
+              : 'No qms-cms-manifest could be read for this site. Publish the site with the Migration Publisher first, then refresh. Owner mode and import remain disabled until the catalog exists.'}
+          />
+        ) : props.dataset.state === 'error' ? (
+          <StateNotice
+            state="error"
+            title="Catalog unavailable"
+            message={props.dataset.message || 'The published catalog could not be read.'}
+            notices={props.dataset.notices}
+          />
+        ) : (
+          <p className="muted">
+            Catalog state: <strong>{props.dataset.state}</strong>
+            {props.dataset.source ? ' · source: ' + props.dataset.source : ''}
+            {props.dataset.generatedAt
+              ? ' · generated ' + formatDate(props.dataset.generatedAt)
+              : ''}
+          </p>
+        )}
+        <div className="admin-toolbar">
+          <button type="button" className="button button--ghost" onClick={props.onRefresh}>Refresh catalog</button>
+        </div>
+      </section>
 
       <section className="admin-section" aria-labelledby="access-title">
         <h2 id="access-title">Access</h2>
@@ -72,15 +105,19 @@ export function AdminPage(props: {
 
       <section className="admin-section" aria-labelledby="catalog-title">
         <h2 id="catalog-title">Catalog</h2>
-        <dl className="meta-grid">
-          <div><dt>Source</dt><dd>{props.dataset.source}</dd></div>
-          <div><dt>State</dt><dd>{props.dataset.state}{props.dataset.fromCache ? ' (cached)' : ''}</dd></div>
-          <div><dt>Posts</dt><dd>{props.dataset.availability.posts ? props.dataset.posts.length : 'unavailable'}</dd></div>
-          <div><dt>Pages</dt><dd>{props.dataset.availability.pages ? props.dataset.pages.length : 'unavailable'}</dd></div>
-          <div><dt>Categories</dt><dd>{props.dataset.availability.categories ? props.dataset.categories.length : 'unavailable'}</dd></div>
-          <div><dt>Tags</dt><dd>{props.dataset.availability.tags ? props.dataset.tags.length : 'unavailable'}</dd></div>
-        </dl>
-        {props.dataset.notices.length > 0 ? (
+        {props.dataset ? (
+          <dl className="meta-grid">
+            <div><dt>Source</dt><dd>{props.dataset.source}</dd></div>
+            <div><dt>State</dt><dd>{props.dataset.state}{props.dataset.fromCache ? ' (cached)' : ''}</dd></div>
+            <div><dt>Posts</dt><dd>{props.dataset.availability.posts ? props.dataset.posts.length : 'unavailable'}</dd></div>
+            <div><dt>Pages</dt><dd>{props.dataset.availability.pages ? props.dataset.pages.length : 'unavailable'}</dd></div>
+            <div><dt>Categories</dt><dd>{props.dataset.availability.categories ? props.dataset.categories.length : 'unavailable'}</dd></div>
+            <div><dt>Tags</dt><dd>{props.dataset.availability.tags ? props.dataset.tags.length : 'unavailable'}</dd></div>
+          </dl>
+        ) : (
+          <p className="muted">Catalog counts are unavailable until the manifest and indexes are published.</p>
+        )}
+        {props.dataset && props.dataset.notices.length > 0 ? (
           <ul className="notice-list">
             {props.dataset.notices.map((notice) => <li key={notice.code + notice.message} className={'notice-list__item notice-list__item--' + notice.level}>{notice.message}</li>)}
           </ul>
@@ -90,11 +127,13 @@ export function AdminPage(props: {
       <section className="admin-section" aria-labelledby="import-title">
         <h2 id="import-title">Import and adoption</h2>
         <p id="admin-readonly-help" className="muted">
-          {owner
-            ? 'Select catalog items to stage in the local adoption queue. Nothing is published.'
-            : 'Only the verified owner of the QDN site name can stage import or adoption actions.'}
+          {!catalogReady
+            ? 'Import is unavailable until a published catalog exists. Nothing is published from this page.'
+            : owner
+              ? 'Select catalog items to stage in the local adoption queue. Nothing is published.'
+              : 'Only the verified owner of the QDN site name can stage import or adoption actions.'}
         </p>
-        <fieldset className="admin-fieldset" disabled={!owner}>
+        <fieldset className="admin-fieldset" disabled={!owner || !catalogReady}>
           <legend>Catalog items</legend>
           {items.length === 0 ? (
             <p className="muted">No catalog items are available to adopt.</p>
@@ -119,7 +158,7 @@ export function AdminPage(props: {
               })}
             </ul>
           )}
-          <button type="button" className="button" onClick={adopt} disabled={!owner || selectedItems.length === 0}>
+          <button type="button" className="button" onClick={adopt} disabled={!owner || !catalogReady || selectedItems.length === 0}>
             Adopt selected ({selectedItems.length})
           </button>
         </fieldset>
