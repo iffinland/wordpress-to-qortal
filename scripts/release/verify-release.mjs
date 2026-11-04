@@ -10,6 +10,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { REPO_ROOT, artifactName, gitInfo, readJson, sha256File, writeJson } from './lib.mjs';
+import { runThreeArtifactGate } from './three-artifact-gate.mjs';
 
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const config = await readJson(path.join(REPO_ROOT, 'desktop/release.config.json'));
@@ -33,10 +34,19 @@ function expect(name, condition) {
   if (!condition) failures.push(name);
 }
 
+const threeArtifactGate = await runThreeArtifactGate({ write: false });
+expect('three-artifact release gate passes', threeArtifactGate.ok);
+for (const failure of threeArtifactGate.failures) failures.push('three-artifact gate: ' + failure);
+const requiredArtifacts = threeArtifactGate.manifest.artifacts;
+for (const required of requiredArtifacts) {
+  expect('required artifact recorded: ' + required.kind, Boolean(required.name && required.sha256));
+}
+
 expect('artifact sha matches artifact.json', artifactInfo.sha256 === sha256);
 expect('artifact bytes match artifact.json', artifactInfo.bytes === (await readJson(path.join(releaseDir, 'artifact.json'))).bytes);
 expect('build-info sha matches artifact', buildInfo.sha256 === sha256);
 expect('provenance subject sha matches artifact', provenance.subject?.[0]?.digest?.sha256 === sha256);
+expect('provenance records all three artifact subjects', requiredArtifacts.every((entry) => (provenance.subject ?? []).some((subject) => subject.name === entry.name && subject.digest?.sha256 === entry.sha256)));
 expect('provenance commit matches artifact metadata', provenance.predicate?.buildDefinition?.resolvedDependencies?.some((entry) => entry.uri?.endsWith('@' + artifactInfo.sourceCommit)));
 expect('SBOM component sha matches artifact', sbom.metadata?.component?.hashes?.some((entry) => entry.alg === 'SHA-256' && entry.content === sha256));
 expect('SBOM commit matches artifact metadata', sbom.metadata?.component?.properties?.some((entry) => entry.name === 'qms:sourceCommit' && entry.value === artifactInfo.sourceCommit));
@@ -105,7 +115,7 @@ await writeJson(path.join(releaseDir, 'RELEASE-STATE.json'), releaseState);
 await writeJson(path.join(releaseDir, 'INSTALL-VERIFICATION.json'), installVerification);
 
 const sums = [];
-for (const file of [path.basename(artifact), 'sbom.cdx.json', 'provenance.intoto.json', 'build-info.json', 'artifact.json', 'validation.json', 'security-report.json', 'reproducibility.json', 'RELEASE-STATE.json', 'INSTALL-VERIFICATION.json']) {
+for (const file of [...requiredArtifacts.map((entry) => entry.name), 'sbom.cdx.json', 'provenance.intoto.json', 'build-info.json', 'artifact.json', 'validation.json', 'security-report.json', 'reproducibility.json', 'RELEASE-STATE.json', 'INSTALL-VERIFICATION.json']) {
   const absolute = path.join(releaseDir, file);
   try {
     sums.push((await sha256File(absolute)) + '  ' + file);
@@ -114,7 +124,11 @@ for (const file of [path.basename(artifact), 'sbom.cdx.json', 'provenance.intoto
   }
 }
 sums.sort((a, b) => a.slice(66).localeCompare(b.slice(66)));
+for (const required of requiredArtifacts) {
+  expect('SHA256SUMS includes ' + required.name, sums.some((line) => line.endsWith('  ' + required.name)));
+}
 await writeFile(path.join(releaseDir, 'SHA256SUMS'), sums.join('\n') + '\n');
+await writeFile(path.join(REPO_ROOT, 'release', 'SHA256SUMS'), sums.join('\n') + '\n');
 
 if (failures.length > 0) {
   console.error('release consistency check failed:');

@@ -63,8 +63,15 @@ export function validateCmsConfig(config) {
       errors.push('content.staleAfterDays must be a positive number.');
     }
   }
-  if (!config.admin || typeof config.admin !== 'object' || !isNonEmptyString(config.admin.qdnName)) {
-    errors.push('admin.qdnName is required.');
+  if (!config.admin || typeof config.admin !== 'object') {
+    errors.push('admin is required.');
+  } else {
+    if (typeof config.admin.qdnName !== 'string') {
+      errors.push('admin.qdnName must be a string; leave it empty to discover the name from Qortal hosting at runtime.');
+    }
+    if (config.admin.requireOwnerForImport !== undefined && typeof config.admin.requireOwnerForImport !== 'boolean') {
+      errors.push('admin.requireOwnerForImport must be a boolean when present.');
+    }
   }
   return { ok: errors.length === 0, errors };
 }

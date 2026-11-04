@@ -46,7 +46,7 @@ async function readRuntimeJson(): Promise<unknown | null> {
     // Fall through to the exact APP member read.
   }
   try {
-    const { name, identifier } = discoverQdnResource(baseCmsConfig.site.ownerName || '', 'default');
+    const { name, identifier } = discoverQdnResource(baseCmsConfig.admin.qdnName || '', 'default');
     if (!name) return null;
     const url = '/arbitrary/APP/' + encodeURIComponent(name) + '/' + encodeURIComponent(identifier)
       + '?filepath=qms-cms-config.json&encoding=base64';
