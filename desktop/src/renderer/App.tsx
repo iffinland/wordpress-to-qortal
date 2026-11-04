@@ -7,9 +7,10 @@ import { Progress } from './components/Progress.js';
 import { History } from './components/History.js';
 import { Publishing } from './components/Publishing.js';
 import { SyncView } from './components/Sync.js';
+import { Recovery } from './components/Recovery.js';
 import { ErrorText } from './components/Common.js';
 
-type View = 'dashboard' | 'wizard' | 'progress' | 'history' | 'publishing' | 'sync';
+type View = 'dashboard' | 'wizard' | 'progress' | 'history' | 'publishing' | 'sync' | 'recovery';
 
 function wizardPlanId(project: ProjectDocument): string | null {
   const settings = (project.settings ?? {}) as Record<string, unknown>;
@@ -129,6 +130,19 @@ export default function App() {
     }
   }
 
+  async function openRecovery(projectId: string) {
+    setError(null);
+    try {
+      if (!project || project.id !== projectId) {
+        const opened = await api().projects.open(projectId);
+        setProject(opened.project);
+      }
+      setView('recovery');
+    } catch (openError) {
+      setError(openError);
+    }
+  }
+
   async function backToDashboard() {
     setView('dashboard');
     setProject(null);
@@ -161,6 +175,7 @@ export default function App() {
           {info && <span className="pill">engine {info.version}</span>}
           {settings && <span className={'pill ' + (settings.keyring.available ? 'good-text' : 'warn-text')}>{settings.keyring.available ? 'keyring available' : 'session-only credentials'}</span>}
           {project && <button className="ghost" onClick={() => void openSync(project.id)}>Sync</button>}
+          {project && <button className="ghost" onClick={() => void openRecovery(project.id)}>Recovery</button>}
           {project && <button className="ghost" onClick={() => void openPublishing(project.id)}>Publishing</button>}
           <button className="ghost" onClick={() => void backToDashboard()}>Dashboard</button>
         </div>
@@ -176,6 +191,7 @@ export default function App() {
             onOpen={openProject}
             onHistory={openHistory}
             onSync={openSync}
+            onRecovery={openRecovery}
           />
         )}
         {view === 'wizard' && project && settings && (
@@ -205,6 +221,9 @@ export default function App() {
             onBack={backToDashboard}
             onPublishing={(selectedPlanId) => void openPublishing(project.id, selectedPlanId)}
           />
+        )}
+        {view === 'recovery' && project && (
+          <Recovery projectId={project.id} onBack={backToDashboard} />
         )}
         {view === 'history' && project && (
           <History

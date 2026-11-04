@@ -15,6 +15,8 @@ const RUN_ID = /^run_[a-z0-9]{8,40}$/;
 const CONFLICT_ID = /^cnf_[a-z0-9]{8,40}$/;
 const TOKEN = /^mig_[a-z0-9]{8,64}$/;
 const HANDOFF_ID = /^hof_[a-z0-9]{8,40}$/;
+const CLEANUP_ID = /^cln_[a-z0-9]{8,40}$/;
+const STAGE_ID = /^stg_[a-z0-9_-]{4,80}$/;
 
 const SECRET_KEY = /(password|passwd|secret|token|apikey|api_key|seed|privatekey|private_key|wallet|authorization|cookie)/i;
 const MAX_STRING = 20_000;
@@ -489,6 +491,7 @@ export function validateIpcPayload(channel: string, payload: unknown): Dict {
         limit: integer(params.limit, 'limit', { min: 1, max: 5000, optional: true })
       };
 
+    case IPC.runPause:
     case IPC.runCancel:
       return {
         projectId: projectId(params),
@@ -501,6 +504,67 @@ export function validateIpcPayload(channel: string, payload: unknown): Dict {
 
     case IPC.diagnosticsExport:
       return { projectId: projectId(params) };
+
+    case IPC.recoveryStatus:
+      return { projectId: projectId(params) };
+
+    case IPC.recoveryResume: {
+      const run = params.runId === undefined ? null : runId(params);
+      const stage = params.stageId === undefined ? null : text(params.stageId, 'stageId', { pattern: STAGE_ID, max: 80 });
+      if ((run === null) === (stage === null)) fail('exactly one of runId or stageId is required.');
+      return {
+        projectId: projectId(params),
+        runId: run,
+        stageId: stage,
+        auth: params.auth === undefined ? undefined : object(params.auth, 'auth')
+      };
+    }
+
+    case IPC.recoveryDismiss:
+      return {
+        projectId: projectId(params),
+        runId: runId(params),
+        reason: text(params.reason, 'reason', { optional: true, max: 200 })
+      };
+
+    case IPC.recoveryReconcile:
+      return {
+        projectId: projectId(params),
+        handoffId: params.handoffId === undefined || params.handoffId === null ? null : handoffId(params),
+        nodeUrl: nodeUrl(params.nodeUrl)
+      };
+
+    case IPC.cleanupPreview:
+    case IPC.cleanupStart:
+      return {
+        projectId: projectId(params),
+        handoffIds: stringArray(params.handoffIds, 'handoffIds', 100) ?? null,
+        includeHandoffPayloads: bool(params.includeHandoffPayloads, 'includeHandoffPayloads', true),
+        includeParts: bool(params.includeParts, 'includeParts', true),
+        retentionDays: integer(params.retentionDays, 'retentionDays', { min: 0, max: 3650, optional: true }),
+        dryRun: channel === IPC.cleanupStart ? bool(params.dryRun, 'dryRun', false) : undefined
+      };
+
+    case IPC.cleanupList:
+      return { projectId: projectId(params), limit: integer(params.limit, 'limit', { min: 1, max: 500, optional: true }) };
+
+    case IPC.cleanupGet:
+    case IPC.cleanupRestore:
+    case IPC.cleanupResume:
+      return { projectId: projectId(params), cleanupId: text(params.cleanupId, 'cleanupId', { pattern: CLEANUP_ID, max: 40 }) };
+
+    case IPC.cleanupPurge:
+      return {
+        projectId: projectId(params),
+        cleanupId: text(params.cleanupId, 'cleanupId', { pattern: CLEANUP_ID, max: 40 }),
+        force: bool(params.force, 'force', false)
+      };
+
+    case IPC.historyList:
+      return { projectId: projectId(params), limit: integer(params.limit, 'limit', { min: 1, max: 5000, optional: true }) };
+
+    case IPC.historyExport:
+      return { projectId: projectId(params), reason: text(params.reason, 'reason', { optional: true, max: 80 }) };
 
     default:
       fail('Unknown IPC channel: ' + channel);

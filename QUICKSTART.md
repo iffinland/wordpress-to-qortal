@@ -162,3 +162,27 @@ After the first migration, open the project in the Qortal Migration Studio deskt
 A source deletion becomes a local withdrawal. It hides the item from the visible catalog and never deletes or modifies published QDN data.
 
 There is no scheduled background sync. Every scan and publication is an explicit operator action.
+
+## 12. Recover, clean up and inspect history
+
+Open the project and choose **Recovery** (header or project card).
+
+1. **Interrupted operations**: if the app or machine stopped during a run, the
+   operation is listed with its last durable checkpoint. Choose **Resume** to
+   continue idempotently, or **Dismiss** to abandon it. Nothing is retried
+   silently.
+2. **Ambiguous publications**: a submission with an unknown result is never
+   sent again. Enter a read-only Qortal node URL and choose
+   **Reconcile read-back**; only an exact bytes/hash match becomes verified.
+3. **Cleanup**: choose **Preview cleanup** first. Only remotely verified media
+   and its handoff payload copies are eligible; shared or unverified media is
+   protected. **Quarantine eligible files** is reversible for the retention
+   period (default 14 days). Use **Restore** inside that window. **Purge** is a
+   separate irreversible action and reports the measured freed bytes.
+4. **History**: the timeline shows publication evidence, transaction
+   signatures, content hashes and cleanup/recovery records. Export a sealed
+   snapshot at any time.
+5. **Support bundle**: export a metadata-only diagnostics file. Credentials,
+   cookies, wallet material and content bodies are excluded; the export is
+   refused if a secret check fails.
+

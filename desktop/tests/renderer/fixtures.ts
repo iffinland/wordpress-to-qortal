@@ -189,7 +189,7 @@ export function syncStatusFixture(overrides: Record<string, unknown> = {}) {
 export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
   const base: QmsApi = {
     app: {
-      info: vi.fn(async () => ({ apiVersion: 'qms-engine@1', version: '0.1.8-phase7', dataRoot: '/data', repoRoot: '/repo', sourceContract: 'qms-source-adapter@1', contentSchema: 'qms-content@1', planSchema: 'qms-plan@1', identitySchema: 'qms-identity-state@1', syncSchema: 'qms-sync-state@1', syncScanSchema: 'qms-sync-scan@1', syncConflictSchema: 'qms-sync-conflict@1', withdrawalSchema: 'qms-withdrawal-record@1', eventSchema: 'qms-event@1', adapters: [adapter()] })),
+      info: vi.fn(async () => ({ apiVersion: 'qms-engine@1', version: '0.1.9-phase8', dataRoot: '/data', repoRoot: '/repo', sourceContract: 'qms-source-adapter@1', contentSchema: 'qms-content@1', planSchema: 'qms-plan@1', identitySchema: 'qms-identity-state@1', syncSchema: 'qms-sync-state@1', syncScanSchema: 'qms-sync-scan@1', syncConflictSchema: 'qms-sync-conflict@1', withdrawalSchema: 'qms-withdrawal-record@1', eventSchema: 'qms-event@1', adapters: [adapter()] })),
       settings: vi.fn(async () => settings()),
       setDataRoot: vi.fn(async () => settings()),
       openPath: vi.fn(async () => ({ opened: true, path: '/tmp' }))
@@ -315,13 +315,111 @@ export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
       list: vi.fn(async () => []),
       get: vi.fn(async () => ({})),
       events: vi.fn(async () => []),
-      cancel: vi.fn(async () => ({ cancelRequested: true }))
+      cancel: vi.fn(async () => ({ cancelRequested: true })),
+      pause: vi.fn(async () => ({ pauseRequested: true }))
     },
     credentials: {
       status: vi.fn(async () => ({ available: false, backend: 'session-memory' })),
       forget: vi.fn(async () => ({}))
     },
-    diagnostics: { export: vi.fn(async () => ({ path: '/data/exports/diagnostics.json', bytes: 123, createdAt: '2026-11-03T10:00:00.000Z' })) },
+    recovery: {
+      status: vi.fn(async () => ({
+        schema: 'qms-recovery-status@1',
+        projectId: 'prj_demo',
+        checkedAt: '2026-11-04T10:00:00.000Z',
+        recovery: { interruptedRuns: 1, resumableRuns: 1, interruptedStages: 0, ambiguousResources: 0, corruptCheckpoints: 0 },
+        candidates: [{
+          runId: 'run_abcdefgh12345678',
+          kind: 'media.download',
+          state: 'interrupted',
+          phase: 'download',
+          step: 'download_record',
+          cursor: 1,
+          total: 2,
+          resumable: true,
+          action: { service: 'media', method: 'download', params: { planId: 'plan_abcdefgh' } },
+          resumeHint: 'Resume re-runs the operation idempotently from the last durable checkpoint.',
+          startedAt: '2026-11-04T09:00:00.000Z',
+          endedAt: '2026-11-04T09:01:00.000Z',
+          error: null
+        }],
+        ambiguousResources: [],
+        corruptCheckpoints: [],
+        cleanups: []
+      })),
+      resume: vi.fn(async () => ({ runId: 'run_abcdefgh12345678', state: 'resumed', resumedFrom: { step: 'download_record' }, result: { runId: 'run_new' } })),
+      dismiss: vi.fn(async () => ({ runId: 'run_abcdefgh12345678', state: 'abandoned' })),
+      reconcile: vi.fn(async () => ({ reconciled: 1, verified: 1, stillAmbiguous: 0, resubmitted: false }))
+    },
+    cleanup: {
+      preview: vi.fn(async () => ({
+        schema: 'qms-cleanup-preview@1',
+        previewId: 'cln_abcdefgh12345678',
+        projectId: 'prj_demo',
+        createdAt: '2026-11-04T10:00:00.000Z',
+        scope: { retentionDays: 14 },
+        eligibleHandoffs: [{ handoffId: 'hof_abcdefgh12345678', status: 'remote_verified', resources: 2 }],
+        refusedHandoffs: [],
+        items: [{ relativePath: 'media/assets/aa/hash', category: 'media_asset', bytes: 1024, hash: 'sha256:abc', eligible: true, reason: null }],
+        totals: { files: 1, bytes: 1024, eligibleFiles: 1, eligibleBytes: 1024, protectedFiles: 0, protectedBytes: 0, unsafeFiles: 0 },
+        disk: { freeBytesBefore: 1000000 },
+        protected: ['state', 'history'],
+        warnings: [],
+        eligible: true
+      })),
+      start: vi.fn(async () => ({
+        schema: 'qms-cleanup-record@1',
+        cleanupId: 'cln_abcdefgh12345678',
+        status: 'quarantined',
+        createdAt: '2026-11-04T10:00:00.000Z',
+        updatedAt: '2026-11-04T10:01:00.000Z',
+        retentionDays: 14,
+        restoreBy: '2026-11-18T10:00:00.000Z',
+        scope: {},
+        receiptPath: 'cleanup/receipts/cln_abcdefgh12345678.json',
+        historySnapshotPath: 'history/snapshots/snapshot.json',
+        fileCount: 1,
+        movedCount: 1,
+        bytesQuarantined: 1024,
+        bytesReclaimed: 0,
+        failedItems: [],
+        disk: { freeBytesBefore: 1000000, freeBytesAfter: 1000000 },
+        freed: { bytesQuarantined: 1024, bytesReclaimed: 0 },
+        items: []
+      })),
+      list: vi.fn(async () => []),
+      get: vi.fn(async () => ({}) as never),
+      restore: vi.fn(async () => ({ status: 'restored', movedCount: 1 }) as never),
+      purge: vi.fn(async () => ({ status: 'purged', bytesReclaimed: 1024 }) as never),
+      resume: vi.fn(async () => ({ status: 'quarantined' }) as never)
+    },
+    history: {
+      list: vi.fn(async () => [{
+        schema: 'qms-audit-entry@1',
+        id: 'aud_00000001',
+        seq: 1,
+        at: '2026-11-04T10:00:00.000Z',
+        type: 'publication_verified',
+        runId: null,
+        handoffId: 'hof_abcdefgh12345678',
+        resourceId: 'res_abcdefgh',
+        sourceKey: 'post:1000',
+        status: 'remote_verified',
+        txSignature: 'sig_abcdefghijklmnop',
+        contentHash: 'sha256:abcdef',
+        bytes: 1024,
+        details: {}
+      }]),
+      export: vi.fn(async () => ({ relativePath: 'history/snapshots/audit.json', path: '/data/history/snapshots/audit.json', bytes: 2048, entries: 10, createdAt: '2026-11-04T10:00:00.000Z' }))
+    },
+    diagnostics: { export: vi.fn(async () => ({
+      schema: 'qms-support-bundle@1',
+      path: '/data/exports/support.json',
+      relativePath: 'exports/support.json',
+      bytes: 123,
+      createdAt: '2026-11-03T10:00:00.000Z',
+      sections: ['app', 'project']
+    })) },
     events: { on: vi.fn(() => () => {}) }
   };
   return { ...base, ...overrides };

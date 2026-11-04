@@ -3,7 +3,7 @@ import { IPC } from '../shared/channels.js';
 import { validateIpcPayload } from '../shared/validation.js';
 import type { EngineHost } from './host.js';
 import type { CredentialStore } from './credentials.js';
-import { exportDiagnostics, sanitizeForDiagnostics } from './diagnostics.js';
+import { sanitizeForDiagnostics } from './diagnostics.js';
 import { trustedRendererUrl } from './window.js';
 import path from 'node:path';
 
@@ -46,6 +46,20 @@ const TIMEOUTS: Record<string, number> = {
   'project.open': 60_000,
   'project.inspect': 30_000,
   'diagnostics.export': 120_000,
+  'recovery.status': 60_000,
+  'recovery.resume': 30 * 60_000,
+  'recovery.dismiss': 30_000,
+  'recovery.reconcile': 15 * 60_000,
+  'cleanup.preview': 10 * 60_000,
+  'cleanup.start': 30 * 60_000,
+  'cleanup.list': 30_000,
+  'cleanup.get': 30_000,
+  'cleanup.restore': 30 * 60_000,
+  'cleanup.purge': 30 * 60_000,
+  'cleanup.resume': 30 * 60_000,
+  'history.list': 60_000,
+  'history.export': 120_000,
+  'support.bundle': 120_000,
   'run.cancel': 15_000
 };
 
@@ -252,20 +266,68 @@ export function registerIpc(deps: IpcDependencies): void {
     [IPC.runGet]: async (params) => invoke('run.get', { projectId: params.projectId, runId: params.runId }),
     [IPC.runEvents]: async (params) => invoke('run.events', params),
     [IPC.runCancel]: async (params) => invoke('run.cancel', params),
+    [IPC.runPause]: async (params) => invoke('run.pause', params),
 
     [IPC.credentialStatus]: async () => deps.credentials.status(),
     [IPC.credentialForget]: async (params) => {
       await deps.credentials.forget(String(params.projectId));
       return { forgotten: true };
     },
-    [IPC.diagnosticsExport]: async (params) => exportDiagnostics({
-      host: deps.host,
-      dataRoot: deps.dataRoot(),
-      projectId: String(params.projectId),
+    [IPC.recoveryStatus]: async (params) => invoke('recovery.status', { projectId: params.projectId }),
+    [IPC.recoveryResume]: async (params) => invoke('recovery.resume', {
+      projectId: params.projectId,
+      runId: params.runId ?? undefined,
+      stageId: params.stageId ?? undefined,
+      auth: params.auth ?? undefined
+    }, 30 * 60_000),
+    [IPC.recoveryDismiss]: async (params) => invoke('recovery.dismiss', {
+      projectId: params.projectId,
+      runId: params.runId,
+      reason: params.reason ?? null
+    }),
+    [IPC.recoveryReconcile]: async (params) => invoke('recovery.reconcile', {
+      projectId: params.projectId,
+      handoffId: params.handoffId ?? null,
+      nodeUrl: params.nodeUrl
+    }, 15 * 60_000),
+
+    [IPC.cleanupPreview]: async (params) => invoke('cleanup.preview', {
+      projectId: params.projectId,
+      handoffIds: params.handoffIds ?? null,
+      includeHandoffPayloads: params.includeHandoffPayloads !== false,
+      includeParts: params.includeParts !== false,
+      retentionDays: params.retentionDays
+    }, 10 * 60_000),
+    [IPC.cleanupStart]: async (params) => invoke('cleanup.start', {
+      projectId: params.projectId,
+      handoffIds: params.handoffIds ?? null,
+      includeHandoffPayloads: params.includeHandoffPayloads !== false,
+      includeParts: params.includeParts !== false,
+      retentionDays: params.retentionDays,
+      dryRun: params.dryRun === true
+    }, 30 * 60_000),
+    [IPC.cleanupList]: async (params) => invoke('cleanup.list', { projectId: params.projectId, limit: params.limit ?? 100 }),
+    [IPC.cleanupGet]: async (params) => invoke('cleanup.get', { projectId: params.projectId, cleanupId: params.cleanupId }),
+    [IPC.cleanupRestore]: async (params) => invoke('cleanup.restore', { projectId: params.projectId, cleanupId: params.cleanupId }, 30 * 60_000),
+    [IPC.cleanupPurge]: async (params) => invoke('cleanup.purge', {
+      projectId: params.projectId,
+      cleanupId: params.cleanupId,
+      force: params.force === true
+    }, 30 * 60_000),
+    [IPC.cleanupResume]: async (params) => invoke('cleanup.resume', { projectId: params.projectId, cleanupId: params.cleanupId }, 30 * 60_000),
+
+    [IPC.historyList]: async (params) => invoke('history.list', { projectId: params.projectId, limit: params.limit ?? 300 }),
+    [IPC.historyExport]: async (params) => invoke('history.export', {
+      projectId: params.projectId,
+      reason: params.reason ?? 'manual-export'
+    }),
+
+    [IPC.diagnosticsExport]: async (params) => invoke('support.bundle', {
+      projectId: params.projectId,
       appInfo: await deps.appInfo(),
       settings: deps.getSettings(),
       keyring: deps.credentials.status()
-    })
+    }, 120_000)
   };
 
   for (const [channel, handler] of Object.entries(handlers)) {

@@ -117,6 +117,21 @@ export function Progress({ projectId, planId, onBack, onHistory, onPublishing }:
     }
   }
 
+  async function pause() {
+    const runId = currentRunId ?? activeRun?.id;
+    if (!runId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api().runs.pause(projectId, runId);
+      setNotice('Pause requested at a safe boundary. Resume from the Recovery view; verified files are kept.');
+    } catch (pauseError) {
+      setError(pauseError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function openDiagnostics() {
     await onHistory(projectId);
   }
@@ -127,7 +142,7 @@ export function Progress({ projectId, planId, onBack, onHistory, onPublishing }:
         <div>
           <p className="eyebrow">Local preparation</p>
           <h1>Preparation and progress</h1>
-          <p className="muted">Checkpoint/resume only. The engine does not expose pause; retries reuse verified assets and partial downloads.</p>
+          <p className="muted">Every step has a durable checkpoint. Pause stops at a safe boundary; resume from Recovery. Retries reuse verified assets and partial downloads.</p>
         </div>
         <div className="row gap">
           <button onClick={() => void openDiagnostics()}>History & diagnostics</button>
@@ -179,8 +194,9 @@ export function Progress({ projectId, planId, onBack, onHistory, onPublishing }:
               <button className="primary" onClick={() => void startDownload()} disabled={busy || plan.status !== 'ready'}>
                 {busy ? 'Working…' : plan.download ? 'Resume / repair media' : 'Start media preparation'}
               </button>
+              <button onClick={() => void pause()} disabled={busy || !(currentRunId ?? activeRun?.id)}>Pause</button>
               <button onClick={() => void cancel()} disabled={busy || !(currentRunId ?? activeRun?.id)}>Cancel</button>
-              <span className="small muted">Pause is not advertised because the engine does not support it.</span>
+              <span className="small muted">Pause keeps the checkpoint; cancel discards the current attempt and keeps verified files.</span>
             </div>
             <div className="timeline">
               {events.filter((event) => event.phase || event.progress).slice(-40).map((event) => (

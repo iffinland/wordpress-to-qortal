@@ -15,6 +15,7 @@ suites are deliberately separate runners.
 | Phase 5.2 suite | `npm run test:phase5.2` |
 | Phase 5.2 deployment layout | `node --test test/phase5.2/deploy-script-layout.test.js` |
 | Phase 7 suite | `npm run test:phase7` |
+| Phase 8 suite | `npm run test:phase8` |
 | WordPress content policy | `node --test test/source/wordpress-content-policy.test.js` |
 | Corbett compatibility | `node --test test/source/corbett-compat.test.js test/phase6/corbett-regression.test.js` |
 | Builds | `npm run migration:build && npm run cms:build && npm run cms-template:build` |
@@ -46,7 +47,7 @@ test remains independently executable and is covered by
 
 Expected counts at this revision:
 
-- `npm test`: **378 tests, 377 pass, 0 fail, 1 skip**.
+- `npm test`: **401 tests, 401 pass, 0 fail, 0 skip** after the template build; before `npm run cms-template:build` the generic-CMS bundle test skips (400 pass, 1 skip).
 - The skip is `test/phase6/bundle-validation.test.js` → "the built generic CMS
   bundle passes validation"; it is skipped only until
   `npm run cms-template:build` has produced `templates/generic-cms/dist/index.html`.
@@ -122,3 +123,30 @@ Stability evidence after the fix:
 | Desktop Vitest | 35 tests / 11 files pass |
 | Desktop typecheck | clean |
 | Builds (migration, Corbett CMS, generic CMS, desktop) | all successful |
+
+## Phase 8 tests
+
+`npm run test:phase8` runs `test/phase8/*.test.js`:
+
+| Suite | What it proves |
+| --- | --- |
+| `recovery.test.js` | Real `SIGKILL` at discovery, planning, download, handoff preparation, receipt import and verification; resume without duplicate assets/handoffs/receipts/resources; ambiguous publication reconciliation without resubmission; network loss; torn checkpoint/power loss |
+| `cleanup.test.js` | Receipt + history snapshot written before deletion; refusal for pending/failed publication; shared-media protection; interrupted quarantine resume; restore inside retention; purge measured bytes; traversal, absolute path, protected state and symlink refusal; disk-full download recovery |
+| `diagnostics.test.js` | Five-canary support bundle, credential pattern refusal, content-body exclusion, hash-chained ledger validation, sealed snapshot, snapshot path escape |
+| `host.test.js` | Phase 8 RPC surface, cleanup refusal, support bundle file mode, resume argument validation, unknown-method isolation |
+| `migration.test.js` | Store v4 → v5 migration; newer version fails closed |
+
+Crash tests use `test-support/phase8/crashWorker.mjs`, a separate process that
+performs one real engine operation and kills itself at a named checkpoint. The
+parent reopens the project with stale-lock recovery, then asserts resumption and
+idempotency. `createEngine({ onCheckpoint })` is the deterministic crash hook.
+
+Desktop coverage: `desktop/tests/renderer/recovery.spec.tsx`.
+
+### Phase 8 expected results (this revision)
+
+- `npm run test:phase8`: 23 tests, 23 pass, 0 fail.
+- `npm test`: 401 tests, 401 pass, 0 fail, 0 skip after the template build (before it, the Phase 6
+  generic-CMS bundle test skips until the template build produces `dist`).
+- Desktop: 38 tests (35 existing + 3 recovery), 0 fail; typecheck passes.
+

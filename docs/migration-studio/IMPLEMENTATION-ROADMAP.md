@@ -6,7 +6,7 @@
 | Product working name | Qortal Migration Studio |
 | Executing agent | DeepSeek (`opencode-development` profile) |
 | Date | 2026-11-02 |
-| Status | Phases 0–5.2 completed with live acceptance; Phase 6 implemented and verified (2026-11-04); Phase 7 implemented and fixture-verified (2026-11-04); Phases 8–10 not started |
+| Status | Phases 0–5.2 completed with live acceptance; Phase 6 implemented and verified (2026-11-04); Phase 7 implemented and fixture-verified (2026-11-04); Phase 8 implemented and fixture-verified (2026-11-04); Phases 9–10 not started |
 | Companion documents | [Audit](PHASE-0-ARCHITECTURE-AUDIT.md), [Requirements](PRODUCT-REQUIREMENTS.md), [Architecture](ARCHITECTURE.md) |
 
 ## 1. How to use this roadmap
@@ -475,6 +475,14 @@ Fixture tests remain the reproducible regression baseline.
 
 ## 11. Phase 8 — Recovery, cleanup and history hardening (P1)
 
+> **Status: IMPLEMENTED AND FIXTURE-VERIFIED (2026-11-04).** Durable run/stage
+> checkpoints, interrupted/ambiguous recovery, two-phase quarantine cleanup with
+> retention and restore, a hash-chained audit ledger that survives media
+> deletion, and a redacted support bundle. The desktop Recovery view exposes
+> every operation. See
+> [PHASE-8-RECOVERY-CLEANUP-HISTORY.md](PHASE-8-RECOVERY-CLEANUP-HISTORY.md)
+> for contracts and evidence. No live QDN publish or transaction was performed.
+
 **Outcome:** crash-safe recovery, verified cleanup and durable history suitable
 for long-lived projects.
 
@@ -490,16 +498,19 @@ for long-lived projects.
 
 ### Acceptance criteria
 
-1. **AC8.1** Kill during each run step resumes without duplicate downloads or
-   publications.
-2. **AC8.2** Cleanup is refused for unverified/partial/failed runs.
-3. **AC8.3** Cleanup never deletes shared/referenced media.
-4. **AC8.4** Receipts are written before deletion and remain readable.
-5. **AC8.5** History shows what was migrated/published/verified/deleted locally
-   after cleanup.
-6. **AC8.6** Support bundle contains no secrets, cookies, keys or content bodies.
-7. **AC8.7** Quarantine restore works within the retention window.
-8. **AC8.8** No cleanup can escape the project root via symlink/path tricks.
+1. [x] **AC8.1** Kill during each run step resumes without duplicate downloads
+   or publications. Real `SIGKILL` crash tests cover discovery, planning,
+   download, handoff preparation, receipt import, verification and cleanup.
+2. [x] **AC8.2** Cleanup is refused for unverified/partial/failed runs.
+3. [x] **AC8.3** Cleanup never deletes shared/referenced media.
+4. [x] **AC8.4** Receipts and history snapshots are written before deletion and
+   remain readable.
+5. [x] **AC8.5** History shows what was migrated/published/verified/deleted
+   locally after cleanup.
+6. [x] **AC8.6** Support bundle contains no secrets, cookies, keys, wallet
+   addresses or content bodies; a canary test proves refusal.
+7. [x] **AC8.7** Quarantine restore works within the retention window.
+8. [x] **AC8.8** No cleanup can escape the project root via symlink/path tricks.
 
 ## 12. Phase 9 — Production `.deb`, release automation and security review (P1)
 
@@ -613,7 +624,9 @@ owner acceptance.
 
 ## 17. Next implementation phase
 
-**Recommended next phase: Phase 8 — Recovery, cleanup and history hardening.**
+**Recommended next phase: Phase 9 — production `.deb`, release automation and
+security review. Phase 8 is complete and fixture-verified; it is now the
+prerequisite baseline for a long-lived alpha.**
 
 Why:
 

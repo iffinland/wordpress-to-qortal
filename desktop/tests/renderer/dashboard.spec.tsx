@@ -26,7 +26,7 @@ describe('project dashboard', () => {
     });
     api.projects.inspect = vi.fn(async (projectId: string) => inspection(projectId === 'prj_abcdefgh' ? 2 : 0));
     window.qms = api;
-    render(<Dashboard projects={[project(), archived]} adapters={[adapter()]} onRefresh={vi.fn(async () => {})} onOpen={vi.fn(async () => {})} onHistory={vi.fn(async () => {})} onSync={vi.fn(async () => {})} />);
+    render(<Dashboard projects={[project(), archived]} adapters={[adapter()]} onRefresh={vi.fn(async () => {})} onOpen={vi.fn(async () => {})} onHistory={vi.fn(async () => {})} onSync={vi.fn(async () => {})} onRecovery={vi.fn(async () => {})} />);
 
     expect(await screen.findByText('2 reserved')).toBeInTheDocument();
     expect(screen.getByText('Reserved locally — not published. Continue preparation or publish in Phase 5.')).toBeInTheDocument();

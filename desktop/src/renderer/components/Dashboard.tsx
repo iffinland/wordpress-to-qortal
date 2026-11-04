@@ -11,9 +11,10 @@ interface DashboardProps {
   onOpen: (projectId: string) => Promise<void>;
   onHistory: (projectId: string) => Promise<void>;
   onSync: (projectId: string) => Promise<void>;
+  onRecovery: (projectId: string) => Promise<void>;
 }
 
-export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory, onSync }: DashboardProps) {
+export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory, onSync, onRecovery }: DashboardProps) {
   const [inspections, setInspections] = useState<Record<string, ProjectInspection>>({});
   const [inspectErrors, setInspectErrors] = useState<Record<string, string>>({});
   const [showCreate, setShowCreate] = useState(projects.length === 0);
@@ -185,6 +186,7 @@ export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory, on
                     <button className="primary" onClick={() => void onOpen(project.id)}>Open</button>
                     <button onClick={() => void onSync(project.id)}>Check for updates</button>
                     <button onClick={() => void onHistory(project.id)}>History & diagnostics</button>
+                    <button onClick={() => void onRecovery(project.id)}>Recovery & cleanup</button>
                     <button className="ghost" onClick={() => void archive(project)} disabled={busy}>Archive</button>
                   </>
                 )}

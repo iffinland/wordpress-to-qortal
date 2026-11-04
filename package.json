@@ -56,6 +56,8 @@
     "test:phase5.2": "node --test test/phase5.2/*.test.js",
     "test:phase6": "node --test test/phase6/*.test.js",
     "test:phase7": "node --test test/phase7/*.test.js",
+    "test:phase8": "node --test test/phase8/*.test.js",
+    "check:phase8": "npm run test:phase8 && npm --prefix desktop run typecheck && npm --prefix desktop test",
     "test:all": "npm test && npm run cms-template:test && npm run test:desktop",
     "test:desktop": "npm --prefix desktop test",
     "desktop:build": "npm --prefix desktop run build",

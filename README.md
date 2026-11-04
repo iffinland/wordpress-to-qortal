@@ -287,3 +287,40 @@ reconciliation is available and is the only mode that infers source deletions.
 
 See docs/migration-studio/PHASE-7-INCREMENTAL-SYNC.md for the state model,
 API surface, acceptance evidence and remaining alpha blockers.
+
+## Recovery, cleanup, history and diagnostics (Phase 8)
+
+The desktop app has a **Recovery** view (also reachable from each project card).
+It exposes every Phase 8 operation, so no engine feature is unreachable:
+
+- **Interrupted operations** — the list shows the operation, phase, durable
+  checkpoint and whether it is resumable. **Resume** re-runs the step
+  idempotently; **Dismiss** abandons it. A killed process never leaves a silent
+  "running" run.
+- **Ambiguous publications** — if a submission result is unknown, the resource
+  is ambiguous, never retried automatically. Enter a read-only Qortal node URL
+  and **Reconcile read-back**; the engine only performs an exact hash read-back.
+- **Two-phase cleanup** — **Preview cleanup** lists eligible, protected and
+  unsafe files with reasons and recoverable bytes. **Quarantine eligible files**
+  moves them to a restorable quarantine with a sealed receipt and history
+  snapshot written first. **Restore** works for the retention window (default
+  14 days). **Purge** is a separate, irreversible action that reports measured
+  reclaimed bytes and the filesystem delta.
+- **Migration history** — publication evidence, tx signatures, SHA-256 hashes,
+  status transitions, recovery and cleanup records, filterable by type and
+  exportable as a sealed snapshot. The hash-chained audit ledger survives media
+  cleanup.
+- **Support bundle** — metadata-only JSON with credentials, cookies, wallet
+  material, addresses and content bodies redacted; the bundle is refused if a
+  secret pattern or canary remains.
+
+Engine modules: `lib/engine/recovery.js`, `lib/engine/cleanup.js`,
+`lib/engine/history.js`, `lib/engine/diagnostics.js`. State store version 5 adds
+`qms-recovery-state@1` with a forward migration from version 4.
+
+    npm run test:phase8   # Phase 8 recovery, cleanup, history and diagnostics tests
+    npm run check:phase8  # phase 8 tests, desktop typecheck and desktop tests
+
+See docs/migration-studio/PHASE-8-RECOVERY-CLEANUP-HISTORY.md for contracts,
+crash-test evidence, safety rules and known limitations.
+

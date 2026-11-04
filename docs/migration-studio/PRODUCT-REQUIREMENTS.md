@@ -343,6 +343,15 @@ Select verified completed run
 **Exit criteria:** no referenced/pending media deleted; history remains; QDN is
 untouched.
 
+**Phase 8 implementation:** preview lists eligible/protected/unsafe files with
+reasons and recoverable bytes; quarantine happens first and is restorable for a
+configurable retention window (default 14 days); purge is a separate explicit
+action that reports measured reclaimed bytes. A cleanup is refused unless every
+resource in scope is `remote_verified`. Receipts and a sealed history snapshot
+are written before the first file moves. State, manifests, mappings, receipts,
+audit history and recovery checkpoints are never candidates. Path traversal and
+symlinks are refused.
+
 ## 6. Non-functional requirements
 
 ### 6.1 Reliability
@@ -353,6 +362,13 @@ untouched.
 - Project lock and stale-lock recovery.
 - Graceful handling of network loss, source rate limits, node unavailability,
   disk exhaustion, malformed API responses and partial QDN results.
+- **Phase 8:** every long operation has a durable checkpoint; a killed process
+  reopens with an explicit interrupted state and can resume idempotently.
+  Unknown publication submissions become ambiguous and are reconciled by exact
+  read-back only — never resubmitted automatically.
+- **Phase 8:** migration/sync history (publication evidence, tx signatures,
+  content hashes, status transitions, recovery and cleanup records) is stored in
+  a hash-chained ledger that survives local media cleanup.
 
 ### 6.2 Performance
 

@@ -927,6 +927,45 @@ preflight and during streaming. Blocked plans reserve no identity mappings.
 9. Log every deletion with path, hash, bytes and reason.
 10. Provide a restore path during quarantine.
 
+### 10.5 Phase 8 implementation
+
+The Phase 8 cleanup service implements these requirements as two explicit
+phases:
+
+- **Preview** (`cleanup.preview`) recomputes eligibility from publication
+  evidence and the Phase 3 reference counts on every call. It classifies each
+  candidate as eligible, protected (with a stable reason) or unsafe, and reports
+  measured free space.
+- **Quarantine** (`cleanup.start`) writes a sealed history snapshot and
+  cleanup receipt before the first rename, then moves files under
+  `cleanup/quarantine/<cleanupId>/` with a durable manifest. Progress is
+  persisted, so an interrupted move resumes without double-counting.
+- **Restore** (`cleanup.restore`) is available during the retention
+  window and verifies recorded hashes.
+- **Purge** (`cleanup.purge`) is refused while retention is active unless
+  explicitly forced; it deletes only that cleanup's quarantine tree, measures
+  the real file bytes and the filesystem free-space delta, and reports both.
+
+Path safety is enforced by `assertSafeProjectPath` (normalization,
+absolute/`..` rejection, per-component `lstat` symlink rejection, real-root
+containment). Protected roots are never candidates:
+`state`, `project.json`, `lock.json`, `runs`, `recovery`,
+`history`, `artifacts/source`, `publication/plans`,
+`publication/receipts` and `cleanup/records|receipts|previews`.
+
+### 10.6 Recovery and durable history
+
+Run and stage checkpoints live under `recovery/`; they are written
+atomically at phase/step boundaries. On open, stale `running` operations become
+`interrupted`, resumable actions are re-driven idempotently, and unknown
+publication submissions become `ambiguous` and require exact read-back
+reconciliation (never resubmission).
+
+The audit ledger (`history/audit.jsonl`) is append-only and hash-chained;
+state-derived evidence supplements it for records that predate Phase 8. Cleanup
+writes a sealed history snapshot before deleting anything and never deletes the
+history directory.
+
 ## 11. Generic CMS and website architecture
 
 ### 11.1 Separation
@@ -1132,11 +1171,19 @@ clean checkout
 - User-facing error messages explain cause, safe next action and whether retry is
   safe.
 
+**Phase 8 implementation:** `lib/engine/history.js` provides the hash-chained
+audit ledger and sealed snapshots; `lib/engine/diagnostics.js` builds a
+metadata-only support bundle with double redaction and a canary/credential
+assertion before writing. The desktop Recovery view exposes candidates, cleanup
+and history. Recovery status is also available through the host RPC
+(`recovery.status`) so CLI and renderer share one contract.
+
 ## 16. Architecture decision records (summary)
 
 | ID | Decision | Status | Rationale |
 | --- | --- | --- | --- |
 | ADR-01 | Electron for v1; engine boundary allows later Tauri | Proposed | Reuse Node engine, `.deb` maturity, lower risk |
+| ADR-15 | Quarantine-first cleanup with retention, never in-place delete | Accepted | Recoverability and auditable evidence outweigh immediate space |
 | ADR-02 | In-process engine API + JSON-RPC/IPC; CLI as wrapper | Proposed | Structured progress, testability, no `spawnSync` orchestration |
 | ADR-03 | SQLite (or journal+snapshot) for project/state/identity | Proposed | Multi-project, crash safety, queryable history |
 | ADR-04 | Versioned common content model and adapter contract | Proposed | New CMS sources without engine forks |

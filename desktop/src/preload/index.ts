@@ -93,11 +93,34 @@ const api = {
     writeCatalog: (projectId: string, scanId: string | null = null) => invoke(IPC.syncWriteCatalog, { projectId, scanId }),
     recordEvidence: (projectId: string, evidence: Record<string, unknown>) => invoke(IPC.syncRecordEvidence, { projectId, evidence })
   },
+  recovery: {
+    status: (projectId: string) => invoke(IPC.recoveryStatus, { projectId }),
+    resume: (projectId: string, target: { runId?: string; stageId?: string; auth?: Record<string, unknown> }) =>
+      invoke(IPC.recoveryResume, { projectId, runId: target.runId, stageId: target.stageId, auth: target.auth }),
+    dismiss: (projectId: string, runId: string, reason?: string) =>
+      invoke(IPC.recoveryDismiss, { projectId, runId, reason }),
+    reconcile: (projectId: string, options: { handoffId?: string | null; nodeUrl: string }) =>
+      invoke(IPC.recoveryReconcile, { projectId, handoffId: options.handoffId ?? null, nodeUrl: options.nodeUrl })
+  },
+  cleanup: {
+    preview: (projectId: string, options: Record<string, unknown> = {}) => invoke(IPC.cleanupPreview, { projectId, ...options }),
+    start: (projectId: string, options: Record<string, unknown> = {}) => invoke(IPC.cleanupStart, { projectId, ...options }),
+    list: (projectId: string, limit = 100) => invoke(IPC.cleanupList, { projectId, limit }),
+    get: (projectId: string, cleanupId: string) => invoke(IPC.cleanupGet, { projectId, cleanupId }),
+    restore: (projectId: string, cleanupId: string) => invoke(IPC.cleanupRestore, { projectId, cleanupId }),
+    purge: (projectId: string, cleanupId: string, force = false) => invoke(IPC.cleanupPurge, { projectId, cleanupId, force }),
+    resume: (projectId: string, cleanupId: string) => invoke(IPC.cleanupResume, { projectId, cleanupId })
+  },
+  history: {
+    list: (projectId: string, limit = 300) => invoke(IPC.historyList, { projectId, limit }),
+    export: (projectId: string, reason = 'manual-export') => invoke(IPC.historyExport, { projectId, reason })
+  },
   runs: {
     list: (projectId: string) => invoke(IPC.runList, { projectId }),
     get: (projectId: string, runId: string) => invoke(IPC.runGet, { projectId, runId }),
     events: (projectId: string, options: Record<string, unknown> = {}) => invoke(IPC.runEvents, { projectId, ...options }),
-    cancel: (projectId: string, runId: string) => invoke(IPC.runCancel, { projectId, runId })
+    cancel: (projectId: string, runId: string) => invoke(IPC.runCancel, { projectId, runId }),
+    pause: (projectId: string, runId: string) => invoke(IPC.runPause, { projectId, runId })
   },
   credentials: {
     status: () => invoke(IPC.credentialStatus),

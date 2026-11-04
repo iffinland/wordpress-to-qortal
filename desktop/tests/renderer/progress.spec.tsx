@@ -10,7 +10,7 @@ describe('preparation progress', () => {
     window.qms = mockApi();
   });
 
-  it('distinguishes reserved work from publication and never advertises pause', async () => {
+  it('distinguishes reserved work from publication and advertises checkpointed pause', async () => {
     const api = mockApi();
     api.plans.list = vi.fn(async () => [{ planId: 'plan_abcdefgh', status: 'ready', batchId: 'batch_test', selectedCount: 1, pendingPublicationCount: 1, conflictCount: 0, createdAt: '2026-11-03T10:00:00.000Z' }]);
     api.plans.get = vi.fn(async () => ({ plan: { ...plan(), download: { status: 'partial', downloadedBytes: 1024, files: 1, reused: 0 } }, record: { planId: 'plan_abcdefgh', status: 'ready', batchId: 'batch_test', selectedCount: 1, conflictCount: 0, createdAt: '2026-11-03T10:00:00.000Z' }, planFile: '/tmp/plan.json' }));
@@ -19,8 +19,8 @@ describe('preparation progress', () => {
 
     expect(await screen.findByText(/Reserved is not published/)).toBeInTheDocument();
     expect(screen.getByText(/Nothing in this screen proves QDN publication/)).toBeInTheDocument();
-    expect(screen.getByText(/Checkpoint\/resume only/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /pause/i })).toBeNull();
+    expect(screen.getByText(/durable checkpoint/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Pause' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Resume \/ repair media/ })).toBeInTheDocument();
     expect(screen.getAllByText(/partial/).length).toBeGreaterThan(0);
   });

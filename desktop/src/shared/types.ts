@@ -593,6 +593,161 @@ export interface SyncTombstoneResult {
   message: string;
 }
 
+export interface RecoveryCandidate {
+  runId: string | null;
+  stageId?: string;
+  kind: string;
+  state: string;
+  phase: string | null;
+  step: string | null;
+  cursor: number;
+  total: number;
+  resumable: boolean;
+  action: { service: string; method: string; params: Record<string, unknown> } | null;
+  resumeHint: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  error: { code?: string; message?: string } | null;
+}
+
+export interface AmbiguousResource {
+  handoffId: string;
+  resourceId: string;
+  service: string;
+  name: string;
+  identifier: string;
+  sha256: string | null;
+  bytes: number | null;
+  reason: string | null;
+  txSignature: string | null;
+  requiresReconciliation: boolean;
+}
+
+export interface RecoveryStatus {
+  schema: string;
+  projectId: string;
+  checkedAt: string;
+  recovery: {
+    interruptedRuns: number;
+    resumableRuns: number;
+    interruptedStages?: number;
+    ambiguousResources: number;
+    corruptCheckpoints: number;
+  };
+  candidates: RecoveryCandidate[];
+  ambiguousResources: AmbiguousResource[];
+  corruptCheckpoints: Array<{ runId?: string; stageId?: string; file: string; error: string }>;
+  cleanups: Array<{
+    cleanupId: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+    restoreBy: string | null;
+    files: number;
+    bytesQuarantined: number;
+    bytesReclaimed: number;
+  }>;
+}
+
+export interface RecoveryResumeResult {
+  runId: string | null;
+  stageId?: string | null;
+  state: string;
+  resumedFrom: Record<string, unknown>;
+  result: Record<string, unknown> | null;
+}
+
+export interface CleanupItem {
+  relativePath: string;
+  category: string;
+  bytes: number;
+  hash: string | null;
+  refCount?: number;
+  eligible: boolean;
+  reason: string | null;
+  handoffId?: string | null;
+  moved?: boolean;
+  missing?: boolean;
+  failed?: { code: string; message?: string } | null;
+}
+
+export interface CleanupPreview {
+  schema: string;
+  previewId: string;
+  projectId: string;
+  createdAt: string;
+  scope: Record<string, unknown>;
+  eligibleHandoffs: Array<{ handoffId: string; status: string; resources: number }>;
+  refusedHandoffs: Array<{ handoffId: string; status: string; reason: string; resourceStatuses: Record<string, number> }>;
+  items: CleanupItem[];
+  totals: {
+    files: number;
+    bytes: number;
+    eligibleFiles: number;
+    eligibleBytes: number;
+    protectedFiles: number;
+    protectedBytes: number;
+    unsafeFiles: number;
+  };
+  disk: { freeBytesBefore: number | null };
+  protected: string[];
+  warnings: Array<{ code: string; message: string }>;
+  truncated?: boolean;
+  eligible: boolean;
+}
+
+export interface CleanupRecord {
+  schema: string;
+  cleanupId: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  retentionDays: number;
+  restoreBy: string;
+  scope: Record<string, unknown>;
+  receiptPath: string;
+  historySnapshotPath: string | null;
+  fileCount: number;
+  movedCount: number;
+  bytesQuarantined: number;
+  bytesReclaimed: number;
+  bytesRestored?: number;
+  failedItems: Array<{ relativePath: string; code: string; message?: string }>;
+  disk: Record<string, number | null>;
+  freed: Record<string, number | null>;
+  items: CleanupItem[];
+  filesDeleted?: number;
+  diskFreeDeltaBytes?: number | null;
+}
+
+export interface HistoryEntry {
+  schema: string;
+  id: string;
+  seq: number | null;
+  at: string;
+  type: string;
+  runId: string | null;
+  handoffId: string | null;
+  resourceId: string | null;
+  sourceKey: string | null;
+  status: string | null;
+  txSignature: string | null;
+  contentHash: string | null;
+  bytes: number | null;
+  details: Record<string, unknown>;
+  checksum?: string;
+  source?: string;
+}
+
+export interface SupportBundleExport {
+  schema: string;
+  path: string;
+  relativePath: string;
+  bytes: number;
+  createdAt: string;
+  sections: string[];
+}
+
 export interface QmsApi {
   app: {
     info(): Promise<EngineInfo>;
@@ -668,13 +823,33 @@ export interface QmsApi {
     get(projectId: string, runId: string): Promise<Record<string, unknown>>;
     events(projectId: string, options?: Record<string, unknown>): Promise<QmsEvent[]>;
     cancel(projectId: string, runId: string): Promise<Record<string, unknown>>;
+    pause(projectId: string, runId: string): Promise<Record<string, unknown>>;
   };
   credentials: {
     status(): Promise<Record<string, unknown>>;
     forget(projectId: string): Promise<Record<string, unknown>>;
   };
+  recovery: {
+    status(projectId: string): Promise<RecoveryStatus>;
+    resume(projectId: string, target: { runId?: string; stageId?: string; auth?: Record<string, unknown> }): Promise<RecoveryResumeResult>;
+    dismiss(projectId: string, runId: string, reason?: string): Promise<Record<string, unknown>>;
+    reconcile(projectId: string, options: { handoffId?: string | null; nodeUrl: string }): Promise<Record<string, unknown>>;
+  };
+  cleanup: {
+    preview(projectId: string, options?: Record<string, unknown>): Promise<CleanupPreview>;
+    start(projectId: string, options?: Record<string, unknown>): Promise<CleanupRecord>;
+    list(projectId: string, limit?: number): Promise<CleanupRecord[]>;
+    get(projectId: string, cleanupId: string): Promise<CleanupRecord>;
+    restore(projectId: string, cleanupId: string): Promise<CleanupRecord>;
+    purge(projectId: string, cleanupId: string, force?: boolean): Promise<CleanupRecord>;
+    resume(projectId: string, cleanupId: string): Promise<CleanupRecord>;
+  };
+  history: {
+    list(projectId: string, limit?: number): Promise<HistoryEntry[]>;
+    export(projectId: string, reason?: string): Promise<{ relativePath: string; path: string; bytes: number; entries: number; createdAt: string }>;
+  };
   diagnostics: {
-    export(projectId: string): Promise<DiagnosticsExport>;
+    export(projectId: string): Promise<SupportBundleExport>;
   };
   events: {
     on(listener: (event: QmsEvent) => void): () => void;
