@@ -36,13 +36,13 @@
 
 | Gate | Result |
 | --- | --- |
-| Root test suite | see VALIDATION.md for the recorded count |
+| Root test suite | 421/421 pass |
 | Phase 5 / 5.1 / 5.2 | pass |
-| Phase 6 CMS tests and build | pass |
+| Phase 6 CMS tests and build | pass, 20/20 template tests |
 | Phase 7 / 8 / 9 | pass |
 | Publisher build + bundle validation | pass |
-| Desktop typecheck + tests | pass |
-| Real .deb packaging | see release artifacts |
+| Desktop typecheck + tests | pass, 44/44 |
+| Real .deb packaging | `qortal-migration-studio_0.6.1_amd64.deb`, 108,157,146 bytes, SHA-256 `8fc9226c16c7b4697c1f1d1b07ece2984a218e39ac348ba0b758ccb850c8c050` |
 | Live mixed-service Hub publication | **NOT PERFORMED — external authorization blocker** |
 | Publisher Q-App public deployment | **NOT PERFORMED — owner wallet/QDN approval required** |
 
