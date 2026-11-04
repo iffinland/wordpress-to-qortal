@@ -159,18 +159,41 @@ export async function fetchNameRecord(name, timeoutMs = 6000) {
   }
 }
 
+/**
+ * Qortal Hub and gateways hand the QDN name over percent-encoded
+ * ("developer%20iffi"), while the node API expects the decoded name
+ * ("developer iffi") and encodes it once when building the request URL.
+ * Decode idempotently so every caller works with the real name and no
+ * request can ever reach the node double-encoded (%2520).
+ */
+export function safeDecodeQdnName(value) {
+  if (typeof value !== 'string') return '';
+  let current = value;
+  for (let pass = 0; pass < 2; pass += 1) {
+    let next = current;
+    try {
+      next = decodeURIComponent(current.replace(/\+/g, ' '));
+    } catch {
+      break;
+    }
+    if (next === current) break;
+    current = next;
+  }
+  return current.trim();
+}
+
 export function discoverQdnResource(fallbackName = '', fallbackIdentifier = 'default') {
   if (typeof window === 'undefined') return { name: fallbackName, identifier: fallbackIdentifier };
   try {
     const params = new URLSearchParams(window.location.search);
-    const name = params.get('name') || params.get('qdnName') || '';
+    const name = safeDecodeQdnName(params.get('name') || params.get('qdnName') || '');
     const identifier = params.get('identifier') || params.get('appIdentifier') || '';
     if (name) return { name, identifier: identifier || fallbackIdentifier };
   } catch {
     // Ignore malformed query strings.
   }
   try {
-    const parts = window.location.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+    const parts = window.location.pathname.split('/').filter(Boolean).map(safeDecodeQdnName);
     for (let index = 0; index < parts.length; index += 1) {
       const part = parts[index].toUpperCase();
       if ((part === 'APP' || part === 'WEBSITE') && parts[index + 1]) {
@@ -180,7 +203,7 @@ export function discoverQdnResource(fallbackName = '', fallbackIdentifier = 'def
   } catch {
     // Ignore path access errors.
   }
-  return { name: fallbackName, identifier: fallbackIdentifier };
+  return { name: safeDecodeQdnName(fallbackName), identifier: fallbackIdentifier };
 }
 
 export function discoverQdnName(fallback = '') {
@@ -193,22 +216,35 @@ export function discoverQdnName(fallback = '') {
     // Ignore malformed query strings.
   }
   const qortalWindow = window;
-  if (qortalWindow._qdnName) return qortalWindow._qdnName;
-  if (qortalWindow._qdnResource && qortalWindow._qdnResource.name) return qortalWindow._qdnResource.name;
+  const globals = [
+    qortalWindow._qdnName,
+    qortalWindow._qdnResource && qortalWindow._qdnResource.name,
+    typeof qortalWindow._qdnResourceName === 'string' ? qortalWindow._qdnResourceName : ''
+  ];
+  for (const candidate of globals) {
+    const decoded = safeDecodeQdnName(candidate);
+    if (decoded) return decoded;
+  }
   if (qortalWindow._qdnBase) {
     const match = String(qortalWindow._qdnBase).match(/\/(?:APP|WEBSITE)\/([^/?#]+)/i);
-    if (match) return decodeURIComponent(match[1]);
+    if (match) {
+      const decoded = safeDecodeQdnName(match[1]);
+      if (decoded) return decoded;
+    }
   }
   try {
     const parts = window.location.pathname.split('/').filter(Boolean);
     for (let index = 0; index < parts.length; index += 1) {
       const part = parts[index].toUpperCase();
-      if ((part === 'APP' || part === 'WEBSITE') && parts[index + 1]) return decodeURIComponent(parts[index + 1]);
+      if ((part === 'APP' || part === 'WEBSITE') && parts[index + 1]) {
+        const decoded = safeDecodeQdnName(parts[index + 1]);
+        if (decoded) return decoded;
+      }
     }
   } catch {
     // Ignore path access errors.
   }
-  return fallback;
+  return safeDecodeQdnName(fallback);
 }
 
 function accountNameList(value) {
