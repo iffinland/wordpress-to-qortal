@@ -167,7 +167,7 @@ function outcomeForError(message: string): PublicationState {
 }
 
 async function verifyOne(resource: HandoffResource): Promise<ResourceState> {
-  if (resource.service === 'APP') {
+  if (resource.service === 'APP' || resource.service === 'WEBSITE') {
     const bundle = resource.metadata?.bundle;
     if (!bundle || !Array.isArray(bundle.files) || bundle.files.length === 0) {
       return {
@@ -472,12 +472,12 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
     const file = validated?.files.get(resource.relativePath);
     if (!file) throw new Error('Missing selected payload: ' + resource.relativePath);
     const title = typeof resource.metadata?.title === 'string' ? resource.metadata.title : resource.identifier;
-    if (resource.service === 'APP') {
+    if (resource.service === 'APP' || resource.service === 'WEBSITE') {
       const filename = resource.identifier + '.zip';
       const body = file.bytes.buffer.slice(file.bytes.byteOffset, file.bytes.byteOffset + file.bytes.byteLength) as ArrayBuffer;
       return {
         name: resource.name,
-        service: 'APP',
+        service: resource.service,
         identifier: resource.identifier,
         file: new File([body], filename, { type: 'application/zip' }),
         filename,
@@ -898,7 +898,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
           <li>Connect the active account and confirm it owns the target Qortal name.</li>
           <li>Review resources, dependencies and existing-resource collisions; explicitly approve the set.</li>
           <li>Hub approves and signs each batch. This Publisher publishes at most {MAX_BATCH_RESOURCES} resources per request and stops on ambiguous or pending results.</li>
-          <li>If the package includes a Generic CMS site, the Publisher publishes it as a multi-file APP and verifies every member after publishing.</li>
+          <li>If the package includes a Generic CMS site, the Publisher publishes it as a multi-file APP or WEBSITE bundle and verifies every member after publishing.</li>
           <li>Save the receipt, import it into Migration Studio, then run independent QDN read-back verification there.</li>
         </ol>
       </section>

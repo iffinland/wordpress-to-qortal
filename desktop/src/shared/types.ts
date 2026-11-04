@@ -187,6 +187,7 @@ export interface WizardState {
   siteDescription: string;
   website?: {
     cms: string;
+    service: string;
     tagline: string;
     accent: string;
   };

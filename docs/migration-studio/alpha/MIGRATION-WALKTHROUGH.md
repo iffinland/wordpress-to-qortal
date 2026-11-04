@@ -31,8 +31,9 @@ QMS writes the exact handoff folder and then exports one portable package:
 ~~~
 
 It contains `handoff.json`, every payload with its byte length and SHA-256, and
-(if Generic CMS was selected) the CMS APP bundle with
-`qms-cms-config.json`. The file list is visible in the Publishing view with the
+(if Generic CMS was selected) the CMS application bundle with
+`qms-cms-config.json`. The bundle uses APP or WEBSITE as selected; it can share
+the same registered name as the Publisher because the service differs. The file list is visible in the Publishing view with the
 package SHA-256. QMS validates the package locally before reporting
 `handoff_ready`; nothing is signed or published.
 
@@ -48,7 +49,7 @@ package SHA-256. QMS validates the package locally before reporting
 6. Hub shows the authoritative fee and asks for wallet approval. Approve it.
 
 The Publisher publishes media first, then content, indexes, the manifest and
-finally the CMS APP. It stops on pending, ambiguous or failed results and never
+finally the CMS application bundle (APP or WEBSITE). It stops on pending, ambiguous or failed results and never
 resubmits blindly. Hub is the trust boundary. QMS never sees your seed, private
 key or wallet password.
 
@@ -62,7 +63,7 @@ not proof that the remote bytes are correct.
 ## 6. Verify exact QDN resources
 
 Choose **Run independent QDN verification** in the Publishing view. QMS
-requests each DOCUMENT/IMAGE resource with `encoding=base64` and every CMS APP
+requests each DOCUMENT/IMAGE resource with `encoding=base64` and every CMS application-bundle
 member with `filepath=...&encoding=base64`, decodes it, and compares the exact
 byte length and SHA-256 with the handoff. Only a match becomes
 `remote_verified`.
@@ -73,7 +74,7 @@ package as a remote verification.
 
 ## 7. Open the migrated website
 
-When the CMS APP resource is `remote_verified`, **Open published website**
+When the CMS application-bundle resource is `remote_verified`, **Open published website**
 opens the exact QDN URL:
 
 ~~~text

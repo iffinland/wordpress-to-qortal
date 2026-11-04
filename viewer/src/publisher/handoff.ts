@@ -6,7 +6,8 @@ export const HANDOFF_VERSION = 1;
 export const RECEIPT_SCHEMA = 'qms-publication-receipt@1';
 export const RECEIPT_VERSION = 1;
 export const MAX_BATCH_RESOURCES = 20;
-export const PUBLISHABLE_SERVICES = ['DOCUMENT', 'JSON', 'IMAGE', 'AUDIO', 'VIDEO', 'FILE', 'APP'];
+export const PUBLISHABLE_SERVICES = ['DOCUMENT', 'JSON', 'IMAGE', 'AUDIO', 'VIDEO', 'FILE', 'APP', 'WEBSITE'];
+export const BUNDLE_SERVICES = ['APP', 'WEBSITE'];
 export const KIND_PHASE: Record<string, number> = { media: 10, content: 20, index: 30, manifest: 40, site: 50 };
 export const CMS_BUNDLE_SCHEMA = 'qms-cms-bundle@1';
 export const MAX_ZIP_BYTES = 512 * 1024 * 1024;
@@ -287,10 +288,10 @@ export async function validateHandoffPackage(files: Map<string, PackageFile>): P
     if (!(kind in KIND_PHASE)) fail('Unsupported resource kind: ' + kind);
     const service = assertString(resource.service, 'resource.service', undefined, 20);
     if (!PUBLISHABLE_SERVICES.includes(service)) fail('Unsupported service: ' + service);
-    if (service === 'APP' && kind !== 'site') fail('APP resources must use the site kind.');
-    if (kind === 'site' && service !== 'APP') fail('The site resource must use the APP service.');
+    if (BUNDLE_SERVICES.includes(service) && kind !== 'site') fail('Application bundles must use the site kind.');
+    if (kind === 'site' && !BUNDLE_SERVICES.includes(service)) fail('The site resource must use the APP or WEBSITE service.');
     let bundle: BundleMetadata | null = null;
-    if (service === 'APP') {
+    if (BUNDLE_SERVICES.includes(service)) {
       const metadata = assertObject(resource.metadata, 'resource.metadata');
       bundle = assertObject(metadata.bundle, 'resource.metadata.bundle') as unknown as BundleMetadata;
       if (bundle.schema !== CMS_BUNDLE_SCHEMA) fail('Unsupported CMS bundle schema.');
