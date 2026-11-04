@@ -120,10 +120,17 @@ await writeJson(path.join(releaseDir, 'RELEASE-STATE.json'), releaseState);
 await writeJson(path.join(releaseDir, 'INSTALL-VERIFICATION.json'), installVerification);
 
 const sums = [];
-for (const file of [...requiredArtifacts.map((entry) => entry.name), 'sbom.cdx.json', 'provenance.intoto.json', 'build-info.json', 'artifact.json', 'validation.json', 'security-report.json', 'reproducibility.json', 'RELEASE-STATE.json', 'INSTALL-VERIFICATION.json']) {
-  const absolute = path.join(releaseDir, file);
+const sumFiles = [
+  ...requiredArtifacts.map((entry) => ({
+    name: entry.name,
+    absolute: entry.kind === 'deb' ? artifact : path.join(REPO_ROOT, 'release', entry.name)
+  })),
+  ...['sbom.cdx.json', 'provenance.intoto.json', 'build-info.json', 'artifact.json', 'validation.json', 'security-report.json', 'reproducibility.json', 'RELEASE-STATE.json', 'INSTALL-VERIFICATION.json']
+    .map((file) => ({ name: file, absolute: path.join(releaseDir, file) }))
+];
+for (const file of sumFiles) {
   try {
-    sums.push((await sha256File(absolute)) + '  ' + file);
+    sums.push((await sha256File(file.absolute)) + '  ' + file.name);
   } catch {
     // Optional evidence file.
   }
