@@ -21,7 +21,8 @@ const api = {
     info: () => invoke(IPC.appInfo),
     settings: () => invoke(IPC.appSettings),
     setDataRoot: (path: string) => invoke(IPC.setDataRoot, { path }),
-    openPath: (path: string) => invoke(IPC.openPath, { path })
+    openPath: (path: string) => invoke(IPC.openPath, { path }),
+    openUrl: (url: string) => invoke(IPC.openUrl, { url })
   },
   projects: {
     list: (includeArchived = false) => invoke(IPC.projectList, { includeArchived }),
@@ -62,6 +63,8 @@ const api = {
     list: (projectId: string) => invoke(IPC.publicationList, { projectId }),
     prepare: (projectId: string, planId: string, selection: string[], options: Record<string, unknown> = {}) =>
       invoke(IPC.publicationPrepare, { projectId, planId, selection, ...options }),
+    exportBundle: (projectId: string, handoffId: string) =>
+      invoke(IPC.publicationExportBundle, { projectId, handoffId }),
     get: (projectId: string, handoffId: string, validate = true) =>
       invoke(IPC.publicationGet, { projectId, handoffId, validate }),
     importReceipt: (projectId: string, handoffId: string, receipt: Record<string, unknown>) =>

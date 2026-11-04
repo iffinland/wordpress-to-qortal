@@ -21,6 +21,7 @@ const TIMEOUTS: Record<string, number> = {
   'media.download': 60 * 60_000,
   'media.inspect': 60_000,
   'publication.prepare': 10 * 60_000,
+  'publication.exportBundle': 5 * 60_000,
   'publication.list': 30_000,
   'publication.get': 120_000,
   'publication.importReceipt': 120_000,
@@ -99,6 +100,10 @@ export function registerIpc(deps: IpcDependencies): void {
     [IPC.appSettings]: async () => deps.getSettings(),
     [IPC.setDataRoot]: async (params) => deps.setDataRoot(String(params.path)),
 
+    [IPC.openUrl]: async (params) => {
+      await shell.openExternal(String(params.url));
+      return { ok: true };
+    },
     [IPC.openPath]: async (params) => {
       const candidate = path.resolve(String(params.path));
       const dataRoot = await realpath(path.resolve(deps.dataRoot()));
@@ -176,6 +181,10 @@ export function registerIpc(deps: IpcDependencies): void {
       selection: params.selection,
       feePerResource: params.feePerResource,
       feeCurrency: params.feeCurrency
+    }),
+    [IPC.publicationExportBundle]: async (params) => invoke('publication.exportBundle', {
+      projectId: params.projectId,
+      handoffId: params.handoffId
     }),
     [IPC.publicationGet]: async (params) => invoke('publication.get', {
       projectId: params.projectId,

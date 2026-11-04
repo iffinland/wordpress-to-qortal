@@ -126,12 +126,12 @@ export function normalizeManifest(raw, options = {}) {
 
   if (kind === 'qms-qdn') {
     const entrypoints = raw.entrypoints && typeof raw.entrypoints === 'object' ? raw.entrypoints : {};
+    const target = stringValue(raw.target) || stringValue(raw.target && raw.target.qdnName);
     const fromIdentifier = (identifier) => {
       if (!identifier) return null;
       const ref = byIdentifier[identifier];
-      return copyRef(ref, raw.target) || (identifier ? { service: CONTENT_SERVICE, name: raw.target || undefined, identifier } : null);
+      return copyRef(ref, target) || (identifier ? { service: CONTENT_SERVICE, name: target || undefined, identifier } : null);
     };
-    const target = stringValue(raw.target);
     return {
       kind,
       schema: raw.schema,

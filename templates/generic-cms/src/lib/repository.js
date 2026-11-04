@@ -5,7 +5,7 @@ import {
   normalizeContentPayload,
   normalizeManifest
 } from './manifest.js';
-import { createQdnResourceUrl, fetchQdnResource } from './qortal.js';
+import { createQdnResourceUrl, discoverQdnName, fetchQdnResource } from './qortal.js';
 import { rewriteMediaUrls } from './media.js';
 
 const MANIFEST_TIMEOUT_MS = 7000;
@@ -47,7 +47,7 @@ export function createCmsRepository(config, options = {}) {
   const query = options.query
     || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams());
   const source = String(options.source || query.get('source') || config.content.source || 'qdn');
-  const manifestName = String(options.name || query.get('name') || config.site.ownerName || '');
+  const manifestName = String(options.name || query.get('name') || discoverQdnName(config.site.ownerName || ''));
   const fixtureManifestUrl = options.fixtureManifestUrl || query.get('manifest') || '/cms-fixture/qms-cms-manifest.json';
   const siteDefaults = {
     id: config.site.id,

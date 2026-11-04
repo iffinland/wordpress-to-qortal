@@ -10,7 +10,7 @@ import { PostPage } from './pages/PostPage';
 import { PostsPage } from './pages/PostsPage';
 import { SearchPage } from './pages/SearchPage';
 import { TermPage } from './pages/TermPage';
-import { cmsConfig, templateVersion } from './config/cmsConfig';
+import { baseCmsConfig, loadRuntimeCmsConfig, templateVersion } from './config/cmsConfig';
 import { useHashRoute } from './hooks/useHashRoute';
 import { applyAdoption, readAdoptionQueue, removeAdoption, writeAdoptionQueue } from './lib/adoption.js';
 import { previousAndNext } from './lib/archive.js';
@@ -34,7 +34,9 @@ function titleForRoute(route: AppRoute): string {
 
 export function App() {
   const route = useHashRoute();
-  const repository = useMemo(() => createCmsRepository(cmsConfig), []);
+  const [cmsConfig, setCmsConfig] = useState(baseCmsConfig);
+  const [configNotice, setConfigNotice] = useState('');
+  const repository = useMemo(() => createCmsRepository(cmsConfig), [cmsConfig]);
   const [dataset, setDataset] = useState<CmsDataset | null>(null);
   const [loading, setLoading] = useState(true);
   const [reloadToken, setReloadToken] = useState(0);
@@ -47,6 +49,16 @@ export function App() {
   const [detailError, setDetailError] = useState('');
   const [detailRetry, setDetailRetry] = useState(0);
   const [adoptionQueue, setAdoptionQueue] = useState<AdoptionRecord[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadRuntimeCmsConfig().then((loaded) => {
+      if (cancelled) return;
+      setCmsConfig(loaded.config);
+      setConfigNotice(loaded.notice);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

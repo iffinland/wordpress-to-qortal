@@ -21,52 +21,70 @@ referenced by the selected batch and stores it by SHA-256:
 Check the progress view. A failed or interrupted download is resumable; see
 [SYNC-AND-RECOVERY.md](SYNC-AND-RECOVERY.md).
 
-## 3. Prepare the Hub handoff
+## 3. Prepare the Publisher package
 
-Open **Publishing**, select the plan and resources, and choose the Hub handoff
-action. QMS writes a portable handoff folder under the project’s
-`publication/handoffs/` directory. It contains:
+Open **Publishing**, select the plan and resources, and generate the handoff.
+QMS writes the exact handoff folder and then exports one portable package:
 
-- `handoff.json` with the schema, target name, resources, service, identifier,
-  byte length and SHA-256;
-- one payload file per resource;
-- batching metadata for Hub publication.
+~~~text
+<data-root>/exports/<handoffId>-publisher.zip
+~~~
 
-QMS validates the package locally before reporting `handoff_ready`. It does
-not sign or publish.
+It contains `handoff.json`, every payload with its byte length and SHA-256, and
+(if Generic CMS was selected) the CMS APP bundle with
+`qms-cms-config.json`. The file list is visible in the Publishing view with the
+package SHA-256. QMS validates the package locally before reporting
+`handoff_ready`; nothing is signed or published.
 
 ## 4. Publish through Qortal Hub
 
-1. Open the handoff folder in the file manager (the Publishing view offers the
-   workspace path).
-2. Use the Migration Publisher Q-App in Qortal Hub.
-3. Select the handoff folder and the batches you intend to publish.
-4. Review the fee estimate in Hub and approve the transaction.
+1. Open Qortal Hub → Apps → **Migration Publisher**.
+2. Select the exported `.zip` (or the handoff folder) and press
+   **Connect Qortal account**.
+3. Confirm the active address owns the exact target name.
+4. Review resources, dependencies, CMS bundle and existing-resource updates.
+   Use **Get live network fee quote** to see the node's current ARBITRARY fee.
+5. Tick the explicit approval checkbox and publish.
+6. Hub shows the authoritative fee and asks for wallet approval. Approve it.
 
-Hub is the trust boundary. QMS never sees your seed, private key or wallet
-password. If you do not want to publish, stop here; the local handoff remains
-valid and nothing on Qortal changes.
+The Publisher publishes media first, then content, indexes, the manifest and
+finally the CMS APP. It stops on pending, ambiguous or failed results and never
+resubmits blindly. Hub is the trust boundary. QMS never sees your seed, private
+key or wallet password.
 
 ## 5. Import publication evidence
 
-After Hub reports completion, export or copy the publication receipt produced
-by the Publisher and import it in **Publishing**. QMS accepts a receipt only
-for the matching project and handoff.
-
-A receipt changes the state to `submitted`. It is publisher evidence, not
-proof that the remote bytes are correct.
+After Hub reports completion, save the receipt in the Publisher and import it
+in **Publishing**. QMS accepts a receipt only for the matching project and
+handoff. A receipt changes the state to `submitted`; it is publisher evidence,
+not proof that the remote bytes are correct.
 
 ## 6. Verify exact QDN resources
 
-Choose **Verify** in the Publishing view. QMS requests each resource with
-`encoding=base64`, decodes it, and compares the exact byte length and SHA-256
-with the handoff. Only a match becomes `remote_verified`.
+Choose **Run independent QDN verification** in the Publishing view. QMS
+requests each DOCUMENT/IMAGE resource with `encoding=base64` and every CMS APP
+member with `filepath=...&encoding=base64`, decodes it, and compares the exact
+byte length and SHA-256 with the handoff. Only a match becomes
+`remote_verified`.
 
 A timeout, HTML error page, truncated response or size mismatch stays
 unverified. Retry when the network is healthy. Never treat a green local
 package as a remote verification.
 
-## 7. Clean up safely
+## 7. Open the migrated website
+
+When the CMS APP resource is `remote_verified`, **Open published website**
+opens the exact QDN URL:
+
+~~~text
+<node>/arbitrary/APP/<name>/<identifier>?filepath=index.html
+~~~
+
+If the node requires read authentication, open the same URL in your normal
+Qortal Home/Hub browser session. The CMS reads the published manifest and
+indexes; it never edits or republishes them.
+
+## 8. Clean up safely
 
 Cleanup is available only for verified or explicitly eligible local files. It
 is two-phase:
@@ -77,7 +95,7 @@ is two-phase:
 You can restore a quarantine before purge. Shared media referenced by an
 unverified item is protected. Published QDN data is never deleted by cleanup.
 
-## 8. Keep the copy current
+## 9. Keep the copy current
 
 Open **Sync** and choose **Check for updates**. See
 [SYNC-AND-RECOVERY.md](SYNC-AND-RECOVERY.md) for delta batches, conflicts,

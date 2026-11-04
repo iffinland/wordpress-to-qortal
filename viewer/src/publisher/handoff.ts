@@ -1,3 +1,4 @@
+import { unzipSync } from 'fflate';
 import { checkQortalName } from './name.ts';
 
 export const HANDOFF_SCHEMA = 'qms-publication-handoff@1';
@@ -5,8 +6,11 @@ export const HANDOFF_VERSION = 1;
 export const RECEIPT_SCHEMA = 'qms-publication-receipt@1';
 export const RECEIPT_VERSION = 1;
 export const MAX_BATCH_RESOURCES = 20;
-export const PUBLISHABLE_SERVICES = ['DOCUMENT', 'JSON', 'IMAGE', 'AUDIO', 'VIDEO', 'FILE'];
-export const KIND_PHASE: Record<string, number> = { media: 10, content: 20, index: 30, manifest: 40 };
+export const PUBLISHABLE_SERVICES = ['DOCUMENT', 'JSON', 'IMAGE', 'AUDIO', 'VIDEO', 'FILE', 'APP'];
+export const KIND_PHASE: Record<string, number> = { media: 10, content: 20, index: 30, manifest: 40, site: 50 };
+export const CMS_BUNDLE_SCHEMA = 'qms-cms-bundle@1';
+export const MAX_ZIP_BYTES = 512 * 1024 * 1024;
+export const MAX_ZIP_ENTRIES = 12000;
 export const PUBLICATION_STATES = [
   'reserved', 'prepared', 'handoff_ready', 'submitted', 'pending_confirmation',
   'remote_verified', 'failed', 'partial', 'ambiguous', 'declined', 'blocked'
@@ -14,9 +18,23 @@ export const PUBLICATION_STATES = [
 
 export type PublicationState = typeof PUBLICATION_STATES[number];
 
+export interface BundleMember {
+  path: string;
+  bytes: number;
+  sha256: string;
+  contentType?: string;
+}
+
+export interface BundleMetadata {
+  schema: string;
+  format: 'zip';
+  entrypoint: 'index.html';
+  files: BundleMember[];
+}
+
 export interface HandoffResource {
   id: string;
-  kind: 'media' | 'content' | 'index' | 'manifest';
+  kind: 'media' | 'content' | 'index' | 'manifest' | 'site';
   service: string;
   name: string;
   identifier: string;
@@ -27,7 +45,7 @@ export interface HandoffResource {
   order: number;
   dependsOn: string[];
   sourceKey?: string | null;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, unknown> & { bundle?: BundleMetadata };
 }
 
 export interface HandoffManifest {
@@ -166,6 +184,57 @@ export function assertSafePath(value: string): void {
   if (!value.startsWith('payload/')) fail('Resource path must stay inside payload/: ' + value);
 }
 
+function normalizeZipPath(value: string): string {
+  const normalized = value.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (normalized === '' || normalized.includes('\u0000')) fail('The ZIP package contains an invalid path.');
+  const parts = normalized.split('/');
+  if (parts.some((part) => part === '' || part === '.' || part === '..')) fail('The ZIP package contains an unsafe path: ' + value);
+  return normalized;
+}
+
+export async function buildFolderMapFromZip(file: File): Promise<Map<string, PackageFile>> {
+  if (!file || file.size > MAX_ZIP_BYTES) {
+    fail('The ZIP package is larger than ' + Math.round(MAX_ZIP_BYTES / (1024 * 1024)) + ' MB.');
+  }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let entries: Record<string, Uint8Array>;
+  try {
+    entries = unzipSync(bytes);
+  } catch {
+    fail('The selected file is not a readable ZIP package. Export the Publisher package from Migration Studio or select the handoff folder.');
+  }
+  const paths = Object.keys(entries).filter((entry) => !entry.endsWith('/'));
+  if (paths.length === 0) fail('The ZIP package is empty.');
+  if (paths.length > MAX_ZIP_ENTRIES) fail('The ZIP package contains too many files.');
+  let total = 0;
+  const normalized = new Map<string, Uint8Array>();
+  for (const entry of paths) {
+    const relative = normalizeZipPath(entry);
+    const value = entries[entry];
+    total += value.length;
+    if (total > MAX_ZIP_BYTES) fail('The ZIP package expands beyond the safety limit.');
+    if (normalized.has(relative)) fail('The ZIP package contains a duplicate path: ' + relative);
+    normalized.set(relative, value);
+  }
+  // A ZIP may preserve the selected folder as a single root segment.
+  let rootPrefix = '';
+  if (!normalized.has('handoff.json')) {
+    const roots = new Set([...normalized.keys()].map((entry) => entry.split('/')[0]));
+    if (roots.size === 1) {
+      const only = [...roots][0];
+      if (normalized.has(only + '/handoff.json')) rootPrefix = only + '/';
+    }
+  }
+  const map = new Map<string, PackageFile>();
+  for (const [path, value] of normalized) {
+    const relative = rootPrefix && path.startsWith(rootPrefix) ? path.slice(rootPrefix.length) : path;
+    if (relative === '') continue;
+    const body = value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength) as ArrayBuffer;
+    map.set(relative, { path: relative, bytes: value, file: new File([body], relative.split('/').pop() || 'payload', { type: 'application/octet-stream' }) });
+  }
+  return map;
+}
+
 export async function buildFolderMap(files: File[]): Promise<Map<string, PackageFile>> {
   const map = new Map<string, PackageFile>();
   for (const file of files) {
@@ -218,6 +287,25 @@ export async function validateHandoffPackage(files: Map<string, PackageFile>): P
     if (!(kind in KIND_PHASE)) fail('Unsupported resource kind: ' + kind);
     const service = assertString(resource.service, 'resource.service', undefined, 20);
     if (!PUBLISHABLE_SERVICES.includes(service)) fail('Unsupported service: ' + service);
+    if (service === 'APP' && kind !== 'site') fail('APP resources must use the site kind.');
+    if (kind === 'site' && service !== 'APP') fail('The site resource must use the APP service.');
+    let bundle: BundleMetadata | null = null;
+    if (service === 'APP') {
+      const metadata = assertObject(resource.metadata, 'resource.metadata');
+      bundle = assertObject(metadata.bundle, 'resource.metadata.bundle') as unknown as BundleMetadata;
+      if (bundle.schema !== CMS_BUNDLE_SCHEMA) fail('Unsupported CMS bundle schema.');
+      if (bundle.format !== 'zip' || bundle.entrypoint !== 'index.html') fail('The CMS bundle must be a ZIP with index.html.');
+      if (!Array.isArray(bundle.files) || bundle.files.length === 0) fail('The CMS bundle member list is empty.');
+      const memberPaths = new Set<string>();
+      for (const member of bundle.files) {
+        const memberPath = assertString(member.path, 'bundle.path', /^(?!\/)(?!.*(?:^|\/)\.\.?(?:\/|$))[A-Za-z0-9._@+/\/-]+$/, 300);
+        if (memberPaths.has(memberPath)) fail('Duplicate CMS bundle member: ' + memberPath);
+        memberPaths.add(memberPath);
+        assertInteger(member.bytes, 'bundle.bytes', 0, MAX_ZIP_BYTES);
+        assertString(member.sha256, 'bundle.sha256', /^sha256:[a-f0-9]{64}$/);
+      }
+      if (!memberPaths.has('index.html')) fail('The CMS bundle has no index.html.');
+    }
     const name = assertQortalName(resource.name, 'resource.name');
     if (name !== targetName) fail('Resource name does not match the handoff target name.');
     const identifier = assertString(resource.identifier, 'resource.identifier', /^[a-z0-9][a-z0-9_-]{0,63}$/);
@@ -239,6 +327,23 @@ export async function validateHandoffPackage(files: Map<string, PackageFile>): P
     if (file.bytes.length !== bytes) fail('Payload byte length mismatch for ' + id + '.');
     const actual = await sha256Bytes(file.bytes);
     if (actual !== sha256) fail('Payload SHA-256 mismatch for ' + id + '.');
+    if (bundle) {
+      let entries: Record<string, Uint8Array>;
+      try {
+        entries = unzipSync(file.bytes);
+      } catch {
+        fail('The CMS bundle is not a readable ZIP archive.');
+      }
+      const members = Object.keys(entries).filter((entry) => !entry.endsWith('/')).sort();
+      const expected = bundle.files.slice().sort((left, right) => left.path.localeCompare(right.path));
+      if (members.length !== expected.length) fail('The CMS bundle file set does not match its manifest.');
+      for (const member of expected) {
+        const body = entries[member.path];
+        if (!body) fail('The CMS bundle is missing ' + member.path + '.');
+        if (body.length !== member.bytes) fail('CMS bundle byte length mismatch: ' + member.path + '.');
+        if (await sha256Bytes(body) !== member.sha256) fail('CMS bundle SHA-256 mismatch: ' + member.path + '.');
+      }
+    }
     totalBytes += bytes;
     counts[kind] = (counts[kind] ?? 0) + 1;
     resources.push({

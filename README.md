@@ -17,9 +17,12 @@ migrate, or by the Qortal project.
 
 ## Alpha status
 
-Version **0.6.0** is the first public alpha. Expect rough edges and read
+Version **0.6.0** is the latest published alpha. Version **0.6.1** adds the
+standalone Migration Publisher Q-App, single-file Publisher packages and
+Generic CMS APP deployment; its release candidate is internal until the live
+mixed-service acceptance gate passes. Read
 [docs/migration-studio/alpha/KNOWN-ISSUES.md](docs/migration-studio/alpha/KNOWN-ISSUES.md)
-before you rely on it.
+before you rely on any build.
 
 Important limitations:
 
@@ -27,11 +30,18 @@ Important limitations:
 - Only Debian 12 and Debian 13 were installed and launch-tested. Debian-based
   systems such as MX Linux 23 are an intended compatibility target but were not
   executed for this release.
-- No live QDN publication was performed during release validation. No
-  transaction was signed and no wallet was accessed.
-- The user-facing Qortal Hub signed-publication flow is implemented and covered
-  by deterministic tests, but it has **not completed full live acceptance**.
-  Treat the first real publication as a supervised test.
+- No live mixed-service QDN publication was performed during release
+  validation. No wallet was accessed. The only authorized signing path is the
+  development broker, which permits DOCUMENT-only test resources on one
+  development name and cannot publish IMAGE or APP resources.
+- The user-facing Qortal Hub signed-publication flow, the single-file Publisher
+  package and the Generic CMS APP bundle are implemented and covered by
+  deterministic tests, but the full mixed-service flow has **not completed live
+  acceptance**. Treat the first real publication as a supervised test.
+- The generic Migration Publisher Q-App is built and validated as a deployable
+  artifact. It is **not publicly deployed** yet; deployment needs the owner's
+  registered name and wallet approval. See
+  [PUBLISHER-QAPP-DEPLOYMENT.md](docs/migration-studio/PUBLISHER-QAPP-DEPLOYMENT.md).
 - Launch verification used a headless X server (Xvfb), not a complete graphical
   session with a real keyring unlock prompt.
 - One source adapter exists (WordPress REST). Windows and macOS are not
@@ -75,11 +85,16 @@ uninstalling the package does not delete projects, media, handoffs or history.
 
 1. Start the application and choose **New project**.
 2. Work through the five-step wizard: source CMS, WordPress connection, Qortal
-   destination, import preferences, and plan review.
+   destination, import preferences, and plan review. Select **Generic CMS** to
+   publish a configured website with the content.
 3. **Approve local preparation.** QMS validates the source, discovers content,
    downloads supported media and writes a plan. Nothing is published.
-4. Optionally prepare a Hub handoff and publish it through Qortal Hub, then
-   import the receipt and verify the exact QDN resources.
+4. Prepare a Publisher package: QMS exports one `.zip` containing the exact
+   handoff and (optionally) the CMS APP bundle.
+5. In Qortal Hub open **Migration Publisher**, select the ZIP, verify account and
+   name ownership, review resources and the live fee quote, then approve.
+6. Import the Publisher receipt, run independent exact QDN verification and
+   open the published website once the APP is verified.
 
 The step-by-step version is
 [docs/migration-studio/alpha/FIRST-RUN-GUIDE.md](docs/migration-studio/alpha/FIRST-RUN-GUIDE.md),

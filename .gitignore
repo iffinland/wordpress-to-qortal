@@ -5,6 +5,7 @@ workspaces/
 wp-qortal-import/
 wp-qortal-import-smoke-*/
 viewer/dist/
+viewer/dist-publisher/
 corbettreport/dist/
 release/
 !scripts/release/

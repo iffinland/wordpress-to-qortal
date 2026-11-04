@@ -88,6 +88,10 @@ describe('desktop publishing handoff flow', () => {
     expect(await screen.findByText('Handoff package created.')).toBeInTheDocument();
     expect(window.qms.publication.prepare).toHaveBeenCalledWith('prj_abcdefgh', 'plan_abcdefgh', ['post:1'], expect.any(Object));
 
+    await user.click(screen.getByRole('button', { name: 'Export Publisher package (.zip)' }));
+    expect(window.qms.publication.exportBundle).toHaveBeenCalledWith('prj_abcdefgh', handoffSummary.handoffId);
+    expect(await screen.findByText(/Publisher package exported/)).toBeInTheDocument();
+
     expect(await screen.findByText(/Package validated/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText('Receipt JSON'), { target: { value: JSON.stringify({ schema: 'qms-publication-receipt@1' }) } });
     await user.click(screen.getByRole('button', { name: 'Import receipt' }));

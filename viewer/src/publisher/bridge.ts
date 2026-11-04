@@ -3,6 +3,7 @@ export interface QortalRequestPayload {
   service?: string;
   name?: string;
   identifier?: string;
+  filepath?: string;
   build?: boolean;
   encoding?: string;
   data64?: string;

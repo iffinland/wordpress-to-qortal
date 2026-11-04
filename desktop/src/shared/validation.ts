@@ -452,6 +452,20 @@ export function validateIpcPayload(channel: string, payload: unknown): Dict {
         feeCurrency: 'QORT'
       };
 
+    case IPC.openUrl: {
+      const target = text(params.url, 'url', { max: 4000, trim: false });
+      if (typeof target !== 'string' || target === '') fail('url is required.');
+      let parsed: URL | null = null;
+      try { parsed = new URL(target); } catch { parsed = null; }
+      if (!parsed) fail('url must be a valid URL.');
+      if (!['http:', 'https:'].includes(parsed.protocol)) fail('url must use http or https.');
+      if (parsed.username || parsed.password) fail('url must not contain credentials.');
+      return { url: parsed.toString() };
+    }
+
+    case IPC.publicationExportBundle:
+      return { projectId: projectId(params), handoffId: handoffId(params) };
+
     case IPC.publicationGet:
       return { projectId: projectId(params), handoffId: handoffId(params), validate: bool(params.validate, 'validate', true) };
 

@@ -3,6 +3,7 @@ import { CheckCircle2, FileJson, FolderOpen, Play, RefreshCw, Send, ShieldAlert,
 import {
   MAX_BATCH_RESOURCES,
   buildFolderMap,
+  buildFolderMapFromZip,
   orderResources,
   planBatches,
   sha256Bytes,
@@ -95,6 +96,51 @@ function resourceFilename(resource: HandoffResource): string {
   return resource.relativePath.split('/').pop() || resource.identifier;
 }
 
+function encodePath(value: string): string {
+  return String(value).split('/').map((segment) => encodeURIComponent(segment)).join('/');
+}
+
+function decodeBase64(value: string): Uint8Array {
+  const compact = value.replace(/\s+/g, '');
+  if (compact !== '' && (!/^[A-Za-z0-9+/]+={0,2}$/.test(compact) || compact.length % 4 !== 0)) {
+    throw new Error('The node returned a non-base64 body; exact hash comparison is not possible.');
+  }
+  const binary = atob(compact);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+/** Multi-file APP read-back reads each member with ?filepath= and base64. */
+async function fetchAppMember(resource: HandoffResource, filepath: string): Promise<Uint8Array> {
+  try {
+    const bridged = await requestQortal({
+      action: 'FETCH_QDN_RESOURCE',
+      service: resource.service,
+      name: resource.name,
+      identifier: resource.identifier,
+      filepath,
+      encoding: 'base64'
+    });
+    if (typeof bridged === 'string') return decodeBase64(bridged);
+  } catch {
+    // A Hub build without filepath support falls back to the node read below.
+  }
+  const base = typeof window !== 'undefined' ? window.location.origin : '';
+  const url = base + '/arbitrary/' + encodeURIComponent(resource.service)
+    + '/' + encodeURIComponent(resource.name)
+    + '/' + encodeURIComponent(resource.identifier)
+    + '?filepath=' + encodePath(filepath) + '&encoding=base64';
+  const response = await fetch(url, { cache: 'no-store' });
+  if (response.status === 401 || response.status === 403) {
+    throw new Error('The node refused read access for APP member ' + filepath + '.');
+  }
+  if (!response.ok) {
+    throw new Error('APP member read failed with HTTP ' + response.status + ' for ' + filepath + '.');
+  }
+  return decodeBase64(await response.text());
+}
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
   const chunk = 0x8000;
@@ -121,6 +167,49 @@ function outcomeForError(message: string): PublicationState {
 }
 
 async function verifyOne(resource: HandoffResource): Promise<ResourceState> {
+  if (resource.service === 'APP') {
+    const bundle = resource.metadata?.bundle;
+    if (!bundle || !Array.isArray(bundle.files) || bundle.files.length === 0) {
+      return {
+        status: 'blocked',
+        reason: 'This APP resource has no member manifest; exact read-back is impossible.',
+        txSignature: null,
+        updatedAt: nowIso()
+      };
+    }
+    const verifiedMembers: Array<Record<string, unknown>> = [];
+    for (const member of bundle.files) {
+      try {
+        const bytes = await fetchAppMember(resource, member.path);
+        const hash = await sha256Bytes(bytes);
+        if (bytes.length !== member.bytes || hash !== member.sha256) {
+          return {
+            status: 'ambiguous',
+            reason: 'APP member bytes do not match: ' + member.path,
+            txSignature: null,
+            updatedAt: nowIso(),
+            verification: { transport: 'http:filepath:base64', path: member.path, expectedBytes: member.bytes, remoteBytes: bytes.length, expectedHash: member.sha256, remoteHash: hash }
+          };
+        }
+        verifiedMembers.push({ path: member.path, bytes: bytes.length, sha256: hash });
+      } catch (error) {
+        const message = (error as Error).message;
+        return {
+          status: message.includes('HTTP 404') ? 'pending_confirmation' : 'ambiguous',
+          reason: message,
+          txSignature: null,
+          updatedAt: nowIso()
+        };
+      }
+    }
+    return {
+      status: 'remote_verified',
+      reason: 'Every APP member matches the bundle SHA-256.',
+      txSignature: null,
+      updatedAt: nowIso(),
+      verification: { transport: 'http:filepath:base64', members: verifiedMembers }
+    };
+  }
   try {
     const bytes = await fetchQdnBase64(resource.service, resource.name, resource.identifier);
     const hash = await sha256Bytes(bytes);
@@ -171,6 +260,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   const [notice, setNotice] = useState('');
   const [receipt, setReceipt] = useState<ReceiptDocument | null>(null);
   const [sessions, setSessions] = useState<Array<{ handoffId: string; status: string; updatedAt: string }>>([]);
+  const [feeQuote, setFeeQuote] = useState<{ atomic: number; qort: number; at: string } | null>(null);
   const running = useRef(false);
   const bridge = getQortalRequest();
   const diagnostics = bridgeDiagnostics();
@@ -229,6 +319,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
   async function chooseFolder(event: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
+    const isZip = files.length === 1 && /\.zip$/i.test(files[0].name);
     setBusy(true);
     setError(null);
     setNotice('');
@@ -236,10 +327,10 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
     setValidated(null);
     setRemotePresence({});
     try {
-      const map = await buildFolderMap(files);
+      const map = isZip ? await buildFolderMapFromZip(files[0]) : await buildFolderMap(files);
       const result = await validateHandoffPackage(map);
       setValidated(result);
-      setFolderName((files[0] as File & { webkitRelativePath?: string })?.webkitRelativePath?.split('/')[0] || 'selected folder');
+      setFolderName(isZip ? files[0].name : ((files[0] as File & { webkitRelativePath?: string })?.webkitRelativePath?.split('/')[0] || 'selected folder'));
       const remembered = loadSession(result.manifest.handoffId);
       if (remembered) {
         setStates(remembered.states ?? {});
@@ -280,6 +371,26 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       setNotice('Active account loaded. Name ownership is checked locally against the names Qortal Hub reports for this account.');
     } catch (connectError) {
       setError((connectError as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function quoteNetworkFee() {
+    setBusy(true);
+    setError(null);
+    try {
+      const base = typeof window !== 'undefined' ? window.location.origin : '';
+      const response = await fetch(base + '/transactions/unitfee?txType=ARBITRARY&timestamp=' + Date.now(), { cache: 'no-store' });
+      if (!response.ok) throw new Error('The node did not return an ARBITRARY fee (HTTP ' + response.status + ').');
+      const text = (await response.text()).trim();
+      const atomic = Number(text);
+      if (!Number.isFinite(atomic) || atomic < 0) throw new Error('The node returned an invalid ARBITRARY fee.');
+      setFeeQuote({ atomic, qort: atomic / 1e8, at: new Date().toISOString() });
+      setNotice('Live network quote loaded. Qortal Hub still shows and approves the authoritative fee.');
+    } catch (quoteError) {
+      setFeeQuote(null);
+      setError('Live fee quote unavailable: ' + (quoteError as Error).message + ' Continue and Qortal Hub will show the fee before approval.');
     } finally {
       setBusy(false);
     }
@@ -361,6 +472,20 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
     const file = validated?.files.get(resource.relativePath);
     if (!file) throw new Error('Missing selected payload: ' + resource.relativePath);
     const title = typeof resource.metadata?.title === 'string' ? resource.metadata.title : resource.identifier;
+    if (resource.service === 'APP') {
+      const filename = resource.identifier + '.zip';
+      const body = file.bytes.buffer.slice(file.bytes.byteOffset, file.bytes.byteOffset + file.bytes.byteLength) as ArrayBuffer;
+      return {
+        name: resource.name,
+        service: 'APP',
+        identifier: resource.identifier,
+        file: new File([body], filename, { type: 'application/zip' }),
+        filename,
+        isMultiFileZip: true,
+        title,
+        description: 'Qortal Migration Studio website bundle ' + (manifest?.handoffId ?? '')
+      };
+    }
     if (resource.service === 'DOCUMENT' || resource.service === 'JSON') {
       return {
         name: resource.name,
@@ -620,6 +745,15 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
               disabled={busy}
             />
           </label>
+          <label>
+            Publisher package (.zip)
+            <input
+              type="file"
+              accept=".zip,application/zip"
+              onChange={(event) => void chooseFolder(event)}
+              disabled={busy}
+            />
+          </label>
           <button type="button" disabled={busy || !bridge} onClick={() => void connectAccount()}>
             <ShieldAlert size={17} />
             {account ? 'Refresh active account' : 'Connect Qortal account'}
@@ -698,7 +832,13 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
               <span>Estimate {manifest.estimate.estimatedFee} {manifest.estimate.currency}</span>
               <span>{Math.ceil(selected.size / MAX_BATCH_RESOURCES)} batch(es)</span>
               <span>{manifest.estimate.label}</span>
+              {feeQuote && (
+                <span>Live quote: {feeQuote.qort.toFixed(8)} QORT/resource · {selected.size} selected ≈ {(feeQuote.qort * selected.size).toFixed(8)} QORT · {new Date(feeQuote.at).toLocaleTimeString()}</span>
+              )}
             </div>
+            <button type="button" className="ghost" disabled={busy} onClick={() => void quoteNetworkFee()}>
+              Get live network fee quote
+            </button>
             <label className="publisher-toggle">
               <input type="checkbox" checked={approved} onChange={(event) => setApproved(event.target.checked)} />
               I explicitly approve publishing these {selected.size} resources and the Qortal Hub network fee.
@@ -753,11 +893,12 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
       <section className="publisher-help">
         <h2>Variant A workflow</h2>
         <ol>
-          <li>Qortal Migration Studio prepares a portable handoff package with exact bytes and SHA-256 hashes.</li>
-          <li>Open Qortal Hub → Apps → Migration Publisher and select the whole handoff folder.</li>
+          <li>Qortal Migration Studio prepares one portable Publisher package (.zip) with exact bytes and SHA-256 hashes.</li>
+          <li>Open Qortal Hub → Apps → Migration Publisher and select that .zip (or the whole handoff folder).</li>
           <li>Connect the active account and confirm it owns the target Qortal name.</li>
           <li>Review resources, dependencies and existing-resource collisions; explicitly approve the set.</li>
           <li>Hub approves and signs each batch. This Publisher publishes at most {MAX_BATCH_RESOURCES} resources per request and stops on ambiguous or pending results.</li>
+          <li>If the package includes a Generic CMS site, the Publisher publishes it as a multi-file APP and verifies every member after publishing.</li>
           <li>Save the receipt, import it into Migration Studio, then run independent QDN read-back verification there.</li>
         </ol>
       </section>
