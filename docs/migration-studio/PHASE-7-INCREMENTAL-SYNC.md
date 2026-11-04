@@ -414,6 +414,30 @@ reported 0 modifications.
 - Removed form/session tokens are not stored in content payloads, sync state,
   reports, warnings or diagnostics.
 
+### Delta publication preflight (2026-11-04, fresh)
+
+A fresh isolated project prepared one real editorial post with supported media
+through the normal Phase 7 delta plan and Phase 5 Hub handoff. Nothing was
+signed or published.
+
+- Source: `post:92`, "WordPress Trademark in the House",
+  `https://wordpressfoundation.org/news/2010/trademark/`.
+- Scoped scan: complete, `coverage=scoped`, `withdrawalEligible=false`,
+  `watermarkAdvanced=false`, 0 withdrawals; one actionable delta entry.
+- Handoff `hof_54ryztray3vo5ieniua6lksi`, batch
+  `pub_urzefeoevw3bdwjuoxfdxgzn`, plan `plan_lkft3cqp2gdrjexoqcoubvue`,
+  project `prj_yzqkju6t7fgc9vc3`, namespace `nsoz3ymsrztbiqea`.
+- 10 resources (1 content, 1 IMAGE, 7 indexes, 1 manifest), 16,158 payload
+  bytes, total quoted fee 0.10 QORT.
+- `validateHandoffPackage` verified 10/10 files; manifest integrity, byte
+  lengths and SHA-256 values matched; all 10 collision probes returned 404;
+  target name ownership verified; no secrets, forms, tokens, localhost or
+  fixture markers.
+- Approval is pending explicit owner approval; the exact request and
+  `BUNDLE.sha256` are in
+  `docs/migration-studio/evidence/2026-11-04-qms-delta-preflight-2/`.
+- Reproduce with `node scripts/qms-delta-preflight.js --out <dir>`.
+
 ### Test counts (generic form-fix branch, 2026-11-04)
 
 - Root `node --test`: 382 tests, 380 passed, 1 pre-existing environmental failure
