@@ -107,3 +107,18 @@ Stability evidence after the fix:
 - 3 rounds x 6 concurrent deployment-layout processes: 18/18 executions
   passed, each 7/7 tests.
 - The single deployment-layout file passes 7/7.
+
+## Verified counts at this revision
+
+| Suite | Result |
+| --- | --- |
+| Root Node (`npm test`) | 378 tests, 377 pass, 1 skip (378/378 after CMS build) |
+| Phase 7 | 24 pass |
+| Phase 5.2 | 118 pass |
+| Deployment layout | 7 pass |
+| WordPress content policy | 7 pass |
+| Corbett compatibility (source + phase6 regression) | 11 pass |
+| Generic CMS Vitest | 19 tests / 3 files pass |
+| Desktop Vitest | 35 tests / 11 files pass |
+| Desktop typecheck | clean |
+| Builds (migration, Corbett CMS, generic CMS, desktop) | all successful |
