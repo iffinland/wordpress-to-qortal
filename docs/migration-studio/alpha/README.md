@@ -1,7 +1,9 @@
-# Qortal Migration Studio 0.6.0 alpha documentation
+# Qortal Migration Studio 0.6.1 alpha documentation
 
-This folder contains the user-facing documentation for the first public alpha
-of Qortal Migration Studio.
+This folder contains the user-facing documentation for the published 0.6.1
+alpha of Qortal Migration Studio. The beginner path requires no development
+tools: download the .deb and follow these guides. Downloading a Q-App ZIP is not
+the same as publishing it to QDN; an owner must publish it with wallet approval.
 
 | Document | Purpose |
 | --- | --- |

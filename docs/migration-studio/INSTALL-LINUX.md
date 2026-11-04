@@ -3,9 +3,14 @@
 This guide installs the self-contained Debian package. The target machine does
 not need Node.js, npm, Git or development tools.
 
-This is the **first public alpha (0.6.0)**. It is unsigned and amd64 only.
-Read [alpha/RELEASE-NOTES.md](alpha/RELEASE-NOTES.md) and
+This is the **0.6.1 alpha**. It is unsigned and amd64 only. Read
+[alpha/RELEASE-NOTES.md](alpha/RELEASE-NOTES.md) and
 [alpha/KNOWN-ISSUES.md](alpha/KNOWN-ISSUES.md) before installing.
+
+The beginner path needs **no Node.js, npm, Git, compiler or terminal build step**.
+Download the .deb from the release, verify it, and install it with apt. Source
+building is documented separately in
+[DEVELOPER-BUILD.md](DEVELOPER-BUILD.md).
 
 ## Supported systems
 
@@ -20,7 +25,7 @@ The package is amd64 only in this release.
 ## Verify the download
 
 ~~~bash
-sha256sum qortal-migration-studio_0.6.0_amd64.deb
+sha256sum qortal-migration-studio_0.6.1_amd64.deb
 cat SHA256SUMS
 ~~~
 
@@ -31,7 +36,7 @@ installing. Do not install an artifact whose hash does not match.
 ## Install
 
 ~~~bash
-sudo apt install ./qortal-migration-studio_0.6.0_amd64.deb
+sudo apt install ./qortal-migration-studio_0.6.1_amd64.deb
 ~~~
 
 apt resolves the GTK, NSS, libsecret and audio dependencies. Launch **Qortal
@@ -40,6 +45,10 @@ Migration Studio** from the desktop application menu, or run:
 ~~~bash
 qortal-migration-studio
 ~~~
+
+Downloading the .deb installs the migration tool. It does **not** publish
+anything to QDN. Publishing is a separate, explicit action in a later step; a
+downloaded Q-App ZIP is likewise not deployed until an owner publishes it.
 
 ## Where your data lives
 

@@ -4,6 +4,24 @@ A neutral, accessible Qortal Q-App site template that renders a published QDN
 catalog. It is independent from the Corbett Report custom clone and does not
 import engine or Corbett code.
 
+**The download is a ZIP package, not a live website.** Downloading or unzipping
+it does not publish anything to QDN. The Generic CMS can be published as either
+an **APP** or a **WEBSITE** where the verified package and current application
+flow support that service. A QMS migration normally publishes its configured
+CMS bundle for you; deploying this neutral ZIP by hand is optional.
+
+## Beginner path (no development tools)
+
+1. Download
+   [qortal-migration-generic-cms-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-generic-cms-v0.6.1.zip)
+   and verify it against `SHA256SUMS`.
+2. Inspect the root: it contains `index.html` and `assets/` with no parent
+   folder.
+3. Publish it to QDN as an APP or WEBSITE through an owner-approved Qortal
+   publication flow. Until that happens it is only a local file.
+
+No Node.js, npm, Git, compiler or manual build is required for this path.
+
 ## Features
 
 - Configurable title, tagline, navigation, colors and typography in cms.config.json.
@@ -18,7 +36,9 @@ import engine or Corbett code.
   visible status regions and reduced-motion support.
 - Valid root-layout Q-App build with relative assets and a bundle validator.
 
-## Development
+## For developers / Build from source
+
+Do not use this section for a normal installation.
 
     npm install
     npm run dev
@@ -69,4 +89,6 @@ Without a verified owner identity the page remains read-only.
 The build creates template/dist with index.html at the bundle root and relative
 asset URLs. The validator checks the root layout, referenced assets and absence
 of engine imports. With --zip it also writes
-release/qms-generic-cms-template-v<version>.zip.
+release/qortal-migration-generic-cms-v<version>.zip. The release pipeline
+validates that ZIP as a root-layout Q-App and ships it with the .deb and the
+Publisher ZIP.

@@ -9,15 +9,35 @@ The Publisher and the Generic CMS can both live under the **same registered
 Qortal name**. Use APP for one and WEBSITE for the other; the service plus
 identifier makes each triple distinct. No second Qortal name is required.
 
+**Downloading the ZIP is not deployment.** The file at the release URL is only
+a package. It becomes a public Q-App only after an owner publishes it to QDN
+with wallet approval.
+
+## Use the published Publisher without development tools
+
+Most people should not build anything:
+
+1. Download
+   [qortal-migration-publisher-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-publisher-v0.6.1.zip)
+   and verify it against `SHA256SUMS`.
+2. An owner publishes that ZIP as one shared QDN application bundle, using the
+   service/identifier values in the table below. One deployment serves every
+   user; each user does not need to deploy their own copy.
+3. Users open the deployed Publisher from Qortal Hub and select their QMS
+   handoff ZIP.
+
+No Node.js, npm, Git or compiler is needed for this path. Building the ZIP from
+source is a separate developer workflow at the end of this document.
+
 ## What the artifact is
 
 - Generic Q-App: no owner name, profile, preview data or local content root is
   compiled into it.
 - Any Qortal name owned by the active Hub account can be targeted.
-- Built at `viewer/dist-publisher` and packaged as
-  `release/qortal-migration-publisher-v<version>.zip`.
+- The official release asset is `qortal-migration-publisher-v<version>.zip`.
 - Root layout: `index.html`, `assets/*`, `publisher-bundle.json`.
-- Validation: `npm run publisher:validate`.
+- For developers: built at `viewer/dist-publisher` and validated with
+  `npm run publisher:validate`.
 
 ## Supported deployment mechanism
 
@@ -57,14 +77,15 @@ development broker or its `developer iffi` scope for this deployment.
 curl -s "http://127.0.0.1:12391/names/$(node -e "process.stdout.write(encodeURIComponent(process.argv[1]))" "Your Name")"
 ~~~
 
-2. Build and validate the artifact:
+2. Obtain and verify the artifact. Most owners download the published ZIP:
 
 ~~~bash
-npm run publisher:build
-npm run publisher:validate
-npm run publisher:package
-sha256sum release/qortal-migration-publisher-v*.zip
+sha256sum qortal-migration-publisher-v0.6.1.zip
+grep qortal-migration-publisher-v0.6.1.zip SHA256SUMS
 ~~~
+
+Developers building from source should follow the developer section below and
+compare their ZIP hash with the release manifest.
 
 3. Quote the actual network fee (atomic units):
 
@@ -101,6 +122,20 @@ curl -s -o /dev/null -w "%{http_code} %{content_type}\n" \
 
 Only the service+name+identifier triple must be unique. Studio never allocates a
 second Qortal name for an application bundle.
+
+### For developers: build and validate the ZIP
+
+Source building is not the beginner path. From a clean checkout:
+
+~~~bash
+npm ci && (cd viewer && npm ci)
+npm run release:prepare
+~~~
+
+This builds the .deb and both Q-App ZIPs, validates their root layout, versions
+and compatibility schemas, and writes `release/release-manifest.json` and
+`release/SHA256SUMS`. Never upload a hand-built ZIP that has not passed the
+three-artifact gate.
 
 ## Why this is not automated here
 

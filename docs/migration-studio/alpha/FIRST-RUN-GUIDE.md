@@ -1,11 +1,15 @@
 # First-run guide
 
-This guide assumes Qortal Migration Studio 0.6.0 alpha is installed from the
-Debian package. You do not need Node.js, npm, Git or a terminal after install.
+This guide assumes Qortal Migration Studio 0.6.1 alpha is installed from the
+Debian package. The beginner path needs **no Node.js, npm, Git, compiler or
+manual build**. You do not need development tools at all. If you want to build
+from source, use [../DEVELOPER-BUILD.md](../DEVELOPER-BUILD.md) instead.
 
 ## 1. Start the application
 
-Open **Qortal Migration Studio** from the application menu, or run:
+Download the .deb first from the release page; see
+[../INSTALL-LINUX.md](../INSTALL-LINUX.md) for verification and install. Then
+open **Qortal Migration Studio** from the application menu, or run:
 
 ~~~bash
 qortal-migration-studio
@@ -50,11 +54,13 @@ name. QMS does not ask for a seed, private key or wallet password. Signing stays
 in Qortal Hub.
 
 Set the website title, tagline, accent colour and hosting service (APP or
-WEBSITE). If **Generic CMS** is selected, QMS packages the CMS as part of this
-project's publication and configures its title, tagline, navigation and theme.
-APP and WEBSITE are distinct QDN services and may share one registered Qortal
-name; no second name is needed. A site identity (`siteId`)
-is generated automatically and remains stable for the project.
+WEBSITE). **The Generic CMS can be published as either an APP or a WEBSITE
+where the verified package and current application flow support that service.**
+If **Generic CMS** is selected, QMS packages the CMS as part of this project's
+publication and configures its title, tagline, navigation and theme. APP and
+WEBSITE are distinct QDN services and may share one registered Qortal name; no
+second name is needed. A site identity (`siteId`) is generated automatically
+and remains stable for the project.
 
 ## 6. Wizard step 4 — Import preferences
 
@@ -81,6 +87,10 @@ Select **Refresh preview**. Review:
 Nothing is published here. **Approve local preparation** creates a local plan
 and the first batch. You can stop after this step and still keep a complete
 project.
+
+Downloading the Generic CMS ZIP or opening this wizard does **not** deploy a
+website to QDN. Publishing happens only through the explicit Hub approval flow
+in the next guide.
 
 ## 8. What to do next
 

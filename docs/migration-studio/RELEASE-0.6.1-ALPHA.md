@@ -10,6 +10,20 @@
 | Tag target | v0.6.1-alpha.1 |
 | Signing | unsigned |
 | Architecture | amd64 |
+| Release status | published GitHub prerelease |
+| Release URL | https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.1 |
+
+## Downloads
+
+- [Qortal Migration Studio 0.6.1 .deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-studio_0.6.1_amd64.deb)
+- [Migration Publisher Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-publisher-v0.6.1.zip)
+- [Generic CMS Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-generic-cms-v0.6.1.zip)
+
+The beginner path needs no development tools. Downloading a ZIP is not
+deployment: the Publisher and Generic CMS become live QDN applications only
+after an owner publishes them with wallet approval. The Generic CMS can be
+published as either an APP or a WEBSITE where the verified package and current
+application flow support that service.
 
 ## Delivered
 

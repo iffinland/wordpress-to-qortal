@@ -1,11 +1,36 @@
-# Quick Start — legacy Corbett Report CLI
+# Quick Start
 
-> **This is the legacy command-line workflow.** The current product is the
-> [Qortal Migration Studio desktop application](README.md). Install the alpha
-> `.deb` and follow
-> [docs/migration-studio/alpha/FIRST-RUN-GUIDE.md](docs/migration-studio/alpha/FIRST-RUN-GUIDE.md)
-> instead. Use this page only when you are maintaining the legacy Corbett Report
-> pipeline, whose profiles, manifests and QDN identifiers remain unchanged.
+## Beginner path — Qortal Migration Studio desktop app
+
+This path needs **no Node.js, npm, Git, compiler or manual build**. Do not clone
+the repository and do not run npm.
+
+1. Download
+   [qortal-migration-studio_0.6.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-studio_0.6.1_amd64.deb)
+   and [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/SHA256SUMS).
+2. Verify and install:
+
+   ~~~bash
+   sha256sum qortal-migration-studio_0.6.1_amd64.deb
+   sudo apt install ./qortal-migration-studio_0.6.1_amd64.deb
+   qortal-migration-studio
+   ~~~
+
+3. Follow [docs/migration-studio/alpha/FIRST-RUN-GUIDE.md](docs/migration-studio/alpha/FIRST-RUN-GUIDE.md),
+   then [docs/migration-studio/alpha/MIGRATION-WALKTHROUGH.md](docs/migration-studio/alpha/MIGRATION-WALKTHROUGH.md).
+
+The release also offers a **Migration Publisher Q-App ZIP** and a **Generic CMS
+Q-App ZIP**. Downloading either ZIP does **not** deploy it. A downloaded ZIP
+becomes a live QDN application only after an owner publishes it with wallet
+approval. The Generic CMS can be published as an APP or a WEBSITE where the
+verified package and current application flow support that service.
+
+## For developers / legacy Corbett Report CLI
+
+> **This is the legacy command-line workflow.** Use it only when you are
+> maintaining the legacy Corbett Report pipeline, whose profiles, manifests and
+> QDN identifiers remain unchanged. The beginner path above is the current
+> product.
 
 This is the short version of the legacy CLI. For a click-by-click walkthrough, open `docs/ZORIN_LINUX_SETUP.md`.
 

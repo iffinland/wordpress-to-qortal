@@ -3,6 +3,13 @@
 This walkthrough uses a public WordPress site and never publishes from the
 desktop application. Publishing is a separate, explicit Qortal Hub action.
 
+**Downloading a ZIP is not deploying it.** The Generic CMS ZIP and the Migration
+Publisher ZIP are files you can inspect or hand to Qortal Hub. Nothing appears
+on QDN until an owner-approved publication writes it there. The Generic CMS can
+be published as either an **APP** or a **WEBSITE** where the verified package
+and current application flow support that service; APP and WEBSITE are distinct
+services and may share one registered Qortal name.
+
 ## 1. Prepare the project
 
 Complete the wizard through **Approve local preparation**. You now have a
@@ -33,7 +40,9 @@ QMS writes the exact handoff folder and then exports one portable package:
 It contains `handoff.json`, every payload with its byte length and SHA-256, and
 (if Generic CMS was selected) the CMS application bundle with
 `qms-cms-config.json`. The bundle uses APP or WEBSITE as selected; it can share
-the same registered name as the Publisher because the service differs. The file list is visible in the Publishing view with the
+the same registered name as the Publisher because the service differs. The ZIP
+is downloadable and inspectable before publication, but it is not live on QDN
+until Hub completes the signed publication. The file list is visible in the Publishing view with the
 package SHA-256. QMS validates the package locally before reporting
 `handoff_ready`; nothing is signed or published.
 
@@ -49,9 +58,10 @@ package SHA-256. QMS validates the package locally before reporting
 6. Hub shows the authoritative fee and asks for wallet approval. Approve it.
 
 The Publisher publishes media first, then content, indexes, the manifest and
-finally the CMS application bundle (APP or WEBSITE). It stops on pending, ambiguous or failed results and never
-resubmits blindly. Hub is the trust boundary. QMS never sees your seed, private
-key or wallet password.
+finally the CMS application bundle (APP or WEBSITE, as selected and supported by
+the verified package). It stops on pending, ambiguous or failed results and
+never resubmits blindly. Hub is the trust boundary. QMS never sees your seed,
+private key or wallet password.
 
 ## 5. Import publication evidence
 
