@@ -86,8 +86,9 @@ Important limitations:
   [PUBLISHER-QAPP-DEPLOYMENT.md](docs/migration-studio/PUBLISHER-QAPP-DEPLOYMENT.md).
 - The Generic CMS only reads its catalog when it can determine the exact Qortal
   name it is running under. Open it as `qortal://WEBSITE/<name>/` or add
-  `?name=<encoded name>` to the URL. Without the name it shows its empty or
-  unverified state rather than guessing.
+  `?name=<encoded name>` to the URL. Percent-encoded names are decoded before
+  lookup, so `developer%20iffi` and `developer iffi` resolve to the same name.
+  Without the name it shows its empty or unverified state rather than guessing.
 - Launch verification used a headless X server (Xvfb), not a complete graphical
   session with a real keyring unlock prompt.
 - One source adapter exists (WordPress REST). Windows and macOS are not
