@@ -192,7 +192,8 @@ export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
       info: vi.fn(async () => ({ apiVersion: 'qms-engine@1', version: '0.1.9-phase8', dataRoot: '/data', repoRoot: '/repo', sourceContract: 'qms-source-adapter@1', contentSchema: 'qms-content@1', planSchema: 'qms-plan@1', identitySchema: 'qms-identity-state@1', syncSchema: 'qms-sync-state@1', syncScanSchema: 'qms-sync-scan@1', syncConflictSchema: 'qms-sync-conflict@1', withdrawalSchema: 'qms-withdrawal-record@1', eventSchema: 'qms-event@1', adapters: [adapter()] })),
       settings: vi.fn(async () => settings()),
       setDataRoot: vi.fn(async () => settings()),
-      openPath: vi.fn(async () => ({ opened: true, path: '/tmp' }))
+      openPath: vi.fn(async () => ({ opened: true, path: '/tmp' })),
+      openUrl: vi.fn(async () => ({ ok: true }))
     },
     projects: {
       list: vi.fn(async () => [project()]),
@@ -237,6 +238,14 @@ export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
     disk: { check: vi.fn(async () => ({ availableBytes: 1000000000, reserveBytes: 0, fits: true })) },
     publication: {
       list: vi.fn(async () => []),
+      exportBundle: vi.fn(async (_projectId: string, handoffId: string) => ({
+        handoffId,
+        absolutePath: '/tmp/exports/' + handoffId + '-publisher.zip',
+        filename: handoffId + '-publisher.zip',
+        bytes: 1024,
+        sha256: 'sha256:' + 'a'.repeat(64),
+        resources: 3
+      })),
       prepare: vi.fn(async () => ({
         handoffId: 'hof_abcdefgh12345678',
         publicationBatchId: 'pub_abcdefgh12345678',

@@ -35,6 +35,31 @@ function render(node: ReactNode, route: AppRoute, viewer = ownerIdentity) {
   );
 }
 
+describe('runtime site configuration', () => {
+  it('renders a runtime title, tagline, navigation and accent theme', () => {
+    const config = {
+      ...cmsConfig,
+      site: { ...cmsConfig.site, title: 'Runtime Site', tagline: 'Runtime tagline' },
+      navigation: [
+        { label: 'Home', href: '#/' },
+        { label: 'Journal', href: '#/posts' }
+      ],
+      theme: { ...cmsConfig.theme, colors: { ...cmsConfig.theme.colors, accent: '#ff5500' } }
+    };
+    const runtimeDataset = { ...dataset, site: { ...dataset.site, title: 'Runtime Site', tagline: 'Runtime tagline' } };
+    const html = renderToStaticMarkup(
+      <Layout config={config as typeof cmsConfig} route={{ kind: 'home' }} viewer={ownerIdentity} templateVersion="test">
+        <HomePage dataset={runtimeDataset} />
+      </Layout>
+    );
+    expect(html).toContain('<h1 id="home-title">Runtime Site</h1>');
+    expect(html).toContain('Runtime tagline');
+    expect(html).toContain('href="#/posts"');
+    expect(html).toContain('>Journal<');
+    expect(html).toContain('--qms-accent:#ff5500');
+  });
+});
+
 describe('generic CMS routes render from the fixture manifest', () => {
   it('renders home with title, tagline, latest posts and primary navigation', () => {
     const html = render(<HomePage dataset={dataset} />, { kind: 'home' });

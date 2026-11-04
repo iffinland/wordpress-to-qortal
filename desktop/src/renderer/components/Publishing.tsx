@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import type {
   PlanDocument,
   PlanRecord,
+  PublicationBundleExport,
   PublicationHandoffDetail,
   PublicationHandoffSummary,
   PublicationPrepareResult,
@@ -43,6 +44,7 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
   const [selectedHandoffId, setSelectedHandoffId] = useState('');
   const [handoff, setHandoff] = useState<PublicationHandoffDetail | null>(null);
   const [prepared, setPrepared] = useState<PublicationPrepareResult | null>(null);
+  const [bundle, setBundle] = useState<PublicationBundleExport | null>(null);
   const [receiptText, setReceiptText] = useState('');
   const [nodeUrl, setNodeUrl] = useState('http://127.0.0.1:12391');
   const [attempts, setAttempts] = useState(6);
@@ -132,6 +134,36 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
       setSelectedHandoffId(result.handoffId);
     } catch (prepareError) {
       setError(prepareError);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const siteResource = handoff?.resources.find((resource) => resource.kind === 'site') ?? null;
+
+  async function openPublishedSite() {
+    if (!siteResource) return;
+    const base = nodeUrl.replace(/\/+$/, '');
+    const url = base + '/arbitrary/APP/' + encodeURIComponent(siteResource.name) + '/' + encodeURIComponent(siteResource.identifier) + '?filepath=index.html';
+    try {
+      await api().app.openUrl(url);
+    } catch (openError) {
+      setError(openError);
+    }
+  }
+
+  async function exportPublisherPackage() {
+    const id = prepared?.handoffId ?? selectedHandoffId;
+    if (!id) return;
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const result = await api().publication.exportBundle(projectId, id);
+      setBundle(result);
+      setMessage('Publisher package exported. In Qortal Hub open the Migration Publisher Q-App and select this .zip file.');
+    } catch (exportError) {
+      setError(exportError);
     } finally {
       setLoading(false);
     }
@@ -276,8 +308,17 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
           <Alert tone="info" title="Handoff ready">
             <p>{prepared.message}</p>
             <p><code>{prepared.absolutePath}</code></p>
-            <p className="small">Open Qortal Hub → Migration Publisher → select this whole folder. The Publisher validates the manifest and every SHA-256 before asking for approval.</p>
-            <button type="button" className="ghost" onClick={() => void openHandoffFolder()}>Open handoff folder</button>
+            <p className="small">Export one .zip package and select it in Qortal Hub → Migration Publisher. The Publisher validates the manifest, every SHA-256 and any CMS APP bundle before asking for approval.</p>
+            <div className="row gap wrap">
+              <button type="button" className="primary" onClick={() => void exportPublisherPackage()} disabled={loading}>Export Publisher package (.zip)</button>
+              <button type="button" className="ghost" onClick={() => void openHandoffFolder()}>Open handoff folder</button>
+            </div>
+            {bundle && (
+              <div className="stack-sm">
+                <p><code>{bundle.absolutePath}</code></p>
+                <p className="small">{formatBytes(bundle.bytes)} · SHA-256 <code>{bundle.sha256}</code></p>
+              </div>
+            )}
           </Alert>
         )}
       </Card>
@@ -331,6 +372,14 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
           </button>
           <button className="ghost" type="button" disabled={!handoff} onClick={() => void openHandoffFolder()}>
             Open selected handoff folder
+          </button>
+          <button
+            className="ghost"
+            type="button"
+            disabled={!siteResource || siteResource.status !== 'remote_verified'}
+            onClick={() => void openPublishedSite()}
+          >
+            Open published website
           </button>
         </div>
 

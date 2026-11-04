@@ -159,6 +159,30 @@ export async function fetchNameRecord(name, timeoutMs = 6000) {
   }
 }
 
+export function discoverQdnResource(fallbackName = '', fallbackIdentifier = 'default') {
+  if (typeof window === 'undefined') return { name: fallbackName, identifier: fallbackIdentifier };
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('name') || params.get('qdnName') || '';
+    const identifier = params.get('identifier') || params.get('appIdentifier') || '';
+    if (name) return { name, identifier: identifier || fallbackIdentifier };
+  } catch {
+    // Ignore malformed query strings.
+  }
+  try {
+    const parts = window.location.pathname.split('/').filter(Boolean).map(decodeURIComponent);
+    for (let index = 0; index < parts.length; index += 1) {
+      const part = parts[index].toUpperCase();
+      if ((part === 'APP' || part === 'WEBSITE') && parts[index + 1]) {
+        return { name: parts[index + 1], identifier: parts[index + 2] || fallbackIdentifier };
+      }
+    }
+  } catch {
+    // Ignore path access errors.
+  }
+  return { name: fallbackName, identifier: fallbackIdentifier };
+}
+
 export function discoverQdnName(fallback = '') {
   if (typeof window === 'undefined') return fallback;
   try {

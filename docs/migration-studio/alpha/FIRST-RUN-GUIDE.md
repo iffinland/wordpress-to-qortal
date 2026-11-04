@@ -24,7 +24,8 @@ After creation, choose **Open** to start the wizard.
 ## 3. Wizard step 1 — Source CMS
 
 Select **WordPress REST API**. This alpha supports WordPress posts and pages,
-plus categories and tags.
+plus categories and tags. In the same wizard choose the **Generic CMS** website
+template (the recommended default) or **Content only**.
 
 ## 4. Wizard step 2 — WordPress connection
 
@@ -42,12 +43,16 @@ are reported, not migrated.
 
 ## 5. Wizard step 3 — Qortal destination
 
-Enter the Qortal name that will own the published resources. The name must be
-3–40 letters, digits, underscores or hyphens. QMS does not ask for a seed,
-private key or wallet password. Signing stays in Qortal Hub.
+Enter the exact registered Qortal name that will own the published resources.
+Core allows 3–40 UTF-8 bytes, Unicode letters and single internal spaces. QMS
+preserves the exact display name; it never substitutes a reduced or case-folded
+name. QMS does not ask for a seed, private key or wallet password. Signing stays
+in Qortal Hub.
 
-A site identity (`siteId`) is generated automatically and remains stable for
-the project.
+Set the website title, tagline and accent colour. If **Generic CMS** is
+selected, QMS packages the CMS as part of this project's publication and
+configures its title, tagline, navigation and theme. A site identity (`siteId`)
+is generated automatically and remains stable for the project.
 
 ## 6. Wizard step 4 — Import preferences
 

@@ -1,6 +1,6 @@
 {
   "name": "qms-generic-cms",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Generic Qortal CMS/site template for Qortal Migration Studio.",
   "type": "module",
   "private": true,

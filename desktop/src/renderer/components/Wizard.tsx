@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import type { AdapterInfo, DesktopSettings, PlanCreateResult, PlanDocument, ProjectDocument, SourceValidationResult, WizardState } from '../../shared/types.js';
 import { Alert, Badge, Card, ErrorText, Field } from './Common.js';
 import { formatBytes, formatDate } from '../format.js';
+import { checkQortalName } from '../../shared/qortalName.js';
 
 const STEPS = [
   'Source CMS',
@@ -31,6 +32,10 @@ function defaultWizard(project: ProjectDocument, adapters: AdapterInfo[]): Wizar
   const stored = storedWizard(project);
   const source = (project.source ?? {}) as Record<string, unknown>;
   const target = (project.target ?? {}) as Record<string, unknown>;
+  const projectSettings = (project.settings ?? {}) as Record<string, unknown>;
+  const website = (projectSettings.website ?? {}) as Record<string, unknown>;
+  const theme = (website.theme ?? {}) as Record<string, unknown>;
+  const colors = (theme.colors ?? {}) as Record<string, unknown>;
   return {
     step: stored.step ?? 1,
     completedSteps: Array.isArray(stored.completedSteps) ? stored.completedSteps : [],
@@ -41,6 +46,11 @@ function defaultWizard(project: ProjectDocument, adapters: AdapterInfo[]): Wizar
     targetQdnName: stored.targetQdnName ?? String(target.qdnName ?? ''),
     siteTitle: stored.siteTitle ?? String(target.siteName ?? project.name ?? ''),
     siteDescription: stored.siteDescription ?? String(target.siteDescription ?? ''),
+    website: {
+      cms: String(website.cms ?? 'generic-cms'),
+      tagline: String(website.tagline ?? ''),
+      accent: String(colors.accent ?? '#4da3ff')
+    },
     preferences: stored.preferences ?? {},
     planId: stored.planId ?? null,
     updatedAt: stored.updatedAt ?? new Date().toISOString()
@@ -78,6 +88,9 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
   const [targetName, setTargetName] = useState(initial.targetQdnName);
   const [siteTitle, setSiteTitle] = useState(initial.siteTitle);
   const [siteDescription, setSiteDescription] = useState(initial.siteDescription);
+  const [cmsTemplate, setCmsTemplate] = useState(String(initial.website?.cms ?? 'generic-cms'));
+  const [siteTagline, setSiteTagline] = useState(String(initial.website?.tagline ?? ''));
+  const [siteAccent, setSiteAccent] = useState(String(initial.website?.accent ?? '#4da3ff'));
   const [batchSize, setBatchSize] = useState(numberValue(preferences.batchSize, 15));
   const [contentTypes, setContentTypes] = useState<string[]>(Array.isArray(preferences.contentTypes) ? preferences.contentTypes as string[] : ['post', 'page']);
   const [after, setAfter] = useState(String(preferences.after ?? ''));
@@ -133,6 +146,11 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       targetQdnName: targetName,
       siteTitle,
       siteDescription,
+      website: {
+        cms: cmsTemplate,
+        tagline: siteTagline,
+        accent: siteAccent
+      },
       preferences: {
         batchSize: Number(batchSize),
         contentTypes,
@@ -183,8 +201,10 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
     }
     if (current === 3) {
       if (!targetName.trim()) return 'A Qortal name is required for planning.';
-      if (!/^[A-Za-z0-9](?:[A-Za-z0-9_-]{1,38}[A-Za-z0-9])$/.test(targetName.trim())) return 'The Qortal name format is invalid.';
+      const checked = checkQortalName(targetName);
+      if (!checked.ok) return checked.message;
       if (!siteTitle.trim()) return 'A website title is required.';
+      if (cmsTemplate === 'generic-cms' && !siteTagline.trim()) return 'A tagline is required when the Generic CMS is selected.';
       return '';
     }
     if (current === 4) {
@@ -224,9 +244,16 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
         });
       }
       if (step === 3) {
-        const target = await api().identity.validateTarget({ qdnName: targetName.trim() });
+        const target = await api().identity.validateTarget({ qdnName: targetName });
         await api().projects.update(project.id, {
-          target: { qdnName: target.qdnName, siteName: siteTitle.trim(), siteDescription: siteDescription.trim() }
+          target: { qdnName: target.qdnName, siteName: siteTitle.trim(), siteDescription: siteDescription.trim() },
+          settings: {
+            website: {
+              cms: cmsTemplate,
+              tagline: siteTagline.trim(),
+              theme: { colors: { accent: siteAccent } }
+            }
+          }
         });
       }
       if (step === 4) {
@@ -489,14 +516,26 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       {step === 3 && (
         <Card title="Qortal destination" subtitle="Local validation only. Remote name ownership and collisions are Phase 5 responsibilities.">
           <div className="grid-2">
-            <Field label="Target Qortal name" hint="3–40 letters, digits, underscores or hyphens.">
-              <input value={targetName} onChange={(event) => setTargetName(event.target.value)} placeholder="MyQortalName" />
+            <Field label="Target Qortal name" hint="Exact registered name: 3–40 UTF-8 bytes. Unicode letters and single internal spaces are valid.">
+              <input value={targetName} onChange={(event) => setTargetName(event.target.value)} placeholder="My Qortal Name" />
             </Field>
             <Field label="Website title">
               <input value={siteTitle} onChange={(event) => setSiteTitle(event.target.value)} />
             </Field>
+            <Field label="Tagline" hint="Shown by the Generic CMS under the site title.">
+              <input value={siteTagline} onChange={(event) => setSiteTagline(event.target.value)} placeholder="Independent publishing on Qortal" />
+            </Field>
             <Field label="Website description">
               <textarea value={siteDescription} onChange={(event) => setSiteDescription(event.target.value)} rows={3} />
+            </Field>
+            <Field label="Website template" hint="The default Generic CMS is published as an APP bundle with this project.">
+              <select value={cmsTemplate} onChange={(event) => setCmsTemplate(event.target.value)}>
+                <option value="generic-cms">Generic CMS (recommended)</option>
+                <option value="none">Content only (no website app)</option>
+              </select>
+            </Field>
+            <Field label="Accent colour" hint="Used by the Generic CMS theme.">
+              <input value={siteAccent} onChange={(event) => setSiteAccent(event.target.value)} placeholder="#4da3ff" />
             </Field>
             <div className="stack-sm">
               <strong>Generated site identity</strong>

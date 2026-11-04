@@ -185,6 +185,11 @@ export interface WizardState {
   targetQdnName: string;
   siteTitle: string;
   siteDescription: string;
+  website?: {
+    cms: string;
+    tagline: string;
+    accent: string;
+  };
   preferences: Record<string, unknown>;
   planId: string | null;
   updatedAt: string;
@@ -310,7 +315,7 @@ export interface DiagnosticsExport {
 
 export interface PublicationResource {
   id: string;
-  kind: 'media' | 'content' | 'index' | 'manifest';
+  kind: 'media' | 'content' | 'index' | 'manifest' | 'site';
   service: string;
   name: string;
   identifier: string;
@@ -364,6 +369,15 @@ export interface PublicationPrepareResult {
   estimate: Record<string, unknown>;
   packageValidated: boolean;
   message: string;
+}
+
+export interface PublicationBundleExport {
+  handoffId: string;
+  absolutePath: string;
+  filename: string;
+  bytes: number;
+  sha256: string;
+  resources: number;
 }
 
 export interface PublicationVerifyResult {
@@ -754,6 +768,7 @@ export interface QmsApi {
     settings(): Promise<DesktopSettings>;
     setDataRoot(path: string): Promise<DesktopSettings>;
     openPath(path: string): Promise<Record<string, unknown>>;
+    openUrl(url: string): Promise<Record<string, unknown>>;
   };
   projects: {
     list(includeArchived?: boolean): Promise<ProjectSummary[]>;
@@ -793,6 +808,7 @@ export interface QmsApi {
   publication: {
     list(projectId: string): Promise<PublicationHandoffSummary[]>;
     prepare(projectId: string, planId: string, selection: string[], options?: Record<string, unknown>): Promise<PublicationPrepareResult>;
+    exportBundle(projectId: string, handoffId: string): Promise<PublicationBundleExport>;
     get(projectId: string, handoffId: string, validate?: boolean): Promise<PublicationHandoffDetail>;
     importReceipt(projectId: string, handoffId: string, receipt: Record<string, unknown>): Promise<Record<string, unknown>>;
     verify(projectId: string, handoffId: string, nodeUrl: string, options?: Record<string, unknown>): Promise<PublicationVerifyResult>;

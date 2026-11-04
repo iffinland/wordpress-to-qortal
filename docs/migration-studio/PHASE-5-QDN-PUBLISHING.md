@@ -4,7 +4,7 @@
 | --- | --- |
 | Document | Phase 5 implementation, security and verification guide |
 | Date | 2026-11-03 |
-| Status | Variant A implemented and locally tested; real Hub-signed QDN publication not exercised in this environment |
+| Status | Variant A implemented and locally tested; 0.6.1 adds a standalone Q-App build, ZIP packages and APP bundles. Real Hub-signed mixed-service QDN publication is still not exercised. |
 | Scope | Portable handoff, universal Migration Publisher Q-App, account/name checks, controlled batching, exact QDN read-back, receipts, desktop reconciliation, Variant B assessment |
 | Phase 4 baseline | b3b3b81f2baf45c02decfbabaa98e1e96700d57b |
 | Phase 5 branch | agent/qortal-wordpress-to-qortal/20261103T070706Z-qortal-migration-studio-phase-5 |
@@ -510,3 +510,34 @@ To complete live acceptance, an operator must:
   verified content.
 - Keep Variant B deferred unless a threat-modeled, authenticated, one-time
   transfer design is fully implemented and tested.
+
+## 16. 0.6.1 integration update — standalone Publisher, ZIP packages and APP bundles
+
+Phase 5.3-style integration is implemented in the 0.6.1 alpha candidate:
+
+- **Standalone Q-App build.** `viewer/vite.publisher.config.ts` builds
+  `viewer/dist-publisher` from `viewer/publisher/index.html` with no profile,
+  preview data, local content server or hardcoded owner name. The bundle
+  validator rejects absolute asset URLs, source maps, profile/Corbett
+  identities and parent/top-frame bridge assumptions.
+- **Portable distribution artifact.**
+  `npm run publisher:package` writes
+  `release/qortal-migration-publisher-v0.6.1.zip` plus a SHA-256 checksum.
+- **One-file handoff.** The desktop exports
+  `<data-root>/exports/<handoffId>-publisher.zip`; the Publisher accepts that
+  ZIP or the folder. A ZIP with one root folder is normalized safely; traversal,
+  duplicate paths, oversized entries and encrypted archives fail closed.
+- **CMS APP resources.** A handoff may contain one `kind: "site"` resource with
+  service `APP`. Its payload is the exact deterministic CMS ZIP; its
+  `metadata.bundle.files` list is the exact member read-back contract. The
+  Publisher submits it with `isMultiFileZip: true` after the manifest and reads
+  each member through `?filepath=...&encoding=base64`.
+- **Live fee quote.** The Publisher queries the node's
+  `/transactions/unitfee?txType=ARBITRARY` and displays the timestamped quote.
+  Hub's approval remains authoritative.
+- **Deployment status.** The artifact is **not deployed**. Deployment needs an
+  owner name and wallet approval outside the development broker's scope; see
+  `PUBLISHER-QAPP-DEPLOYMENT.md`.
+
+The development broker still permits DOCUMENT-only `qms-dev-` resources on the
+exact `developer iffi` name. No IMAGE or APP live publish is claimed.

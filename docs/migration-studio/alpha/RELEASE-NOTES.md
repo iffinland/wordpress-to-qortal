@@ -2,6 +2,15 @@
 
 <!-- alpha-release-version: 0.6.0 -->
 
+## 0.6.1 alpha candidate
+
+0.6.1 adds the standalone Migration Publisher Q-App, one-file Publisher
+packages and Generic CMS APP deployment. See
+[../RELEASE-0.6.1-ALPHA.md](../RELEASE-0.6.1-ALPHA.md). It is not a published
+release: the mixed-service live acceptance gate and the public Publisher
+Q-App deployment are outstanding owner-authorized actions. The 0.6.0 download
+below remains the latest public build.
+
 Qortal Migration Studio (QMS) is a Linux desktop application that prepares a
 WordPress site for publication on Qortal QDN. It reads a public WordPress site,
 normalizes editorial content, downloads and deduplicates supported media,
