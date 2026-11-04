@@ -37,7 +37,7 @@ run('build Debian package', 'npm', ['run', 'release:deb']);
 run('validate Debian package', 'npm', ['run', 'release:validate']);
 run('run release security gate', 'npm', ['run', 'release:security']);
 
-if (args.has('--repro')) {
+if (!args.has('--skip-repro')) {
   const paths = releaseArtifactPaths(REPO_ROOT, release);
   const before = {};
   for (const kind of ['publisher', 'cms']) {
@@ -54,6 +54,8 @@ if (args.has('--repro')) {
   }
   console.log('Q-App ZIP reproducibility verified for both ZIPs.');
   run('verify .deb reproducibility from a clean checkout', process.execPath, ['scripts/release/repro-check.mjs']);
+} else {
+  console.log('WARNING: --skip-repro was used; reproducibility evidence is missing.');
 }
 
 run('enforce three-artifact release gate', process.execPath, ['scripts/release/three-artifact-gate.mjs', '--tag=' + tag]);

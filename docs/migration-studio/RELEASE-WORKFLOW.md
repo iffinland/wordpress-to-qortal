@@ -59,9 +59,9 @@ npm run release:prepare
 It **fails the release** when any required artifact is missing, a ZIP is invalid
 or not root-layout, the three artifacts disagree on version or compatibility
 schemas, the Debian validation or security gate fails, provenance or SBOM cannot
-be generated, or `SHA256SUMS` omits any required artifact. Add `-- --repro` to
-prove that both ZIPs rebuild byte-identically and that the .deb rebuilds from a
-clean checkout. When Publisher or CMS code changes, the next release rebuilds
+be generated, or `SHA256SUMS` omits any required artifact. Preparation always
+proves that both ZIPs rebuild byte-identically and that the .deb rebuilds from a
+clean checkout (`-- --skip-repro` exists only for local trials). When Publisher or CMS code changes, the next release rebuilds
 the corresponding ZIP from that commit; old assets are never reused.
 
 The gate writes `release/release-manifest.json`, which is the only input to

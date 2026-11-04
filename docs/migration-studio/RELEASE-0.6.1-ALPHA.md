@@ -43,12 +43,13 @@
 
 | Gate | Result |
 | --- | --- |
-| Root test suite | 423/423 pass |
+| Root test suite | 431/431 pass (includes 8 three-artifact gate tests) |
 | Phase 5 / 5.1 / 5.2 | pass |
 | Phase 6 CMS tests and build | pass, 20/20 template tests |
 | Phase 7 / 8 / 9 | pass |
 | Publisher build + bundle validation | pass |
 | Desktop typecheck + tests | pass, 44/44 |
+| Three-artifact gate | pass: .deb + Publisher ZIP + Generic CMS ZIP, root layout, versions, SHA256SUMS |
 | Real .deb packaging | `qortal-migration-studio_0.6.1_amd64.deb`; size and SHA-256 are recorded in this release's `SHA256SUMS` and `release-manifest.json` |
 | Live mixed-service Hub publication | **NOT PERFORMED — external authorization blocker** |
 | Publisher Q-App public deployment | **NOT PERFORMED — owner wallet/QDN approval required** |

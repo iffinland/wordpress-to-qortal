@@ -39,8 +39,9 @@ This single command:
 8. generates the CycloneDX SBOM and the in-toto/SLSA provenance statement;
 9. verifies release state and checksums.
 
-Add `-- --repro` to rebuild both ZIPs and the .deb from a clean checkout and
-compare SHA-256 values.
+Preparation always rebuilds both ZIPs and the .deb from a clean checkout to
+compare SHA-256 values. Use `-- --skip-repro` only for a local trial run; a
+release without reproducibility evidence is not acceptable.
 
 ## Artifacts
 

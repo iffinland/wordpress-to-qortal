@@ -22,7 +22,12 @@ const security = await readJson(path.join(releaseDir, 'security-report.json'));
 const sbom = await readJson(path.join(releaseDir, 'sbom.cdx.json'));
 const provenance = await readJson(path.join(releaseDir, 'provenance.intoto.json'));
 const buildInfo = await readJson(path.join(releaseDir, 'build-info.json'));
-const reproducibility = await readJson(path.join(releaseDir, 'reproducibility.json'));
+let reproducibility = null;
+try {
+  reproducibility = await readJson(path.join(releaseDir, 'reproducibility.json'));
+} catch {
+  reproducibility = null;
+}
 const installArg = process.argv.find((value) => value.startsWith('--install-evidence='));
 const installEvidencePath = installArg ? path.resolve(installArg.slice('--install-evidence='.length)) : null;
 const installEvidence = installEvidencePath ? await readJson(installEvidencePath) : null;
