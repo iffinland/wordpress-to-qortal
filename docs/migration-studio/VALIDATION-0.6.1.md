@@ -18,15 +18,15 @@ unsigned, amd64).
 | Phase 9 release tests + version check | pass |
 | `npm run check` (tests + migration/CMS/Corbett builds) | pass |
 | Publisher build + bundle validation | pass, 3 files, 199,458 bytes |
-| Publisher ZIP package | `release/qortal-migration-publisher-v0.6.1.zip`, 68,054 bytes |
-| Publisher ZIP SHA-256 | `d77da07b73f975d6a51f69c03d1418702d8cd7bb0e5be2400bdaa48dc760c8b2` |
-| Debian package | `qortal-migration-studio_0.6.1_amd64.deb`, 108,157,146 bytes |
-| Debian package SHA-256 | `8fc9226c16c7b4697c1f1d1b07ece2984a218e39ac348ba0b758ccb850c8c050` |
-| Debian source commit | `e926c1147ee5e0f875470c9965fd35d087977765` |
+| Publisher ZIP package | `release/qortal-migration-publisher-v0.6.1.zip`, 68,080 bytes |
+| Publisher ZIP SHA-256 | `6a6ec8f17abf21a4ea14a054acb95a9d1b164975380da7c8a2411afa2e1fcedd` |
+| Debian package | `qortal-migration-studio_0.6.1_amd64.deb`, 108,157,438 bytes |
+| Debian package SHA-256 | `525a9f1a7ed097e6c41a45b871aa649212e54d1ed21a13282c3b4793ab3f62b9` |
+| Debian source commit | `7033760f27575fc8d76767505d867be269445284` |
 
 New deterministic tests:
 
-- `test/phase5/site.test.js` — CMS application bundle (APP and WEBSITE), same-name coexistence, deterministic ZIP, config
+- `test/phase5/site.test.js` — CMS application bundle (APP and WEBSITE), same-name coexistence with distinct service triples, deterministic ZIP, config
   contents, tamper rejection, single-file export, per-member read-back.
 - `test/phase5/publisher-qapp.test.js` — browser validator accepts the exported
   ZIP and rejects a tampered CMS bundle.

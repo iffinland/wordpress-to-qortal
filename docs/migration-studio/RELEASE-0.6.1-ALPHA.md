@@ -15,7 +15,8 @@
 
 - Standalone **Migration Publisher Q-App** build (`viewer/dist-publisher`) with
   no profile, preview engine or hardcoded identity. Validated root-layout ZIP at
-  `release/qortal-migration-publisher-v0.6.1.zip`.
+  `release/qortal-migration-publisher-v0.6.1.zip` (SHA-256
+  `6a6ec8f17abf21a4ea14a054acb95a9d1b164975380da7c8a2411afa2e1fcedd`).
 - **Single-file Publisher package**: the desktop exports one
   `<handoffId>-publisher.zip`; the Publisher accepts that ZIP or the folder.
 - **Generic CMS as an application bundle**: a project that selects the default Generic
@@ -24,7 +25,7 @@
   after the manifest and verifies every member through
   `?filepath=...&encoding=base64`.
 - **Desktop integration**: wizard CMS/tagline/accent settings, ZIP export,
-  receipt import, independent exact read-back for DOCUMENT/IMAGE/APP, and an
+  receipt import, independent exact read-back for DOCUMENT/IMAGE/APP/WEBSITE, and an
   “Open published website” action after exact verification.
 - **Live fee quote** in the Publisher using the node's
   `/transactions/unitfee?txType=ARBITRARY`, clearly separate from Hub's
@@ -42,7 +43,7 @@
 | Phase 7 / 8 / 9 | pass |
 | Publisher build + bundle validation | pass |
 | Desktop typecheck + tests | pass, 44/44 |
-| Real .deb packaging | `qortal-migration-studio_0.6.1_amd64.deb`, 108,157,146 bytes, SHA-256 `8fc9226c16c7b4697c1f1d1b07ece2984a218e39ac348ba0b758ccb850c8c050` |
+| Real .deb packaging | `qortal-migration-studio_0.6.1_amd64.deb`, 108,157,438 bytes, SHA-256 `525a9f1a7ed097e6c41a45b871aa649212e54d1ed21a13282c3b4793ab3f62b9` |
 | Live mixed-service Hub publication | **NOT PERFORMED — external authorization blocker** |
 | Publisher Q-App public deployment | **NOT PERFORMED — owner wallet/QDN approval required** |
 
