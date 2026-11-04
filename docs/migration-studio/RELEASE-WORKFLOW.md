@@ -42,6 +42,31 @@ GH_BROWSER=/bin/true /home/iffi/.local/bin/gh auth login \
 - Verify with `gh auth status`; expected scopes: `repo`, `gist`, `read:org`.
 - If the token expires, repeat the device flow. No other credential store is involved.
 
+## Mandatory three-artifact release gate
+
+Every alpha or stable release must ship exactly these production artifacts:
+
+1. `qortal-migration-studio_<version>_amd64.deb` — desktop application;
+2. `qortal-migration-publisher-v<version>.zip` — root-layout Migration Publisher Q-App;
+3. `qortal-migration-generic-cms-v<version>.zip` — root-layout Generic CMS Q-App.
+
+Release preparation is a single command:
+
+```bash
+npm run release:prepare
+```
+
+It **fails the release** when any required artifact is missing, a ZIP is invalid
+or not root-layout, the three artifacts disagree on version or compatibility
+schemas, the Debian validation or security gate fails, provenance or SBOM cannot
+be generated, or `SHA256SUMS` omits any required artifact. Preparation always
+proves that both ZIPs rebuild byte-identically and that the .deb rebuilds from a
+clean checkout (`-- --skip-repro` exists only for local trials). When Publisher or CMS code changes, the next release rebuilds
+the corresponding ZIP from that commit; old assets are never reused.
+
+The gate writes `release/release-manifest.json`, which is the only input to
+publishing. Manual asset selection is not supported.
+
 ## Release checklist
 
 1. Verify the tag points at the intended source commit:
@@ -53,8 +78,10 @@ GH_BROWSER=/bin/true /home/iffi/.local/bin/gh auth login \
    vocabulary, known limitations, documentation links, provenance block.
 5. State the signing status explicitly. An unsigned package must never be described as signed.
 6. Publish as a prerelease for alpha builds (`--prerelease`), never as a stable release.
-7. Attach: `.deb`, `SHA256SUMS`, `RELEASE-NOTES.md`, install and user guides,
-   `KNOWN-ISSUES.md`, `sbom.cdx.json`, `provenance.intoto.json`.
+7. Attach the three artifacts, `SHA256SUMS`, `RELEASE-NOTES.md`, the release
+   manifest, install and user guides, `KNOWN-ISSUES.md`, `sbom.cdx.json` and
+   `provenance.intoto.json`. Always use `npm run release:publish`, which derives
+   this list from the manifest and uploads all three artifacts automatically.
 8. Do not attach secrets, broker configuration, wallets, private credentials or internal operational files.
 
 ## Publish
@@ -63,29 +90,32 @@ GH_BROWSER=/bin/true /home/iffi/.local/bin/gh auth login \
 export PATH=/home/iffi/.local/bin:$PATH
 cd /home/iffi/dev-workspace/docs/releases/<version>
 
-gh release create <tag> --repo iffinland/wordpress-to-qortal \
-  --prerelease --verify-tag \
-  --title 'Qortal Migration Studio <version> (unsigned alpha)' \
-  --notes-file /tmp/qms-release-body.md \
-  qortal-migration-studio_<version>_amd64.deb SHA256SUMS RELEASE-NOTES.md \
-  INSTALL-LINUX.md FIRST-RUN-GUIDE.md MIGRATION-WALKTHROUGH.md \
-  SYNC-AND-RECOVERY.md SUPPORTED-CONTENT.md KNOWN-ISSUES.md \
-  sbom.cdx.json provenance.intoto.json
+cd /home/iffi/dev-workspace/projects/wordpress-to-qortal
+npm run release:prepare -- --tag=<tag>   # optional here if already prepared
+npm run release:publish -- --tag=<tag>
 ```
 
-If a release for the tag already exists, inspect it with `gh release view <tag> --json assets` and
-reconcile (upload missing assets or edit notes). Never delete and recreate a published release, and
-never overwrite an unrelated stable release.
+If a release for the tag already exists, the publisher stops. Inspect it with
+`gh release view <tag> --json assets` and reconcile only by uploading missing
+assets or editing notes. Never delete and recreate a published release, never
+silently replace an existing asset, and never overwrite an unrelated stable
+release.
 
 ## Post-publication verification
 
 ```bash
 gh release view <tag> --json tagName,isPrerelease,isDraft,assets
 
-# independent download, no auth, checksum must match the approved artifact
+# independent downloads, no auth; every checksum must match the approved artifact
 curl -sSL -o /tmp/pub.deb \
   "https://github.com/iffinland/wordpress-to-qortal/releases/download/<tag>/qortal-migration-studio_<version>_amd64.deb"
 sha256sum /tmp/pub.deb
+
+# repeat the same independent download and hash for the two Q-App ZIPs:
+#   qortal-migration-publisher-v<version>.zip
+#   qortal-migration-generic-cms-v<version>.zip
+# The automated publisher (npm run release:publish) performs all three checks
+# and writes release/public-verification.json.
 ```
 
 Record: release URL, direct asset URL, version, size, SHA-256, prerelease flag, and the list of

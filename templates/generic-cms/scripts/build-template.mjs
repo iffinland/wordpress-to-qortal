@@ -49,16 +49,21 @@ console.log('Validated root-layout Q-App bundle: ' + distDir);
 if (process.argv.includes('--zip')) {
   const releaseDir = path.join(repoRoot, 'release');
   mkdirSync(releaseDir, { recursive: true });
-  const zipPath = path.join(releaseDir, 'qms-generic-cms-template-v' + packageJson.version + '.zip');
+  const zipPath = path.join(releaseDir, 'qortal-migration-generic-cms-v' + packageJson.version + '.zip');
   rmSync(zipPath, { force: true });
   const entries = {};
-  for (const entry of readdirSync(distDir, { recursive: true, withFileTypes: true })) {
-    if (!entry.isFile()) continue;
-    const absolute = path.join(entry.parentPath || entry.path, entry.name);
-    const relative = path.relative(distDir, absolute).split(path.sep).join('/');
-    entries[relative] = new Uint8Array(readFileSync(absolute));
+  const mtime = new Date('1980-01-01T00:00:00.000Z');
+  const files = readdirSync(distDir, { recursive: true, withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => {
+      const absolute = path.join(entry.parentPath || entry.path, entry.name);
+      return { absolute, relative: path.relative(distDir, absolute).split(path.sep).join('/') };
+    })
+    .sort((a, b) => a.relative.localeCompare(b.relative));
+  for (const file of files) {
+    entries[file.relative] = [new Uint8Array(readFileSync(file.absolute)), { level: 6, mtime }];
   }
-  writeFileSync(zipPath, zipSync(entries, { level: 6 }));
+  writeFileSync(zipPath, zipSync(entries, { level: 6, mtime }));
   console.log('Q-App zip: ' + zipPath);
 }
 

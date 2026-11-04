@@ -80,6 +80,37 @@ components.set('pkg:npm/electron@' + electronPackage.version, {
   ]
 });
 
+const releaseManifestPath = path.join(REPO_ROOT, 'release/release-manifest.json');
+let releaseManifest = null;
+try {
+  releaseManifest = await readJson(releaseManifestPath);
+} catch {
+  releaseManifest = null;
+}
+if (!releaseManifest || releaseManifest.schema !== 'qms-release-artifacts@1') {
+  console.error('three-artifact release manifest is missing; run the release gate before generating the SBOM.');
+  process.exitCode = 1;
+}
+const releaseArtifacts = releaseManifest?.artifacts ?? [];
+for (const entry of releaseArtifacts) {
+  if (entry.kind === 'deb') continue;
+  const bomRef = 'pkg:generic/' + entry.name.replace(/\.zip$/, '') + '@' + release.version;
+  components.set(bomRef, {
+    type: 'application',
+    'bom-ref': bomRef,
+    name: entry.name,
+    version: release.version,
+    purl: bomRef,
+    scope: 'required',
+    hashes: [{ alg: 'SHA-256', content: entry.sha256 }],
+    properties: [
+      { name: 'qms:artifactKind', value: entry.kind },
+      { name: 'qms:artifactLayout', value: entry.layout },
+      { name: 'qms:artifactBytes', value: String(entry.bytes) }
+    ]
+  });
+}
+
 const sorted = [...components.values()].sort((a, b) => a['bom-ref'].localeCompare(b['bom-ref']));
 const seed = createHash('sha256').update(git.commit + ':' + artifactSha).digest('hex');
 const serial = [seed.slice(0, 8), seed.slice(8, 12), '5' + seed.slice(13, 16), ((parseInt(seed.slice(16, 18), 16) & 0x3f) | 0x80).toString(16) + seed.slice(18, 20), seed.slice(20, 32)].join('-');

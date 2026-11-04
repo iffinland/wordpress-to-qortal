@@ -42,7 +42,7 @@
     "headingFontFamily": "Georgia, Cambria, Times New Roman, serif"
   },
   "admin": {
-    "qdnName": "Qortal",
+    "qdnName": "",
     "requireOwnerForImport": true
   }
 }

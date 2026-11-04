@@ -17,6 +17,21 @@ const artifact = path.join(REPO_ROOT, 'desktop/release', artifactName(config.pac
 const git = gitInfo(REPO_ROOT);
 const artifactSha = await sha256File(artifact);
 const artifactInfo = await readJson(path.join(REPO_ROOT, 'desktop/release/artifact.json')).catch(() => null);
+const releaseManifest = await readJson(path.join(REPO_ROOT, 'release/release-manifest.json')).catch(() => null);
+if (!releaseManifest || releaseManifest.schema !== 'qms-release-artifacts@1' || releaseManifest.artifacts?.length !== 3) {
+  console.error('three-artifact release manifest is missing or incomplete; run the release gate first.');
+  process.exit(1);
+}
+const manifestArtifacts = [];
+for (const entry of releaseManifest.artifacts) {
+  const absolute = entry.kind === 'deb' ? artifact : path.join(REPO_ROOT, 'release', entry.name);
+  const actualSha = await sha256File(absolute);
+  if (actualSha !== entry.sha256) {
+    console.error('artifact changed after the release gate: ' + entry.name);
+    process.exit(1);
+  }
+  manifestArtifacts.push({ ...entry, path: absolute, sha256: actualSha });
+}
 const validation = await readJson(path.join(REPO_ROOT, 'desktop/release/validation.json', )).catch(() => null);
 
 const inputFiles = [
@@ -56,17 +71,24 @@ const finishedOn = artifactInfo?.builtAt ?? new Date().toISOString();
 const invocationId = createHash('sha256').update(git.commit + ':' + artifactSha).digest('hex');
 const statement = {
   _type: 'https://in-toto.io/Statement/v1',
-  subject: [{ name: path.basename(artifact), digest: { sha256: artifactSha } }],
+  subject: manifestArtifacts.map((entry) => ({ name: path.basename(entry.path), digest: { sha256: entry.sha256 } })),
   predicateType: 'https://slsa.dev/provenance/v1',
   predicate: {
     buildDefinition: {
-      buildType: 'https://github.com/iffinland/wordpress-to-qortal/buildtypes/deb@1',
+      buildType: 'https://github.com/iffinland/wordpress-to-qortal/buildtypes/qms-release@1',
       externalParameters: {
         product: release.product,
         version: release.version,
         channel: release.channel,
         architecture: release.architecture,
-        signing: release.signing
+        signing: release.signing,
+        artifacts: manifestArtifacts.map((entry) => ({
+          kind: entry.kind,
+          name: entry.name,
+          sha256: entry.sha256,
+          bytes: entry.bytes,
+          layout: entry.layout
+        }))
       },
       internalParameters: {
         sourceDateEpoch: epoch,
@@ -123,7 +145,11 @@ await writeJson(path.join(REPO_ROOT, 'desktop/release/build-info.json'), {
     'npm --prefix desktop run build',
     'npm --prefix desktop run prepare:engine',
     'electron-builder --linux dir',
-    'dpkg-deb --build --root-owner-group --uniform-compression -Zgzip -z9'
+    'dpkg-deb --build --root-owner-group --uniform-compression -Zgzip -z9',
+    'npm --prefix templates/generic-cms run build -- --zip',
+    'npm run publisher:build',
+    'npm run publisher:validate',
+    'npm run publisher:package'
   ]
 });
 console.log('provenance written for ' + path.basename(artifact) + ' sha256=' + artifactSha);

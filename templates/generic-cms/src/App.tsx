@@ -107,7 +107,7 @@ export function App() {
   useEffect(() => {
     let cancelled = false;
     setIdentityLoading(true);
-    (resolveViewerIdentity({ qdnName: discoverQdnName(cmsConfig.admin.qdnName || cmsConfig.site.ownerName) }) as Promise<ViewerIdentity>)
+    (resolveViewerIdentity({ qdnName: discoverQdnName(cmsConfig.admin.qdnName || '') }) as Promise<ViewerIdentity>)
       .then((next) => {
         if (!cancelled) {
           setIdentity(next);

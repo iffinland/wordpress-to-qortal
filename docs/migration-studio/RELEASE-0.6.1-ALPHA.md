@@ -14,9 +14,15 @@
 ## Delivered
 
 - Standalone **Migration Publisher Q-App** build (`viewer/dist-publisher`) with
-  no profile, preview engine or hardcoded identity. Validated root-layout ZIP at
-  `release/qortal-migration-publisher-v0.6.1.zip` (SHA-256
-  `6a6ec8f17abf21a4ea14a054acb95a9d1b164975380da7c8a2411afa2e1fcedd`).
+  no profile, preview engine or hardcoded identity. Validated root-layout ZIP
+  `qortal-migration-publisher-v0.6.1.zip`.
+- Standalone **Generic CMS Q-App** build (`templates/generic-cms/dist`) as a
+  root-layout ZIP `qortal-migration-generic-cms-v0.6.1.zip`, using a neutral
+  configuration with no hardcoded user QDN name.
+- **Mandatory three-artifact release gate**: `npm run release:prepare` builds
+  and validates the .deb and both Q-App ZIPs, writes
+  `release/release-manifest.json` and `release/SHA256SUMS`, and fails if any
+  artifact is missing, invalid, version-incompatible or omitted from checksums.
 - **Single-file Publisher package**: the desktop exports one
   `<handoffId>-publisher.zip`; the Publisher accepts that ZIP or the folder.
 - **Generic CMS as an application bundle**: a project that selects the default Generic
@@ -37,13 +43,14 @@
 
 | Gate | Result |
 | --- | --- |
-| Root test suite | 423/423 pass |
+| Root test suite | 431/431 pass (includes 8 three-artifact gate tests) |
 | Phase 5 / 5.1 / 5.2 | pass |
 | Phase 6 CMS tests and build | pass, 20/20 template tests |
 | Phase 7 / 8 / 9 | pass |
 | Publisher build + bundle validation | pass |
 | Desktop typecheck + tests | pass, 44/44 |
-| Real .deb packaging | `qortal-migration-studio_0.6.1_amd64.deb`, 108,157,438 bytes, SHA-256 `525a9f1a7ed097e6c41a45b871aa649212e54d1ed21a13282c3b4793ab3f62b9` |
+| Three-artifact gate | pass: .deb + Publisher ZIP + Generic CMS ZIP, root layout, versions, SHA256SUMS |
+| Real .deb packaging | `qortal-migration-studio_0.6.1_amd64.deb`; size and SHA-256 are recorded in this release's `SHA256SUMS` and `release-manifest.json` |
 | Live mixed-service Hub publication | **NOT PERFORMED — external authorization blocker** |
 | Publisher Q-App public deployment | **NOT PERFORMED — owner wallet/QDN approval required** |
 

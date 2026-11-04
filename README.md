@@ -6,10 +6,43 @@ normalizes the content, downloads and de-duplicates supported media, prepares
 deterministic QDN batches, hands them to a separate Qortal Hub publishing app,
 and verifies the resulting QDN resources byte-for-byte.
 
-> **Alpha download:** [qortal-migration-studio_0.6.0_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.0-alpha.1/qortal-migration-studio_0.6.0_amd64.deb)
-> — [release notes](https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.0-alpha.1) ·
-> [all releases](https://github.com/iffinland/wordpress-to-qortal/releases) ·
-> [install guide](docs/migration-studio/INSTALL-LINUX.md)
+## Download Qortal Migration Studio 0.6.1 alpha
+
+The release ships three files. Most people need the desktop application; the
+two Q-App ZIPs are for publishing and for the public website runtime.
+
+| What you need | Download | What it does |
+| --- | --- | --- |
+| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.6.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-studio_0.6.1_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
+| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-publisher-v0.6.1.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
+| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-generic-cms-v0.6.1.zip) | The neutral website/APP Q-App that renders a published QDN catalog. It is the site runtime, not the migration tool. |
+
+Also download [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/SHA256SUMS),
+[sbom.cdx.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/sbom.cdx.json)
+and [provenance.intoto.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/provenance.intoto.json)
+to verify the files. Release page:
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.1>.
+
+**Who needs what**
+
+- **One migration operator** needs the Linux .deb package. It includes the
+  publishing handoff builder and the Generic CMS template that the Publisher
+  packages per site.
+- **A Qortal community or service operator** can deploy the **Migration
+  Publisher** once as a shared public Q-App under one registered name. Every
+  user can then send their QMS handoff ZIP to that same Publisher instead of
+  installing or publishing their own copy. If you prefer, each user can deploy
+  a private Publisher instance from the same ZIP.
+- **Every migrated site** needs the **Generic CMS** bundle. QMS builds the
+  site-specific bundle and configuration, so end users normally do not deploy
+  this ZIP by hand; it is published as part of the site's APP/WEBSITE resource.
+  Download it separately only when you want to inspect or run the neutral site
+  template yourself.
+
+All three artifacts come from the same tagged commit and pass the mandatory
+three-artifact release gate. The desktop package is **unsigned** and amd64-only;
+see [Alpha status](#alpha-status) and
+[docs/migration-studio/INSTALL-LINUX.md](docs/migration-studio/INSTALL-LINUX.md).
 
 Qortal Migration Studio is an independent open-source project. It is not
 affiliated with, sponsored by, or endorsed by any website you choose to
@@ -17,10 +50,10 @@ migrate, or by the Qortal project.
 
 ## Alpha status
 
-Version **0.6.0** is the latest published alpha. Version **0.6.1** adds the
-standalone Migration Publisher Q-App, single-file Publisher packages and
-Generic CMS APP deployment; its release candidate is internal until the live
-mixed-service acceptance gate passes. Read
+Version **0.6.1** is the latest published alpha. It adds the standalone
+Migration Publisher Q-App, single-file Publisher packages and Generic CMS
+APP deployment. The release artifacts are published, but the live
+mixed-service acceptance gate has not been performed. Read
 [docs/migration-studio/alpha/KNOWN-ISSUES.md](docs/migration-studio/alpha/KNOWN-ISSUES.md)
 before you rely on any build.
 
@@ -62,14 +95,14 @@ or any development tools.
 ## Download, install and launch
 
 1. Download
-   [qortal-migration-studio_0.6.0_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.0-alpha.1/qortal-migration-studio_0.6.0_amd64.deb)
+   [qortal-migration-studio_0.6.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-studio_0.6.1_amd64.deb)
    and the release assets `SHA256SUMS`, `sbom.cdx.json` and
    `provenance.intoto.json`.
 2. Verify the checksum (see [Security](#security-and-checksums)).
 3. Install and launch:
 
 ```bash
-sudo apt install ./qortal-migration-studio_0.6.0_amd64.deb
+sudo apt install ./qortal-migration-studio_0.6.1_amd64.deb
 qortal-migration-studio
 ```
 
@@ -254,7 +287,8 @@ for the full security posture.
 ## Documentation
 
 - [Alpha documentation index](docs/migration-studio/alpha/README.md)
-- [Release notes — 0.6.0 alpha](docs/migration-studio/alpha/RELEASE-NOTES.md)
+- [Release notes — 0.6.1 alpha](docs/migration-studio/RELEASE-0.6.1-ALPHA.md)
+- [Developer build and release guide](docs/migration-studio/DEVELOPER-BUILD.md)
 - [Install, upgrade and uninstall](docs/migration-studio/INSTALL-LINUX.md)
 - [First run](docs/migration-studio/alpha/FIRST-RUN-GUIDE.md)
 - [Migration walkthrough](docs/migration-studio/alpha/MIGRATION-WALKTHROUGH.md)
@@ -291,6 +325,14 @@ first. Report bugs through
 Never include WordPress passwords or application passwords, Qortal seeds,
 private keys, wallet passwords, broker credentials, or unredacted content in
 an issue. Attach a redacted QMS support bundle instead of raw logs.
+
+## Developer build
+
+End-user instructions are above. Building from source, packaging the three
+release artifacts and publishing a release are documented separately in
+[docs/migration-studio/DEVELOPER-BUILD.md](docs/migration-studio/DEVELOPER-BUILD.md).
+The short version is `npm run release:prepare` followed by
+`npm run release:publish -- --tag=<tag>`.
 
 ## Contributing
 
