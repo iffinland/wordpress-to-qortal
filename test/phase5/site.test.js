@@ -46,6 +46,7 @@ test('a Generic CMS site is packaged as an exact APP bundle after the manifest',
   assert.equal(config.site.ownerName, 'SyntheticSite');
   assert.equal(config.theme.colors.accent, '#ff8800');
   assert.equal(config.content.manifestIdentifier, dependency.identifier);
+  assert.ok(config.navigation.some((entry) => entry.href === '#/admin'), 'default CMS navigation includes the admin route');
   assert.ok(entries['index.html'], 'entrypoint is present');
   const validated = await validateHandoffPackage({ handoffDir: dir });
   assert.equal(validated.verified.length, manifest.resources.length);
