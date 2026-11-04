@@ -87,12 +87,14 @@ async function inspectZip(repoRoot, release, kind) {
     return { ok: false, errors: ['Required artifact is missing: ' + path.basename(file)], name: path.basename(file), path: file, bytes: 0, sha256: '', files: [] };
   }
   const result = await inspectQappZip(file, { kind, version: release.version });
+  const downloadBytes = await fileSize(file);
   return {
     ok: result.ok,
     errors: result.errors,
     name: path.basename(file),
     path: file,
-    bytes: result.bytes,
+    bytes: downloadBytes,
+    uncompressedBytes: result.bytes,
     sha256: result.sha256,
     files: result.files
   };
@@ -156,6 +158,7 @@ export async function runThreeArtifactGate({ repoRoot = REPO_ROOT, release: rele
       label: ARTIFACT_LABELS[kind],
       name: artifacts[kind].name,
       bytes: artifacts[kind].bytes,
+      uncompressedBytes: artifacts[kind].uncompressedBytes ?? null,
       sha256: artifacts[kind].sha256,
       entrypoint: kind === 'deb' ? null : '/index.html',
       files: artifacts[kind].files.length,
