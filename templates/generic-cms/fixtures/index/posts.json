@@ -1,0 +1,57 @@
+{
+  "schema": "qms-cms-index@1",
+  "version": 1,
+  "generated_at": "2026-10-30T12:00:00.000Z",
+  "type": "posts",
+  "count": 3,
+  "entries": [
+    {
+      "id": "post-hello",
+      "type": "post",
+      "title": "Hello Qortal",
+      "slug": "hello-qortal",
+      "status": "published",
+      "excerpt": "A neutral first post published directly to QDN.",
+      "category_ids": ["cat-news"],
+      "tag_ids": ["tag-intro"],
+      "created_at": "2026-10-01T09:00:00.000Z",
+      "updated_at": "2026-10-20T10:30:00.000Z",
+      "published_at": "2026-10-20T10:30:00.000Z",
+      "content": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-post-hello" },
+      "content_hash": "sha256-hello",
+      "featured_image": { "service": "IMAGE", "name": "QortalDemo", "identifier": "qms-fixture-image-hero" }
+    },
+    {
+      "id": "post-design",
+      "type": "post",
+      "title": "Designing for Qortal",
+      "slug": "designing-for-qortal",
+      "status": "published",
+      "excerpt": "Accessible, responsive defaults for decentralized publishing.",
+      "category_ids": ["cat-engineering"],
+      "tag_ids": ["tag-design"],
+      "created_at": "2026-08-01T09:00:00.000Z",
+      "updated_at": "2026-09-15T08:00:00.000Z",
+      "published_at": "2026-09-15T08:00:00.000Z",
+      "content": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-post-design" },
+      "content_hash": "sha256-design",
+      "featured_image": null
+    },
+    {
+      "id": "post-history",
+      "type": "post",
+      "title": "An Older Archive Entry",
+      "slug": "older-archive-entry",
+      "status": "published",
+      "excerpt": "Archive routing uses published dates from the catalog.",
+      "category_ids": ["cat-archive"],
+      "tag_ids": ["tag-history"],
+      "created_at": "2024-05-01T09:00:00.000Z",
+      "updated_at": "2024-05-01T09:00:00.000Z",
+      "published_at": "2024-05-01T09:00:00.000Z",
+      "content": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-post-history" },
+      "content_hash": "sha256-history",
+      "featured_image": null
+    }
+  ]
+}

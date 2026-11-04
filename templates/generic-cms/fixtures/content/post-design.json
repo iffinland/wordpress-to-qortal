@@ -1,0 +1,45 @@
+{
+  "schema": "qms-qdn-content@1",
+  "version": 1,
+  "id": "post-design",
+  "content_type": "post",
+  "identity": {
+    "slug": "designing-for-qortal"
+  },
+  "title": "Designing for Qortal",
+  "dates": {
+    "published_at": "2026-09-15T08:00:00.000Z",
+    "modified_at": "2026-09-16T08:00:00.000Z"
+  },
+  "body": {
+    "format": "html",
+    "html": "<p>Good defaults matter: semantic headings, visible focus, and reduced-motion support.</p><ul><li>Readable contrast</li><li>Keyboard paths</li><li>Honest loading states</li></ul>",
+    "text": "Good defaults matter.",
+    "excerpt_html": "<p>Accessible, responsive defaults for decentralized publishing.</p>",
+    "excerpt_text": "Accessible, responsive defaults for decentralized publishing."
+  },
+  "authors": [
+    {
+      "name": "Fixture Editor",
+      "address": "QFixtureAddress1111111111111111111"
+    }
+  ],
+  "terms": {
+    "categories": [
+      {
+        "key": "cat-engineering",
+        "name": "Engineering",
+        "slug": "engineering"
+      }
+    ],
+    "tags": [
+      {
+        "key": "tag-design",
+        "name": "Design",
+        "slug": "design"
+      }
+    ]
+  },
+  "media": [],
+  "content_hash": "sha256-design"
+}

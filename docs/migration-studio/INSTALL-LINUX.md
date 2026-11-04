@@ -1,0 +1,106 @@
+# Install Qortal Migration Studio on Linux
+
+This guide installs the self-contained Debian package. The target machine does
+not need Node.js, npm, Git or development tools.
+
+This is the **first public alpha (0.6.0)**. It is unsigned and amd64 only.
+Read [alpha/RELEASE-NOTES.md](alpha/RELEASE-NOTES.md) and
+[alpha/KNOWN-ISSUES.md](alpha/KNOWN-ISSUES.md) before installing.
+
+## Supported systems
+
+- Debian 12 (bookworm)
+- Debian 13 (trixie)
+- Debian-based distributions with equivalent packages, including MX Linux 23
+  (Debian 12 base). MX Linux is a compatibility target; the Phase 9 release
+  evidence covers Debian 12 and Debian 13.
+
+The package is amd64 only in this release.
+
+## Verify the download
+
+~~~bash
+sha256sum qortal-migration-studio_0.6.0_amd64.deb
+cat SHA256SUMS
+~~~
+
+The artifact is **unsigned** in this alpha release. Compare the SHA-256 with the
+published value and inspect sbom.cdx.json and provenance.intoto.json before
+installing. Do not install an artifact whose hash does not match.
+
+## Install
+
+~~~bash
+sudo apt install ./qortal-migration-studio_0.6.0_amd64.deb
+~~~
+
+apt resolves the GTK, NSS, libsecret and audio dependencies. Launch **Qortal
+Migration Studio** from the desktop application menu, or run:
+
+~~~bash
+qortal-migration-studio
+~~~
+
+## Where your data lives
+
+| Data | Location |
+| --- | --- |
+| Projects, media, handoffs, history | $XDG_DATA_HOME/qortal-migration-studio (default ~/.local/share/qortal-migration-studio) |
+| Desktop window/config state | $XDG_CONFIG_HOME/Qortal Migration Studio |
+| Program files | /opt/qortal-migration-studio |
+| Launcher | /usr/bin/qortal-migration-studio and the desktop menu |
+
+Project data is outside /opt. Upgrading or uninstalling the package never
+deletes projects, media, handoffs or history. Remove the data directory manually
+only when you intentionally want to erase a project.
+
+## Upgrade
+
+~~~bash
+sudo apt install ./qortal-migration-studio_<new-version>_amd64.deb
+~~~
+
+The new package replaces /opt/qortal-migration-studio; existing projects are
+opened with the same data root and schema migration rules as the desktop app.
+
+## Uninstall
+
+~~~bash
+sudo apt remove qortal-migration-studio
+~~~
+
+This removes program files, the launcher and the desktop entry. It does **not**
+remove ~/.local/share/qortal-migration-studio.
+
+To remove everything, including projects and history:
+
+~~~bash
+rm -rf ~/.local/share/qortal-migration-studio
+~~~
+
+This second command is destructive and is never run by the package.
+
+## Keyring
+
+WordPress credentials are memory-only unless you choose to remember them. When
+secret-tool (libsecret) and a session keyring are available, remembered
+credentials are stored through the system keyring. The package recommends
+gnome-keyring and libsecret-tools; a graphical login session is required for
+the normal unlock prompt.
+
+## Troubleshooting
+
+- **The window does not open**: run qortal-migration-studio in a terminal and
+  check the error. On a headless machine, use a real graphical session; the app
+  needs an X11/Wayland display.
+- **Missing libraries**: sudo apt install -f completes dependency resolution.
+- **Credentials are not remembered**: confirm secret-tool --version works in
+  your session and that a keyring is unlocked.
+- **Rollback**: install the previous .deb; project data is forward-migrated by
+  the engine, so keep a backup before downgrading across schema versions.
+
+## Verification status
+
+See docs/migration-studio/PHASE-9-PRODUCTION-RELEASE.md for the tested
+distributions, exact commands, SHA-256, SBOM, provenance and the remaining
+signing/live-network blockers.

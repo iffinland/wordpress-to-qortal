@@ -1,0 +1,69 @@
+{
+  "description": "Legacy Corbett convertPage output.",
+  "site": "https://corbett.example",
+  "rawPage": {
+    "id": 901,
+    "slug": "golden-page",
+    "link": "https://corbett.example/golden-page/",
+    "title": {
+      "rendered": "Golden Page"
+    },
+    "content": {
+      "rendered": "<p>Page body</p>"
+    },
+    "excerpt": {
+      "rendered": ""
+    },
+    "date": "2023-01-01T00:00:00",
+    "date_gmt": "2023-01-01T00:00:00",
+    "modified": "2023-01-01T00:00:00",
+    "modified_gmt": "2023-01-01T00:00:00",
+    "status": "publish",
+    "author": 7,
+    "featured_media": 0,
+    "parent": 0,
+    "menu_order": 0
+  },
+  "options": {
+    "publicAuthorName": "Corbett",
+    "importerVersion": "0.1.5"
+  },
+  "expectedLegacy": {
+    "type": "page",
+    "source": "wordpress",
+    "source_id": 901,
+    "old_url": "https://corbett.example/golden-page/",
+    "public_author": "Corbett",
+    "slug": "golden-page",
+    "title": "Golden Page",
+    "date": "2023-01-01T00:00:00",
+    "published_at": "2023-01-01T00:00:00Z",
+    "modified": "2023-01-01T00:00:00",
+    "modified_at": "2023-01-01T00:00:00Z",
+    "status": "publish",
+    "excerpt": "",
+    "excerpt_text": "",
+    "content_html": "<p>Page body</p>",
+    "content_text": "Page body",
+    "summary": "Page body",
+    "parent": 0,
+    "menu_order": 0,
+    "featured_media": null,
+    "attachments": [],
+    "links": {
+      "internal": [],
+      "external": []
+    },
+    "media": {
+      "images": [],
+      "audio": [],
+      "video": [],
+      "documents": [],
+      "embeds": []
+    },
+    "import": {
+      "imported_at": "1970-01-01T00:00:00.000Z",
+      "importer_version": "0.1.5"
+    }
+  }
+}

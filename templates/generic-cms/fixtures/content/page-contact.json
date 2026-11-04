@@ -1,0 +1,33 @@
+{
+  "schema": "qms-qdn-content@1",
+  "version": 1,
+  "id": "page-contact",
+  "content_type": "page",
+  "identity": {
+    "slug": "contact"
+  },
+  "title": "Contact",
+  "dates": {
+    "published_at": "2026-01-01T00:00:00.000Z",
+    "modified_at": "2026-10-01T00:00:00.000Z"
+  },
+  "body": {
+    "format": "html",
+    "html": "<p>Contact the fixture editor through the Qortal name shown in the catalog.</p>",
+    "text": "Contact the fixture editor.",
+    "excerpt_html": "<p>How to reach the fixture editor.</p>",
+    "excerpt_text": "How to reach the fixture editor."
+  },
+  "authors": [
+    {
+      "name": "Fixture Editor",
+      "address": "QFixtureAddress1111111111111111111"
+    }
+  ],
+  "terms": {
+    "categories": [],
+    "tags": []
+  },
+  "media": [],
+  "content_hash": "sha256-contact"
+}

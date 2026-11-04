@@ -1,0 +1,55 @@
+{
+  "schema": "qms-qdn-content@1",
+  "version": 1,
+  "id": "post-hello",
+  "content_type": "post",
+  "identity": {
+    "slug": "hello-qortal"
+  },
+  "title": "Hello Qortal",
+  "dates": {
+    "published_at": "2026-10-20T10:30:00.000Z",
+    "modified_at": "2026-10-20T10:30:00.000Z"
+  },
+  "body": {
+    "format": "html",
+    "html": "<p>Hello and welcome to this <strong>neutral fixture site</strong>.</p><p>Read the <a href=\"#/pages/about\">about page</a> or <a href=\"https://example.org/out\">an external link</a>.</p><img src=\"https://example.org/media/hero.jpg\" alt=\"Fixture hero\">",
+    "text": "Hello and welcome to this neutral fixture site.",
+    "excerpt_html": "<p>A neutral first post published directly to QDN.</p>",
+    "excerpt_text": "A neutral first post published directly to QDN."
+  },
+  "authors": [
+    {
+      "name": "Fixture Editor",
+      "address": "QFixtureAddress1111111111111111111"
+    }
+  ],
+  "terms": {
+    "categories": [
+      {
+        "key": "cat-news",
+        "name": "News",
+        "slug": "news"
+      }
+    ],
+    "tags": [
+      {
+        "key": "tag-intro",
+        "name": "Introduction",
+        "slug": "introduction"
+      }
+    ]
+  },
+  "media": [
+    {
+      "url": "https://example.org/media/hero.jpg",
+      "role": "featured",
+      "qdn": {
+        "service": "IMAGE",
+        "name": "QortalDemo",
+        "identifier": "qms-fixture-image-hero"
+      }
+    }
+  ],
+  "content_hash": "sha256-hello"
+}

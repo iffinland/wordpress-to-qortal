@@ -1,0 +1,48 @@
+{
+  "schema": "qms-cms-template-config@1",
+  "site": {
+    "id": "generic-site",
+    "title": "Qortal Site",
+    "tagline": "Independent publishing on Qortal QDN",
+    "description": "A neutral, accessible website template for content published on Qortal.",
+    "ownerName": "Qortal",
+    "publicAuthor": "Site Editor",
+    "footerText": "Published on Qortal. Content is served directly from QDN."
+  },
+  "content": {
+    "source": "qdn",
+    "manifestIdentifier": "qms-cms-manifest",
+    "legacyManifestIdentifier": "cr-qdn-manifest",
+    "staleAfterDays": 30,
+    "pageSize": 9
+  },
+  "navigation": [
+    { "label": "Home", "href": "#/" },
+    { "label": "Posts", "href": "#/posts" },
+    { "label": "Archive", "href": "#/archive" },
+    { "label": "Search", "href": "#/search" },
+    { "label": "Admin", "href": "#/admin" }
+  ],
+  "theme": {
+    "colors": {
+      "background": "#0b0f14",
+      "surface": "#121820",
+      "surfaceAlt": "#18212b",
+      "text": "#e8edf4",
+      "muted": "#9fb0c3",
+      "accent": "#4da3ff",
+      "accentText": "#04121f",
+      "border": "#263545",
+      "danger": "#ff7b72",
+      "warning": "#e3b341"
+    },
+    "fontFamily": "system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif",
+    "radius": "10px",
+    "maxWidth": "1120px",
+    "headingFontFamily": "Georgia, Cambria, Times New Roman, serif"
+  },
+  "admin": {
+    "qdnName": "Qortal",
+    "requireOwnerForImport": true
+  }
+}

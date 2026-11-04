@@ -1,6 +1,13 @@
-# Quick Start
+# Quick Start — legacy Corbett Report CLI
 
-This is the short version. For a click-by-click walkthrough, open `docs/ZORIN_LINUX_SETUP.md`.
+> **This is the legacy command-line workflow.** The current product is the
+> [Qortal Migration Studio desktop application](README.md). Install the alpha
+> `.deb` and follow
+> [docs/migration-studio/alpha/FIRST-RUN-GUIDE.md](docs/migration-studio/alpha/FIRST-RUN-GUIDE.md)
+> instead. Use this page only when you are maintaining the legacy Corbett Report
+> pipeline, whose profiles, manifests and QDN identifiers remain unchanged.
+
+This is the short version of the legacy CLI. For a click-by-click walkthrough, open `docs/ZORIN_LINUX_SETUP.md`.
 
 ## 1. Install Node.js 20 or newer
 
@@ -148,3 +155,41 @@ npm run batch:cleanup
 ```
 
 The next batch is prepared with `npm run batch:next`.
+
+## 11. Check for later updates (desktop)
+
+After the first migration, open the project in the Qortal Migration Studio desktop app and choose **Check for updates**.
+
+1. Review the explicit counts: new, modified, unchanged, withdrawn and conflicting.
+2. If the scan failed or is incomplete, do not treat it as “no changes”. Resume it or fix the source connection and scan again.
+3. Resolve any conflicts. An externally changed QDN resource is not overwritten until you choose **Authorize source overwrite**.
+4. Review the delta plan and fee estimate. Only changed resources are included.
+5. Continue to **Publishing**, generate the handoff, publish through the existing Hub workflow, import the receipt and verify exact read-back.
+
+A source deletion becomes a local withdrawal. It hides the item from the visible catalog and never deletes or modifies published QDN data.
+
+There is no scheduled background sync. Every scan and publication is an explicit operator action.
+
+## 12. Recover, clean up and inspect history
+
+Open the project and choose **Recovery** (header or project card).
+
+1. **Interrupted operations**: if the app or machine stopped during a run, the
+   operation is listed with its last durable checkpoint. Choose **Resume** to
+   continue idempotently, or **Dismiss** to abandon it. Nothing is retried
+   silently.
+2. **Ambiguous publications**: a submission with an unknown result is never
+   sent again. Enter a read-only Qortal node URL and choose
+   **Reconcile read-back**; only an exact bytes/hash match becomes verified.
+3. **Cleanup**: choose **Preview cleanup** first. Only remotely verified media
+   and its handoff payload copies are eligible; shared or unverified media is
+   protected. **Quarantine eligible files** is reversible for the retention
+   period (default 14 days). Use **Restore** inside that window. **Purge** is a
+   separate irreversible action and reports the measured freed bytes.
+4. **History**: the timeline shows publication evidence, transaction
+   signatures, content hashes and cleanup/recovery records. Export a sealed
+   snapshot at any time.
+5. **Support bundle**: export a metadata-only diagnostics file. Credentials,
+   cookies, wallet material and content bodies are excluded; the export is
+   refused if a secret check fails.
+

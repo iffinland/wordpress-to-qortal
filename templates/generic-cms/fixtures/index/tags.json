@@ -1,0 +1,10 @@
+{
+  "schema": "qms-cms-index@1",
+  "version": 1,
+  "type": "tags",
+  "entries": [
+    { "id": "tag-intro", "name": "Introduction", "slug": "introduction", "count": 1 },
+    { "id": "tag-design", "name": "Design", "slug": "design", "count": 1 },
+    { "id": "tag-history", "name": "History", "slug": "history", "count": 1 }
+  ]
+}

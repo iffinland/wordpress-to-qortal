@@ -1,0 +1,8 @@
+{
+  "https://corbett.example/wp-content/uploads/featured.jpg": {
+    "source_id": 301,
+    "type": "image",
+    "qdn_service": "IMAGE",
+    "qdn_identifier": "cr-media-301"
+  }
+}

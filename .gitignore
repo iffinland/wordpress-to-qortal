@@ -7,4 +7,6 @@ wp-qortal-import-smoke-*/
 viewer/dist/
 corbettreport/dist/
 release/
+!scripts/release/
+!scripts/release/**
 npm-debug.log*

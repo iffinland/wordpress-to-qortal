@@ -1,0 +1,295 @@
+# Phase 5.2 — Dual-VPS broker connection
+
+Status: **RESOLVED / PASSED (2026-11-04).** Live broker publishing and exact
+QDN read-back succeeded; `pub_602a5fbbbb927367b05343ff` is `remote_verified`
+with 23 bytes and SHA-256 `4a8848...`. Phase 5.2 is COMPLETED; Phase 6 is NOT STARTED.
+
+## 1. Verified topology
+
+- Development VPS: `qortium` — public `80.241.221.139`, Tailscale
+  `100.126.132.126`.
+- Signing VPS: `vmi3490660` — public `169.58.135.102`, Tailscale
+  `100.94.134.84`, MagicDNS `vmi3490660.tailb239e8.ts.net`.
+- Tailscale peer is online; `tailscale ping 100.94.134.84` succeeds over the
+  public path in ~29 ms.
+- Development clock is synchronized (NTP active, ~0 s offset).
+- Public `169.58.135.102:3199` and `:3191` time out; the broker and External
+  Auth are not publicly exposed.
+- Broker listens on `127.0.0.1:3199`; direct
+  `http://100.94.134.84:3199/v1/health` fails.
+- Signing-host ports 80 and 443 are reachable on the Tailscale IP.
+- `http://vmi3490660.tailb239e8.ts.net/` returns `308 Permanent Redirect`
+  to HTTPS with `Server: Caddy`.
+- TLS on `vmi3490660.tailb239e8.ts.net:443` fails with
+  `tlsv1 alert internal error`; no peer certificate is presented.
+- Port 8443 is closed; 3199 and 3191 are closed on the Tailscale IP.
+
+### Diagnosis
+
+Caddy on the signing VPS owns `*:80` and `*:443` and therefore answers on the
+Tailscale IP. It redirects HTTP to HTTPS but has no certificate for the
+Tailscale hostname, so the TLS handshake is refused. Tailscale Serve is not
+serving on 443. Reconfiguring Caddy or stopping it to free 443 would risk the
+existing DuckDNS/Hub routes, so the broker must use a separate Tailscale Serve
+HTTPS port.
+
+## 2. Required architecture
+
+```text
+OpenClaw (qortium, 100.126.132.126)
+  -> https://vmi3490660.tailb239e8.ts.net:8443
+  -> Tailscale Serve (signing VPS, TLS terminated by Tailscale)
+  -> http://127.0.0.1:3199
+  -> QMS broker
+  -> http://127.0.0.1:3191 (External Auth)
+  -> Qortal Core
+```
+
+No Funnel, no public broker port, no External Auth exposure, no SSH/sudo from
+the development agent to the signing VPS, and no wallet material on the
+development VPS.
+
+## 3. One operator command (signing VPS)
+
+Run as the signing-VPS operator with sudo:
+
+```bash
+sudo tailscale serve --bg --https=8443 3199
+```
+
+This idempotently maps Tailscale HTTPS port 8443 to the loopback broker on
+3199. It does not touch Caddy on 80/443 and does not expose a public port.
+
+Preconditions:
+
+1. Tailscale HTTPS certificates are enabled for the tailnet (MagicDNS is
+   already enabled). If the command reports that HTTPS is not enabled, enable
+   HTTPS certificates in the Tailscale admin console; no shell-only workaround
+   is acceptable.
+2. The tailnet ACL restricts `tcp:8443` to the development node
+   (`qortium` / `100.126.132.126`). Tailscale Serve is otherwise reachable by
+   other tailnet members; broker Ed25519 authentication remains mandatory.
+3. Do not use `tailscale funnel`; do not open 8443 in the public firewall.
+4. Verify the existing Caddy/DuckDNS/Hub routes are untouched.
+
+Operator verification on the signing VPS:
+
+```bash
+sudo tailscale serve status
+curl -fsS http://127.0.0.1:3199/v1/health
+```
+
+Expected health: `{"status":"ok","disabled":false}`.
+
+## 4. Development-VPS verification (after the operator command)
+
+```bash
+curl -fsS https://vmi3490660.tailb239e8.ts.net:8443/v1/health
+```
+
+Expected: `{"status":"ok","disabled":false}`.
+
+Then run one authenticated read-only broker request. The agent key is
+`/home/iffi/.config/qms-broker/agent.key`; the keyId must match the operator's
+`/etc/qms-qdn-test-broker/clients.json` (documented example:
+`agent-main-2026-11`).
+
+```js
+import { readFileSync } from 'node:fs';
+import { BrokerClient } from './broker/src/client.js';
+
+const client = new BrokerClient({
+  baseUrl: 'https://vmi3490660.tailb239e8.ts.net:8443',
+  keyId: process.env.QMS_AGENT_KEY_ID ?? 'agent-main-2026-11',
+  privateKey: readFileSync('/home/iffi/.config/qms-broker/agent.key')
+});
+
+try {
+  await client.getPublication('pub_000000000000000000000000');
+} catch (error) {
+  // A valid signature reaches the broker and returns PUBLICATION_NOT_FOUND.
+  // A 401 means keyId/signature/clock/ACL is wrong.
+  console.log(error.code, error.status);
+}
+```
+
+Expected: `PUBLICATION_NOT_FOUND` / 404. A 401 or TLS error means the endpoint
+or authentication is not ready; do not publish.
+
+## 5. Minimal DOCUMENT test publication (only after health/auth pass)
+
+Request schema: `qms-test-publication-request@2`.
+
+```json
+{
+  "schema": "qms-test-publication-request@2",
+  "requestId": "req_dualvps001",
+  "projectId": "prj_qms-dev-test",
+  "target": {
+    "name": "developer iffi",
+    "ownerAddress": "QipPqwJeLtx89dXcSkY7vimMUNT8Gy5k2E"
+  },
+  "resources": [
+    {
+      "id": "res_dualvps001",
+      "service": "DOCUMENT",
+      "identifier": "qms-dev-hello-001",
+      "contentType": "text/plain",
+      "bytes": 14,
+      "sha256": "sha256:70be144d2672880e1f9bd2841cf8f3d98aa4a2d0159eddef22ab4c4ff7c731df",
+      "dataBase64": "aGVsbG8gZnJvbSBxbXM="
+    }
+  ],
+  "handoff": null
+}
+```
+
+The payload is the 14-byte ASCII string `hello from qms`; the hash and base64
+above are exact. Publish once, then poll `GET /v1/publications/{id}` and
+`POST /v1/publications/{id}/verify` using the existing client. Record the
+transaction signature, identifier, fee and exact read-back result.
+
+Do not publish a second time on timeout or ambiguity; the broker preserves
+pending/ambiguous state and does not auto-resubmit.
+
+## 6. Verification and rollback
+
+- Health: unauthenticated `GET /v1/health` must return 200.
+- Auth: signed request must reach the broker; 401 means keyId/signature/clock/
+  ACL failure.
+- Non-public: `http://169.58.135.102:8443/v1/health` must fail; only the
+  Tailscale interface may serve 8443.
+- Caddy/Hub: existing DuckDNS HTTPS and Qortal Hub routes must still work.
+- Broker policy/budget: check `disabled:false`, key revocation state and
+  remaining 5 QORT / 24 h budget before publishing.
+
+Rollback on the signing VPS (only if no other Tailscale Serve service is
+configured):
+
+```bash
+sudo tailscale serve reset
+```
+
+If other Serve handlers exist, remove only the 8443 broker handler with
+`tailscale serve status` and the appropriate service-specific clear command.
+Do not stop Caddy or Qortal Core to fix the broker.
+
+## 7. Execution evidence — 2026-11-03
+
+- Tailscale HTTPS endpoint verified:
+  `https://vmi3490660.tailb239e8.ts.net:8443/v1/health` returned
+  `{"status":"ok","disabled":false}`.
+- Authenticated read-only request with keyId `agent-main-2026-11` reached the
+  broker: a signed `GET /v1/publications/pub_000000000000000000000000`
+  returned `400 PUBLICATION_NOT_FOUND`, not `401`. The Ed25519 path, clock
+  window and ACL are working.
+- One minimal DOCUMENT publication was attempted:
+  - requestId: `req_dualvps001`
+  - publicationId: `pub_6b1dbeb87370fd7bfab9f28c`
+  - identifier: `qms-dev-hello-001`, 14 bytes, SHA-256
+    `70be144d2672880e1f9bd2841cf8f3d98aa4a2d0159eddef22ab4c4ff7c731df`
+  - result: `state=failed`, `code=SIGNING_FAILED`,
+    `verification=SIGNING_REJECTED`
+  - fee quoted: `1,000,000` atomic = `0.01 QORT`
+  - reserved/charged: `0`; `txRef=null`; balance at reservation
+    `502,000,000` atomic = `5.02 QORT`
+- The broker accepted policy, fee quote and balance, then the signing backend
+  rejected or failed the operation. No QDN transaction signature was produced,
+  no QDN resource was published and no fee was charged.
+- The resource verification code is `SIGNING_REJECTED`. In
+  `broker/src/signing/external-auth.js`, that code is produced only when the
+  External Auth `/qdn/publish` response is HTTP 401 or 403 (and the body is not
+  `approval_required`). The record-level `SIGNING_FAILED` is the broker's
+  aggregate state. This narrows the failure to an authentication, permission
+  or locked-wallet rejection, not a name/payload/fee policy failure. The exact
+  401/403 body is intentionally hidden from the agent.
+- The exact backend reason requires read-only operator inspection on the signing
+  VPS:
+
+  ```bash
+  journalctl -u qms-qdn-test-broker -n 100 --no-pager
+  journalctl -u qortal-external-auth -n 100 --no-pager
+  tail -n 50 /var/lib/qms-qdn-test-broker/audit.jsonl
+  ```
+
+  Check the External Auth session, `PUBLISH_QDN_RESOURCE` permission, wallet
+  unlock state and any rejected payload/name detail. Do not retry the
+  publication until the cause is understood; there is no signed transaction to
+  duplicate, but repeated failures should not become a probing loop.
+
+## 8. Second publication attempt after External Auth repair
+
+After the operator created a valid session, set `PUBLISH_QDN_RESOURCE` to
+persistent and unlocked the wallet, health and authenticated read-only
+requests still worked. A second, new publication was attempted:
+
+- requestId: `req_dualvps002`
+- publicationId: `pub_8c1650c0aa97b978b92b442b`
+- identifier: `qms-dev-hello-002`, 18 bytes, SHA-256
+  `080b1e0d001484bc6b009e380f4f9b8099a9091deb1519880ba594eb5bb8edff`
+- result: `state=failed`, `code=SIGNING_FAILED`,
+  resource verification `SIGNING_FAILED`
+- fee quoted: `1,000,000` atomic = `0.01 QORT`; reserved/charged `0`
+- `txRef=null`; balance at reservation `502,000,000` atomic = `5.02 QORT`
+
+This is a different failure class from the first attempt. In
+`broker/src/signing/external-auth.js`, `SIGNING_REJECTED` is produced by
+HTTP 401/403, while `SIGNING_FAILED` is produced by any other non-OK
+(non-5xx) response. The second attempt therefore passed authentication,
+permission and wallet readiness, but External Auth returned a 4xx rejection
+for the publish request itself.
+
+Source inspection of External Auth 0.2.0 shows
+`publishQdnResource()` builds the Core path as
+`/arbitrary/${service}/${resolvedName}` without `encodeURIComponent` on
+the registered name. The exact test name contains an internal space, so the
+Core URL construction is the prime suspect. The exact 4xx body is still only
+available in External Auth logs; the broker intentionally hides it.
+
+Read-only operator checks around `2026-11-03T19:26:25Z` (21:26:25 EET):
+
+```bash
+journalctl -u qortal-external-auth --since '2026-11-03 21:25:00' --no-pager
+journalctl -u qms-qdn-test-broker --since '2026-11-03 21:25:00' --no-pager
+tail -n 100 /var/lib/qms-qdn-test-broker/audit.jsonl
+```
+
+Do not retry either failed publication until the exact 4xx body is understood;
+no transaction signature exists, but repeated probing should be avoided.
+
+## 9. What remains unverified
+
+- Tailscale Serve on 8443 is not configured yet.
+- Tailscale HTTPS certificate issuance and tailnet ACL restriction are
+  operator-side.
+- The exact registered keyId on the signing VPS must be confirmed.
+- No authenticated broker request, signer check, fee quote, budget reservation,
+  QDN publication or read-back was performed.
+- The signing-VPS SSH boundary was not bypassed.
+
+## 10. Resolution of the second failure (2026-11-03, later analysis)
+
+The name-space suspicion in §8 is disproven for this payload. Node's `fetch`
+percent-encodes the internal space to `%20` before the request reaches Core, and
+Core binds the `fee` query parameter before looking up the name. The actual
+deterministic defect is a fee unit mismatch: the broker converted the reserved
+`1000000` atomic fee to `0.01` QORT, External Auth 0.2.0 forwarded
+`fee=0.01`, and Core's `@QueryParam("fee") Long` cannot bind a decimal. That
+is the observed non-401/403 4xx.
+
+After the fee fix was deployed the same publish still returned HTTP 400. The
+next gate in Core 6.1.9 is `Security.checkApiCallAllowed()` on
+`POST /arbitrary/{service}/{name}/{identifier}/base64`; the deployment never
+configured `QORTAL_AUTH_NODE_API_KEY` for External Auth, and External Auth only
+sends `X-API-KEY` when it is set. External Auth also collapsed Core's
+structured 401 into generic free text, which the broker could only report as
+`CORE_REQUEST_REJECTED`.
+
+The complete analysis, sanitized diagnostic contract, tests, the final
+idempotent operator script (`deploy-phase5.2-core-rejection-fix.sh`), the
+config-resolved token path, the pre-broker session provisioner and the
+conditional wallet unlock step are in
+[`PHASE-5.2-EXTERNAL-AUTH-FAILURE-ANALYSIS.md`](PHASE-5.2-EXTERNAL-AUTH-FAILURE-ANALYSIS.md).
+The final correction does not patch or rebuild External Auth. Do not publish
+again until the operator applies that fix and, only if the script restarted
+External Auth, unlocks the wallet.

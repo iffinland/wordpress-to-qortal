@@ -1,0 +1,13 @@
+{
+  "schema": "qms-cms-index@1",
+  "version": 1,
+  "type": "media",
+  "entries": [
+    {
+      "sourceUrl": "https://example.org/media/hero.jpg",
+      "mimeType": "image/jpeg",
+      "bytes": 2048,
+      "qdn": { "service": "IMAGE", "name": "QortalDemo", "identifier": "qms-fixture-image-hero" }
+    }
+  ]
+}

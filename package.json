@@ -11,7 +11,9 @@
     "start": "npm run batch:status",
     "setup": "bash scripts/setup-linux.sh",
     "doctor": "node scripts/doctor.js",
-    "test": "node --test",
+    "test": "node --test \"test/**/*.test.js\"",
+    "test:source": "node --test test/source",
+    "qms": "node bin/qms.js",
     "inspect": "node src/inspect.js",
     "dump": "node src/dump.js",
     "convert": "node src/convertRaw.js",
@@ -35,13 +37,42 @@
     "cms:dev": "npm --prefix corbettreport run dev",
     "cms:build": "npm --prefix corbettreport run build",
     "cms:preview": "npm --prefix corbettreport run preview",
-    "check": "npm test && npm run migration:build && npm run cms:build",
+    "cms-template:dev": "npm --prefix templates/generic-cms run dev",
+    "cms-template:test": "npm --prefix templates/generic-cms test",
+    "cms-template:build": "npm --prefix templates/generic-cms run build",
+    "cms-template:package": "npm --prefix templates/generic-cms run build -- --zip",
+    "check": "npm run test:all && npm run migration:build && npm run cms:build && npm run cms-template:build",
+    "check:phase6": "npm run test:phase6 && npm run cms-template:test && npm run cms-template:build",
+    "check:phase7": "npm run test:phase7 && npm --prefix desktop run typecheck && npm --prefix desktop test",
     "package:source": "node scripts/createMigrationPackage.js",
     "package:zip": "node scripts/createMigrationZip.js",
     "package:migration-qapp": "node scripts/createMigrationQappZip.js --profile=corbettreport",
     "package:cms-qapp": "node scripts/createCmsQappZip.js --profile=corbettreport",
     "package:tester-bundle": "node scripts/createTesterBundle.js",
-    "package:release": "npm run package:zip && npm run package:migration-qapp && npm run package:cms-qapp"
+    "package:release": "npm run package:zip && npm run package:migration-qapp && npm run package:cms-qapp",
+    "test:phase3": "node --test test/phase3/*.test.js",
+    "test:phase4": "node --test test/phase4/*.test.js",
+    "test:phase5": "node --test test/phase5/*.test.js",
+    "test:phase5.2": "node --test test/phase5.2/*.test.js",
+    "test:phase6": "node --test test/phase6/*.test.js",
+    "test:phase7": "node --test test/phase7/*.test.js",
+    "test:phase8": "node --test test/phase8/*.test.js",
+    "test:phase9": "node --test test/phase9/*.test.js",
+    "check:phase8": "npm run test:phase8 && npm --prefix desktop run typecheck && npm --prefix desktop test",
+    "version:check": "node scripts/qms-release.mjs check",
+    "version:sync": "node scripts/qms-release.mjs sync",
+    "check:phase9": "npm run version:check && npm run test:phase9 && npm --prefix desktop run typecheck && npm --prefix desktop test",
+    "release:deb": "node scripts/release/build-deb.mjs",
+    "release:validate": "node scripts/release/validate-artifact.mjs",
+    "release:security": "node scripts/release/security-check.mjs",
+    "release:sbom": "node scripts/release/generate-sbom.mjs",
+    "release:provenance": "node scripts/release/generate-provenance.mjs",
+    "release:repro": "node scripts/release/repro-check.mjs",
+    "release:verify": "node scripts/release/verify-release.mjs",
+    "test:all": "npm test && npm run cms-template:test && npm run test:desktop",
+    "test:desktop": "npm --prefix desktop test",
+    "desktop:build": "npm --prefix desktop run build",
+    "desktop:deb": "node scripts/release/build-deb.mjs"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -49,5 +80,9 @@
   "dependencies": {
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "dompurify": "^3.4.17",
+    "jsdom": "^25.0.1"
   }
 }

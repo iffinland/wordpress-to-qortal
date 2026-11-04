@@ -1,0 +1,34 @@
+appId: org.iffinland.qortal-migration-studio
+productName: Qortal Migration Studio
+copyright: Copyright (c) 2026 Qortal Migration Studio contributors
+artifactName: qortal-migration-studio-${version}-${arch}.${ext}
+asar: true
+compression: normal
+directories:
+  output: release
+  buildResources: build
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - package.json
+extraResources:
+  - from: engine-runtime
+    to: engine
+    filter:
+      - "**/*"
+linux:
+  target:
+    - dir
+  category: Office
+  synopsis: Prepare and verify WordPress-to-Qortal QDN migrations
+  description: Qortal Migration Studio prepares WordPress content and media locally, generates a portable QDN handoff with exact bytes and SHA-256 hashes, imports Migration Publisher receipts, and performs independent read-only QDN verification. Signing and approval stay in Qortal Hub.
+  executableName: qortal-migration-studio
+  icon: build/icons
+  desktop:
+    Name: Qortal Migration Studio
+    Comment: Prepare, hand off and verify WordPress-to-QDN migrations
+    Categories: Office;Utility;
+    Keywords: Qortal;WordPress;Migration;QDN;
+    StartupWMClass: Qortal Migration Studio
+afterPack: scripts/after-pack.cjs
+publish: null
