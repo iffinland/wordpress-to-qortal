@@ -2,30 +2,34 @@
 
 These are release-gate facts, not a substitute for testing your own site. The
 0.6.1 release is published as a prerelease with all three artifacts:
-<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.1>.
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.2>.
 Downloading an artifact is not deployment or live validation.
 
 ## Blocking or unverified release gates
 
-1. **No live mixed-service QDN publication in release validation.** The
-   authorized development signing broker is restricted to the exact name
-   `developer iffi`, DOCUMENT resources and a `qms-dev-` prefix. It cannot
-   publish IMAGE or APP resources, so a live mixed-service acceptance run is
-   blocked rather than faked.
-2. **The user-facing Hub-signed flow is not live-accepted.** Hub approval, fee
-   payment and real Publisher execution are implemented and simulated against
-   the documented Hub/Core contract, but were not executed end-to-end with a
-   real Hub wallet in this alpha. Treat the first real publication as a
-   supervised test.
-3. **The Migration Publisher Q-App is not publicly deployed.** The validated
-   build artifact is published as a release ZIP; public Q-App deployment needs
-   the owner's registered name and wallet approval. Downloading the ZIP does not
-   deploy it, and until deployment users cannot launch it from Qortal Hub.
-4. **The Generic CMS application bundle is not live-published and its live
-   rendering is not accepted.** The neutral ZIP is published as a release asset
-   and QMS can package a configured APP or WEBSITE bundle. Its bundle, config and
-   exact member read-back are proven against fixtures and a simulated Core API,
-   not a public QDN deployment or live rendering test. Downloading the ZIP does
+1. **Live mixed-service QDN publication is still incomplete.** A
+   DOCUMENT-only package was published live through the deployed development
+   Migration Publisher under `developer iffi`. The catalog manifest
+   `DOCUMENT/developer iffi/qms-cms-manifest` read back with the exact expected
+   SHA-256. The authorized signing scope cannot publish IMAGE or APP/WEBSITE
+   resources, so a full mixed-service acceptance run is blocked rather than
+   faked.
+2. **The user-facing Hub-signed flow is partially live-accepted.** The deployed
+   Publisher executed a real package publication and returned a usable receipt.
+   The fee approval and publication used the development authorization path.
+   IMAGE and APP/WEBSITE publication through a general owner Hub wallet were not
+   executed, so treat the first full site publication as a supervised test.
+3. **A general public Publisher deployment is still owner-controlled.** A
+   development deployment under `developer iffi` is live and has published a
+   real package. A shared public deployment under the owner's registered name
+   still needs wallet approval and an application-bundle fee. Downloading the
+   ZIP does not deploy it.
+4. **The Generic CMS application bundle is not live-published as APP or
+   WEBSITE.** Its neutral ZIP is a release asset, and QMS can package a
+   configured APP or WEBSITE bundle. Bundle, config and exact member read-back
+   are proven against fixtures and a simulated Core API. The CMS rendering itself
+   was proven with the live DOCUMENT catalog, but a live APP/WEBSITE deployment
+   and multi-file member read-back remain unverified. Downloading the ZIP does
    not deploy it.
 5. **The package is unsigned.** There is no owner-approved Debian signing key
    in the release environment. Verify SHA-256, SBOM and provenance. A signed
@@ -52,6 +56,14 @@ Downloading an artifact is not deployment or live validation.
 - The CMS application-bundle member read-back depends on Core's `filepath` query; the
   Publisher tries the Hub bridge first and falls back to a same-origin node
   read. A Hub build that blocks both paths reports `blocked`, not verified.
+- The Generic CMS reads its catalog only when the URL carries the exact Qortal
+  name, for example `qortal://WEBSITE/developer%20iffi/` or
+  `?name=developer%20iffi`. Without the name it cannot choose a catalog and
+  shows an empty or unverified state.
+- Redeploying a CMS bundle without its existing `qms-cms-config.json` loses the
+  site title, nav, theme and manifest identifier. Preserve that file when it
+  exists. Admin remains in the default navigation, and runtime navigation
+  injects it for older published configs.
 - Qortal Hub does not publish a multi-file APP from its normal form, so the
   Publisher Q-App is deployed by the owner through an APP ZIP flow, not by
   each user.

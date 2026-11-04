@@ -51,7 +51,12 @@ package SHA-256. QMS validates the package locally before reporting
 1. Open Qortal Hub → Apps → **Migration Publisher**.
 2. Select the exported `.zip` (or the handoff folder) and press
    **Connect Qortal account**.
-3. Confirm the active address owns the exact target name.
+3. Check the **Target Qortal name** field. It is prefilled from the handoff and
+   stays editable. If the account owns exactly one name it is preselected; if it
+   owns several, choose the exact name from the picker. A loaded package is
+   bound to the name in its handoff, so changing the field to another name is
+   rejected rather than silently retargeting the package. Confirm the active
+   address owns that exact name.
 4. Review resources, dependencies, CMS bundle and existing-resource updates.
    Use **Get live network fee quote** to see the node's current ARBITRARY fee.
 5. Tick the explicit approval checkbox and publish.
@@ -91,9 +96,30 @@ opens the exact QDN URL:
 <node>/arbitrary/APP/<name>/<identifier>?filepath=index.html
 ~~~
 
-If the node requires read authentication, open the same URL in your normal
-Qortal Home/Hub browser session. The CMS reads the published manifest and
-indexes; it never edits or republishes them.
+The Generic CMS must know the exact Qortal name it runs under before it can read
+the catalog. Open it through a QDN URL that contains the name:
+
+~~~text
+qortal://WEBSITE/developer%20iffi/
+# or, on a direct node URL:
+?name=developer%20iffi
+~~~
+
+Without that name the site stays in its empty or unverified state; it does not
+guess the name. A live DOCUMENT publication proved this behaviour: the catalog
+manifest read back with the exact expected SHA-256, and the CMS rendered content
+only when opened under the correct name. If the node requires read
+authentication, open the same URL in your normal Qortal Home/Hub browser
+session. The CMS reads the published manifest and indexes; it never edits or
+republishes them.
+
+The Admin view is in the default navigation and remains reachable even when no
+catalog is published. It states the two preconditions explicitly: a published
+`qms-cms-manifest` under this site's exact name, and a signed-in account that
+owns the name. If you redeploy an existing site, preserve its
+`qms-cms-config.json` in the new bundle; without it the bundle falls back to
+build-time defaults and loses the site's title, navigation, theme and manifest
+identifier.
 
 ## 8. Clean up safely
 

@@ -3,7 +3,7 @@
 This guide installs the self-contained Debian package. The target machine does
 not need Node.js, npm, Git or development tools.
 
-This is the **0.6.1 alpha**. It is unsigned and amd64 only. Read
+This is the **0.6.1 alpha.2** release. It is unsigned and amd64 only. Read
 [alpha/RELEASE-NOTES.md](alpha/RELEASE-NOTES.md) and
 [alpha/KNOWN-ISSUES.md](alpha/KNOWN-ISSUES.md) before installing.
 

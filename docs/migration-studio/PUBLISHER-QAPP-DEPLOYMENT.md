@@ -1,9 +1,13 @@
 # Migration Publisher Q-App — distribution and deployment
 
-Status: **artifact built and validated; not publicly deployed.** Deployment
-requires the owner's registered Qortal name, an owner wallet approval and one
-QDN application-bundle fee. Those are owner-controlled external writes and are
-not performed by this repository's automated release process.
+Status: **artifact built and validated; a development deployment has published
+a real package.** The deployed development Publisher under the name
+`developer iffi` published a QMS package, and its catalog manifest
+`DOCUMENT/developer iffi/qms-cms-manifest` read back with the exact expected
+SHA-256. A general shared public deployment still requires the owner's
+registered Qortal name, an owner wallet approval and one QDN
+application-bundle fee. Those are owner-controlled external writes and are not
+performed by this repository's automated release process.
 
 The Publisher and the Generic CMS can both live under the **same registered
 Qortal name**. Use APP for one and WEBSITE for the other; the service plus
@@ -18,7 +22,7 @@ with wallet approval.
 Most people should not build anything:
 
 1. Download
-   [qortal-migration-publisher-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-publisher-v0.6.1.zip)
+   [qortal-migration-publisher-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-publisher-v0.6.1.zip)
    and verify it against `SHA256SUMS`.
 2. An owner publishes that ZIP as one shared QDN application bundle, using the
    service/identifier values in the table below. One deployment serves every
@@ -34,6 +38,12 @@ source is a separate developer workflow at the end of this document.
 - Generic Q-App: no owner name, profile, preview data or local content root is
   compiled into it.
 - Any Qortal name owned by the active Hub account can be targeted.
+- The **Target Qortal name** field is prefilled from the loaded handoff and is
+  editable. If the connected account owns exactly one name, that name is
+  preselected. If it owns several, the Publisher offers a name picker. A loaded
+  package remains bound to the name recorded in its handoff, so the field cannot
+  be used to retarget its resources. No "target name required" warning appears
+  before a package is loaded.
 - The official release asset is `qortal-migration-publisher-v<version>.zip`.
 - Root layout: `index.html`, `assets/*`, `publisher-bundle.json`.
 - For developers: built at `viewer/dist-publisher` and validated with
@@ -123,6 +133,14 @@ curl -s -o /dev/null -w "%{http_code} %{content_type}\n" \
 Only the service+name+identifier triple must be unique. Studio never allocates a
 second Qortal name for an application bundle.
 
+When you redeploy a site whose bundle already contains a
+`qms-cms-config.json`, preserve that file in the new bundle. It carries the
+site-specific title, tagline, navigation, theme and manifest identifier. A
+bundle assembled without it falls back to build-time defaults and cannot read
+the site's catalog. The Admin entry is injected at runtime for an existing
+`qms-cms-config.json` that predates the navigation change, so redeploying does
+not make Admin disappear.
+
 ### For developers: build and validate the ZIP
 
 Source building is not the beginner path. From a clean checkout:
@@ -152,3 +170,19 @@ deployment is needed. The Q-App reads the active account with
 `GET_USER_ACCOUNT`, checks the exact name and owner with `GET_ACCOUNT_NAMES`,
 loads fees from the node, and publishes through
 `PUBLISH_MULTIPLE_QDN_RESOURCES`.
+
+## Live proof and limits
+
+The development deployment proved the real publishing path end to end for the
+authorized scope:
+
+- the package published through the deployed Migration Publisher;
+- `DOCUMENT/developer iffi/qms-cms-manifest` read back with the exact expected
+  SHA-256;
+- the Generic CMS displayed its content only when opened with the correct name,
+  for example `qortal://WEBSITE/developer%20iffi/` or
+  `?name=developer%20iffi`.
+
+That proof covers DOCUMENT resources. IMAGE and APP/WEBSITE publication were
+not part of the authorized live run, so the first full site deployment remains
+a supervised test.

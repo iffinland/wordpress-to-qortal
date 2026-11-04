@@ -53,8 +53,14 @@ Every alpha or stable release must ship exactly these production artifacts:
 Release preparation is a single command:
 
 ```bash
-npm run release:prepare
+npm run release:prepare -- --tag=v<version>-alpha.<n>
 ```
+
+The tag argument selects the immutable prerelease tag. `releaseTag()` defaults
+to `alpha.1`, so any later alpha iteration must pass its tag explicitly — for
+example `npm run release:prepare -- --tag=v0.6.1-alpha.2` followed by
+`npm run release:publish -- --tag=v0.6.1-alpha.2`. The manifest records that
+exact tag, and the publisher refuses to touch an existing release.
 
 It **fails the release** when any required artifact is missing, a ZIP is invalid
 or not root-layout, the three artifacts disagree on version or compatibility
@@ -76,6 +82,18 @@ must require no development tools and no manual compilation; source-build steps
 belong under a clearly marked **For developers / Build from source** heading.
 The docs must state that downloading a ZIP is not publishing it to QDN and that
 the Generic CMS may be published as an APP or a WEBSITE where supported.
+
+Document these operational behaviours whenever they change:
+
+- the Publisher's editable **Target Qortal name** field, handoff prefill,
+  single-owned-name preselection and multi-name picker;
+- the Generic CMS **Admin** entry in the default navigation, its rendering
+  before catalog gating and its runtime injection for an existing
+  `qms-cms-config.json`;
+- the requirement to open the CMS under its exact Qortal name
+  (`qortal://WEBSITE/<name>/` or `?name=<encoded name>`);
+- the redeploy rule: preserve an existing `qms-cms-config.json` in the new
+  bundle.
 
 ## Release checklist
 
@@ -101,8 +119,8 @@ export PATH=/home/iffi/.local/bin:$PATH
 cd /home/iffi/dev-workspace/docs/releases/<version>
 
 cd /home/iffi/dev-workspace/projects/wordpress-to-qortal
-npm run release:prepare -- --tag=<tag>   # optional here if already prepared
-npm run release:publish -- --tag=<tag>
+npm run release:prepare -- --tag=v0.6.1-alpha.2   # optional if already prepared
+npm run release:publish -- --tag=v0.6.1-alpha.2
 ```
 
 If a release for the tag already exists, the publisher stops. Inspect it with
