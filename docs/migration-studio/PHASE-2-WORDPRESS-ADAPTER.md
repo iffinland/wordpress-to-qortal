@@ -229,6 +229,14 @@ username, password and <code>Authorization</code> text.
 - <code>iframe</code>/<code>embed</code>/<code>object</code> embeds;
 - internal links, external links and external media links.
 
+Before extraction and hashing, the adapter applies the content-only policy
+`qms-wp-content-only@1` (`lib/source/wordpress/content-policy.js`). Unsupported
+interactive elements — forms, commerce/auth containers, plugin scripts,
+non-media embedded apps and volatile plugin attributes/tokens — are removed
+while editorial text, links, images and supported media are kept. Clean HTML is
+returned byte-identically. Unsupported findings become structured, non-sensitive
+warnings with source key, feature/provider and a manual-review suggestion.
+
 Every URL is resolved against the WordPress base URL. Relative, absolute and
 external media remain distinguishable through <code>role</code> and <code>external</code> fields.
 The extraction also computes the exact legacy <code>inspectPostHtml()</code> result and
@@ -351,8 +359,11 @@ The projection deliberately excludes:
 
 Canonical HTML (<code>qms-html@1</code>) decodes entities, resolves relative URLs against
 the source site, removes comments, normalizes line endings and collapses
-inter-tag whitespace. The original rendered HTML is always preserved unchanged
-in <code>body.html</code>; canonical HTML is used only for hashing.
+inter-tag whitespace. <code>body.html</code> stores the content-only normalized HTML;
+raw rendered HTML is never stored (only its <code>raw_hash</code> and non-sensitive
+policy counters). Hashing is computed after content-only normalization, so a
+rotating form JWT or per-render block instance id such as
+<code>wp-block-gallery-1</code> cannot create a false revision.
 
 Evidence: unchanged fixtures produce identical hashes; HTML entity variants
 (<code>&amp;amp;</code> vs <code>&amp;#038;</code>) and relative-vs-absolute URLs hash equally; title/body
@@ -571,7 +582,7 @@ real legacy converters. Tests assert:
 | GUI / Electron / .deb | Not implemented |
 | Joomla/Wix | Not implemented; contract/registry/fake-adapter test prove extension point |
 | Live WordPress migration | Not run; all tests use fixture servers |
-| WordPress non-REST content (shortcodes, plugin-rendered pages) | Only rendered HTML is preserved; plugin semantics are not reimplemented |
+| WordPress non-REST content (shortcodes, plugin-rendered pages) | Only rendered content HTML is preserved; plugin semantics are not reimplemented, and unsupported interaction is removed with an explicit warning |
 
 ## 11. Phase 3 integration requirements
 

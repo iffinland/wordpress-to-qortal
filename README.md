@@ -47,6 +47,7 @@ This records the existing QDN catalog locally. New batches then merge with it in
 - `docs/migration-studio/PHASE-5-QDN-PUBLISHING.md` - portable QDN handoff, universal Migration Publisher Q-App, controlled batches, exact read-back verification, receipts and desktop synchronization (Phase 5).
 - `docs/migration-studio/PHASE-5-VARIANT-B-FEASIBILITY.md` - secure desktop-to-Hub transfer assessment (deferred).
 - `docs/migration-studio/PHASE-6-GENERIC-CMS.md` - generic Qortal CMS template, manifest compatibility, sanitization, owner gating, accessibility and Q-App build (Phase 6).
+- `docs/migration-studio/USER-CONTENT-SUPPORT.md` - what content migrates, what unsupported plugin functionality is removed and how to review it.
 
 ## Where files go
 
@@ -263,7 +264,9 @@ reconciliation is available and is the only mode that infers source deletions.
   resources are packaged.
 - Deletions or unpublished source content become local withdrawals. A withdrawal
   hides the mapping from the visible catalog, preserves its triple and evidence,
-  and never claims that published QDN data was deleted.
+  and never claims that published QDN data was deleted. Missing-item withdrawal
+  requires a complete, exhaustive full-site scan; filtered, subset, item-limited
+  or truncated scans never withdraw and never advance the watermark.
 - External QDN changes, withdrawal conflicts and source changes are persisted
   with source/local/QDN evidence and require an audited resolution. An external
   resource is not overwritten until the operator selects **Authorize source
@@ -274,8 +277,12 @@ reconciliation is available and is the only mode that infers source deletions.
   identities; adoption reports remain after restart.
 - Scans write crash-safe checkpoints. Interrupted classification can be resumed;
   a scan left running by a crash is reopened as interrupted, never successful.
+- Import is content-only. Unsupported forms, carts, logins, plugin scripts and
+  embedded apps are removed before hashing; editorial text, links, images and
+  supported media survive. See
+  `docs/migration-studio/USER-CONTENT-SUPPORT.md`.
 
-    npm run test:phase7   # 12 engine/host synchronization tests
+    npm run test:phase7   # Phase 7 synchronization tests
     npm run check:phase7  # phase 7 tests, desktop typecheck and desktop tests
 
 See docs/migration-studio/PHASE-7-INCREMENTAL-SYNC.md for the state model,

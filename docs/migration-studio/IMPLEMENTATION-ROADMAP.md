@@ -431,6 +431,12 @@ No live QDN publish or production-catalog read was performed for Phase 6.
     uncontrolled publication is added.
 14. **AC7.14** Publication history, receipts and reconciliation evidence remain
     recoverable after restart.
+15. **AC7.15** Unsupported interactive plugin functionality is removed before
+    hashing; supported editorial content inside plugin blocks survives; volatile
+    form tokens never enter payloads, state or warnings.
+16. **AC7.16** A scoped (filtered, subset, limited or truncated) full scan cannot
+    infer missing-item withdrawals or advance the watermark; only a complete
+    full-site scan retains withdrawal authority.
 
 ### Implementation evidence (Phase 7)
 
@@ -453,11 +459,19 @@ Phase 7 is implemented on the agent branch from the verified Phase 6 commit
 - existing-migration adoption that preserves verified triples and receipts;
 - a manual desktop Sync view with progress, cancellation, counts, delta plan,
   conflict resolution, withdrawals, adoption and persistent history;
-- 13 new Phase 7 root tests, 7 new desktop renderer tests and the full existing
-  root/desktop/template suites green; Corbett and generic CMS builds green.
+- a content-only WordPress import policy that strips unsupported interactive
+  functionality before hashing and keeps editorial text, links, images and
+  supported media;
+- fail-closed scan coverage authority: only a complete, unscoped full-site scan
+  may infer missing-item withdrawal or advance the watermark;
+- 24 Phase 7 root tests (13 initial + 11 remediation) plus 7 desktop
+  renderer tests; full 364-test root suite, desktop and template suites green;
+  Corbett and generic CMS builds green.
 
-No live QDN publication, wallet operation or production WordPress scan was
-performed for Phase 7. Fixture evidence is not a substitute for live acceptance.
+Live read-only acceptance was performed against wordpressfoundation.org with an
+isolated temporary project (page 108 token rotation and scoped-scan safety). No
+live QDN publication, wallet operation or source modification was performed.
+Fixture tests remain the reproducible regression baseline.
 
 ## 11. Phase 8 — Recovery, cleanup and history hardening (P1)
 

@@ -176,6 +176,11 @@ test('unpublished source status is detected, withdrawn locally and hidden from t
   env.wp.data.posts[1].status = 'draft';
   const second = await fullScan(env.handle, { query: { status: 'publish,draft' } });
   assert.equal(second.status, 'completed');
+  // A status filter is scoped: observed status changes may withdraw, but the
+  // scan has no missing-item authority and must not advance the watermark.
+  assert.equal(second.scope.coverage, 'scoped');
+  assert.equal(second.withdrawalEligible, false);
+  assert.equal(second.watermarkAdvanced, false);
   assert.equal(second.counts.unpublished >= 1, true);
   assert.equal(second.counts.withdrawn, 1);
   assert.equal(second.delta.unpublished.some((entry) => entry.sourceKey === 'post:1002' && entry.reason === 'SOURCE_STATUS_DRAFT'), true);

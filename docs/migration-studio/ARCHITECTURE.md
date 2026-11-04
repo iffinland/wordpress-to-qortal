@@ -321,6 +321,13 @@ path. `PublicationService.prepare` calls a guard before packaging; the guard
 refuses withdrawn mappings, stale scan batches and unresolved or unauthorized
 conflicts.
 
+Every scan records a coverage descriptor (scope.coverage, scoping reasons,
+withdrawalEligible and watermarkEligible). Missing-item withdrawal is inferred
+only when the scan is an explicitly full, complete, unscoped scan of all
+capability content types with no item limit and no source truncation. Any
+filter, subset, limit or truncation makes coverage scoped: the delta is still
+reviewable, but absence inference and watermark advancement are disabled.
+
 ## 5. Data architecture
 
 ### 5.1 Storage layout
@@ -472,6 +479,12 @@ Rules:
 - Adapters may add adapter-specific fields under `source.extra`; the engine must
   not depend on them.
 - No UI strings, QDN names or template branding in the model.
+- Adapters must normalize to content-only HTML before computing the canonical
+  hash. WordPress normalization applies `qms-wp-content-only@1`: unsupported
+  forms, commerce, authentication, plugin scripts, embedded apps and volatile
+  plugin directives/tokens are removed; editorial text, links, images and
+  supported media are preserved. The Phase 6 renderer sanitizer is a second
+  boundary, not a substitute for source normalization.
 
 Phase 2 implementation details:
 
@@ -698,8 +711,10 @@ reports. Scan evidence bodies live under
 
 Scan statuses are `scanning`, `classifying`, `interrupted`, `completed`,
 `incomplete`, `failed` and `cancelled`. Only `completed` with
-`complete=true` permits a delta plan. Watermarks advance only after a complete
-scan. Classification can stop at a crash-safe checkpoint and resume without
+`complete=true` permits a delta plan. Watermarks advance only after a complete,
+unscoped scan. Scans persist `scope`, `withdrawalEligible` and
+`watermarkEligible`; absence inference and missing-item withdrawal require a
+`full-site` scope. Classification can stop at a crash-safe checkpoint and resume without
 duplicating entries; a scan left active by a crash becomes `interrupted` when
 the project is reopened.
 
@@ -1009,6 +1024,9 @@ with unchanged routes, branding and `cr-*` identifiers. See
 - Sanitize all imported/stored HTML before rendering.
 - Remove scripts, event handlers, dangerous URL schemes and embedded objects not
   explicitly allowed.
+- Do not rely on render sanitization to fix source normalization. The source
+  adapter removes unsupported interactive functionality before hashing; the
+  renderer sanitizer remains defense in depth.
 - Re-run sanitization after any transformation that can reintroduce markup.
 - Validate links/media URLs independently.
 - Add malicious fixtures to the automated suite.

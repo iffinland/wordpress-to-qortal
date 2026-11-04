@@ -164,6 +164,8 @@ export function SyncView({ projectId, onBack, onPublishing }: SyncViewProps) {
         setNotice('The scan did not complete. No changes were assumed or reported.');
       } else if (result.status === 'incomplete') {
         setNotice('The scan is incomplete. Deletions were not inferred and no publication plan may be prepared.');
+      } else if (result.scope?.coverage === 'scoped') {
+        setNotice('Scan completed with scoped coverage. Missing-item withdrawal and watermark advancement are disabled because full-site coverage is not proven.');
       } else {
         setNotice('Scan completed. Review the delta before preparing publication.');
       }

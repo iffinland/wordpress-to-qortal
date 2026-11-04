@@ -404,6 +404,25 @@ export interface SyncDeltaEntry {
   qdn?: { service: string; name: string; identifier: string } | null;
 }
 
+export interface SyncScanScope {
+  schema: string;
+  mode: string;
+  coverage: 'full-site' | 'scoped';
+  scoped: boolean;
+  withdrawalEligible: boolean;
+  watermarkEligible: boolean;
+  truncated?: boolean;
+  reasons: Array<{
+    code: string;
+    field?: string;
+    missing?: string[];
+    maxItems?: number;
+  }>;
+  query: Record<string, unknown>;
+  contentTypes: string[] | null;
+  maxItems: number | null;
+}
+
 export interface SyncScanSummary {
   schema: string;
   scanId: string;
@@ -434,6 +453,9 @@ export interface SyncScanSummary {
   catalogPath?: string | null;
   planId?: string | null;
   query: Record<string, unknown>;
+  scope?: SyncScanScope | null;
+  withdrawalEligible?: boolean;
+  watermarkEligible?: boolean;
   withdrawals?: SyncWithdrawalSummary | null;
   checkpoint?: Record<string, unknown> | null;
 }
@@ -474,6 +496,9 @@ export interface SyncWithdrawalSummary {
   applied: Array<{ withdrawalId: string; sourceKey: string; policy: string; networkDeleted: boolean; qdnDataPreserved: boolean }>;
   appliedCount: number;
   pending: number;
+  blockedByScope?: number;
+  withdrawalEligible?: boolean;
+  scopeCoverage?: 'full-site' | 'scoped' | null;
   policy?: string;
   networkDeleted: boolean;
   qdnDataPreserved: boolean;
@@ -495,6 +520,9 @@ export interface SyncCheckResult {
   reportPath?: string | null;
   catalogPath?: string | null;
   query?: Record<string, unknown>;
+  scope?: SyncScanScope | null;
+  withdrawalEligible?: boolean;
+  watermarkAdvanced?: boolean;
   warnings?: Array<{ code: string; message: string; details?: Record<string, unknown> }>;
   error?: { code: string; message: string; details?: Record<string, unknown> } | null;
   message?: string;

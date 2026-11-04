@@ -3,9 +3,10 @@
 | Field | Value |
 | --- | --- |
 | Phase | 7 |
-| Status | Implemented and fixture-verified (2026-11-04) |
+| Status | Implemented, remediated and live read-only verified (2026-11-04) |
 | Base commit | 2a92a167c2d1c34d46c69a05b507d6e15a515c15 (Phase 6 completion) |
 | Branch | agent/qortal-wordpress-to-qortal/20261104T065459Z-qortal-migration-studio-phase-7 |
+| Remediation branch | agent/qortal-wordpress-to-qortal/20261104T081412Z-qortal-migration-studio-phase-7-remediation |
 | Engine version | 0.1.8-phase7 |
 | Store version | 4 |
 | Scope | 7A incremental engine, 7B conflicts/withdrawal, 7C desktop delta publishing |
@@ -60,7 +61,7 @@ keeps the complete list.
 | scanning | Source discovery is running. | No |
 | classifying | Discovery completed; classification is running. | No |
 | interrupted | A classification pass stopped at a checkpoint, or a crash was recovered. | No |
-| completed | Complete source scan and complete classification. | Yes |
+| completed | Complete source scan and complete classification. | Yes; missing-item withdrawal only with full-site scope |
 | incomplete | Discovery was truncated or partial. | No |
 | failed | Source discovery failed. Never reported as "no changes". | No |
 | cancelled | The operator cancelled the scan. | No |
@@ -78,9 +79,11 @@ completed.
   (default 48 h) to the WordPress adapter and keeps a 48 h overlap, so edits to
   old content are detected regardless of the original publication date.
 - full scans all published content and is the only mode allowed to infer
-  deletions or missing mappings.
-- Watermarks advance only after a complete scan. An incomplete scan leaves the
-  previous watermark in place, so the next run re-covers the same window.
+  deletions or missing mappings, and only when the scan is genuinely
+  full-site.
+- Watermarks advance only after a complete, unscoped scan. An incomplete or
+  scoped scan leaves the previous watermark in place, so the next run re-covers
+  the same window.
 - Known items absent from a successful incremental scan are classified
   unchanged with reason NOT_MODIFIED_SINCE_WATERMARK. Absence from a full
   complete scan is the only evidence used for source withdrawal.
@@ -94,7 +97,7 @@ completed.
 | route_changed | Content is identical but slug/route changed. | Update candidate. |
 | unchanged | Hash and route match a verified mapping, or an incremental scan did not return it. | No publication. |
 | unpublished | Source status is draft/private/trash/future, or the mapping exists but was never published. | Withdrawal candidate when the source status is non-public; never published automatically. |
-| withdrawn | Mapping existed but the item is missing from a complete full scan. | Withdrawal policy / conflict. |
+| withdrawn | Mapping existed but the item is missing from a complete, full-site-scoped full scan. | Withdrawal policy / conflict. |
 | conflict | Identity collision, mapping mismatch or other candidate conflict. | Persisted conflict; blocks affected publication. |
 | not_scanned | Mapping exists but no completed scan proves its current state. | No inference. |
 
@@ -107,6 +110,30 @@ checkpoint without duplicating already-classified entries. On project open, any
 scan left in scanning or classifying is changed to interrupted; it is never
 promoted to success. If discovery itself was interrupted, resuming reports
 requires_rescan because there is no verified source batch to classify.
+
+### 2.7 Content-only import policy (remediation)
+
+QMS migrates content, not WordPress plugin behaviour. Before the canonical hash
+is computed, the WordPress adapter applies `qms-wp-content-only@1`
+(`lib/source/wordpress/content-policy.js`) and removes:
+
+- forms, form controls and known contact/booking, commerce/payment and
+  authentication/membership containers;
+- plugin JavaScript, style/template/noscript/object/embed/canvas/SVG elements
+  and non-media iframes;
+- inline event handlers, `data-wp-*` directives, volatile attributes
+  (nonce/CSRF/JWT/token/signature), JWT-shaped values and per-render block
+  instance ids such as `wp-block-gallery-1`;
+- known interactive plugin shortcodes.
+
+Editorial text, links, images and supported audio/video/media are preserved
+inside or around plugin-generated blocks, including images from plugin
+galleries. Unsupported findings produce one structured, non-sensitive warning
+per feature/provider per item with the source key, feature type and a
+manual-review suggestion; removed values are never returned or persisted. Clean
+HTML is returned byte-identically, which keeps Corbett golden fixtures
+compatible. The Phase 6 renderer sanitizer is unchanged and remains a second,
+independent boundary.
 
 ## 3. Conflicts
 
@@ -147,7 +174,7 @@ This preserves the Phase 5 handoff protocol; it only adds a preflight check.
 
 ## 4. Withdrawal and tombstones
 
-- A source deletion is detected only from a complete full scan. Explicit non-public source statuses (draft/private/trash/future) returned by a full scan also become withdrawal candidates.
+- A source deletion is detected only from a complete, exhaustive full-site scan. Explicit non-public source statuses (draft/private/trash/future) returned by any scan become per-item withdrawal candidates.
 - The default policy is local hide: the mapping status becomes withdrawn, a
   withdrawal record preserves the triple, hashes, publication evidence and
   timestamps, and the visible catalog excludes the entry.
@@ -159,6 +186,30 @@ This preserves the Phase 5 handoff protocol; it only adds a preflight check.
 - tombstone prepares a local qms-tombstone@1 marker with published=false and
   networkDeleted=false. Publishing tombstone markers is not part of Phase 7 and
   must remain a separate explicit Hub action.
+
+### 4.1 Scoped scan safety (remediation)
+
+Withdrawal authority is fail-closed. `describeScanCoverage`
+(`lib/engine/sync-scope.js`) marks coverage `scoped` when:
+
+- the caller query contains any option other than `order`/`orderby`
+  (search, taxonomy, date, modified date, status, unknown future filters);
+- `contentTypes` is a subset of the adapter's capability content types;
+- `maxItems` is set;
+- discovery reports a truncated batch.
+
+Rules:
+
+- Only `mode=full` + complete classification + `full-site` coverage may
+  classify an absent mapping as withdrawn.
+- A scoped scan still produces new/modified deltas and may be planned, but it
+  infers no absence, applies no missing-item withdrawal (automatic or explicit)
+  and does not advance the watermark.
+- Status-based withdrawal (an observed draft/private/trash/future item) is
+  per-item evidence and remains valid on a scoped scan.
+- `report.json` and scan history record `scope`, `withdrawalEligible` and
+  `watermarkAdvanced`. An explicit withdrawal request against a scoped scan is
+  rejected with `SYNC_WITHDRAWAL_NOT_ELIGIBLE`, including for legacy state.
 
 ## 5. Existing migration adoption (AC7.9)
 
@@ -237,14 +288,56 @@ sync.catalog, sync.writeCatalog, sync.recordQdnEvidence.
 | AC7.9 existing adoption | Same suite — verified Phase 5 mappings adopted with identical triples and a persisted report. |
 | AC7.10 Hub workflow, no secrets | AC7.1 uses the unchanged publication.prepare, receipt import and exact QDN read-back; desktop IPC never exposes a signer. |
 | AC7.11 GUI integration | desktop/tests/renderer/sync.spec.tsx — 7 tests: manual scan + counts + plan handoff, failed scan, partial scan, resume, adoption, conflict resolution, withdrawal/tombstone honesty. |
-| AC7.12 Corbett + generic CMS regressions | Corbett build green; generic template 19 tests green; full root suite 346 tests, all passing. |
+| AC7.12 Corbett + generic CMS regressions | Corbett build green; generic template 19 tests green; full root suite 364 tests (363 passed, 1 pre-existing skip, 0 failed). |
 | AC7.13 no background service/signing | Code has no timer or scheduler; only explicit IPC actions; no signing method or key input. |
 | AC7.14 durable history after restart | Engine tests reopen the project and read scan history, reports, conflicts and adoption reports. |
+| AC7.15 content-only import | `test/source/wordpress-content-policy.test.js` and `test/source/corbett-compat.test.js` — Jetpack form/JWT removal before hashing, token rotation hash stability, real-edit hash change, editorial/media preservation, non-sensitive warnings, payload exclusion and byte-identical clean Corbett HTML. |
+| AC7.16 scoped full-scan safety | `test/phase7/scope.test.js` and `test/phase7/remediation.test.js` — every filter dimension fails closed; scoped scans cannot withdraw or advance the watermark; explicit withdrawal is rejected; genuine complete full-site reconciliation still withdraws. |
+
+### Live read-only remediation evidence (2026-11-04)
+
+Site: `https://wordpressfoundation.org` (public REST API, no authentication).
+Isolated temporary project; no QDN publication, signing or source modification.
+The evidence script is `scripts/verify-phase7-remediation-live.js`.
+
+**Jetpack page 108**
+
+- `modified_gmt` stayed `2022-10-14T11:38:59`; both requests contained a
+  Jetpack contact-form JWT, and the two token values differed.
+- After content-only normalization the canonical hash was identical across both
+  requests: `sha256:b9e828153675cb3e4a50dcb0a774ed763af8429fde5bd4d6322d1565f93f4fbc`.
+- The form and token were absent from `body.html`; editorial questions, links
+  and text survived; the warning was `UNSUPPORTED_INTERACTIVE_CONTENT`
+  (`contact_form`, provider `jetpack`) with no token value.
+
+**Scoped scan safety**
+
+- Complete full scan: 95 content items, `coverage=full-site`,
+  `withdrawalEligible=true`, `watermarkAdvanced=true`; planning created 95
+  mappings.
+- Scoped full scan `search=contact`: 10 items scanned, `coverage=scoped`,
+  `withdrawalEligible=false`, `watermarkAdvanced=false`, 0 withdrawals, 0
+  false modifications after the block-instance-id fix.
+- 85 mapped items were absent from the scoped result and were **not** withdrawn;
+  active mappings remained 95 before and after. Pre-remediation this scan would
+  have treated absence as evidence and mass-withdrawn them.
+- Warning `SYNC_FULL_SCAN_SCOPED`; withdrawal evidence contains
+  `networkDeleted=false` and `qdnDataPreserved=true`.
+
+The first live run also exposed a second volatile WordPress render artefact:
+`wp-block-gallery-N` block instance classes changed between requests and caused
+one false modification. The content policy now strips these instance ids while
+preserving `wp-image-<id>`, `columns-3` and semantic layout classes; the rerun
+reported 0 modifications.
 
 ### Test counts (this branch)
 
-- Root suite: 346 tests, 346 passed, 0 failed, 0 skipped.
-- Phase 7 suite: 13 tests (12 engine + 1 host RPC), all passing.
+- Root suite: 364 tests, 363 passed, 0 failed, 1 pre-existing skipped.
+- Phase 7 suite: 24 tests (13 initial + 7 scope unit + 4 scoped-withdrawal
+  integration), all passing.
+- Content-policy suite: 7 tests covering Jetpack form/JWT removal, token
+  rotation, real edits, media preservation, warning hygiene, payload exclusion,
+  volatile block instance ids and byte-identical clean HTML.
 - Desktop: 35 tests / 11 files, all passing, including 7 new sync GUI tests.
 - Generic CMS template: 19 tests / 3 files, all passing.
 - Builds: viewer/migration build, Corbett CMS build, generic template bundle
@@ -262,6 +355,9 @@ sync.catalog, sync.writeCatalog, sync.recordQdnEvidence.
   is a forward-only addition with a tested migration from version 0-3.
 - Existing mappings, publication receipts and resource identities are preserved
   by adoption and withdrawal.
+- Upgrading an existing pre-remediation project may classify some items as
+  modified once, because the canonical hash now excludes plugin chrome and
+  volatile tokens. QDN identifiers and resource identities do not change.
 
 ## 10. Security boundaries observed
 
@@ -271,12 +367,17 @@ sync.catalog, sync.writeCatalog, sync.recordQdnEvidence.
 - External QDN evidence is supplied explicitly; Phase 7 does not silently read
   or overwrite a live resource.
 - No cron, timer, service or scheduled background sync was added.
+- Live remediation validation was read-only: no QDN publication, wallet, signer
+  or credential access, no source modification and no VPS/broker change.
+- Removed form/session tokens are not stored in content payloads, sync state,
+  reports, warnings or diagnostics.
 
 ## 11. Known limitations and remaining alpha blockers
 
-1. Real WordPress acceptance not yet run. Phase 7 was verified with the
-   deterministic WordPress fixture, including application-password code paths
-   inherited from Phase 2, but not against a live public site in this phase.
+1. Live read-only WordPress acceptance is complete for the remediation:
+   page 108 token rotation and scoped-scan safety were verified against
+   wordpressfoundation.org with an isolated temporary project. No live QDN
+   publication was performed.
 2. Real Hub delta publication not yet run. The delta plan uses the verified
    Phase 5 handoff, but an actual operator-approved publish and exact read-back
    of a Phase 7 delta is still required for alpha acceptance.

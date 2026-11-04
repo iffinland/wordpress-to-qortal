@@ -150,6 +150,7 @@ Priority: **M** = must for first public release, **S** = should, **C** = could.
 | SRC-05 | Adapter preserves source IDs, slugs, old URLs, dates, modified dates, status and terms. | M | Normalized records retain all required fields and a stable source key. |
 | SRC-06 | Adapter detects unsupported/custom content types and reports them. | S | A capability report lists unsupported types and counts. |
 | SRC-07 | Future adapters (Joomla, Wix) can be added without changing the engine or publisher. | M | A conformance test suite passes a second fixture adapter. |
+| SRC-08 | Migration is content-only. Normalization removes unsupported interactive plugin functionality (contact/booking forms, carts/payments, authentication/membership workflows, plugin JavaScript, embedded apps) before computing the canonical content hash. | M | Editorial text, links, images and supported media inside or around plugin-generated blocks survive; removed functionality emits a structured, non-sensitive manual-review warning; volatile form/session tokens never enter payloads, sync state or diagnostics. |
 
 ### 4.3 Common content model
 
@@ -160,6 +161,7 @@ Priority: **M** = must for first public release, **S** = should, **C** = could.
 | MOD-03 | The model distinguishes published, draft, private, trashed, withdrawn and unknown states. | M | The UI can filter and explain each state; unsupported source states map explicitly. |
 | MOD-04 | The model separates editorial author/public author from technical QDN publisher. | M | UI and published payloads never conflate the two. |
 | MOD-05 | The model carries media references without requiring local files to exist. | M | Planning can show linked-only media and unpublishable references. |
+| MOD-06 | The canonical content hash is computed after content-only normalization and excludes volatile plugin tokens. | M | Consecutive fetches with a rotating WordPress form JWT produce the same content hash; a real editorial change still changes it. |
 
 ### 4.4 Planning, batches and limits
 
@@ -208,6 +210,8 @@ Priority: **M** = must for first public release, **S** = should, **C** = could.
 | SYN-06 | Existing migration projects are adoptable and reconcilable without changing verified QDN identities. | M | Adoption report preserves triples, publication receipts and resource identities; issues are reported, not auto-fixed. |
 | SYN-07 | Delta publication is reviewable with resource counts, disk and fee estimates before Hub handoff. | M | Only new/modified resources are prepared; withdrawn and conflicting items are excluded or blocked. |
 | SYN-08 | Synchronization is manual; no scheduled background service or autonomous signing. | M | No timer/cron/service starts a scan or publication; every scan and publish requires an explicit operator action. |
+| SYN-09 | Missing-item withdrawal authority requires proven exhaustive full-site coverage. | M | Filtered (search, taxonomy, date, status, pagination, unknown filter) scans, content-type subsets, item-limited scans and truncated/failed/cancelled scans infer no absence, advance no watermark and cannot withdraw, including through explicit withdrawal APIs. |
+| SYN-10 | Scan evidence records coverage, scope reasons and withdrawal/watermark eligibility. | M | Report and scan history expose `scope.coverage`, `withdrawalEligible` and `watermarkAdvanced`; comprehensive regression tests cover each scoping dimension and a genuine full reconciliation. |
 
 ### 4.8 QDN preparation and publication
 
@@ -368,6 +372,8 @@ untouched.
 - Sanitized HTML rendering.
 - SSRF/path traversal/symlink protections for source and media.
 - Redacted logs/diagnostics.
+- Short-lived form/session tokens are removed during source normalization and
+  never stored in content payloads, synchronization state or import warnings.
 - Explicit external-write authorization; no background publication.
 
 ### 6.4 Compatibility
@@ -412,6 +418,10 @@ untouched.
 ### 7.2 Deletion policy
 
 - The UI must never say content was deleted from QDN.
+- Missing-item withdrawal is inferred only from a completed, exhaustive,
+  unscoped full-site scan. Filtered, taxonomy/date/status-scoped, content-type
+  subset, item-limited, truncated, failed or cancelled scans never infer
+  absence and never advance the synchronization watermark.
 - Default: mark withdrawn locally and hide from the site.
 - Optional: publish a tombstone/withdrawn marker to the same identifier, with an
   explicit warning that older bytes remain retrievable on the network.
