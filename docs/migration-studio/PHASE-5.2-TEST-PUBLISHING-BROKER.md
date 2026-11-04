@@ -4,7 +4,7 @@
 | --- | --- |
 | Document | Policy broker, External Auth assessment and operator deployment model |
 | Date | 2026-11-03 |
-| Status | Implementation and deterministic verification complete; owner reports the signing host provisioned, but this branch's credential lifecycle is **not installed** and no live publish was performed |
+| Status | **PASSED live acceptance (2026-11-04).** Broker, External Auth and read-back fixes are deployed; `pub_602a5fbbbb927367b05343ff` is `remote_verified` with 23 bytes and exact SHA-256; Phase 6 not started |
 | Scope | Development-only autonomous QDN test publication infrastructure |
 | Product boundary | The user-facing Migration Studio workflow still uses Qortal Hub approval (Phase 5) |
 

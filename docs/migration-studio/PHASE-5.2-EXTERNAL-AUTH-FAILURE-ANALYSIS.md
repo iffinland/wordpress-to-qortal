@@ -1,11 +1,10 @@
 # Phase 5.2 — External Auth publishing failure analysis and fix
 
-Status: fee fix deployed; the remaining HTTP 400 is traced to the next Core
-gate (API key enforcement) and the diagnostic contract is fixed. The final
-deployment correction is ready for operator execution. No live QDN transaction
-or signing-VPS change was performed during development.
+Status: **PASSED live acceptance (2026-11-04).** The atomic-fee fix, Core API
+key configuration and payload-size read-back fix are deployed. Phase 5.2 is
+COMPLETED; Phase 6 has not started. Final evidence is in section 14.
 
-> **Update 2026-11-03 (later):** the atomic-fee broker fix is deployed and the
+> **Historical note (superseded by final acceptance):** the atomic-fee broker fix is deployed and the
 > broker now sends `fee=1000000`. The publish still returns HTTP 400
 > (`pub_bb1a16b4915a4ee8df9ef917`, identifier `qms-dev-final-001`,
 > `CORE_REQUEST_REJECTED`). Section 12 identifies the next gate and records the
@@ -602,3 +601,37 @@ performed while producing this update.
   `/etc/qms-qdn-test-broker/external-auth-token` assumption.
 - No signing-VPS access, live QDN transaction, wallet import/unlock, UFW,
   Tailscale or Caddy change was performed.
+
+## 14. Final live acceptance (2026-11-04)
+
+Phase 5.2 **PASSED** live acceptance. The existing publication was re-verified
+read-only after the corrected verifier module was deployed; no new transaction
+was created.
+
+- Publication: `pub_602a5fbbbb927367b05343ff`
+- Identifier: `qms-dev-live-001`
+- Transaction signature: `4Epsz7FJgteHsJiiaz12qUXyoAvD6XBrJXNJLdNUT5MijderHjf4v3tKdWFePQRAeAHWNBUVh4u2xJiJTUoXh8Qq`
+- Fee: 0.01 QORT
+- State: `remote_verified`; code: `EXACT_READBACK_VERIFIED`
+- Actual payload: 23 bytes
+- Full SHA-256: `4a884888e0d9199078cc59ba4e30b0ac8d5bbbc5c162f07b28c0d30e21fca587`
+- QDN HTTP 200, `Content-Type: text/plain`; the properties size of 163 bytes
+  was Qortal Core directory metadata and was correctly ignored.
+
+### Confirmed causes and corrections
+
+1. **Atomic fee.** The broker converted `1000000` atomic to `0.01` QORT before
+   calling External Auth; Core binds `/arbitrary?fee=` as a `Long` in atomic
+   units. The broker now passes the atomic integer unchanged.
+2. **Core API key.** Core `Security.checkApiCallAllowed()` required the node
+   API key for the identifier/Base64 route. External Auth now receives
+   `QORTAL_AUTH_NODE_API_KEY` through its systemd EnvironmentFile/drop-in; no
+   request-shape change was needed.
+3. **Payload-size read-back.** Core `getFileProperties()` returns
+   `FileUtils.sizeOfDirectory()`, which includes `.qortal` metadata and is not
+   the payload size. The verifier now fetches the Base64 payload and compares
+   exact byte length and SHA-256; properties are diagnostic only. API/HTML
+   responses are never treated as document bytes.
+
+Phase 5.2 is COMPLETED. Phase 6 is NOT STARTED. No further live publication,
+wallet operation or infrastructure change was made for this closure.

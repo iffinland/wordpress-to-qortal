@@ -6,7 +6,7 @@
 | Product working name | Qortal Migration Studio |
 | Executing agent | DeepSeek (`opencode-development` profile) |
 | Date | 2026-11-02 |
-| Status | Phase 0–4 implemented on dedicated agent branches (Phase 4 desktop prototype); Phases 5–10 not started |
+| Status | Phase 0–5.2 completed with live acceptance (2026-11-04); Phase 6 NOT STARTED; Phases 7–10 not started |
 | Companion documents | [Audit](PHASE-0-ARCHITECTURE-AUDIT.md), [Requirements](PRODUCT-REQUIREMENTS.md), [Architecture](ARCHITECTURE.md) |
 
 ## 1. How to use this roadmap
@@ -280,8 +280,10 @@ Node/npm/Git, with a first-run project flow.
 > policy, atomic fee budgets, crash-safe state, hash-chained audit and an
 > operator Unix-socket kill switch. It calls External Auth only through
 > `POST /qdn/publish` and reuses Phase 5 exact read-back. Deterministic tests
-> pass. Live deployment is blocked on signing-host provisioning, External Auth
-> installation and operator wallet unlock; no wallet or QDN write occurred. See
+> pass.
+> **Status: COMPLETED (2026-11-04).** Live acceptance passed:
+> `pub_602a5fbbbb927367b05343ff` is `remote_verified` with 23 bytes and
+> SHA-256 `4a8848...`; fee 0.01 QORT. Phase 6 is NOT STARTED. See
 > [PHASE-5.2-TEST-PUBLISHING-BROKER.md](PHASE-5.2-TEST-PUBLISHING-BROKER.md).
 > A fee-policy correction now derives every ARBITRARY fee from Core's
 > `POST /transactions/fee` and `GET /transactions/unitfee`, removes all
@@ -332,6 +334,8 @@ hands off to Qortal Hub, and verifies exact QDN content without collecting keys.
     is mandatory; the write requires explicit authorization).
 
 ## 9. Phase 6 — Generic CMS/site template (P0)
+
+**Status: NOT STARTED.**
 
 **Outcome:** a neutral, production-quality default Qortal CMS/site plus a
 custom-template mechanism; Corbett remains a custom clone.

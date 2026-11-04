@@ -1,8 +1,8 @@
 # Phase 5.2 — Dual-VPS broker connection
 
-Status: diagnostic complete; live broker authentication and test publication are
-blocked pending one operator command on the signing VPS. No QDN write, wallet
-operation or signing-VPS change was performed.
+Status: **RESOLVED / PASSED (2026-11-04).** Live broker publishing and exact
+QDN read-back succeeded; `pub_602a5fbbbb927367b05343ff` is `remote_verified`
+with 23 bytes and SHA-256 `4a8848...`. Phase 5.2 is COMPLETED; Phase 6 is NOT STARTED.
 
 ## 1. Verified topology
 

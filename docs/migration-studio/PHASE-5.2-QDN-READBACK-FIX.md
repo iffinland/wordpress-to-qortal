@@ -36,9 +36,16 @@ success or failure on its own.
 - properties `size=163` with an exact 23-byte Base64 payload → `remote_verified`;
 - a 163-byte HTML/API error body → `TRANSPORT_NOT_BYTE_SAFE`, never success.
 
-## Existing publication
+## Final live verification (2026-11-04)
 
-No republish is required. After deploying the corrected broker source, run the
-read-only `POST /v1/publications/pub_602a5fbbbb927367b05343ff/verify` against
-the existing publication. The transaction signature and charged fee remain
-unchanged; this is read-back only.
+The existing publication was re-verified read-only after the corrected module
+was deployed; no new transaction was created.
+
+- Publication: `pub_602a5fbbbb927367b05343ff`
+- Transaction signature: `4Epsz7FJgteHsJiiaz12qUXyoAvD6XBrJXNJLdNUT5MijderHjf4v3tKdWFePQRAeAHWNBUVh4u2xJiJTUoXh8Qq`
+- State: `remote_verified`; code: `EXACT_READBACK_VERIFIED`
+- Actual payload: **23 bytes**
+- Full SHA-256: `4a884888e0d9199078cc59ba4e30b0ac8d5bbbc5c162f07b28c0d30e21fca587`
+- QDN HTTP 200, `Content-Type: text/plain`; properties size 163 was directory metadata and was correctly ignored.
+
+**Phase 5.2 acceptance: PASSED.** The live publication and exact QDN read-back both succeeded.
