@@ -135,6 +135,33 @@ HTML is returned byte-identically, which keeps Corbett golden fixtures
 compatible. The Phase 6 renderer sanitizer is unchanged and remains a second,
 independent boundary.
 
+### 2.8 Generic form salvage hardening (2026-11-04)
+
+Live revalidation found that a generic WordPress `<form>` wrapping editorial
+content could survive normalization: `salvageFromGenericForm` cloned the form
+element itself, so its `method`, `action` and all attributes were re-emitted
+inside `div.qms-import-preserved`. The WordPress Foundation donate page
+(page id 30) kept `<form method="post" action=".../admin-post.php">` in
+canonical output.
+
+The fix in `lib/source/wordpress/content-policy.js`:
+
+- salvages only the form's inner content into a neutral container and never
+  emits the form wrapper;
+- removes nested forms, form controls, hidden fields and volatile attributes
+  before building the neutral container;
+- adds a hard post-pass that unwraps any remaining `form` and strips
+  `action`, `formaction`, `method` and `enctype` attributes;
+- removes links and media references to `admin-post.php`, `admin-ajax.php`,
+  `wp-login.php` and `xmlrpc.php`;
+- keeps one non-sensitive `UNSUPPORTED_INTERACTIVE_CONTENT` warning per
+  feature/provider with no token values.
+
+Because the removal runs before hashing and extraction, form markup cannot
+enter the canonical hash, media list or publication payload. Determinism is
+covered by rotating hidden nonces producing an identical hash, while a real
+editorial edit still changes it.
+
 ## 3. Conflicts
 
 Conflict records use qms-sync-conflict@1 and store:
@@ -291,7 +318,7 @@ sync.catalog, sync.writeCatalog, sync.recordQdnEvidence.
 | AC7.12 Corbett + generic CMS regressions | Corbett build green; generic template 19 tests green; full root suite 364 tests (363 passed, 1 pre-existing skip, 0 failed). |
 | AC7.13 no background service/signing | Code has no timer or scheduler; only explicit IPC actions; no signing method or key input. |
 | AC7.14 durable history after restart | Engine tests reopen the project and read scan history, reports, conflicts and adoption reports. |
-| AC7.15 content-only import | `test/source/wordpress-content-policy.test.js` and `test/source/corbett-compat.test.js` — Jetpack form/JWT removal before hashing, token rotation hash stability, real-edit hash change, editorial/media preservation, non-sensitive warnings, payload exclusion and byte-identical clean Corbett HTML. |
+| AC7.15 content-only import | `test/source/wordpress-content-policy.test.js`, `test/source/wordpress-unsupported-forms.test.js` and `test/source/corbett-compat.test.js` — Jetpack and generic form removal before hashing, no reconstructed forms or submission endpoints, token rotation hash stability, real-edit hash change, editorial/media preservation, non-sensitive warnings, payload exclusion and byte-identical clean Corbett HTML. |
 | AC7.16 scoped full-scan safety | `test/phase7/scope.test.js` and `test/phase7/remediation.test.js` — every filter dimension fails closed; scoped scans cannot withdraw or advance the watermark; explicit withdrawal is rejected; genuine complete full-site reconciliation still withdraws. |
 
 ### Live read-only remediation evidence (2026-11-04)
@@ -309,6 +336,21 @@ The evidence script is `scripts/verify-phase7-remediation-live.js`.
 - The form and token were absent from `body.html`; editorial questions, links
   and text survived; the warning was `UNSUPPORTED_INTERACTIVE_CONTENT`
   (`contact_form`, provider `jetpack`) with no token value.
+
+**Generic donation page 30 (post-fix)**
+
+- The raw page contains `<form method="post" action=".../wp/wp-admin/admin-post.php">`
+  with hidden nonce/referer/action inputs, amount buttons and a select.
+- After normalization the canonical hash
+  `sha256:b385ba4666c96668a6a9db029e283d56abf2aef69fb10c0fddc15b8152ce8f57`
+  was identical across two independent reads.
+- `body.html` contained no `<form>`, no `input`/`select`/`textarea`/`button`/
+  `label`, no `admin-post.php`, no hidden fields and no nonce value. Editorial
+  donation text, four internal links, five external links and 41 extracted
+  images (including `Lagos.jpg`) survived.
+- Warning: `UNSUPPORTED_INTERACTIVE_CONTENT`, feature `form`, provider `null`,
+  no token value.
+- Evidence: `docs/migration-studio/evidence/2026-11-04-qms-form-fix-live/live-evidence.json`.
 
 **Scoped scan safety**
 
@@ -371,6 +413,22 @@ reported 0 modifications.
   or credential access, no source modification and no VPS/broker change.
 - Removed form/session tokens are not stored in content payloads, sync state,
   reports, warnings or diagnostics.
+
+### Test counts (generic form-fix branch, 2026-11-04)
+
+- Root `node --test`: 382 tests, 380 passed, 1 pre-existing environmental failure
+  (the root runner executes the Vitest-only `templates/generic-cms/tests/repository.test.ts`;
+  the same file fails identically on the untouched baseline, and passes through
+  `npm run cms-template:test`), 1 pre-existing skip. The new suite contributes
+  13 passing tests; the flaky Phase 5.2 deployment-layout test passes when run
+  alone (6/6).
+- Source suite: 66 tests, all passing.
+- Phase 7 suite: 24 tests, all passing.
+- Desktop: typecheck clean; 35 tests / 11 files, all passing.
+- Generic CMS template: 19 tests / 3 files, all passing; bundle build and
+  validator green.
+- Builds: viewer/migration build and Corbett CMS build succeeded.
+- Live read-only evidence: `docs/migration-studio/evidence/2026-11-04-qms-form-fix-live/live-evidence.json`.
 
 ## 11. Known limitations and remaining alpha blockers
 

@@ -481,7 +481,8 @@ Rules:
 - No UI strings, QDN names or template branding in the model.
 - Adapters must normalize to content-only HTML before computing the canonical
   hash. WordPress normalization applies `qms-wp-content-only@1`: unsupported
-  forms, commerce, authentication, plugin scripts, embedded apps and volatile
+  forms (never reconstructed, no controls or admin-* submission endpoints),
+  commerce, authentication, plugin scripts, embedded apps and volatile
   plugin directives/tokens are removed; editorial text, links, images and
   supported media are preserved. The Phase 6 renderer sanitizer is a second
   boundary, not a substitute for source normalization.

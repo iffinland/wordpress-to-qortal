@@ -32,6 +32,13 @@ plugin-generated block are kept; only the non-functional interaction is
 removed. A whole article is never dropped merely because a plugin generated part
 of it.
 
+Forms are never re-created. If a generic WordPress form wraps editorial
+paragraphs, images or links, QMS salvages that inner content as neutral HTML.
+The canonical page contains no `<form>`, no text fields, selects, textareas or
+buttons, no hidden inputs, no CSRF/nonce fields and no submission URL such as
+`admin-post.php`. Payment fields and checkout controls are removed with the same
+rule. This is deterministic: unrelated nonce rotation cannot change the hash.
+
 Each affected item gets a structured import warning containing:
 
 - the source item (for example `page:108`),

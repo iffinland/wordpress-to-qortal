@@ -237,6 +237,13 @@ while editorial text, links, images and supported media are kept. Clean HTML is
 returned byte-identically. Unsupported findings become structured, non-sensitive
 warnings with source key, feature/provider and a manual-review suggestion.
 
+A form element is never reconstructed during salvage. Content wrapped by a
+generic form is lifted into neutral elements, and a final invariant unwraps any
+remaining `form` and removes `action`/`formaction` attributes and links to
+`admin-post.php`, `admin-ajax.php`, `wp-login.php` or `xmlrpc.php`. Canonical
+HTML therefore contains no form, form control, hidden field, CSRF nonce,
+payment input or submission endpoint.
+
 Every URL is resolved against the WordPress base URL. Relative, absolute and
 external media remain distinguishable through <code>role</code> and <code>external</code> fields.
 The extraction also computes the exact legacy <code>inspectPostHtml()</code> result and
