@@ -17,7 +17,10 @@ const LEGACY_SCRIPTS = {
   start: 'npm run batch:status',
   setup: 'bash scripts/setup-linux.sh',
   doctor: 'node scripts/doctor.js',
-  test: 'node --test',
+  // Scoped to the Node suite; Vitest suites have their own runners and
+  // `npm run test:all` executes both. This preserves the original intent of
+  // the Phase 0 command surface while removing cross-runner discovery.
+  test: 'node --test "test/**/*.test.js"',
   inspect: 'node src/inspect.js',
   dump: 'node src/dump.js',
   convert: 'node src/convertRaw.js',
@@ -41,7 +44,7 @@ const LEGACY_SCRIPTS = {
   'cms:dev': 'npm --prefix corbettreport run dev',
   'cms:build': 'npm --prefix corbettreport run build',
   'cms:preview': 'npm --prefix corbettreport run preview',
-  check: 'npm test && npm run migration:build && npm run cms:build',
+  check: 'npm run test:all && npm run migration:build && npm run cms:build && npm run cms-template:build',
   'package:source': 'node scripts/createMigrationPackage.js',
   'package:zip': 'node scripts/createMigrationZip.js',
   'package:migration-qapp': 'node scripts/createMigrationQappZip.js --profile=corbettreport',

@@ -130,6 +130,26 @@ test('already-configured key does not restart External Auth and requires no unlo
   }
 });
 
+test('key detection tolerates a large process environment without a SIGPIPE false negative', { skip: userns ? false : 'user namespaces unavailable' }, async () => {
+  // A rich environment makes /proc/<pid>/environ span multiple pipe chunks.
+  // The pre-fix "tr ... | grep -q" pipeline could return 141 under pipefail
+  // when grep exited after the first chunk, falsely reporting a missing key
+  // and triggering an unnecessary rollback and unlock action.
+  const fixture = await createDeploymentFixture({
+    keyAlreadyConfigured: true,
+    extraEnv: { QMS_TEST_ENV_PAD: 'x'.repeat(64 * 1024) }
+  });
+  try {
+    const result = await runDeployment(fixture, ['--yes', '--core-api-key-file', fixture.apikeyFile]);
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /External Auth was NOT restarted/);
+    assert.match(result.stdout, /verification OK/);
+    assert.equal((result.stdout.match(/OPERATOR UNLOCK ACTION/g) || []).length, 0);
+  } finally {
+    await fixture.close();
+  }
+});
+
 test('provisioning failure triggers rollback and never starts the broker', { skip: userns ? false : 'user namespaces unavailable' }, async () => {
   const fixture = await createDeploymentFixture({ failSessions: true });
   try {

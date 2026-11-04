@@ -74,7 +74,8 @@ export async function createDeploymentFixture(options = {}) {
   const {
     tokenRelative = 'var/broker/external-auth-token',
     keyAlreadyConfigured = false,
-    failSessions = false
+    failSessions = false,
+    extraEnv = {}
   } = options;
 
   const root = mkdtempSync(join(tmpdir(), 'qms-final-deploy-'));
@@ -365,7 +366,7 @@ export async function createDeploymentFixture(options = {}) {
     CORE_API_KEY_FILE: apikeyFile,
     EA_HEALTH: 'http://127.0.0.1:' + eaPort + '/health',
     BROKER_HEALTH: 'http://127.0.0.1:' + brokerPort + '/v1/health'
-  });
+  }, extraEnv);
 
   return {
     root,

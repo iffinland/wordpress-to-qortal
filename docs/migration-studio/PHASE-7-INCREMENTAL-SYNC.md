@@ -440,12 +440,19 @@ signed or published.
 
 ### Test counts (generic form-fix branch, 2026-11-04)
 
-- Root `node --test`: 382 tests, 380 passed, 1 pre-existing environmental failure
-  (the root runner executes the Vitest-only `templates/generic-cms/tests/repository.test.ts`;
-  the same file fails identically on the untouched baseline, and passes through
-  `npm run cms-template:test`), 1 pre-existing skip. The new suite contributes
-  13 passing tests; the flaky Phase 5.2 deployment-layout test passes when run
-  alone (6/6).
+- Root `npm test`: 378 tests, 377 passed, 0 failed, 1 skip (378/378 pass
+after `npm run cms-template:build`). The script now
+  scopes the Node runner to `test/**/*.test.js`, so it no longer executes the
+  Vitest-only `templates/generic-cms/tests/repository.test.ts` or the four
+  support modules under `test/`. The Vitest suite remains independently
+  runnable with `npm run cms-template:test`; `npm run test:all` runs both.
+  See `docs/migration-studio/TESTING.md` for the full command matrix.
+- The Phase 5.2 deployment-layout flake is fixed. `ea_process_has_key` used
+  `tr ... | grep -q` under `set -o pipefail`; a multi-chunk environment could
+  make `tr` receive SIGPIPE after grep matched, producing a false negative and
+  an unnecessary rollback. The check now uses `grep -c ... >/dev/null`; the
+  suite has 7 tests (including a 64 KiB-environment regression) and passes
+  repeatedly.
 - Source suite: 66 tests, all passing.
 - Phase 7 suite: 24 tests, all passing.
 - Desktop: typecheck clean; 35 tests / 11 files, all passing.

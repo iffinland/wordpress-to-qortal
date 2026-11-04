@@ -183,7 +183,7 @@ read_env_file_key() {
 core_key_present() {
   if [ -n "$CORE_API_KEY_FILE" ] && [ -r "$CORE_API_KEY_FILE" ]; then return 0; fi
   if [ -r "$EA_KEY_ENV_FILE" ] && grep -q '^QORTAL_AUTH_NODE_API_KEY=.' "$EA_KEY_ENV_FILE"; then return 0; fi
-  if systemctl show "$EA_SERVICE" -p Environment 2>/dev/null | grep -q 'QORTAL_AUTH_NODE_API_KEY=[^" ]'; then return 0; fi
+  if systemctl show "$EA_SERVICE" -p Environment 2>/dev/null | grep -c 'QORTAL_AUTH_NODE_API_KEY=[^" ]' >/dev/null; then return 0; fi
   return 1
 }
 
@@ -228,7 +228,12 @@ ea_process_has_key() {
   pid=$(systemctl show "$EA_SERVICE" -p MainPID --value 2>/dev/null || true)
   if [ -z "$pid" ] || [ "$pid" = "0" ]; then return 1; fi
   if [ ! -r "/proc/$pid/environ" ]; then return 1; fi
-  tr '\0' '\n' <"/proc/$pid/environ" | grep -q '^QORTAL_AUTH_NODE_API_KEY=.'
+  # Read the complete environment (grep -c, not grep -q) so the producer can
+  # never receive SIGPIPE under 'set -o pipefail'. /proc/<pid>/environ can be
+  # larger than one pipe chunk when the service environment is rich, and an
+  # early-exiting grep -q would otherwise make this check intermittently fail
+  # with status 141 even when the key is present.
+  tr '\0' '\n' <"/proc/$pid/environ" | grep -c '^QORTAL_AUTH_NODE_API_KEY=.' >/dev/null
 }
 
 verify_ea_env() {
