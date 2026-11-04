@@ -1,5 +1,17 @@
 # The Corbett Report: WordPress to Qortal
 
+> **Qortal Migration Studio 0.6.0 — first public alpha.** The desktop
+> application in `desktop/` and the engine in `lib/engine/` are the current
+> product. Start with [docs/migration-studio/alpha/README.md](docs/migration-studio/alpha/README.md)
+> for release notes, the first-run guide, the migration walkthrough, sync and
+> recovery, known issues and feedback instructions. Install from
+> `qortal-migration-studio_0.6.0_amd64.deb`; do not build from source unless
+> you are developing QMS.
+>
+> The sections below describe the legacy Corbett Report command-line workflow.
+> They remain supported for compatibility and are not the beginner path for the
+> desktop alpha.
+
 This toolkit copies the public WordPress site at `https://corbettreport.com` into Qortal QDN and keeps it current.
 
 The person using this repository does **not** need to understand Node.js or Qortal internals. Follow the instructions in order and copy the commands exactly.

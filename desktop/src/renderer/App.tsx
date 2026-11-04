@@ -37,6 +37,7 @@ export default function App() {
   const [publishingPlanId, setPublishingPlanId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
+  const [staleLock, setStaleLock] = useState<{ projectId: string; message: string } | null>(null);
 
   async function refreshProjects() {
     const list = await api().projects.list(true);
@@ -68,10 +69,30 @@ export default function App() {
     return () => { cancelled = true; };
   }, []);
 
+  async function openHandle(projectId: string) {
+    try {
+      return await api().projects.open(projectId);
+    } catch (openError) {
+      // A killed app leaves a lock whose owner process is verifiably gone. Do
+      // not dead-end the user: offer explicit recovery instead of a raw error.
+      const code = (openError as { code?: string } | null)?.code;
+      if (code === 'PROJECT_LOCK_STALE') {
+        setStaleLock({
+          projectId,
+          message: (openError as { message?: string })?.message ?? 'The previous session did not close cleanly.'
+        });
+        return null;
+      }
+      throw openError;
+    }
+  }
+
   async function openProject(projectId: string) {
     setError(null);
+    setStaleLock(null);
     try {
-      const opened = await api().projects.open(projectId);
+      const opened = await openHandle(projectId);
+      if (!opened) return;
       setProject(opened.project);
       const plan = wizardPlanId(opened.project);
       setPlanId(plan);
@@ -83,11 +104,30 @@ export default function App() {
     }
   }
 
-  async function openHistory(projectId: string) {
+  async function recoverStaleProject() {
+    if (!staleLock) return;
     setError(null);
     try {
-      const opened = await api().projects.open(projectId);
+      const opened = await api().projects.open(staleLock.projectId, true);
       setProject(opened.project);
+      setPlanId(wizardPlanId(opened.project));
+      setView('recovery');
+      setStaleLock(null);
+      await refreshProjects();
+    } catch (openError) {
+      setError(openError);
+    }
+  }
+
+  async function openHistory(projectId: string) {
+    setError(null);
+    setStaleLock(null);
+    try {
+      if (!project || project.id !== projectId) {
+        const opened = await openHandle(projectId);
+        if (!opened) return;
+        setProject(opened.project);
+      }
       setView('history');
     } catch (openError) {
       setError(openError);
@@ -105,9 +145,11 @@ export default function App() {
 
   async function openPublishing(projectId: string, initialPlanId: string | null = null) {
     setError(null);
+    setStaleLock(null);
     try {
       if (!project || project.id !== projectId) {
-        const opened = await api().projects.open(projectId);
+        const opened = await openHandle(projectId);
+        if (!opened) return;
         setProject(opened.project);
       }
       setPublishingPlanId(initialPlanId);
@@ -119,9 +161,11 @@ export default function App() {
 
   async function openSync(projectId: string) {
     setError(null);
+    setStaleLock(null);
     try {
       if (!project || project.id !== projectId) {
-        const opened = await api().projects.open(projectId);
+        const opened = await openHandle(projectId);
+        if (!opened) return;
         setProject(opened.project);
       }
       setView('sync');
@@ -132,9 +176,11 @@ export default function App() {
 
   async function openRecovery(projectId: string) {
     setError(null);
+    setStaleLock(null);
     try {
       if (!project || project.id !== projectId) {
-        const opened = await api().projects.open(projectId);
+        const opened = await openHandle(projectId);
+        if (!opened) return;
         setProject(opened.project);
       }
       setView('recovery');
@@ -183,6 +229,19 @@ export default function App() {
 
       <main className="app-main">
         <ErrorText error={error} />
+        {staleLock && (
+          <section className="card warn" role="alert" data-testid="stale-lock-banner">
+            <h2>Project needs recovery</h2>
+            <p>{staleLock.message}</p>
+            <p className="muted small">
+              The previous session ended without closing the project lock. Recovery keeps your
+              project, media, handoffs and history; it does not publish anything.
+            </p>
+            <button className="primary" onClick={() => void recoverStaleProject()}>
+              Recover project
+            </button>
+          </section>
+        )}
         {view === 'dashboard' && (
           <Dashboard
             projects={projects}

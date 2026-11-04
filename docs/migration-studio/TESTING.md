@@ -28,6 +28,8 @@ suites are deliberately separate runners.
 | SBOM / provenance | `npm run release:sbom && npm run release:provenance` |
 | Clean-checkout reproducibility | `npm run release:repro` |
 | Isolated install test | `node scripts/release/install-test.mjs --rootfs=<dir> --distro=<label>` |
+| Real-site alpha validation | `node scripts/release/alpha-validation.mjs --base-url=https://wordpressfoundation.org` |
+| Read-only QDN exact read-back | `node scripts/release/qdn-read-only-check.mjs --node-url=<url>` |
 
 `npm run check` runs `test:all` and all four builds. `npm run check:phase9` runs
 the version check, Phase 9 tests, desktop typecheck and desktop tests.
@@ -54,13 +56,14 @@ The explicit glob keeps the root runner on the Node suite only. The generic CMS
 test remains independently executable and is covered by
 `npm run cms-template:test` (and by `npm run test:all`).
 
-Expected counts at this revision:
+Expected counts at this revision (0.6.0 alpha):
 
-- `npm test`: **401 tests, 401 pass, 0 fail, 0 skip** after the template build; before `npm run cms-template:build` the generic-CMS bundle test skips (400 pass, 1 skip).
+- `npm test`: **415 tests, 415 pass, 0 fail, 0 skip** after the template build; before `npm run cms-template:build` the generic-CMS bundle test skips (414 pass, 1 skip).
+- `npm run test:desktop`: 44 tests in 13 files.
 - The skip is `test/phase6/bundle-validation.test.js` → "the built generic CMS
   bundle passes validation"; it is skipped only until
   `npm run cms-template:build` has produced `templates/generic-cms/dist/index.html`.
-  After that build, a root run reports 378 tests, 378 pass, 0 skip.
+  After that build, a root run reports 415 tests, 415 pass, 0 skip.
 
 ## Phase 5.2 deployment-layout flake
 

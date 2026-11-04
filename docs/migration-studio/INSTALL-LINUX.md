@@ -3,6 +3,10 @@
 This guide installs the self-contained Debian package. The target machine does
 not need Node.js, npm, Git or development tools.
 
+This is the **first public alpha (0.6.0)**. It is unsigned and amd64 only.
+Read [alpha/RELEASE-NOTES.md](alpha/RELEASE-NOTES.md) and
+[alpha/KNOWN-ISSUES.md](alpha/KNOWN-ISSUES.md) before installing.
+
 ## Supported systems
 
 - Debian 12 (bookworm)
