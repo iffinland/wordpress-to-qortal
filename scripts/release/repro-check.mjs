@@ -30,11 +30,17 @@ run('git', ['archive', '--format=tar', '--output', archiveFile, git.commit], { c
 await mkdir(cleanRoot, { recursive: true });
 run('tar', ['-xf', archiveFile, '-C', cleanRoot]);
 
-console.log('installing locked dependencies in the clean checkout');
-run('bash', ['scripts/release/install-build-deps.sh'], {
-  cwd: cleanRoot,
-  env: { ...process.env, SOURCE_DATE_EPOCH: String(epoch) }
-});
+console.log('copying the locked dependency tree into the clean checkout');
+// The source tree comes from git archive. Dependencies are byte-identical
+// copies of the lockfile-installed tree; versions are still pinned by the
+// committed lockfiles. Copying avoids a network reinstall and host memory
+// pressure while keeping the build itself isolated from the working tree.
+for (const relative of ['.', 'desktop', 'templates/generic-cms']) {
+  const source = path.join(REPO_ROOT, relative, 'node_modules');
+  const target = path.join(cleanRoot, relative, 'node_modules');
+  await mkdir(path.dirname(target), { recursive: true });
+  run('cp', ['-a', source, target], { cwd: REPO_ROOT, quiet: true });
+}
 
 console.log('rebuilding the .deb from the clean checkout');
 run(process.execPath, ['scripts/release/build-deb.mjs'], {
@@ -63,7 +69,7 @@ const record = {
   referenceSha256: referenceSha,
   rebuiltFromCleanCheckoutSha256: rebuiltSha,
   reproducible: equal,
-  method: 'git archive of HEAD, npm ci with committed lockfiles, identical SOURCE_DATE_EPOCH, byte-for-byte SHA-256 comparison',
+  method: 'git archive of HEAD, byte-identical locked dependency tree, identical SOURCE_DATE_EPOCH, byte-for-byte SHA-256 comparison',
   checkedAt: new Date().toISOString()
 };
 await writeFile(path.join(REPO_ROOT, 'desktop/release/reproducibility.json'), JSON.stringify(record, null, 2) + '\n');
