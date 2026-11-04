@@ -1,6 +1,13 @@
-# Quick Start
+# Quick Start — legacy Corbett Report CLI
 
-This is the short version. For a click-by-click walkthrough, open `docs/ZORIN_LINUX_SETUP.md`.
+> **This is the legacy command-line workflow.** The current product is the
+> [Qortal Migration Studio desktop application](README.md). Install the alpha
+> `.deb` and follow
+> [docs/migration-studio/alpha/FIRST-RUN-GUIDE.md](docs/migration-studio/alpha/FIRST-RUN-GUIDE.md)
+> instead. Use this page only when you are maintaining the legacy Corbett Report
+> pipeline, whose profiles, manifests and QDN identifiers remain unchanged.
+
+This is the short version of the legacy CLI. For a click-by-click walkthrough, open `docs/ZORIN_LINUX_SETUP.md`.
 
 ## 1. Install Node.js 20 or newer
 

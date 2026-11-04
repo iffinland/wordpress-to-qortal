@@ -3,9 +3,21 @@
 Operational instructions for publishing Qortal Migration Studio releases from the OpenClaw
 development environment. Applies to alpha prereleases and, later, stable releases.
 
+## Canonical baseline
+
+Since the 0.6.0 alpha integration, **`main` is the canonical current development baseline** for
+Qortal Migration Studio. Branch new work from the current remote `main`, not from the older
+Corbett Report baseline or from historical phase branches. The legacy Corbett CLI, CMS, profiles,
+manifests and compatibility tests remain on `main` for compatibility, but new product work targets
+the QMS desktop app, engine, broker and generic CMS template.
+
+Published tags are immutable. Never move, rewrite or delete a released tag such as
+`v0.6.0-alpha.1`.
+
 ## Preconditions
 
-- Verified source commit on a development branch (never publish from a dirty tree).
+- Verified source commit on a clean branch that contains the current remote `main`
+  (never publish from a dirty tree).
 - Release evidence directory prepared under `/home/iffi/dev-workspace/docs/releases/<version>/`.
 - Artifact built from the verified commit; checksum, SBOM, provenance and validation reports present.
 
@@ -84,5 +96,8 @@ approved checksum.
 
 - Keep version, build metadata, release notes and binary provenance in agreement.
 - Reproducible build check must compare against the exact published artifact.
-- Tag and branch rules are unchanged: development branches only, no force-push, no merge into
-  `main` without explicit authorization.
+- Tag and branch rules are unchanged: no force-push, no history rewrite, no branch-protection
+  bypass. Release publication never requires merging into `main`; release commits are merged through
+  a reviewed pull request with explicit owner authorization.
+- After a release, verify `git status` is clean in every worktree used and record the exact
+  published commit SHA.
