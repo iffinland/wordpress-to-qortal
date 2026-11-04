@@ -304,6 +304,23 @@ interface HistoryService {
 }
 ```
 
+### 4.6 Synchronization (Phase 7 implementation)
+
+The headless project handle exposes a `sync` service:
+`status`, `check`, `resume`, `get`, `history`, `preparePlan`,
+`conflicts`, `resolveConflict`, `withdraw`, `prepareTombstones`,
+`adoptExisting`, `adoptionReports`, `withdrawalList`, `catalog`,
+`writeCatalog`, `recordQdnEvidence` and `assertPublicationSafe`.
+
+A sync check runs a normal source discovery batch, classifies it against the
+persistent mappings and watermark, writes a full report plus a crash-safe
+checkpoint, and persists only compact evidence in the journal state. A delta
+plan is a regular `qms-plan@1` filtered by the selected source keys, so the
+Phase 5 handoff, receipt import and exact read-back remain the only publication
+path. `PublicationService.prepare` calls a guard before packaging; the guard
+refuses withdrawn mappings, stale scan batches and unresolved or unauthorized
+conflicts.
+
 ## 5. Data architecture
 
 ### 5.1 Storage layout
@@ -671,6 +688,21 @@ Guards:
 - real path is inside the project root and not a symlink escape;
 - user explicitly confirms permanent deletion.
 
+### 7.7 Phase 7 synchronization state
+
+Store version 4 adds a durable `state.sync` subtree: per-adapter watermarks,
+scan records, per-item last-seen evidence, conflicts, withdrawals and adoption
+reports. Scan evidence bodies live under
+`artifacts/sync/<scanId>/report.json`, `checkpoint.json` and
+`catalog.json`; item bodies and QDN payloads never enter the JSON state.
+
+Scan statuses are `scanning`, `classifying`, `interrupted`, `completed`,
+`incomplete`, `failed` and `cancelled`. Only `completed` with
+`complete=true` permits a delta plan. Watermarks advance only after a complete
+scan. Classification can stop at a crash-safe checkpoint and resume without
+duplicating entries; a scan left active by a crash becomes `interrupted` when
+the project is reopened.
+
 ## 8. QDN preparation and publication architecture
 
 ### 8.1 Resource plan
@@ -807,6 +839,22 @@ Conflict kinds:
 
 Every conflict is persisted with evidence and an audit trail. There is no silent
 last-writer-wins for verified content.
+
+### 9.4 Phase 7 conflict, withdrawal and adoption implementation
+
+Phase 7 persists sync conflicts in `qms-sync-conflict@1` records with
+`source`, `local` (mapping snapshot) and `qdn` evidence plus an audit
+history. External QDN overwrites require an explicit `take_source` resolution;
+`keep_qdn` never authorizes an overwrite. Withdrawals are local only: the
+mapping keeps its triple and content hash, a `qms-withdrawal-record@1` preserves
+the audit evidence, the visible catalog excludes the item, and every result
+states `networkDeleted: false`. Optional tombstones are local
+`qms-tombstone@1` markers with `published: false`.
+
+Existing Phase 3–6 projects are adopted read-only: mappings, publication
+receipts and verified resource identities are compared and reported, never
+rewritten. Adoption creates a durable report and an adopted watermark that still
+requires a full reconciliation before incremental confidence.
 
 ## 10. Disk-space management and cleanup safety
 

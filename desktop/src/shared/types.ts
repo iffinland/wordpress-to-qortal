@@ -81,6 +81,21 @@ export interface IdentitySummary {
 export interface ProjectInspection {
   project: ProjectSummary;
   identity: IdentitySummary | null;
+  sync?: {
+    revision: number;
+    scanCount: number;
+    conflictCount: number;
+    withdrawalCount: number;
+    adoptionCount: number;
+    latestScan: {
+      scanId: string;
+      status: string;
+      mode: string;
+      startedAt: string;
+      completedAt: string | null;
+      counts: SyncCounts | null;
+    } | null;
+  } | null;
   runs: RunSummary[];
   plans: PlanSummary[];
   lastActivity: string;
@@ -97,6 +112,10 @@ export interface EngineInfo {
   contentSchema: string;
   planSchema: string;
   identitySchema: string;
+  syncSchema: string;
+  syncScanSchema: string;
+  syncConflictSchema: string;
+  withdrawalSchema: string;
   eventSchema: string;
   adapters: AdapterInfo[];
 }
@@ -357,6 +376,195 @@ export interface PublicationVerifyResult {
   pendingOrUnverified: number;
 }
 
+export interface SyncCounts {
+  scanned: number;
+  new: number;
+  modified: number;
+  unchanged: number;
+  unpublished: number;
+  withdrawn: number;
+  conflicts: number;
+  notScanned: number;
+  ignored: number;
+  unsupported: number;
+  failed: number;
+}
+
+export interface SyncDeltaEntry {
+  sourceKey: string;
+  contentType: string;
+  title?: string | null;
+  slug?: string | null;
+  contentHash?: string;
+  routeHash?: string | null;
+  classification?: string;
+  reason?: string | null;
+  previousHash?: string | null;
+  publicationStatus?: string | null;
+  qdn?: { service: string; name: string; identifier: string } | null;
+}
+
+export interface SyncScanSummary {
+  schema: string;
+  scanId: string;
+  runId: string;
+  adapterId: string;
+  mode: 'full' | 'incremental';
+  status: string;
+  complete: boolean;
+  planningAllowed: boolean;
+  recoverable: boolean;
+  truncated: boolean;
+  startedAt: string;
+  completedAt?: string | null;
+  updatedAt?: string | null;
+  batchId?: string | null;
+  counts: SyncCounts;
+  deltaCounts: Record<string, number>;
+  delta: {
+    new: SyncDeltaEntry[];
+    modified: SyncDeltaEntry[];
+    withdrawn: SyncDeltaEntry[];
+    conflicts: SyncDeltaEntry[];
+    unpublished: SyncDeltaEntry[];
+  };
+  failure?: { code: string; message: string; details?: Record<string, unknown> } | null;
+  warnings: Array<{ code: string; message: string; details?: Record<string, unknown> }>;
+  reportPath?: string | null;
+  catalogPath?: string | null;
+  planId?: string | null;
+  query: Record<string, unknown>;
+  withdrawals?: SyncWithdrawalSummary | null;
+  checkpoint?: Record<string, unknown> | null;
+}
+
+export interface SyncWatermark {
+  schema: string;
+  adapterId: string;
+  scanId: string | null;
+  mode: string;
+  lastCompletedAt: string | null;
+  fullCompletedAt: string | null;
+  updatedAt?: string;
+  requiresFullScan?: boolean;
+}
+
+export interface SyncStatus {
+  schema: string;
+  revision: number;
+  adapterId: string | null;
+  watermarks: Record<string, SyncWatermark>;
+  latestScan: SyncScanSummary | null;
+  counts: {
+    mappings: number;
+    active: number;
+    withdrawn: number;
+    conflicts: number;
+    identityConflicts: number;
+    withdrawals: number;
+  };
+  adoptionRequired: boolean;
+  adoptionCount: number;
+  scans: SyncScanSummary[];
+  hasCompletedFullScan: boolean;
+  preferences: Record<string, unknown>;
+}
+
+export interface SyncWithdrawalSummary {
+  applied: Array<{ withdrawalId: string; sourceKey: string; policy: string; networkDeleted: boolean; qdnDataPreserved: boolean }>;
+  appliedCount: number;
+  pending: number;
+  policy?: string;
+  networkDeleted: boolean;
+  qdnDataPreserved: boolean;
+  message?: string;
+}
+
+export interface SyncCheckResult {
+  runId: string;
+  scanId: string;
+  status: string;
+  complete: boolean;
+  planningAllowed: boolean;
+  recoverable?: boolean;
+  noChanges: boolean;
+  counts: SyncCounts | null;
+  delta?: SyncScanSummary['delta'];
+  withdrawals?: SyncWithdrawalSummary;
+  conflicts?: string[];
+  reportPath?: string | null;
+  catalogPath?: string | null;
+  query?: Record<string, unknown>;
+  warnings?: Array<{ code: string; message: string; details?: Record<string, unknown> }>;
+  error?: { code: string; message: string; details?: Record<string, unknown> } | null;
+  message?: string;
+}
+
+export interface SyncPlanResult {
+  scanId: string;
+  runId?: string;
+  status: string;
+  planId: string | null;
+  plan?: PlanDocument | null;
+  record?: PlanRecord | null;
+  stats?: Record<string, number>;
+  media?: Record<string, number>;
+  disk?: Record<string, unknown>;
+  warnings?: Array<{ code: string; message: string }>;
+  errors?: Array<{ code: string; message: string }>;
+  error?: Record<string, unknown>;
+  noChanges?: boolean;
+  message?: string;
+}
+
+export interface SyncConflict {
+  id: string;
+  kind: string;
+  sourceKey: string;
+  scanId: string | null;
+  status: 'open' | 'resolved';
+  severity: string;
+  createdAt: string;
+  resolvedAt: string | null;
+  resolution: string | null;
+  resolutionNote: string | null;
+  automatic: boolean;
+  evidence: {
+    source?: Record<string, unknown> | null;
+    local?: Record<string, unknown> | null;
+    qdn?: Record<string, unknown> | null;
+  };
+  history: Array<Record<string, unknown>>;
+  authorization?: Record<string, unknown>;
+}
+
+export interface SyncAdoptionReport {
+  schema: string;
+  projectId: string;
+  siteId: string;
+  adoptedAt: string;
+  note: string | null;
+  mappingCount: number;
+  activeMappingCount: number;
+  withdrawnMappingCount: number;
+  verifiedResourceCount: number;
+  handoffCount: number;
+  issues: Array<{ code: string; sourceKey?: string; message: string }>;
+  changedIdentities: boolean;
+  message: string;
+  required?: boolean;
+  adopted?: boolean;
+}
+
+export interface SyncTombstoneResult {
+  scanId: string;
+  prepared: Array<{ sourceKey: string; withdrawalId: string; relativePath: string; sha256: string; bytes: number; published: boolean; networkDeleted: boolean }>;
+  preparedCount: number;
+  published: boolean;
+  networkDeleted: boolean;
+  message: string;
+}
+
 export interface QmsApi {
   app: {
     info(): Promise<EngineInfo>;
@@ -408,6 +616,24 @@ export interface QmsApi {
     history(projectId: string): Promise<Array<Record<string, unknown>>>;
     resources(projectId: string, handoffId?: string | null): Promise<PublicationResource[]>;
     batches(projectId: string, handoffId: string): Promise<PublicationResource[][]>;
+  };
+  sync: {
+    status(projectId: string): Promise<SyncStatus>;
+    check(projectId: string, options?: Record<string, unknown>): Promise<SyncCheckResult>;
+    resume(projectId: string, scanId: string): Promise<SyncCheckResult>;
+    get(projectId: string, scanId: string): Promise<SyncScanSummary>;
+    history(projectId: string, limit?: number): Promise<SyncScanSummary[]>;
+    plan(projectId: string, scanId: string, options?: Record<string, unknown>): Promise<SyncPlanResult>;
+    conflicts(projectId: string, includeResolved?: boolean): Promise<SyncConflict[]>;
+    resolveConflict(projectId: string, conflictId: string, resolution: string, note?: string | null): Promise<SyncConflict>;
+    withdraw(projectId: string, scanId: string, options?: Record<string, unknown>): Promise<SyncWithdrawalSummary>;
+    prepareTombstones(projectId: string, scanId: string, options?: Record<string, unknown>): Promise<SyncTombstoneResult>;
+    adopt(projectId: string, note?: string | null): Promise<SyncAdoptionReport>;
+    adoptions(projectId: string): Promise<SyncAdoptionReport[]>;
+    withdrawals(projectId: string): Promise<Array<Record<string, unknown>>>;
+    catalog(projectId: string, includeWithdrawn?: boolean): Promise<Array<Record<string, unknown>>>;
+    writeCatalog(projectId: string, scanId?: string | null): Promise<Record<string, unknown>>;
+    recordEvidence(projectId: string, evidence: Record<string, unknown>): Promise<Record<string, unknown>>;
   };
   runs: {
     list(projectId: string): Promise<RunSummary[]>;

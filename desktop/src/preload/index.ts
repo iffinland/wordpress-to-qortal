@@ -73,6 +73,26 @@ const api = {
       invoke(IPC.publicationResources, { projectId, handoffId: handoffId ?? null }),
     batches: (projectId: string, handoffId: string) => invoke(IPC.publicationBatches, { projectId, handoffId })
   },
+  sync: {
+    status: (projectId: string) => invoke(IPC.syncStatus, { projectId }),
+    check: (projectId: string, options: Record<string, unknown> = {}) => invoke(IPC.syncCheck, { projectId, ...options }),
+    resume: (projectId: string, scanId: string) => invoke(IPC.syncResume, { projectId, scanId }),
+    get: (projectId: string, scanId: string) => invoke(IPC.syncGet, { projectId, scanId }),
+    history: (projectId: string, limit = 50) => invoke(IPC.syncHistory, { projectId, limit }),
+    plan: (projectId: string, scanId: string, options: Record<string, unknown> = {}) => invoke(IPC.syncPlan, { projectId, scanId, ...options }),
+    conflicts: (projectId: string, includeResolved = false) => invoke(IPC.syncConflicts, { projectId, includeResolved }),
+    resolveConflict: (projectId: string, conflictId: string, resolution: string, note: string | null = null) =>
+      invoke(IPC.syncResolveConflict, { projectId, conflictId, resolution, note }),
+    withdraw: (projectId: string, scanId: string, options: Record<string, unknown> = {}) => invoke(IPC.syncWithdraw, { projectId, scanId, ...options }),
+    prepareTombstones: (projectId: string, scanId: string, options: Record<string, unknown> = {}) =>
+      invoke(IPC.syncPrepareTombstones, { projectId, scanId, ...options }),
+    adopt: (projectId: string, note: string | null = null) => invoke(IPC.syncAdopt, { projectId, note }),
+    adoptions: (projectId: string) => invoke(IPC.syncAdoptions, { projectId }),
+    withdrawals: (projectId: string) => invoke(IPC.syncWithdrawals, { projectId }),
+    catalog: (projectId: string, includeWithdrawn = false) => invoke(IPC.syncCatalog, { projectId, includeWithdrawn }),
+    writeCatalog: (projectId: string, scanId: string | null = null) => invoke(IPC.syncWriteCatalog, { projectId, scanId }),
+    recordEvidence: (projectId: string, evidence: Record<string, unknown>) => invoke(IPC.syncRecordEvidence, { projectId, evidence })
+  },
   runs: {
     list: (projectId: string) => invoke(IPC.runList, { projectId }),
     get: (projectId: string, runId: string) => invoke(IPC.runGet, { projectId, runId }),

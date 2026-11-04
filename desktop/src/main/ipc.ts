@@ -27,6 +27,22 @@ const TIMEOUTS: Record<string, number> = {
   'publication.history': 30_000,
   'publication.resources': 30_000,
   'publication.batches': 30_000,
+  'sync.status': 60_000,
+  'sync.check': 30 * 60_000,
+  'sync.resume': 30 * 60_000,
+  'sync.get': 60_000,
+  'sync.history': 60_000,
+  'sync.plan': 20 * 60_000,
+  'sync.conflicts': 60_000,
+  'sync.resolveConflict': 60_000,
+  'sync.withdraw': 120_000,
+  'sync.prepareTombstones': 120_000,
+  'sync.adopt': 120_000,
+  'sync.adoptions': 60_000,
+  'sync.withdrawals': 60_000,
+  'sync.catalog': 60_000,
+  'sync.writeCatalog': 60_000,
+  'sync.recordQdnEvidence': 60_000,
   'project.open': 60_000,
   'project.inspect': 30_000,
   'diagnostics.export': 120_000,
@@ -165,6 +181,70 @@ export function registerIpc(deps: IpcDependencies): void {
       projectId: params.projectId,
       handoffId: params.handoffId
     }),
+
+    [IPC.syncStatus]: async (params) => invoke('sync.status', { projectId: params.projectId }),
+    [IPC.syncCheck]: async (params) => {
+      const auth = await ensureAuth(String(params.projectId), params.auth);
+      return invoke('sync.check', {
+        projectId: params.projectId,
+        mode: params.mode ?? 'auto',
+        auth,
+        source: params.source ?? {},
+        query: params.query ?? {},
+        contentTypes: params.contentTypes,
+        perPage: params.perPage,
+        maxItems: params.maxItems,
+        overlapHours: params.overlapHours,
+        fullReconcileDays: params.fullReconcileDays,
+        autoApplyWithdrawals: params.autoApplyWithdrawals,
+        withdrawalPolicy: params.withdrawalPolicy,
+        classifyBatchSize: params.classifyBatchSize
+      });
+    },
+    [IPC.syncResume]: async (params) => invoke('sync.resume', { projectId: params.projectId, scanId: params.scanId }),
+    [IPC.syncGet]: async (params) => invoke('sync.get', { projectId: params.projectId, scanId: params.scanId }),
+    [IPC.syncHistory]: async (params) => invoke('sync.history', { projectId: params.projectId, limit: params.limit ?? 50 }),
+    [IPC.syncPlan]: async (params) => invoke('sync.plan', {
+      projectId: params.projectId,
+      scanId: params.scanId,
+      selection: params.selection ?? null,
+      batchSize: params.batchSize ?? 1000,
+      planning: params.planning ?? {},
+      disk: params.disk ?? {},
+      media: params.media ?? {},
+      estimateMedia: params.estimateMedia !== false
+    }),
+    [IPC.syncConflicts]: async (params) => invoke('sync.conflicts', {
+      projectId: params.projectId,
+      includeResolved: params.includeResolved === true,
+      limit: params.limit ?? 500
+    }),
+    [IPC.syncResolveConflict]: async (params) => invoke('sync.resolveConflict', {
+      projectId: params.projectId,
+      conflictId: params.conflictId,
+      resolution: params.resolution,
+      note: params.note ?? null
+    }),
+    [IPC.syncWithdraw]: async (params) => invoke('sync.withdraw', {
+      projectId: params.projectId,
+      scanId: params.scanId,
+      sourceKeys: params.sourceKeys ?? null,
+      policy: params.policy ?? 'hide',
+      note: params.note ?? null,
+      automatic: params.automatic === true
+    }),
+    [IPC.syncPrepareTombstones]: async (params) => invoke('sync.prepareTombstones', {
+      projectId: params.projectId,
+      scanId: params.scanId,
+      sourceKeys: params.sourceKeys ?? null,
+      note: params.note ?? null
+    }),
+    [IPC.syncAdopt]: async (params) => invoke('sync.adopt', { projectId: params.projectId, note: params.note ?? null }),
+    [IPC.syncAdoptions]: async (params) => invoke('sync.adoptions', { projectId: params.projectId, limit: params.limit ?? 20 }),
+    [IPC.syncWithdrawals]: async (params) => invoke('sync.withdrawals', { projectId: params.projectId, limit: params.limit ?? 500 }),
+    [IPC.syncCatalog]: async (params) => invoke('sync.catalog', { projectId: params.projectId, includeWithdrawn: params.includeWithdrawn === true }),
+    [IPC.syncWriteCatalog]: async (params) => invoke('sync.writeCatalog', { projectId: params.projectId, scanId: params.scanId ?? null }),
+    [IPC.syncRecordEvidence]: async (params) => invoke('sync.recordQdnEvidence', { projectId: params.projectId, ...(params.evidence ?? {}) }),
 
     [IPC.diskCheck]: async (params) => invoke('disk.check', params),
 

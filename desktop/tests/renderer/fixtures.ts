@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import type { AdapterInfo, DesktopSettings, PlanDocument, ProjectDocument, QmsApi } from '../../src/shared/types.js';
+import type { AdapterInfo, DesktopSettings, PlanDocument, ProjectDocument, QmsApi, SyncScanSummary } from '../../src/shared/types.js';
 
 export const siteId = 'site_0123456789abcdef0123456789abcdef';
 export const namespace = 'nsabcdefghijklmn';
@@ -123,10 +123,73 @@ export function plan(): PlanDocument {
   };
 }
 
+type SyncScanOverrides = Omit<Partial<SyncScanSummary>, 'counts'> & { counts?: Partial<SyncScanSummary['counts']> };
+
+export function syncScan(overrides: SyncScanOverrides = {}): SyncScanSummary {
+  const counts = {
+    scanned: 0,
+    new: 0,
+    modified: 0,
+    unchanged: 0,
+    unpublished: 0,
+    withdrawn: 0,
+    conflicts: 0,
+    notScanned: 0,
+    ignored: 0,
+    unsupported: 0,
+    failed: 0,
+    ...(overrides.counts ?? {})
+  };
+  return {
+    schema: 'qms-sync-scan@1',
+    scanId: 'scn_test',
+    runId: 'run_sync',
+    adapterId: 'wordpress',
+    mode: 'incremental',
+    status: 'completed',
+    complete: true,
+    planningAllowed: true,
+    recoverable: false,
+    truncated: false,
+    startedAt: '2026-11-03T10:00:00.000Z',
+    completedAt: '2026-11-03T10:01:00.000Z',
+    updatedAt: '2026-11-03T10:01:00.000Z',
+    batchId: 'batch_test',
+    deltaCounts: { new: 0, modified: 0, unchanged: 0, unpublished: 0, withdrawn: 0, conflicts: 0, notScanned: 0 },
+    delta: { new: [], modified: [], withdrawn: [], conflicts: [], unpublished: [] },
+    failure: null,
+    warnings: [],
+    reportPath: 'artifacts/sync/scn_test/report.json',
+    catalogPath: 'artifacts/sync/scn_test/catalog.json',
+    planId: null,
+    query: {},
+    checkpoint: null,
+    ...overrides,
+    counts
+  };
+}
+
+export function syncStatusFixture(overrides: Record<string, unknown> = {}) {
+  return {
+    schema: 'qms-sync-state@1',
+    revision: 1,
+    adapterId: 'wordpress',
+    watermarks: {},
+    latestScan: syncScan(),
+    counts: { mappings: 3, active: 3, withdrawn: 0, conflicts: 0, identityConflicts: 0, withdrawals: 0 },
+    adoptionRequired: false,
+    adoptionCount: 0,
+    scans: [syncScan()],
+    hasCompletedFullScan: true,
+    preferences: { autoApplyWithdrawals: true, withdrawalPolicy: 'hide', overlapHours: 48, fullReconcileDays: 7 },
+    ...overrides
+  };
+}
+
 export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
   const base: QmsApi = {
     app: {
-      info: vi.fn(async () => ({ apiVersion: 'qms-engine@1', version: '0.1.7-phase5', dataRoot: '/data', repoRoot: '/repo', sourceContract: 'qms-source-adapter@1', contentSchema: 'qms-content@1', planSchema: 'qms-plan@1', identitySchema: 'qms-identity-state@1', eventSchema: 'qms-event@1', adapters: [adapter()] })),
+      info: vi.fn(async () => ({ apiVersion: 'qms-engine@1', version: '0.1.8-phase7', dataRoot: '/data', repoRoot: '/repo', sourceContract: 'qms-source-adapter@1', contentSchema: 'qms-content@1', planSchema: 'qms-plan@1', identitySchema: 'qms-identity-state@1', syncSchema: 'qms-sync-state@1', syncScanSchema: 'qms-sync-scan@1', syncConflictSchema: 'qms-sync-conflict@1', withdrawalSchema: 'qms-withdrawal-record@1', eventSchema: 'qms-event@1', adapters: [adapter()] })),
       settings: vi.fn(async () => settings()),
       setDataRoot: vi.fn(async () => settings()),
       openPath: vi.fn(async () => ({ opened: true, path: '/tmp' }))
@@ -205,6 +268,48 @@ export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
       history: vi.fn(async () => []),
       resources: vi.fn(async () => []),
       batches: vi.fn(async () => [])
+    },
+    sync: {
+      status: vi.fn(async () => ({
+        schema: 'qms-sync-state@1',
+        revision: 1,
+        adapterId: 'wordpress',
+        watermarks: {},
+        latestScan: null,
+        counts: { mappings: 0, active: 0, withdrawn: 0, conflicts: 0, identityConflicts: 0, withdrawals: 0 },
+        adoptionRequired: false,
+        adoptionCount: 0,
+        scans: [],
+        hasCompletedFullScan: false,
+        preferences: { autoApplyWithdrawals: true, withdrawalPolicy: 'hide', overlapHours: 48, fullReconcileDays: 7 }
+      })),
+      check: vi.fn(async () => ({
+        runId: 'run_sync',
+        scanId: 'scn_test',
+        status: 'completed',
+        complete: true,
+        planningAllowed: true,
+        noChanges: false,
+        counts: { scanned: 0, new: 0, modified: 0, unchanged: 0, unpublished: 0, withdrawn: 0, conflicts: 0, notScanned: 0, ignored: 0, unsupported: 0, failed: 0 },
+        delta: { new: [], modified: [], withdrawn: [], conflicts: [], unpublished: [] },
+        withdrawals: { applied: [], appliedCount: 0, pending: 0, networkDeleted: false, qdnDataPreserved: true },
+        warnings: [],
+        query: {}
+      })),
+      resume: vi.fn(async () => ({ runId: 'run_sync', scanId: 'scn_test', status: 'completed', complete: true, planningAllowed: true, noChanges: false, counts: { scanned: 0, new: 0, modified: 0, unchanged: 0, unpublished: 0, withdrawn: 0, conflicts: 0, notScanned: 0, ignored: 0, unsupported: 0, failed: 0 } })),
+      get: vi.fn(async () => syncScan()),
+      history: vi.fn(async () => []),
+      plan: vi.fn(async () => ({ scanId: 'scn_test', status: 'completed', planId: 'plan_abcdefgh', plan: plan(), record: { planId: 'plan_abcdefgh', status: 'ready', batchId: 'batch_test', selectedCount: 1, conflictCount: 0, createdAt: '2026-11-03T10:00:00.000Z' }, stats: plan().stats, media: plan().mediaSummary, disk: plan().disk })),
+      conflicts: vi.fn(async () => []),
+      resolveConflict: vi.fn(async () => ({ id: 'scf_test', kind: 'QDN_EXTERNAL_CHANGE', sourceKey: 'post:1', scanId: null, status: 'resolved' as const, severity: 'blocking', createdAt: '2026-11-03T10:00:00.000Z', resolvedAt: '2026-11-03T10:00:00.000Z', resolution: 'take_source' as const, resolutionNote: null, automatic: false, evidence: {}, history: [] as Array<Record<string, unknown>> })),
+      withdraw: vi.fn(async () => ({ applied: [], appliedCount: 0, pending: 0, networkDeleted: false, qdnDataPreserved: true })),
+      prepareTombstones: vi.fn(async () => ({ scanId: 'scn_test', prepared: [], preparedCount: 0, published: false, networkDeleted: false, message: 'prepared only' })),
+      adopt: vi.fn(async () => ({ schema: 'qms-sync-adoption-report@1', projectId: 'prj_abcdefgh', siteId, adoptedAt: '2026-11-03T10:00:00.000Z', note: null, mappingCount: 1, activeMappingCount: 1, withdrawnMappingCount: 0, verifiedResourceCount: 0, handoffCount: 0, issues: [], changedIdentities: false, message: 'Existing migration adopted without changing verified QDN identities.' })),
+      adoptions: vi.fn(async () => []),
+      withdrawals: vi.fn(async () => []),
+      catalog: vi.fn(async () => []),
+      writeCatalog: vi.fn(async () => ({ written: true })),
+      recordEvidence: vi.fn(async () => ({ changed: false }))
     },
     runs: {
       list: vi.fn(async () => []),

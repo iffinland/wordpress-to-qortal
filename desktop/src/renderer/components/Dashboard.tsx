@@ -10,9 +10,10 @@ interface DashboardProps {
   onRefresh: () => Promise<void>;
   onOpen: (projectId: string) => Promise<void>;
   onHistory: (projectId: string) => Promise<void>;
+  onSync: (projectId: string) => Promise<void>;
 }
 
-export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory }: DashboardProps) {
+export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory, onSync }: DashboardProps) {
   const [inspections, setInspections] = useState<Record<string, ProjectInspection>>({});
   const [inspectErrors, setInspectErrors] = useState<Record<string, string>>({});
   const [showCreate, setShowCreate] = useState(projects.length === 0);
@@ -165,6 +166,14 @@ export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory }: 
               {inspection && inspection.plans.length > 0 && (
                 <p className="muted small">Last plan: {inspection.plans[0].status} · {inspection.plans[0].selectedCount} selected · {inspection.plans[0].pendingPublicationCount ?? 0} pending publication</p>
               )}
+              {inspection?.sync?.latestScan && (
+                <p className="muted small">
+                  Last sync: {inspection.sync.latestScan.status} · new {inspection.sync.latestScan.counts?.new ?? 0} ·
+                  modified {inspection.sync.latestScan.counts?.modified ?? 0} ·
+                  withdrawn {inspection.sync.latestScan.counts?.withdrawn ?? 0}
+                </p>
+              )}
+              {(inspection?.sync?.conflictCount ?? 0) > 0 && <p className="small danger-text">{inspection?.sync?.conflictCount} synchronization conflict(s) need resolution.</p>}
               {conflicts > 0 && <p className="small danger-text">{conflicts} identity conflict(s) need resolution.</p>}
               {pending > 0 && <p className="small warn-text">Reserved locally — not published. Continue preparation or publish in Phase 5.</p>}
               {project.archivedAt && <p className="small muted">Archived projects are not assumed published.</p>}
@@ -174,6 +183,7 @@ export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory }: 
                 ) : (
                   <>
                     <button className="primary" onClick={() => void onOpen(project.id)}>Open</button>
+                    <button onClick={() => void onSync(project.id)}>Check for updates</button>
                     <button onClick={() => void onHistory(project.id)}>History & diagnostics</button>
                     <button className="ghost" onClick={() => void archive(project)} disabled={busy}>Archive</button>
                   </>

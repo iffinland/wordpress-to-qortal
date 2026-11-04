@@ -6,9 +6,10 @@ import { Wizard } from './components/Wizard.js';
 import { Progress } from './components/Progress.js';
 import { History } from './components/History.js';
 import { Publishing } from './components/Publishing.js';
+import { SyncView } from './components/Sync.js';
 import { ErrorText } from './components/Common.js';
 
-type View = 'dashboard' | 'wizard' | 'progress' | 'history' | 'publishing';
+type View = 'dashboard' | 'wizard' | 'progress' | 'history' | 'publishing' | 'sync';
 
 function wizardPlanId(project: ProjectDocument): string | null {
   const settings = (project.settings ?? {}) as Record<string, unknown>;
@@ -32,6 +33,7 @@ export default function App() {
   const [view, setView] = useState<View>('dashboard');
   const [project, setProject] = useState<ProjectDocument | null>(null);
   const [planId, setPlanId] = useState<string | null>(null);
+  const [publishingPlanId, setPublishingPlanId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
 
@@ -100,14 +102,28 @@ export default function App() {
     }
   }
 
-  async function openPublishing(projectId: string) {
+  async function openPublishing(projectId: string, initialPlanId: string | null = null) {
     setError(null);
     try {
       if (!project || project.id !== projectId) {
         const opened = await api().projects.open(projectId);
         setProject(opened.project);
       }
+      setPublishingPlanId(initialPlanId);
       setView('publishing');
+    } catch (openError) {
+      setError(openError);
+    }
+  }
+
+  async function openSync(projectId: string) {
+    setError(null);
+    try {
+      if (!project || project.id !== projectId) {
+        const opened = await api().projects.open(projectId);
+        setProject(opened.project);
+      }
+      setView('sync');
     } catch (openError) {
       setError(openError);
     }
@@ -117,6 +133,7 @@ export default function App() {
     setView('dashboard');
     setProject(null);
     setPlanId(null);
+    setPublishingPlanId(null);
     await refreshProjects();
   }
 
@@ -143,6 +160,7 @@ export default function App() {
         <div className="row wrap gap">
           {info && <span className="pill">engine {info.version}</span>}
           {settings && <span className={'pill ' + (settings.keyring.available ? 'good-text' : 'warn-text')}>{settings.keyring.available ? 'keyring available' : 'session-only credentials'}</span>}
+          {project && <button className="ghost" onClick={() => void openSync(project.id)}>Sync</button>}
           {project && <button className="ghost" onClick={() => void openPublishing(project.id)}>Publishing</button>}
           <button className="ghost" onClick={() => void backToDashboard()}>Dashboard</button>
         </div>
@@ -157,6 +175,7 @@ export default function App() {
             onRefresh={refreshProjects}
             onOpen={openProject}
             onHistory={openHistory}
+            onSync={openSync}
           />
         )}
         {view === 'wizard' && project && settings && (
@@ -178,7 +197,14 @@ export default function App() {
           />
         )}
         {view === 'publishing' && project && (
-          <Publishing projectId={project.id} onBack={backToDashboard} />
+          <Publishing projectId={project.id} initialPlanId={publishingPlanId} onBack={backToDashboard} />
+        )}
+        {view === 'sync' && project && (
+          <SyncView
+            projectId={project.id}
+            onBack={backToDashboard}
+            onPublishing={(selectedPlanId) => void openPublishing(project.id, selectedPlanId)}
+          />
         )}
         {view === 'history' && project && (
           <History

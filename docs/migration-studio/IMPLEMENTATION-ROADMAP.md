@@ -6,7 +6,7 @@
 | Product working name | Qortal Migration Studio |
 | Executing agent | DeepSeek (`opencode-development` profile) |
 | Date | 2026-11-02 |
-| Status | Phases 0–5.2 completed with live acceptance; Phase 6 implemented and verified (2026-11-04); Phases 7–10 not started |
+| Status | Phases 0–5.2 completed with live acceptance; Phase 6 implemented and verified (2026-11-04); Phase 7 implemented and fixture-verified (2026-11-04); Phases 8–10 not started |
 | Companion documents | [Audit](PHASE-0-ARCHITECTURE-AUDIT.md), [Requirements](PRODUCT-REQUIREMENTS.md), [Architecture](ARCHITECTURE.md) |
 
 ## 1. How to use this roadmap
@@ -419,6 +419,45 @@ No live QDN publish or production-catalog read was performed for Phase 6.
 7. **AC7.7** A failed source scan cannot be reported as "no changes".
 8. **AC7.8** An unreadable/partial derived index is not blindly rewritten from an
    incomplete view.
+9. **AC7.9** An existing Phase 3–6 project is adoptable/reconcilable without
+   changing any verified QDN identity.
+10. **AC7.10** Delta publication uses the existing user-authorized Hub workflow;
+    the desktop app never holds wallet secrets.
+11. **AC7.11** The full GUI flow is covered by automated integration tests,
+    including partial failures, conflicts, interruption and recovery.
+12. **AC7.12** The existing Corbett and generic CMS regression suites remain
+    green.
+13. **AC7.13** No scheduled background service, autonomous signing or
+    uncontrolled publication is added.
+14. **AC7.14** Publication history, receipts and reconciliation evidence remain
+    recoverable after restart.
+
+### Implementation evidence (Phase 7)
+
+Phase 7 is implemented on the agent branch from the verified Phase 6 commit
+2a92a16. Evidence is recorded in
+[PHASE-7-INCREMENTAL-SYNC.md](PHASE-7-INCREMENTAL-SYNC.md):
+
+- a persistent qms-sync-state@1 store (store version 4) with watermarks, scan
+  history, item evidence, conflicts, withdrawals and adoption reports;
+- modified_after overlap-window incremental scans plus bounded full
+  reconciliation, with watermarks advancing only after complete scans;
+- deterministic delta plans that reuse the Phase 3 identity mappings and the
+  Phase 5 handoff, plus a pre-publication conflict guard;
+- explicit local withdrawal, visible-catalog exclusion and optional
+  preparation-only tombstones, with networkDeleted=false evidence;
+- a qms-sync-conflict@1 record with source/local/QDN evidence and audited
+  resolutions, including explicit take_source authorization for external QDN
+  overwrites;
+- crash-safe classification checkpoints, resume and interrupted-scan recovery;
+- existing-migration adoption that preserves verified triples and receipts;
+- a manual desktop Sync view with progress, cancellation, counts, delta plan,
+  conflict resolution, withdrawals, adoption and persistent history;
+- 13 new Phase 7 root tests, 7 new desktop renderer tests and the full existing
+  root/desktop/template suites green; Corbett and generic CMS builds green.
+
+No live QDN publication, wallet operation or production WordPress scan was
+performed for Phase 7. Fixture evidence is not a substitute for live acceptance.
 
 ## 11. Phase 8 — Recovery, cleanup and history hardening (P1)
 
@@ -560,22 +599,21 @@ owner acceptance.
 
 ## 17. Next implementation phase
 
-**Recommended next phase: Phase 7 — Incremental sync, withdrawal and conflicts.**
+**Recommended next phase: Phase 8 — Recovery, cleanup and history hardening.**
 
 Why:
 
-- Phase 6 provides a generic CMS over derived catalogs and already treats
-  partial, stale and missing indexes honestly; it does not claim ongoing sync.
-- Phase 7 needs engine-side modified watermarks, deletion detection, withdrawal
-  policy, conflict records and delta publication. Those are not template work.
-- The editable `qms-content@1` model, stable source identity, QDN mapping store
-  and Phase 5 exact read-back are already available.
-- The Corbett pipeline and the generic template can both consume the same
-  incremental catalog without changing their public routes.
+- Phase 7 now provides durable sync history, conflict/withdrawal records and
+  adoption evidence, but cleanup, quarantine, retention and support-bundle
+  export remain unimplemented.
+- Phase 8 is the prerequisite for a long-lived alpha: crash-safe recovery across
+  every step, two-phase cleanup with reference-counted media, and receipts that
+  survive cleanup.
+- The Phase 5 .deb packaging and security gate (Phase 9) should follow Phase 8
+  so cleanup and history hardening are included in the release candidate.
 
-Phase 7 should begin with a bounded fixture-driven sync design covering new,
-modified, unchanged and deleted items, then add the conflict and withdrawal
-state machines. It must not describe a source deletion as a network deletion.
+Phase 7 live acceptance still needs one real WordPress sync and one
+operator-authorized delta publish with exact QDN read-back before alpha.
 
 ## 18. Open decisions that block or shape phases
 
@@ -614,8 +652,9 @@ state machines. It must not describe a source deletion as a network deletion.
 
 ## 20. What this roadmap does not claim
 
-Phases 0–6 are implemented with the evidence recorded in their phase documents.
-Phases 7–10 remain unimplemented. The current toolkit is operational for the
-existing Corbett workflow and the generic CMS template is buildable and tested,
-but the target product is not production ready. No phase in this roadmap should
-be reported as complete without its acceptance evidence.
+Phases 0–7 are implemented with the evidence recorded in their phase documents.
+Phases 8–10 remain unimplemented. The current toolkit is operational for the
+existing Corbett workflow, the generic CMS template is buildable and tested, and
+incremental synchronization is fixture-verified, but the target product is not
+production ready. No phase in this roadmap should be reported as complete
+without its acceptance evidence, and fixture tests are not live acceptance.

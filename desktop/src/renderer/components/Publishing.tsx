@@ -34,10 +34,10 @@ function statusLabel(status: string): string {
   return status.replace(/_/g, ' ');
 }
 
-export function Publishing({ projectId, onBack }: { projectId: string; onBack: () => void }) {
+export function Publishing({ projectId, initialPlanId = null, onBack }: { projectId: string; initialPlanId?: string | null; onBack: () => void }) {
   const [plans, setPlans] = useState<PlanRecord[]>([]);
   const [handoffs, setHandoffs] = useState<PublicationHandoffSummary[]>([]);
-  const [selectedPlanId, setSelectedPlanId] = useState('');
+  const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId ?? '');
   const [plan, setPlan] = useState<PlanDocument | null>(null);
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const [selectedHandoffId, setSelectedHandoffId] = useState('');
@@ -61,6 +61,8 @@ export function Publishing({ projectId, onBack }: { projectId: string; onBack: (
     if (!selectedPlanId) {
       const ready = planList.find((entry) => entry.status === 'ready');
       if (ready) setSelectedPlanId(ready.planId);
+    } else if (initialPlanId && planList.some((entry) => entry.planId === initialPlanId)) {
+      setSelectedPlanId(initialPlanId);
     }
     if (!selectedHandoffId && handoffList.length > 0) {
       setSelectedHandoffId(handoffList[0].handoffId);

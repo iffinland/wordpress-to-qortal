@@ -171,7 +171,7 @@ filesystem access.
 cd desktop
 npm install
 npm run build
-npm run test          # 24 desktop tests
+npm run test          # 35 desktop tests
 npm run smoke         # needs a display; use Xvfb/CI display where available
 npm run prepare:engine
 npx electron-builder --linux deb
@@ -245,3 +245,38 @@ state model, sanitization policy, acceptance evidence and limitations.
 From the repository root, `npm run test:phase6` runs the 46 Phase 6 contract
 tests and `npm run check:phase6` runs the Phase 6 tests plus the template test
 and build.
+
+## Incremental synchronization (Phase 7)
+
+The desktop app now has a manual **Sync** view. Open a project, choose
+**Check for updates**, review the explicit delta counts and conflicts, prepare a
+delta publication plan, then continue through the existing Phase 5 Hub handoff.
+There is no scheduled background sync and no signing in the app.
+
+The engine performs a normal source discovery batch and classifies it against
+the persistent identity mappings and the last successful scan watermark. It
+never treats a failed or truncated scan as “no changes”. Incremental scans use
+a 48-hour overlap window and a modified-date watermark; a complete full
+reconciliation is available and is the only mode that infers source deletions.
+
+- New/modified content is planned with stable QDN identities and only changed
+  resources are packaged.
+- Deletions or unpublished source content become local withdrawals. A withdrawal
+  hides the mapping from the visible catalog, preserves its triple and evidence,
+  and never claims that published QDN data was deleted.
+- External QDN changes, withdrawal conflicts and source changes are persisted
+  with source/local/QDN evidence and require an audited resolution. An external
+  resource is not overwritten until the operator selects **Authorize source
+  overwrite** (take_source).
+- Optional tombstones are local preparation only (published: false,
+  networkDeleted: false).
+- Existing Phase 3–6 projects can be adopted without changing verified QDN
+  identities; adoption reports remain after restart.
+- Scans write crash-safe checkpoints. Interrupted classification can be resumed;
+  a scan left running by a crash is reopened as interrupted, never successful.
+
+    npm run test:phase7   # 12 engine/host synchronization tests
+    npm run check:phase7  # phase 7 tests, desktop typecheck and desktop tests
+
+See docs/migration-studio/PHASE-7-INCREMENTAL-SYNC.md for the state model,
+API surface, acceptance evidence and remaining alpha blockers.

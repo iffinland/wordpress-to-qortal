@@ -205,6 +205,9 @@ Priority: **M** = must for first public release, **S** = should, **C** = could.
 | SYN-03 | Detect source deletion/unpublication without claiming network deletion. | M | Item becomes withdrawn/hidden per policy; QDN record is not described as deleted. |
 | SYN-04 | Full reconciliation is available and bounded. | S | It reports missing/unmapped items and never rewrites an unreadable/partial index blindly. |
 | SYN-05 | Sync is resumable and reports partial/unavailable source states honestly. | M | A failed scan does not produce a false "no changes" state. |
+| SYN-06 | Existing migration projects are adoptable and reconcilable without changing verified QDN identities. | M | Adoption report preserves triples, publication receipts and resource identities; issues are reported, not auto-fixed. |
+| SYN-07 | Delta publication is reviewable with resource counts, disk and fee estimates before Hub handoff. | M | Only new/modified resources are prepared; withdrawn and conflicting items are excluded or blocked. |
+| SYN-08 | Synchronization is manual; no scheduled background service or autonomous signing. | M | No timer/cron/service starts a scan or publication; every scan and publish requires an explicit operator action. |
 
 ### 4.8 QDN preparation and publication
 
@@ -460,15 +463,19 @@ A first public release is acceptable only when all of the following hold:
    without duplicate QDN resources or corrupt state.
 4. Disk-full and download-limit tests pause safely and leave resumable state.
 5. A modified old post is detected and updates the same QDN identity; an
-   unchanged post is not republished.
-6. The default generic CMS builds and renders all primary routes with honest
+   unchanged post is not republished; a failed or partial scan is never shown as
+   "no changes".
+6. An existing Phase 3–6 project is adopted without changing verified QDN
+   identities, and a delta publication uses the same Hub handoff and exact
+   read-back path as a full batch.
+7. The default generic CMS builds and renders all primary routes with honest
    empty/partial/error states; imported HTML is sanitized.
-7. No private key, seed or wallet password is requested or logged anywhere.
-8. The Corbett compatibility profile still produces its existing identifiers
+8. No private key, seed or wallet password is requested or logged anywhere.
+9. The Corbett compatibility profile still produces its existing identifiers
    and workflows.
-9. Automated tests, packaging checks and an owner-authorized live validation on
-   the chosen network pass.
-10. Documentation, support boundaries and known limitations are published.
+10. Automated tests, packaging checks and an owner-authorized live validation on
+    the chosen network pass.
+11. Documentation, support boundaries and known limitations are published.
 
 **Passing this audit or the roadmap does not itself satisfy these criteria.**
 

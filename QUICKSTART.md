@@ -148,3 +148,17 @@ npm run batch:cleanup
 ```
 
 The next batch is prepared with `npm run batch:next`.
+
+## 11. Check for later updates (desktop)
+
+After the first migration, open the project in the Qortal Migration Studio desktop app and choose **Check for updates**.
+
+1. Review the explicit counts: new, modified, unchanged, withdrawn and conflicting.
+2. If the scan failed or is incomplete, do not treat it as “no changes”. Resume it or fix the source connection and scan again.
+3. Resolve any conflicts. An externally changed QDN resource is not overwritten until you choose **Authorize source overwrite**.
+4. Review the delta plan and fee estimate. Only changed resources are included.
+5. Continue to **Publishing**, generate the handoff, publish through the existing Hub workflow, import the receipt and verify exact read-back.
+
+A source deletion becomes a local withdrawal. It hides the item from the visible catalog and never deletes or modifies published QDN data.
+
+There is no scheduled background sync. Every scan and publication is an explicit operator action.
