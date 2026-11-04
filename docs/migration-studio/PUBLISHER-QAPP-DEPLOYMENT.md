@@ -22,7 +22,7 @@ with wallet approval.
 Most people should not build anything:
 
 1. Download
-   [qortal-migration-publisher-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-publisher-v0.6.1.zip)
+   [qortal-migration-publisher-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-publisher-v0.6.1.zip)
    and verify it against `SHA256SUMS`.
 2. An owner publishes that ZIP as one shared QDN application bundle, using the
    service/identifier values in the table below. One deployment serves every

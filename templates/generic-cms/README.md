@@ -13,7 +13,7 @@ CMS bundle for you; deploying this neutral ZIP by hand is optional.
 ## Beginner path (no development tools)
 
 1. Download
-   [qortal-migration-generic-cms-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-generic-cms-v0.6.1.zip)
+   [qortal-migration-generic-cms-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-generic-cms-v0.6.1.zip)
    and verify it against `SHA256SUMS`.
 2. Inspect the root: it contains `index.html` and `assets/` with no parent
    folder.
