@@ -5,13 +5,13 @@
 ## 0.6.1 alpha.2 — current
 
 Qortal Migration Studio **0.6.1 alpha.2** is the current GitHub prerelease:
-<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.2>.
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.1>.
 
 The release ships the same three artifacts from the current main commit:
 
-- [Qortal Migration Studio 0.6.1 .deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-studio_0.6.1_amd64.deb)
-- [Migration Publisher Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-publisher-v0.6.1.zip)
-- [Generic CMS Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-generic-cms-v0.6.1.zip)
+- [Qortal Migration Studio 0.6.1 .deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-studio_0.6.1_amd64.deb)
+- [Migration Publisher Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-publisher-v0.6.1.zip)
+- [Generic CMS Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-generic-cms-v0.6.1.zip)
 
 The Publisher Q-App displays version **0.6.1-alpha.2**.
 
