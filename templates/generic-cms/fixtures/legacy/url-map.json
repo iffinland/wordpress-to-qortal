@@ -1,0 +1,8 @@
+{
+  "https://corbett.example/golden-post/": {
+    "qapp_route": "#/posts/golden-post"
+  },
+  "https://corbett.example/golden-page/": {
+    "qapp_route": "#/pages/golden-page"
+  }
+}

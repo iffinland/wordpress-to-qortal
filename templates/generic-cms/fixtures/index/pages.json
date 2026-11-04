@@ -1,0 +1,41 @@
+{
+  "schema": "qms-cms-index@1",
+  "version": 1,
+  "generated_at": "2026-10-30T12:00:00.000Z",
+  "type": "pages",
+  "count": 2,
+  "entries": [
+    {
+      "id": "page-about",
+      "type": "page",
+      "title": "About",
+      "slug": "about",
+      "status": "published",
+      "excerpt": "About this fixture site.",
+      "category_ids": [],
+      "tag_ids": [],
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "updated_at": "2026-10-01T00:00:00.000Z",
+      "published_at": "2026-01-01T00:00:00.000Z",
+      "content": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-page-about" },
+      "content_hash": "sha256-about",
+      "featured_image": null
+    },
+    {
+      "id": "page-contact",
+      "type": "page",
+      "title": "Contact",
+      "slug": "contact",
+      "status": "published",
+      "excerpt": "How to reach the fixture editor.",
+      "category_ids": [],
+      "tag_ids": [],
+      "created_at": "2026-01-01T00:00:00.000Z",
+      "updated_at": "2026-10-01T00:00:00.000Z",
+      "published_at": "2026-01-01T00:00:00.000Z",
+      "content": { "service": "DOCUMENT", "name": "QortalDemo", "identifier": "qms-fixture-page-contact" },
+      "content_hash": "sha256-contact",
+      "featured_image": null
+    }
+  ]
+}

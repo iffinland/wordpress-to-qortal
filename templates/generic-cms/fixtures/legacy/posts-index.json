@@ -1,0 +1,29 @@
+{
+  "schema": "qms-legacy-corbett-index@1",
+  "type": "posts",
+  "count": 1,
+  "entries": [
+    {
+      "type": "post",
+      "source_id": 900,
+      "old_url": "https://corbett.example/golden-post/",
+      "public_author": "Corbett",
+      "slug": "golden-post",
+      "title": "Golden Post",
+      "date": "2024-01-02T03:04:05",
+      "published_at": "2024-01-02T03:04:05Z",
+      "modified": "2024-02-03T04:05:06",
+      "modified_at": "2024-02-03T04:05:06Z",
+      "status": "publish",
+      "summary": "Golden excerpt and summary",
+      "categories": [
+        1
+      ],
+      "tags": [
+        10
+      ],
+      "featured_media": 301,
+      "file": "post-golden.json"
+    }
+  ]
+}

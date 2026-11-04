@@ -1,0 +1,10 @@
+{
+  "schema": "qms-cms-index@1",
+  "version": 1,
+  "type": "categories",
+  "entries": [
+    { "id": "cat-news", "name": "News", "slug": "news", "count": 1 },
+    { "id": "cat-engineering", "name": "Engineering", "slug": "engineering", "count": 1 },
+    { "id": "cat-archive", "name": "Archive", "slug": "archive", "count": 1 }
+  ]
+}

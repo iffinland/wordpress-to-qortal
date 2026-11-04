@@ -907,6 +907,18 @@ the generic CMS dataset. This preserves the existing Corbett catalog while the
 new engine emits a versioned `qms-manifest`. The adapter must be read-only and
 must not rewrite existing resources.
 
+### 11.5 Phase 6 implementation status
+
+Phase 6 is implemented in `templates/generic-cms/`. The template is a separate
+Vite/React package with its own configuration and tests. It reads
+`qms-cms-manifest@1`, the Phase 5 `qms-qdn-manifest@1` output and the legacy
+`cr-qdn-manifest` shape through one read-only adapter. It does not import engine
+modules, the Corbett CMS or Node built-ins into browser source. The build output
+is a root-layout Q-App bundle with relative assets; a bundle validator rejects
+absolute asset paths and engine markers. Corbett remains a separate custom clone
+with unchanged routes, branding and `cr-*` identifiers. See
+[`PHASE-6-GENERIC-CMS.md`](PHASE-6-GENERIC-CMS.md) for acceptance evidence.
+
 ## 12. Security architecture
 
 ### 12.1 Threat model

@@ -6,7 +6,7 @@
 | Product working name | Qortal Migration Studio |
 | Executing agent | DeepSeek (`opencode-development` profile) |
 | Date | 2026-11-02 |
-| Status | Phase 0–5.2 completed with live acceptance (2026-11-04); Phase 6 NOT STARTED; Phases 7–10 not started |
+| Status | Phases 0–5.2 completed with live acceptance; Phase 6 implemented and verified (2026-11-04); Phases 7–10 not started |
 | Companion documents | [Audit](PHASE-0-ARCHITECTURE-AUDIT.md), [Requirements](PRODUCT-REQUIREMENTS.md), [Architecture](ARCHITECTURE.md) |
 
 ## 1. How to use this roadmap
@@ -283,7 +283,8 @@ Node/npm/Git, with a first-run project flow.
 > pass.
 > **Status: COMPLETED (2026-11-04).** Live acceptance passed:
 > `pub_602a5fbbbb927367b05343ff` is `remote_verified` with 23 bytes and
-> SHA-256 `4a8848...`; fee 0.01 QORT. Phase 6 is NOT STARTED. See
+> SHA-256 `4a8848...`; fee 0.01 QORT. Phase 6 is implemented and verified; see
+> [`PHASE-6-GENERIC-CMS.md`](PHASE-6-GENERIC-CMS.md). See
 > [PHASE-5.2-TEST-PUBLISHING-BROKER.md](PHASE-5.2-TEST-PUBLISHING-BROKER.md).
 > A fee-policy correction now derives every ARBITRARY fee from Core's
 > `POST /transactions/fee` and `GET /transactions/unitfee`, removes all
@@ -335,7 +336,7 @@ hands off to Qortal Hub, and verifies exact QDN content without collecting keys.
 
 ## 9. Phase 6 — Generic CMS/site template (P0)
 
-**Status: NOT STARTED.**
+**Status: IMPLEMENTED AND VERIFIED (2026-11-04).**
 
 **Outcome:** a neutral, production-quality default Qortal CMS/site plus a
 custom-template mechanism; Corbett remains a custom clone.
@@ -368,6 +369,27 @@ custom-template mechanism; Corbett remains a custom clone.
 7. **AC6.7** Template build produces a valid root-layout Q-App bundle; no engine
    code is imported into the template.
 8. **AC6.8** Accessibility checks pass for primary flows.
+
+### Implementation evidence (Phase 6)
+
+Phase 6 is implemented on a dedicated agent branch from the verified Phase 5.2
+commit `74b67454ce476d16e73935f5c0d2939cdb450c08`. Evidence is recorded in
+[`PHASE-6-GENERIC-CMS.md`](PHASE-6-GENERIC-CMS.md):
+
+- a neutral template in `templates/generic-cms/` with validated site config,
+  navigation, theme tokens, routes and admin/import view;
+- a read-only compatibility adapter for `qms-cms-manifest@1`, the Phase 5
+  `qms-qdn-manifest@1` output and legacy `cr-qdn-manifest`;
+- honest ready/empty/partial/stale/error and cache-fallback states;
+- DOMPurify sanitization with a strict URL scheme policy;
+- owner-only import/adoption based on current QDN name ownership and an
+  optional on-chain name-record cross-check;
+- a root-layout Q-App build with relative assets, a bundle validator and a valid
+  ZIP archive, with no engine imports;
+- 46 new root tests, 19 template repository/render/axe tests, successful Corbett and
+  migration(viewer) builds, and the existing 290 tests still passing.
+
+No live QDN publish or production-catalog read was performed for Phase 6.
 
 ## 10. Phase 7 — Incremental sync, withdrawal and conflicts (P1)
 
@@ -538,23 +560,22 @@ owner acceptance.
 
 ## 17. Next implementation phase
 
-**Recommended next phase: Phase 1 — Engine foundation, projects, state and
-events.**
+**Recommended next phase: Phase 7 — Incremental sync, withdrawal and conflicts.**
 
 Why:
 
-- Every other requirement depends on multiple projects, crash-safe state and a
-  structured engine API.
-- Building the GUI first would encode the current single-project `state.json`
-  and `spawnSync` model into the product.
-- Building the publisher first would be blocked by the missing project/identity
-  foundation and would risk another Hub-only workflow.
-- The existing Corbett pipeline can be preserved as a compatibility wrapper
-  while the engine is extracted.
+- Phase 6 provides a generic CMS over derived catalogs and already treats
+  partial, stale and missing indexes honestly; it does not claim ongoing sync.
+- Phase 7 needs engine-side modified watermarks, deletion detection, withdrawal
+  policy, conflict records and delta publication. Those are not template work.
+- The editable `qms-content@1` model, stable source identity, QDN mapping store
+  and Phase 5 exact read-back are already available.
+- The Corbett pipeline and the generic template can both consume the same
+  incremental catalog without changing their public routes.
 
-Phase 1 should begin with a bounded spike to choose SQLite vs journal+snapshot
-and to prove native module packaging in the target Electron version. That spike
-is an implementation decision, not a new architecture phase.
+Phase 7 should begin with a bounded fixture-driven sync design covering new,
+modified, unchanged and deleted items, then add the conflict and withdrawal
+state machines. It must not describe a source deletion as a network deletion.
 
 ## 18. Open decisions that block or shape phases
 
@@ -593,7 +614,8 @@ is an implementation decision, not a new architecture phase.
 
 ## 20. What this roadmap does not claim
 
-This is a plan. Phase 0 is complete as an audit; no implementation phase has been
-executed. The current toolkit is operational for the existing Corbett workflow,
-but the target product is not production ready, and no phase in this roadmap
-should be reported as complete without its acceptance evidence.
+Phases 0–6 are implemented with the evidence recorded in their phase documents.
+Phases 7–10 remain unimplemented. The current toolkit is operational for the
+existing Corbett workflow and the generic CMS template is buildable and tested,
+but the target product is not production ready. No phase in this roadmap should
+be reported as complete without its acceptance evidence.

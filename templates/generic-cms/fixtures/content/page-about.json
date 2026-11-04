@@ -1,0 +1,33 @@
+{
+  "schema": "qms-qdn-content@1",
+  "version": 1,
+  "id": "page-about",
+  "content_type": "page",
+  "identity": {
+    "slug": "about"
+  },
+  "title": "About",
+  "dates": {
+    "published_at": "2026-01-01T00:00:00.000Z",
+    "modified_at": "2026-10-01T00:00:00.000Z"
+  },
+  "body": {
+    "format": "html",
+    "html": "<p>This is a fixture page for the generic Qortal CMS template.</p><h2>What it proves</h2><p>Page routes render from the same catalog as posts.</p>",
+    "text": "This is a fixture page.",
+    "excerpt_html": "<p>About this fixture site.</p>",
+    "excerpt_text": "About this fixture site."
+  },
+  "authors": [
+    {
+      "name": "Fixture Editor",
+      "address": "QFixtureAddress1111111111111111111"
+    }
+  ],
+  "terms": {
+    "categories": [],
+    "tags": []
+  },
+  "media": [],
+  "content_hash": "sha256-about"
+}

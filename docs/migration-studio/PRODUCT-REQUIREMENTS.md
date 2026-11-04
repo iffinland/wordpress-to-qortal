@@ -6,7 +6,7 @@
 | Product working name | Qortal Migration Studio |
 | Executing agent | DeepSeek (`opencode-development` profile) |
 | Date | 2026-11-02 |
-| Status | Requirements baseline for architecture/planning; not a release commitment. Phases 3–5 are implemented as documented in their phase documents; a real Hub-signed live publication remains unverified. Phases 6–10 remain unimplemented. |
+| Status | Requirements baseline for architecture/planning; not a release commitment. Phases 3–5.2 are implemented as documented in their phase documents. Phase 5.2 has live broker acceptance; the user-facing Hub-signed flow is implemented but not live-tested. Phase 6 is implemented and verified against fixtures and builds. Phases 7–10 remain unimplemented. |
 | Companion audit | [`PHASE-0-ARCHITECTURE-AUDIT.md`](PHASE-0-ARCHITECTURE-AUDIT.md) |
 
 > **Phase 3 implementation note (2026-11-03):** BAT-02/04/05/06, MED-01..07,
@@ -24,6 +24,15 @@
 > uses `encoding=base64`; receipts are Publisher evidence, not proof. A real
 > Hub-signed live publication and fee/transaction acceptance have not been
 > executed. See [`PHASE-5-QDN-PUBLISHING.md`](PHASE-5-QDN-PUBLISHING.md).
+
+> **Phase 6 implementation note (2026-11-04):** CMS-01..07 are implemented in
+> `templates/generic-cms/`. The template has configurable branding and theme
+> tokens, all primary routes, a read-only compatibility adapter for
+> `qms-cms-manifest@1`/`qms-qdn-manifest@1`/`cr-qdn-manifest`, honest
+> ready/empty/partial/stale/error states, DOMPurify sanitization, verified-owner
+> gating for import/adoption, a root-layout Q-App build and axe-core
+> accessibility checks. No live QDN publish or production-catalog read was
+> performed. See [`PHASE-6-GENERIC-CMS.md`](PHASE-6-GENERIC-CMS.md).
 
 ## 1. Product definition
 

@@ -46,6 +46,7 @@ This records the existing QDN catalog locally. New batches then merge with it in
 - `docs/migration-studio/PHASE-4-DESKTOP-GUI.md` - Linux desktop app, setup wizard, secure IPC, reserved-vs-published lifecycle correction, Debian packaging and verification (Phase 4).
 - `docs/migration-studio/PHASE-5-QDN-PUBLISHING.md` - portable QDN handoff, universal Migration Publisher Q-App, controlled batches, exact read-back verification, receipts and desktop synchronization (Phase 5).
 - `docs/migration-studio/PHASE-5-VARIANT-B-FEASIBILITY.md` - secure desktop-to-Hub transfer assessment (deferred).
+- `docs/migration-studio/PHASE-6-GENERIC-CMS.md` - generic Qortal CMS template, manifest compatibility, sanitization, owner gating, accessibility and Q-App build (Phase 6).
 
 ## Where files go
 
@@ -218,3 +219,29 @@ hashes or local files never imply publication.
 
 See `docs/migration-studio/PHASE-4-DESKTOP-GUI.md` for the architecture,
 package layout, verification evidence, limitations and MX Linux validation plan.
+
+## Generic Qortal CMS template (Phase 6)
+
+The neutral CMS template lives in `templates/generic-cms/`. It is a separate
+Vite/React package that reads `qms-cms-manifest@1`, the Phase 5
+`qms-qdn-manifest@1` output or the legacy `cr-qdn-manifest` catalog. It is not
+the Corbett clone and imports no engine, Corbett or Node code into the browser.
+
+~~~bash
+cd templates/generic-cms
+npm install
+npm test                 # 19 repository/render/accessibility tests
+npm run build            # typecheck, build and validate the Q-App bundle
+npm run build -- --zip    # also write release/qms-generic-cms-template-v0.1.5.zip
+~~~
+
+Routes: home, posts, post, page, category, tag, archive, search and
+admin/import. The admin route stages imported items in a local adoption queue
+only; it does not sign or publish. Owner mode requires the signed-in account to
+own the configured QDN name, with an optional on-chain name-record cross-check.
+See `docs/migration-studio/PHASE-6-GENERIC-CMS.md` for the manifest contract,
+state model, sanitization policy, acceptance evidence and limitations.
+
+From the repository root, `npm run test:phase6` runs the 46 Phase 6 contract
+tests and `npm run check:phase6` runs the Phase 6 tests plus the template test
+and build.

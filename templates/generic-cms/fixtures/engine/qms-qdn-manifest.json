@@ -1,0 +1,76 @@
+{
+  "schema": "qms-qdn-manifest@1",
+  "version": 1,
+  "generated_at": "2026-10-25T00:00:00.000Z",
+  "handoff_id": "handoff-fixture",
+  "site_id": null,
+  "namespace": "site-fixture",
+  "target": "QortalDemo",
+  "entrypoints": {
+    "posts": "engine-posts-index",
+    "pages": "engine-pages-index",
+    "categories": "engine-categories",
+    "tags": "engine-tags",
+    "media_map": "engine-media-map",
+    "url_map": "engine-url-map"
+  },
+  "resources": {
+    "by_path": {},
+    "by_identifier": {
+      "engine-posts-index": {
+        "service": "DOCUMENT",
+        "name": "QortalDemo",
+        "identifier": "engine-posts-index",
+        "local_path": "engine/posts-index.json"
+      },
+      "engine-pages-index": {
+        "service": "DOCUMENT",
+        "name": "QortalDemo",
+        "identifier": "engine-pages-index",
+        "local_path": "engine/pages-index.json"
+      },
+      "engine-categories": {
+        "service": "DOCUMENT",
+        "name": "QortalDemo",
+        "identifier": "engine-categories",
+        "local_path": "engine/categories.json"
+      },
+      "engine-tags": {
+        "service": "DOCUMENT",
+        "name": "QortalDemo",
+        "identifier": "engine-tags",
+        "local_path": "engine/tags.json"
+      },
+      "engine-media-map": {
+        "service": "DOCUMENT",
+        "name": "QortalDemo",
+        "identifier": "engine-media-map",
+        "local_path": "engine/media-map.json"
+      },
+      "engine-url-map": {
+        "service": "DOCUMENT",
+        "name": "QortalDemo",
+        "identifier": "engine-url-map",
+        "local_path": "engine/url-map.json"
+      },
+      "engine-post-1": {
+        "service": "DOCUMENT",
+        "name": "QortalDemo",
+        "identifier": "engine-post-1",
+        "local_path": "engine/post-1.json"
+      },
+      "engine-page-1": {
+        "service": "DOCUMENT",
+        "name": "QortalDemo",
+        "identifier": "engine-page-1",
+        "local_path": "engine/page-1.json"
+      }
+    }
+  },
+  "summary": {
+    "content": 2,
+    "media": 0,
+    "indexes": 6,
+    "total": 8
+  }
+}
