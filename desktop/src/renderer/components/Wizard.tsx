@@ -48,6 +48,7 @@ function defaultWizard(project: ProjectDocument, adapters: AdapterInfo[]): Wizar
     siteDescription: stored.siteDescription ?? String(target.siteDescription ?? ''),
     website: {
       cms: String(website.cms ?? 'generic-cms'),
+      service: String(website.service ?? 'APP').toUpperCase(),
       tagline: String(website.tagline ?? ''),
       accent: String(colors.accent ?? '#4da3ff')
     },
@@ -89,6 +90,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
   const [siteTitle, setSiteTitle] = useState(initial.siteTitle);
   const [siteDescription, setSiteDescription] = useState(initial.siteDescription);
   const [cmsTemplate, setCmsTemplate] = useState(String(initial.website?.cms ?? 'generic-cms'));
+  const [cmsService, setCmsService] = useState(String(initial.website?.service ?? 'APP').toUpperCase());
   const [siteTagline, setSiteTagline] = useState(String(initial.website?.tagline ?? ''));
   const [siteAccent, setSiteAccent] = useState(String(initial.website?.accent ?? '#4da3ff'));
   const [batchSize, setBatchSize] = useState(numberValue(preferences.batchSize, 15));
@@ -148,6 +150,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       siteDescription,
       website: {
         cms: cmsTemplate,
+        service: cmsService,
         tagline: siteTagline,
         accent: siteAccent
       },
@@ -250,6 +253,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
           settings: {
             website: {
               cms: cmsTemplate,
+              service: cmsService,
               tagline: siteTagline.trim(),
               theme: { colors: { accent: siteAccent } }
             }
@@ -528,10 +532,16 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
             <Field label="Website description">
               <textarea value={siteDescription} onChange={(event) => setSiteDescription(event.target.value)} rows={3} />
             </Field>
-            <Field label="Website template" hint="The default Generic CMS is published as an APP bundle with this project.">
+            <Field label="Website template" hint="The default Generic CMS is published as an application bundle with this project.">
               <select value={cmsTemplate} onChange={(event) => setCmsTemplate(event.target.value)}>
                 <option value="generic-cms">Generic CMS (recommended)</option>
-                <option value="none">Content only (no website app)</option>
+                <option value="none">Content only (no website bundle)</option>
+              </select>
+            </Field>
+            <Field label="Website hosting service" hint="APP and WEBSITE can both live under the same registered Qortal name. The identifier keeps them separate.">
+              <select value={cmsService} onChange={(event) => setCmsService(event.target.value)}>
+                <option value="APP">APP (recommended)</option>
+                <option value="WEBSITE">WEBSITE</option>
               </select>
             </Field>
             <Field label="Accent colour" hint="Used by the Generic CMS theme.">

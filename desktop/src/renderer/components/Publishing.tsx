@@ -308,7 +308,7 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
           <Alert tone="info" title="Handoff ready">
             <p>{prepared.message}</p>
             <p><code>{prepared.absolutePath}</code></p>
-            <p className="small">Export one .zip package and select it in Qortal Hub → Migration Publisher. The Publisher validates the manifest, every SHA-256 and any CMS APP bundle before asking for approval.</p>
+            <p className="small">Export one .zip package and select it in Qortal Hub → Migration Publisher. The Publisher validates the manifest, every SHA-256 and any CMS application bundle (APP or WEBSITE) before asking for approval.</p>
             <div className="row gap wrap">
               <button type="button" className="primary" onClick={() => void exportPublisherPackage()} disabled={loading}>Export Publisher package (.zip)</button>
               <button type="button" className="ghost" onClick={() => void openHandoffFolder()}>Open handoff folder</button>

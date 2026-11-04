@@ -17,7 +17,7 @@ These are release-gate facts, not a substitute for testing your own site.
 3. **The Migration Publisher Q-App is not publicly deployed.** The validated
    build artifact exists; public deployment needs the owner's registered name
    and wallet approval. Until then, users cannot launch it from Qortal Hub.
-4. **The Generic CMS APP is not live-published.** Its bundle, config and
+4. **The Generic CMS application bundle is not live-published.** Its bundle, config and
    exact member read-back are proven against fixtures and a simulated Core API,
    not a public QDN deployment.
 5. **The package is unsigned.** There is no owner-approved Debian signing key
@@ -42,7 +42,7 @@ These are release-gate facts, not a substitute for testing your own site.
   Unsupported or unreachable media is reported, not invented.
 - No automatic background sync. Every scan and publication is explicit.
 - No QDN delete. Source withdrawal is local; published data remains.
-- The CMS APP member read-back depends on Core's `filepath` query; the
+- The CMS application-bundle member read-back depends on Core's `filepath` query; the
   Publisher tries the Hub bridge first and falls back to a same-origin node
   read. A Hub build that blocks both paths reports `blocked`, not verified.
 - Qortal Hub does not publish a multi-file APP from its normal form, so the

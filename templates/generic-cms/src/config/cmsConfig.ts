@@ -28,7 +28,7 @@ export interface RuntimeCmsConfig {
 
 /**
  * A single built CMS bundle serves every migrated site. The Publisher writes
- * qms-cms-config.json at the APP bundle root, and this loader applies the site
+ * qms-cms-config.json at the application-bundle root, and this loader applies the site
  * title, tagline, navigation, theme and manifest identifier at runtime.
  */
 function decodeBase64(value: string): string {

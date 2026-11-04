@@ -18,9 +18,9 @@
   `release/qortal-migration-publisher-v0.6.1.zip`.
 - **Single-file Publisher package**: the desktop exports one
   `<handoffId>-publisher.zip`; the Publisher accepts that ZIP or the folder.
-- **Generic CMS as an APP bundle**: a project that selects the default Generic
+- **Generic CMS as an application bundle**: a project that selects the default Generic
   CMS packages the already-built CMS with a generated
-  `qms-cms-config.json`. The Publisher submits it as a multi-file APP resource
+  `qms-cms-config.json`. The Publisher submits it as a multi-file APP or WEBSITE resource
   after the manifest and verifies every member through
   `?filepath=...&encoding=base64`.
 - **Desktop integration**: wizard CMS/tagline/accent settings, ZIP export,
@@ -36,7 +36,7 @@
 
 | Gate | Result |
 | --- | --- |
-| Root test suite | 421/421 pass |
+| Root test suite | 423/423 pass |
 | Phase 5 / 5.1 / 5.2 | pass |
 | Phase 6 CMS tests and build | pass, 20/20 template tests |
 | Phase 7 / 8 / 9 | pass |
@@ -53,7 +53,7 @@ complete live workflow is made.
 
 ## Known limitations
 
-- The generic CMS APP is verified against a local exact-read-back simulator and
+- The generic CMS application bundle is verified against a local exact-read-back simulator and
   the real Core API contract; it has not been published live.
 - Qortal Hub's `FETCH_QDN_RESOURCE` filepath support varies by build. The
   Publisher falls back to a same-origin node read for APP members.

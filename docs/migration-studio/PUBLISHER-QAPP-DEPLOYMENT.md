@@ -1,9 +1,13 @@
 # Migration Publisher Q-App — distribution and deployment
 
 Status: **artifact built and validated; not publicly deployed.** Deployment
-requires the owner's registered Qortal name, an owner wallet approval and a QDN
-APP fee. Those are owner-controlled external writes and are not performed by
-this repository's automated release process.
+requires the owner's registered Qortal name, an owner wallet approval and one
+QDN application-bundle fee. Those are owner-controlled external writes and are
+not performed by this repository's automated release process.
+
+The Publisher and the Generic CMS can both live under the **same registered
+Qortal name**. Use APP for one and WEBSITE for the other; the service plus
+identifier makes each triple distinct. No second Qortal name is required.
 
 ## What the artifact is
 
@@ -17,10 +21,11 @@ this repository's automated release process.
 
 ## Supported deployment mechanism
 
-QDN Q-Apps are multi-file APP resources. Core accepts a ZIP only through:
+QDN application bundles are multi-file APP or WEBSITE resources. Core accepts a
+ZIP through the same generic service path:
 
 ~~~text
-POST /arbitrary/APP/<name>/<identifier>/zip?fee=<atomic>&isZip=true
+POST /arbitrary/<APP|WEBSITE>/<name>/<identifier>/zip?fee=<atomic>&isZip=true
 Content-Type: text/plain
 Body: base64(zip)
 ~~~
@@ -28,15 +33,15 @@ Body: base64(zip)
 Then the exact Core transaction flow is `/transactions/convert`,
 Ed25519 signature by the owner wallet, and `/transactions/process`. Qortal Hub's
 publish UI and dev-mode preview accept Q-App ZIPs for preview; a permanent
-public APP deployment is an owner wallet action.
+public deployment is an owner wallet action.
 
 A single generic deployment should be used for all users:
 
 | Field | Recommended value |
 | --- | --- |
-| name | the owner's registered Qortal name |
+| name | the owner's registered Qortal name (shared with the CMS) |
 | identifier | `qms-publisher` (stable across updates) |
-| service | `APP` |
+| service | `WEBSITE` or `APP` (the other service hosts the CMS) |
 | file | `qortal-migration-publisher-v<version>.zip` |
 | title | `Migration Publisher` |
 | description | `Publish Qortal Migration Studio handoffs through Qortal Hub` |
@@ -71,16 +76,31 @@ curl -s "http://127.0.0.1:12391/transactions/unitfee?txType=ARBITRARY"
 approval; never assume the estimate.
 
 4. Publish the ZIP through an owner-controlled Qortal UI/Core flow that signs
-   with the owner wallet. The Publisher Q-App cannot deploy itself.
-5. Exact read-back:
+   with the owner wallet. The Publisher Q-App cannot deploy itself. Use the
+   service chosen above; the same name can also host the CMS under the other
+   service.
+5. Exact read-back (substitute the chosen service):
 
 ~~~bash
 curl -s -o /dev/null -w "%{http_code} %{content_type}\n" \
-  "http://127.0.0.1:12391/arbitrary/APP/<name>/qms-publisher?filepath=index.html"
+  "http://127.0.0.1:12391/arbitrary/WEBSITE/<name>/qms-publisher?filepath=index.html"
 ~~~
 
-6. Open Qortal Hub → Apps → Migration Publisher. Confirm the title, that no
-   account name is hardcoded, and that selecting a handoff ZIP works.
+6. Open the Publisher from Qortal Hub/Home (Apps for APP; the QDN website URL
+   for WEBSITE). Confirm the title, that no account name is hardcoded, and that
+   selecting a handoff ZIP works.
+
+### Same-name deployment matrix
+
+| CMS service | Publisher service | Status |
+| --- | --- | --- |
+| APP | WEBSITE | supported; recommended separation |
+| WEBSITE | APP | supported |
+| APP | APP | supported with distinct identifiers |
+| WEBSITE | WEBSITE | supported with distinct identifiers |
+
+Only the service+name+identifier triple must be unique. Studio never allocates a
+second Qortal name for an application bundle.
 
 ## Why this is not automated here
 

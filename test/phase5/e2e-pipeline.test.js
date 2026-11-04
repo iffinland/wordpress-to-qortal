@@ -52,7 +52,7 @@ async function startSimulatedQdn(root, manifest) {
         return;
       }
       const bytes = await readFile(path.join(root, resource.relativePath));
-      if (resource.service === 'APP') {
+      if (resource.service === 'APP' || resource.service === 'WEBSITE') {
         const filepath = url.searchParams.get('filepath');
         if (!filepath) {
           response.statusCode = 400;

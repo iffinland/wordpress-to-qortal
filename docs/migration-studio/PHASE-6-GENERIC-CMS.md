@@ -302,7 +302,7 @@ withdrawal policy, conflict queue and delta publication. Those are not claimed
 by Phase 6.
 
 
-## 14. 0.6.1 integration — deployable CMS APP and runtime configuration
+## 14. 0.6.1 integration — deployable CMS application bundle and runtime configuration
 
 The CMS is now deployable through the normal Studio → Publisher flow:
 
@@ -311,8 +311,9 @@ The CMS is now deployable through the normal Studio → Publisher flow:
   `settings.website`.
 - `lib/engine/publication/site.js` reads the prebuilt
   `templates/generic-cms/dist`, writes a validated `qms-cms-config.json`, and
-  produces one deterministic ZIP. The handoff adds a `kind: "site"` APP
-  resource that depends on the site manifest.
+  produces one deterministic ZIP. The handoff adds a `kind: "site"` APP or
+  WEBSITE resource that depends on the site manifest. The wizard chooses the
+  service; both can coexist under one registered Qortal name.
 - The CMS loads `./qms-cms-config.json` at runtime and deep-merges it over the
   build config, so one built CMS bundle serves every site. Title, tagline,
   navigation, theme colours, owner name, manifest identifier and page size are

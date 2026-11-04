@@ -527,8 +527,9 @@ Phase 5.3-style integration is implemented in the 0.6.1 alpha candidate:
   `<data-root>/exports/<handoffId>-publisher.zip`; the Publisher accepts that
   ZIP or the folder. A ZIP with one root folder is normalized safely; traversal,
   duplicate paths, oversized entries and encrypted archives fail closed.
-- **CMS APP resources.** A handoff may contain one `kind: "site"` resource with
-  service `APP`. Its payload is the exact deterministic CMS ZIP; its
+- **CMS application-bundle resources.** A handoff may contain one `kind: "site"`
+  resource with service `APP` or `WEBSITE`. Both may share the same registered
+  name because the service+name+identifier triple stays unique. Its payload is the exact deterministic CMS ZIP; its
   `metadata.bundle.files` list is the exact member read-back contract. The
   Publisher submits it with `isMultiFileZip: true` after the manifest and reads
   each member through `?filepath=...&encoding=base64`.

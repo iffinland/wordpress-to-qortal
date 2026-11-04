@@ -4,7 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { unzipSync } from 'fflate';
 import { startPhase3, makePost } from '../../test-support/phase3/helpers.js';
-import { validateHandoffPackage, sha256Bytes } from '../../lib/engine/publication/index.js';
+import { assertHandoffManifest, sealDocument, validateHandoffPackage, sha256Bytes } from '../../lib/engine/publication/index.js';
 import { verifyResourceOnce } from '../../lib/engine/publication/remote.js';
 
 async function prepareSite(t) {
@@ -51,6 +51,43 @@ test('a Generic CMS site is packaged as an exact APP bundle after the manifest',
   assert.equal(validated.verified.length, manifest.resources.length);
   assert.ok(validated.verified.find((entry) => entry.id === site.id).bundle.verified >= 3);
   assert.equal(handoff.counts.site, 1);
+});
+
+test('the CMS can be hosted as WEBSITE under the same registered name', async (t) => {
+  const env = await startPhase3(t, {
+    posts: [makePost(1)],
+    settings: { extra: { website: { cms: 'generic-cms', service: 'WEBSITE', tagline: 'Website service' } } }
+  });
+  await env.handle.source.discover({ perPage: 50 });
+  const plan = await env.handle.planning.create({ batchSize: 2, estimateMedia: false });
+  const selection = plan.plan.entries.filter((entry) => entry.status === 'new').map((entry) => entry.sourceKey);
+  const handoff = await env.handle.publication.prepare({ planId: plan.planId, selection });
+  const dir = path.join(env.engine.projects.paths(env.project.id).root, handoff.handoffPath);
+  const manifest = JSON.parse(await readFile(path.join(dir, 'handoff.json'), 'utf8'));
+  const site = manifest.resources.find((resource) => resource.kind === 'site');
+  assert.equal(site.service, 'WEBSITE');
+  assert.equal(site.name, 'SyntheticSite');
+  assert.equal(site.metadata.service, 'WEBSITE');
+  assert.equal(manifest.resources.filter((resource) => resource.service === 'WEBSITE').length, 1);
+  await validateHandoffPackage({ handoffDir: dir });
+});
+
+test('APP and WEBSITE application bundles may share one registered name', async (t) => {
+  const { manifest } = await prepareSite(t);
+  const site = manifest.resources.find((resource) => resource.kind === 'site');
+  const clone = structuredClone(manifest);
+  const website = structuredClone(site);
+  website.id = 'res_websitedemo0001';
+  website.service = 'WEBSITE';
+  website.identifier = 'qms-nsaaaaaaaa-web-generic-cms-demo0001';
+  website.metadata = { ...website.metadata, service: 'WEBSITE' };
+  clone.resources.push(website);
+  clone.estimate.resourceCount = clone.resources.length;
+  assert.doesNotThrow(() => assertHandoffManifest(sealDocument(clone)));
+  const triples = new Set(clone.resources.map((resource) => resource.service + '|' + resource.name + '|' + resource.identifier));
+  assert.equal(triples.size, clone.resources.length);
+  assert.ok([...triples].some((triple) => triple.startsWith('APP|SyntheticSite|')));
+  assert.ok([...triples].some((triple) => triple.startsWith('WEBSITE|SyntheticSite|')));
 });
 
 test('a tampered CMS bundle is rejected before publication', async (t) => {

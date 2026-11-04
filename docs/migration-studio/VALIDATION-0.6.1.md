@@ -7,7 +7,7 @@ unsigned, amd64).
 
 | Gate | Result |
 | --- | --- |
-| Root `node --test` suite | 421/421 pass |
+| Root `node --test` suite | 423/423 pass |
 | Desktop `tsc` typecheck | pass |
 | Desktop Vitest | 44/44 pass |
 | Generic CMS Vitest | 20/20 pass |
@@ -26,7 +26,7 @@ unsigned, amd64).
 
 New deterministic tests:
 
-- `test/phase5/site.test.js` — CMS APP bundle, deterministic ZIP, config
+- `test/phase5/site.test.js` — CMS application bundle (APP and WEBSITE), same-name coexistence, deterministic ZIP, config
   contents, tamper rejection, single-file export, per-member read-back.
 - `test/phase5/publisher-qapp.test.js` — browser validator accepts the exported
   ZIP and rejects a tampered CMS bundle.

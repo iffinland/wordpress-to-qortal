@@ -49,9 +49,11 @@ preserves the exact display name; it never substitutes a reduced or case-folded
 name. QMS does not ask for a seed, private key or wallet password. Signing stays
 in Qortal Hub.
 
-Set the website title, tagline and accent colour. If **Generic CMS** is
-selected, QMS packages the CMS as part of this project's publication and
-configures its title, tagline, navigation and theme. A site identity (`siteId`)
+Set the website title, tagline, accent colour and hosting service (APP or
+WEBSITE). If **Generic CMS** is selected, QMS packages the CMS as part of this
+project's publication and configures its title, tagline, navigation and theme.
+APP and WEBSITE are distinct QDN services and may share one registered Qortal
+name; no second name is needed. A site identity (`siteId`)
 is generated automatically and remains stable for the project.
 
 ## 6. Wizard step 4 — Import preferences
