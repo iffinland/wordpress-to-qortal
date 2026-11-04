@@ -67,6 +67,16 @@ the corresponding ZIP from that commit; old assets are never reused.
 The gate writes `release/release-manifest.json`, which is the only input to
 publishing. Manual asset selection is not supported.
 
+## Documentation gate
+Every release updates the beginner-facing documents together: top-level
+`README.md`, `QUICKSTART.md`, `INSTALL-LINUX.md`, `FIRST-RUN-GUIDE.md`,
+`MIGRATION-WALKTHROUGH.md`, `PUBLISHER-QAPP-DEPLOYMENT.md`, the Generic CMS
+README, release workflow, release notes and known issues. Beginner instructions
+must require no development tools and no manual compilation; source-build steps
+belong under a clearly marked **For developers / Build from source** heading.
+The docs must state that downloading a ZIP is not publishing it to QDN and that
+the Generic CMS may be published as an APP or a WEBSITE where supported.
+
 ## Release checklist
 
 1. Verify the tag points at the intended source commit:

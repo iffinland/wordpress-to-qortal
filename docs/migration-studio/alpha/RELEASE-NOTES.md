@@ -1,15 +1,34 @@
-# Qortal Migration Studio 0.6.0 — first public alpha
+# Qortal Migration Studio alpha release notes
 
-<!-- alpha-release-version: 0.6.0 -->
+<!-- alpha-release-version: 0.6.1 -->
 
-## 0.6.1 alpha candidate
+## 0.6.1 alpha — published
+
+Qortal Migration Studio **0.6.1 alpha** is published as a GitHub prerelease:
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.1>.
+
+The release ships all three artifacts:
+
+- [Qortal Migration Studio 0.6.1 .deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-studio_0.6.1_amd64.deb)
+- [Migration Publisher Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-publisher-v0.6.1.zip)
+- [Generic CMS Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.1/qortal-migration-generic-cms-v0.6.1.zip)
+
+The beginner path needs no development tools: download the .deb, verify
+`SHA256SUMS`, install with apt, and follow the first-run guide. The two ZIPs are
+packages, not deployments. Downloading a ZIP does not publish it to QDN; an
+owner must publish it with wallet approval. The Generic CMS can be published as
+either an APP or a WEBSITE where the verified package and current application
+flow support that service.
 
 0.6.1 adds the standalone Migration Publisher Q-App, one-file Publisher
-packages and Generic CMS APP deployment. See
-[../RELEASE-0.6.1-ALPHA.md](../RELEASE-0.6.1-ALPHA.md). It is not a published
-release: the mixed-service live acceptance gate and the public Publisher
-Q-App deployment are outstanding owner-authorized actions. The 0.6.0 download
-below remains the latest public build.
+packages and Generic CMS APP/WEBSITE deployment. The **0.6.0 binary remains the
+older first alpha and does not contain these 0.6.1 integrations**; do not use it
+to infer 0.6.1 behaviour.
+
+Detailed 0.6.1 evidence and limitations:
+[../RELEASE-0.6.1-ALPHA.md](../RELEASE-0.6.1-ALPHA.md).
+
+## 0.6.0 — first public alpha
 
 Qortal Migration Studio (QMS) is a Linux desktop application that prepares a
 WordPress site for publication on Qortal QDN. It reads a public WordPress site,

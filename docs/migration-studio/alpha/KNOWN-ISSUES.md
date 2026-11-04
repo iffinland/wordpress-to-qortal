@@ -1,6 +1,9 @@
-# Known issues and limitations — 0.6.1 alpha candidate
+# Known issues and limitations — 0.6.1 alpha
 
-These are release-gate facts, not a substitute for testing your own site.
+These are release-gate facts, not a substitute for testing your own site. The
+0.6.1 release is published as a prerelease with all three artifacts:
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.1>.
+Downloading an artifact is not deployment or live validation.
 
 ## Blocking or unverified release gates
 
@@ -15,11 +18,15 @@ These are release-gate facts, not a substitute for testing your own site.
    real Hub wallet in this alpha. Treat the first real publication as a
    supervised test.
 3. **The Migration Publisher Q-App is not publicly deployed.** The validated
-   build artifact exists; public deployment needs the owner's registered name
-   and wallet approval. Until then, users cannot launch it from Qortal Hub.
-4. **The Generic CMS application bundle is not live-published.** Its bundle, config and
+   build artifact is published as a release ZIP; public Q-App deployment needs
+   the owner's registered name and wallet approval. Downloading the ZIP does not
+   deploy it, and until deployment users cannot launch it from Qortal Hub.
+4. **The Generic CMS application bundle is not live-published and its live
+   rendering is not accepted.** The neutral ZIP is published as a release asset
+   and QMS can package a configured APP or WEBSITE bundle. Its bundle, config and
    exact member read-back are proven against fixtures and a simulated Core API,
-   not a public QDN deployment.
+   not a public QDN deployment or live rendering test. Downloading the ZIP does
+   not deploy it.
 5. **The package is unsigned.** There is no owner-approved Debian signing key
    in the release environment. Verify SHA-256, SBOM and provenance. A signed
    build is a future release gate.

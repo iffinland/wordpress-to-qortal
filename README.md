@@ -44,6 +44,13 @@ three-artifact release gate. The desktop package is **unsigned** and amd64-only;
 see [Alpha status](#alpha-status) and
 [docs/migration-studio/INSTALL-LINUX.md](docs/migration-studio/INSTALL-LINUX.md).
 
+**Downloading a ZIP is not deploying it.** The Publisher and Generic CMS ZIPs
+are packages. Nothing appears on QDN until an owner publishes them with wallet
+approval through the supported Qortal flow. The Generic CMS can be published as
+either an **APP** or a **WEBSITE** where the verified package and current
+application flow support that service; APP and WEBSITE are distinct QDN
+services and may share one registered Qortal name.
+
 Qortal Migration Studio is an independent open-source project. It is not
 affiliated with, sponsored by, or endorsed by any website you choose to
 migrate, or by the Qortal project.
@@ -263,14 +270,14 @@ before migrating a site with heavy plugin functionality.
 
 ## Security and checksums
 
-The 0.6.0 package is an **unsigned alpha**. There is no owner-approved Debian
+The 0.6.1 package is an **unsigned alpha**. There is no owner-approved Debian
 signing key in the release environment, so `apt` cannot verify a signature.
 Verify the published hash before installing:
 
 ```bash
-sha256sum qortal-migration-studio_0.6.0_amd64.deb
-# Expected for v0.6.0-alpha.1:
-# ee5725bc148e2849295a416477c4bf98a1b024bcd94026f69b91ed22172e9ea7
+sha256sum qortal-migration-studio_0.6.1_amd64.deb
+# Expected for v0.6.1-alpha.1:
+# 2b32d59cca24f7510581f6f40fba8002509a6c2ef248dfb4792e31a426398886
 sha256sum -c SHA256SUMS
 ```
 
@@ -326,10 +333,11 @@ Never include WordPress passwords or application passwords, Qortal seeds,
 private keys, wallet passwords, broker credentials, or unredacted content in
 an issue. Attach a redacted QMS support bundle instead of raw logs.
 
-## Developer build
+## For developers / Build from source
 
-End-user instructions are above. Building from source, packaging the three
-release artifacts and publishing a release are documented separately in
+End-user instructions are above and require no development tools. Building from
+source, packaging the three release artifacts and publishing a release are
+documented separately in
 [docs/migration-studio/DEVELOPER-BUILD.md](docs/migration-studio/DEVELOPER-BUILD.md).
 The short version is `npm run release:prepare` followed by
 `npm run release:publish -- --tag=<tag>`.
