@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { JsonRpcConnection } from '../../lib/engine/host/client.js';
+import { ENGINE_VERSION } from '../../lib/engine/index.js';
 import { startWordpressFixtureServer, createFixtureData } from '../../test-support/wordpress/fixtureServer.js';
 import { makePost, dataWithPosts } from '../../test-support/phase3/helpers.js';
 
@@ -30,7 +31,7 @@ test('the desktop host contract exposes only engine methods and validates target
 
   const info = await client.request('engine.info');
   assert.equal(info.apiVersion, 'qms-engine@1');
-  assert.equal(info.version, '0.1.9-phase8');
+  assert.equal(info.version, ENGINE_VERSION);
   assert.ok(info.adapters.some((adapter) => adapter.id === 'wordpress'));
 
   await assert.rejects(

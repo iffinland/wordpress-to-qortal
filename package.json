@@ -57,11 +57,22 @@
     "test:phase6": "node --test test/phase6/*.test.js",
     "test:phase7": "node --test test/phase7/*.test.js",
     "test:phase8": "node --test test/phase8/*.test.js",
+    "test:phase9": "node --test test/phase9/*.test.js",
     "check:phase8": "npm run test:phase8 && npm --prefix desktop run typecheck && npm --prefix desktop test",
+    "version:check": "node scripts/qms-release.mjs check",
+    "version:sync": "node scripts/qms-release.mjs sync",
+    "check:phase9": "npm run version:check && npm run test:phase9 && npm --prefix desktop run typecheck && npm --prefix desktop test",
+    "release:deb": "node scripts/release/build-deb.mjs",
+    "release:validate": "node scripts/release/validate-artifact.mjs",
+    "release:security": "node scripts/release/security-check.mjs",
+    "release:sbom": "node scripts/release/generate-sbom.mjs",
+    "release:provenance": "node scripts/release/generate-provenance.mjs",
+    "release:repro": "node scripts/release/repro-check.mjs",
+    "release:verify": "node scripts/release/verify-release.mjs",
     "test:all": "npm test && npm run cms-template:test && npm run test:desktop",
     "test:desktop": "npm --prefix desktop test",
     "desktop:build": "npm --prefix desktop run build",
-    "desktop:deb": "npm --prefix desktop run dist:deb"
+    "desktop:deb": "node scripts/release/build-deb.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

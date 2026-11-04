@@ -47,6 +47,10 @@ This records the existing QDN catalog locally. New batches then merge with it in
 - `docs/migration-studio/PHASE-5-QDN-PUBLISHING.md` - portable QDN handoff, universal Migration Publisher Q-App, controlled batches, exact read-back verification, receipts and desktop synchronization (Phase 5).
 - `docs/migration-studio/PHASE-5-VARIANT-B-FEASIBILITY.md` - secure desktop-to-Hub transfer assessment (deferred).
 - `docs/migration-studio/PHASE-6-GENERIC-CMS.md` - generic Qortal CMS template, manifest compatibility, sanitization, owner gating, accessibility and Q-App build (Phase 6).
+- `docs/migration-studio/PHASE-7-INCREMENTAL-SYNC.md` - incremental scans, delta plans, conflicts, withdrawal policy and adoption (Phase 7).
+- `docs/migration-studio/PHASE-8-RECOVERY-CLEANUP-HISTORY.md` - crash-safe recovery, two-phase cleanup, durable history and support bundles (Phase 8).
+- `docs/migration-studio/PHASE-9-PRODUCTION-RELEASE.md` - self-contained `.deb`, reproducibility, SBOM/provenance, security review and install evidence (Phase 9).
+- `docs/migration-studio/INSTALL-LINUX.md` - install, upgrade and uninstall for end users.
 - `docs/migration-studio/USER-CONTENT-SUPPORT.md` - what content migrates, what unsupported plugin functionality is removed and how to review it.
 
 ## Where files go
@@ -160,30 +164,30 @@ batches are referenced by `latest.json`. See
 identity/hash rules, Corbett golden evidence, and limitations.
 
 
-## Qortal Migration Studio desktop app (Phase 4)
+## Qortal Migration Studio desktop app (Phase 9 release)
 
-The universal desktop prototype lives in `desktop/`. It is an independent
-package (`qortal-migration-studio`) and does not rename or replace the legacy
-toolkit. It connects to the real Phase 1–3 engine over a local stdio JSON-RPC
-host, so domain logic stays in the engine and the React renderer has no Node or
-filesystem access.
+The desktop application lives in `desktop/`. It is an independent package
+(`qortal-migration-studio`) and does not rename or replace the legacy toolkit.
+It connects to the real engine over a local stdio JSON-RPC host, so domain logic
+stays in the engine and the React renderer has no Node or filesystem access.
 
 ~~~bash
-cd desktop
-npm install
-npm run build
-npm run test          # 35 desktop tests
-npm run smoke         # needs a display; use Xvfb/CI display where available
-npm run prepare:engine
-npx electron-builder --linux deb
+# From a clean checkout, with Node.js 20+ on the build machine only:
+node scripts/release/build-deb.mjs
+node scripts/release/validate-artifact.mjs
+
+# Install on a Debian-based machine (end users need no Node, npm or Git):
+sudo apt install ./desktop/release/qortal-migration-studio_0.6.0_amd64.deb
 ~~~
 
-The installable artifact is written to
-`desktop/release/qortal-migration-studio-0.4.0-amd64.deb` (not committed). It
-bundles Electron, the engine and the engine's runtime dependencies; the target
-machine does not need Node.js, npm or Git. Project data lives in
-`$XDG_DATA_HOME/qortal-migration-studio` (or `~/.local/share/...`), outside the
-installation directory, and survives an ordinary uninstall.
+The version 0.6.0 artifact is an **unsigned alpha** release. It bundles Electron,
+the engine, the locked engine runtime dependencies and the generic CMS template.
+Project data lives in `$XDG_DATA_HOME/qortal-migration-studio` (default
+`~/.local/share/qortal-migration-studio`), outside the installation directory,
+and survives ordinary upgrades and uninstall. See
+`docs/migration-studio/INSTALL-LINUX.md` for the end-user procedure and
+`docs/migration-studio/PHASE-9-PRODUCTION-RELEASE.md` for signing status,
+SBOM/provenance and install evidence.
 
 Screens:
 

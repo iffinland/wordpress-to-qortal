@@ -514,6 +514,15 @@ for long-lived projects.
 
 ## 12. Phase 9 — Production `.deb`, release automation and security review (P1)
 
+> **Status: RELEASE CANDIDATE VERIFIED (2026-11-04).** A self-contained
+> `qortal-migration-studio_0.6.0_amd64.deb` is built by a project-owned
+> deterministic builder with locked engine dependencies, bundled engine,
+> Electron runtime and generic CMS template. The full regression gate passes;
+> the artifact installs and runs on Debian 12 and Debian 13, and project data
+> survives removal/reinstall. Signing remains blocked because no owner-approved
+> key exists; AC9.7 live-network acceptance is not authorized in this task. See
+> [PHASE-9-PRODUCTION-RELEASE.md](PHASE-9-PRODUCTION-RELEASE.md).
+
 **Outcome:** a reproducible, signed, self-contained release process.
 
 ### Deliverables
@@ -530,14 +539,26 @@ for long-lived projects.
 ### Acceptance criteria
 
 1. **AC9.1** Clean checkout builds the `.deb` reproducibly (same inputs produce
-   equivalent output/checksums within documented constraints).
-2. **AC9.2** Install and primary flows pass on at least two Debian-based
-   distributions.
-3. **AC9.3** Full test suite, packaging checks and security checks pass.
-4. **AC9.4** Artifact checksum/SBOM/provenance match the source commit.
-5. **AC9.5** No secrets or generated test data are in the artifact.
-6. **AC9.6** Release state is recorded separately from install/verification.
-7. **AC9.7** An owner-authorized validation passes on the chosen Qortal network.
+   equivalent output/checksums within documented constraints). Verified by the
+   `release:repro` clean-checkout SHA-256 comparison.
+2. [x] **AC9.2** Install and primary flows pass on at least two Debian-based
+   distributions. Verified on Debian 13 (trixie) and Debian 12 (bookworm) with
+   real apt/dpkg installs, Xvfb GUI smoke, 17 engine flow steps, removal and
+   reinstall. MX Linux 23 is documented but unverified.
+3. [x] **AC9.3** Full test suite, packaging checks and security checks pass.
+   Root 415/415; Phase 5.2 118/118; Phase 7 24/24; Phase 8 23/23; content 7/7;
+   Corbett 11/11; generic CMS 19/19; desktop 43/43; typecheck clean; all builds
+   and the package/security gates pass.
+4. **AC9.4** Artifact checksum/SBOM/provenance match the source commit. Enforced
+   by `release:verify` against the built artifact and commit.
+5. [x] **AC9.5** No secrets or generated test data are in the artifact. The
+   security payload scan reports zero secret findings and zero forbidden names;
+   production dependency audits report zero high/critical issues.
+6. [x] **AC9.6** Release state is recorded separately from install/verification.
+   `RELEASE-STATE.json` and `INSTALL-VERIFICATION.json` are distinct files.
+7. [ ] **AC9.7** An owner-authorized validation passes on the chosen Qortal
+   network. **BLOCKED:** requires explicit owner authorization and a chosen
+   network; no live QDN publication or signing is performed.
 
 ## 13. Phase 10 — Future adapters, Windows and localization (P2)
 

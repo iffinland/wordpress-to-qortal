@@ -1121,28 +1121,36 @@ with unchanged routes, branding and `cr-*` identifiers. See
 
 ### 14.1 Linux
 
-**PROPOSAL:** Electron + `electron-builder` (or equivalent) producing:
+**IMPLEMENTED (Phase 9):** Electron produces the unpacked runtime; the
+project-owned deterministic builder writes the Debian package:
 
 - `qortal-migration-studio_<version>_amd64.deb`;
-- bundled engine and Node runtime;
-- desktop entry, icons, MIME/protocol handlers as needed;
+- Electron, app.asar, engine and the engine's locked runtime dependencies;
+- bundled generic CMS template with its own file manifest;
+- desktop entry, hicolor icons and `/usr/bin` launcher;
 - no runtime Node/npm/Git requirement;
-- user data under XDG paths, not inside the package;
-- uninstall preserves user projects unless explicitly removed.
+- project data under `$XDG_DATA_HOME/qortal-migration-studio`, never inside
+  `/opt`;
+- maintainer scripts never remove user projects.
 
 Build pipeline:
 
 ```text
-clean checkout
--> install locked dependencies
--> lint/typecheck/unit/contract/integration tests
--> production build of engine, renderer and templates
--> package .deb
--> install in a clean VM/container
--> smoke test create/plan/crash/cleanup
--> checksum + SBOM + provenance
--> sign and publish only with authorization
+clean checkout (git archive)
+-> npm ci with committed lockfiles (engine, desktop, template)
+-> version check -> typecheck/unit/contract/integration tests
+-> production build of engine, renderer and template
+-> electron-builder --linux dir
+-> deterministic .deb (normalized ownership, modes, order, SOURCE_DATE_EPOCH)
+-> offline package validation and secret scan
+-> clean-checkout SHA-256 reproducibility check
+-> CycloneDX SBOM + in-toto/SLSA-shaped provenance + SHA256SUMS
+-> install matrix on Debian 12/13 in isolated namespaces
+-> sign and publish only with owner authorization
 ```
+
+The Phase 9 artifact is unsigned because no owner-approved signing mechanism
+was available. Signing remains a release blocker, not a build shortcut.
 
 ### 14.2 Windows (future)
 

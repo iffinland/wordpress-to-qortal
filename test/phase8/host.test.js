@@ -4,6 +4,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { stat } from 'node:fs/promises';
 import { JsonRpcConnection } from '../../lib/engine/host/client.js';
+import { ENGINE_VERSION } from '../../lib/engine/index.js';
 import { tempDir } from '../../test-support/engine/env.js';
 import { startWordpressFixtureServer, createFixtureData } from '../../test-support/wordpress/fixtureServer.js';
 
@@ -28,7 +29,7 @@ test('the host exposes the Phase 8 recovery, cleanup, history and support RPC su
   const { connection } = await startHost(t, dataRoot);
 
   const info = await connection.request('engine.info');
-  assert.equal(info.version, '0.1.9-phase8');
+  assert.equal(info.version, ENGINE_VERSION);
   assert.equal(info.recoveryCheckpointSchema, 'qms-recovery-checkpoint@1');
   assert.equal(info.recoveryStageSchema, 'qms-recovery-stage@1');
   assert.equal(info.cleanupPreviewSchema, 'qms-cleanup-preview@1');

@@ -16,11 +16,9 @@ extraResources:
     to: engine
     filter:
       - "**/*"
-      - "!**/*.md"
-      - "!**/*.map"
 linux:
   target:
-    - deb
+    - dir
   category: Office
   synopsis: Prepare and verify WordPress-to-Qortal QDN migrations
   description: Qortal Migration Studio prepares WordPress content and media locally, generates a portable QDN handoff with exact bytes and SHA-256 hashes, imports Migration Publisher receipts, and performs independent read-only QDN verification. Signing and approval stay in Qortal Hub.
@@ -32,27 +30,5 @@ linux:
     Categories: Office;Utility;
     Keywords: Qortal;WordPress;Migration;QDN;
     StartupWMClass: Qortal Migration Studio
-deb:
-  maintainer: Qortal Migration Studio contributors <maintainers@example.invalid>
-  vendor: Qortal Migration Studio
-  priority: optional
-  category: office
-  compression: gz
-  depends:
-    - "libgtk-3-0 | libgtk-3-0t64"
-    - libnotify4
-    - libnss3
-    - libxss1
-    - libxtst6
-    - xdg-utils
-    - "libatspi2.0-0 | libatspi2.0-0t64"
-    - libuuid1
-    - libsecret-1-0
-    - "libasound2 | libasound2t64"
-    - libgbm1
-    - libdrm2
-  recommends:
-    - gnome-keyring
-    - libayatana-appindicator3-1
+afterPack: scripts/after-pack.cjs
 publish: null
-

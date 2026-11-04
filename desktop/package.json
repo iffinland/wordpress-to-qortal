@@ -1,7 +1,7 @@
 {
   "name": "qortal-migration-studio",
   "productName": "Qortal Migration Studio",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Linux desktop application for safely preparing WordPress-to-Qortal migrations.",
   "private": true,
   "main": "dist-electron/main.cjs",
@@ -16,11 +16,12 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "prepare:engine": "node scripts/prepare-engine.mjs",
     "dist:dir": "npm run build && npm run prepare:engine && electron-builder --linux dir",
-    "dist:deb": "npm run build && npm run prepare:engine && electron-builder --linux deb",
-    "verify:package": "node scripts/verify-package.mjs",
+    "dist:deb": "node ../scripts/release/build-deb.mjs",
+    "verify:package": "node ../scripts/release/validate-artifact.mjs",
     "smoke": "node scripts/smoke.mjs"
   },
   "devDependencies": {
+    "@electron/fuses": "^1.8.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.5.2",

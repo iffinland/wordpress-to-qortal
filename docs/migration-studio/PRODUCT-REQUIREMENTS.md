@@ -6,7 +6,7 @@
 | Product working name | Qortal Migration Studio |
 | Executing agent | DeepSeek (`opencode-development` profile) |
 | Date | 2026-11-02 |
-| Status | Requirements baseline for architecture/planning; not a release commitment. Phases 3–5.2 are implemented as documented in their phase documents. Phase 5.2 has live broker acceptance; the user-facing Hub-signed flow is implemented but not live-tested. Phase 6 is implemented and verified against fixtures and builds. Phases 7–10 remain unimplemented. |
+| Status | Requirements baseline for architecture/planning; not a release commitment. Phases 3–8 are implemented as documented in their phase documents. Phase 5.2 has live broker acceptance; the user-facing Hub-signed flow is implemented but not live-tested. Phase 9 produces a self-contained, reproducible, unsigned-alpha `.deb` verified on Debian 12 and Debian 13; package signing and AC9.7 live-network acceptance remain blocked. Phase 10 remains unimplemented. |
 | Companion audit | [`PHASE-0-ARCHITECTURE-AUDIT.md`](PHASE-0-ARCHITECTURE-AUDIT.md) |
 
 > **Phase 3 implementation note (2026-11-03):** BAT-02/04/05/06, MED-01..07,
@@ -473,7 +473,7 @@ symlinks are refused.
 | 16 | Default generic Qortal CMS/website | CMS-01, CMS-02 | Not implemented (Corbett only) |
 | 17 | Optional custom website clones/templates | CMS-03 | Not implemented |
 | 18 | Future adapters without rewriting publisher | SRC-01, SRC-07 | Not implemented |
-| 19 | Self-contained Linux install (.deb) | DES-02, 6.6 | Not implemented |
+| 19 | Self-contained Linux install (.deb) | DES-02, 6.6 | Implemented for Debian 12/13 (unsigned alpha); signing and MX Linux/live validation pending |
 | 20 | English UI/docs, future localization | DES-04, DES-05 | English only, hard-coded |
 
 ## 9. Release acceptance criteria (product level)

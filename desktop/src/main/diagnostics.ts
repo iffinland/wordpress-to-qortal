@@ -3,7 +3,20 @@ import path from 'node:path';
 import type { EngineHost } from './host.js';
 import { exportsDir } from './paths.js';
 
-const SECRET_KEY = /(password|passwd|secret|token|apikey|api_key|seed|privatekey|private_key|wallet|authorization|cookie)/i;
+const SECRET_KEY = /(password|passwd|secret|token|apikey|api_key|seed|privatekey|private_key|wallet|authorization|cookie|session|credential|mnemonic|bearer)/i;
+const URL_CREDENTIALS = /(https?:\/\/)([^\s"'<>\/:@]+):([^\s"'<>\/@]+)@/gi;
+const SECRET_VALUE = [
+  /bearer\s+[a-z0-9._~+/=-]{8,}/i,
+  /eyJ[a-z0-9_-]{8,}\.[a-z0-9_-]{8,}\.[a-z0-9_-]{8,}/i,
+  /(?:password|passwd|secret|token|api[_-]?key|seed|private[_-]?key)\s*[:=]\s*\S+/i,
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
+  /Q[1-9A-HJ-NP-Za-km-z]{40,60}/
+];
+
+function redactString(value: string): string {
+  if (SECRET_VALUE.some((pattern) => pattern.test(value))) return '[redacted]';
+  return value.replace(URL_CREDENTIALS, '$1[redacted]@');
+}
 
 export function sanitizeForDiagnostics(value: unknown, depth = 0): unknown {
   if (depth > 8) return '[truncated]';
@@ -15,7 +28,10 @@ export function sanitizeForDiagnostics(value: unknown, depth = 0): unknown {
     }
     return out;
   }
-  if (typeof value === 'string' && value.length > 4000) return value.slice(0, 4000) + '...';
+  if (typeof value === 'string') {
+    const redacted = redactString(value);
+    return redacted.length > 4000 ? redacted.slice(0, 4000) + '...' : redacted;
+  }
   return value;
 }
 

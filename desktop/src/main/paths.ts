@@ -1,6 +1,6 @@
 import { app } from 'electron';
 import { constants as fsConstants } from 'node:fs';
-import { access, mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, realpath, rename, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -41,14 +41,20 @@ export async function validateDataRoot(candidate: string): Promise<string> {
   if (resolved === installRoot || resolved.startsWith(installRoot + path.sep)) {
     throw Object.assign(new Error('Workspace location cannot be inside the application installation.'), { code: 'DATA_ROOT_INVALID' });
   }
-  for (const forbidden of FORBIDDEN_ROOTS) {
-    if (resolved === forbidden || resolved.startsWith(forbidden + path.sep)) {
-      throw Object.assign(new Error('Workspace location cannot be a system directory.'), { code: 'DATA_ROOT_INVALID' });
-    }
-  }
   await mkdir(resolved, { recursive: true, mode: 0o700 });
   await access(resolved, fsConstants.W_OK);
-  return resolved;
+  // Resolve symlinks after creation so a link inside the home directory cannot
+  // redirect project data into a system path or the application installation.
+  const resolvedReal = await realpath(resolved);
+  if (resolvedReal === installRoot || resolvedReal.startsWith(installRoot + path.sep)) {
+    throw Object.assign(new Error('Workspace location resolves inside the application installation.'), { code: 'DATA_ROOT_INVALID' });
+  }
+  for (const forbidden of FORBIDDEN_ROOTS) {
+    if (resolvedReal === forbidden || resolvedReal.startsWith(forbidden + path.sep)) {
+      throw Object.assign(new Error('Workspace location resolves to a system directory.'), { code: 'DATA_ROOT_INVALID' });
+    }
+  }
+  return resolvedReal;
 }
 
 export async function loadConfig(): Promise<DesktopConfig> {

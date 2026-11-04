@@ -158,7 +158,16 @@ export function sanitizeAuth(input: unknown): Dict {
 export function sanitizeSource(input: unknown): Dict {
   const source = object(input, 'source', { optional: true });
   const baseUrl = text(source.baseUrl, 'source.baseUrl', { optional: true, max: 2000 });
-  if (baseUrl && !/^https?:\/\//i.test(baseUrl)) fail('source.baseUrl must be an http or https URL.');
+  if (baseUrl) {
+    let parsed: URL;
+    try {
+      parsed = new URL(baseUrl);
+    } catch {
+      fail('source.baseUrl must be a valid URL.');
+    }
+    if (!['http:', 'https:'].includes(parsed.protocol)) fail('source.baseUrl must be an http or https URL.');
+    if (parsed.username || parsed.password) fail('source.baseUrl must not contain credentials.');
+  }
   return {
     ...(baseUrl ? { baseUrl } : {}),
     ...(source.timeoutMs !== undefined ? { timeoutMs: integer(source.timeoutMs, 'source.timeoutMs', { min: 1000, max: 1800000, optional: true }) } : {})
@@ -516,7 +525,7 @@ export function validateIpcPayload(channel: string, payload: unknown): Dict {
         projectId: projectId(params),
         runId: run,
         stageId: stage,
-        auth: params.auth === undefined ? undefined : object(params.auth, 'auth')
+        auth: params.auth === undefined ? undefined : sanitizeAuth(params.auth)
       };
     }
 

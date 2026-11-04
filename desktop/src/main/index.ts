@@ -3,7 +3,7 @@ import path from 'node:path';
 import { EngineHost, resolveHostPaths } from './host.js';
 import { CredentialStore } from './credentials.js';
 import { defaultDataRoot, loadConfig, saveConfig, validateDataRoot, desktopSettings } from './paths.js';
-import { createMainWindow, installSessionPolicy } from './window.js';
+import { createMainWindow, installSessionPolicy, isTrustedNavigation } from './window.js';
 import { forwardEngineEvent, registerIpc } from './ipc.js';
 
 const smokeTest = process.argv.includes('--qms-smoke-test') || process.env.QMS_SMOKE_TEST === '1';
@@ -61,8 +61,7 @@ async function changeDataRoot(candidate: string): Promise<Record<string, unknown
 
 app.on('web-contents-created', (_event, contents) => {
   contents.on('will-navigate', (event, url) => {
-    const allowed = url.startsWith(process.env.QMS_DEV_SERVER ?? 'file://');
-    if (!allowed) event.preventDefault();
+    if (!isTrustedNavigation(url)) event.preventDefault();
   });
   contents.setWindowOpenHandler(() => ({ action: 'deny' }));
 });

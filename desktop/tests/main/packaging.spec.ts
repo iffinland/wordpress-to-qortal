@@ -13,9 +13,41 @@ describe('Debian packaging metadata', () => {
     const builder = await readFile(path.join(root, 'electron-builder.yml'), 'utf8');
     expect(builder).toContain('appId: org.iffinland.qortal-migration-studio');
     expect(builder).toContain('target:');
-    expect(builder).toContain('- deb');
+    expect(builder).toContain('- dir');
     expect(builder).toContain('extraResources:');
     expect(builder).toContain('engine-runtime');
+    expect(builder).toContain('afterPack: scripts/after-pack.cjs');
+    const fuses = await readFile(path.join(root, 'scripts/after-pack.cjs'), 'utf8');
+    expect(fuses).toContain('OnlyLoadAppFromAsar]: true');
+    expect(fuses).toContain('EnableEmbeddedAsarIntegrityValidation]: false');
+    expect(fuses).toContain('EnableNodeOptionsEnvironmentVariable]: false');
+  });
+
+  it('uses project-owned deterministic Debian metadata', async () => {
+    const config = JSON.parse(await readFile(path.join(root, 'release.config.json'), 'utf8'));
+    expect(config.schema).toBe('qms-deb-release@1');
+    expect(config.packageName).toBe('qortal-migration-studio');
+    expect(config.installationRoot).toBe('/opt/qortal-migration-studio');
+    expect(config.depends.join(',')).toContain('libgtk-3-0');
+    expect(config.depends.join(',')).toContain('libsecret-1-0');
+  });
+
+  it('pins the engine runtime dependency graph', async () => {
+    const pkg = JSON.parse(await readFile(path.join(root, 'engine-package/package.json'), 'utf8'));
+    const lock = JSON.parse(await readFile(path.join(root, 'engine-package/package-lock.json'), 'utf8'));
+    expect(lock.lockfileVersion).toBe(3);
+    for (const [name, version] of Object.entries(pkg.dependencies as Record<string, string>)) {
+      expect(version).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(lock.packages['node_modules/' + name].version).toBe(version);
+    }
+  });
+
+  it('stages the engine with npm ci and bundles the generic CMS template', async () => {
+    const source = await readFile(path.join(root, 'scripts/prepare-engine.mjs'), 'utf8');
+    expect(source).toContain("execFileSync('npm', ['ci'");
+    expect(source).not.toContain("'install', '--omit=dev'");
+    expect(source).toContain('templates/generic-cms');
+    expect(source).toContain('engine-runtime.json');
   });
 
   it('declares desktop integration and icons', async () => {

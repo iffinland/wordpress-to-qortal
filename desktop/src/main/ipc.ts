@@ -4,6 +4,7 @@ import { validateIpcPayload } from '../shared/validation.js';
 import type { EngineHost } from './host.js';
 import type { CredentialStore } from './credentials.js';
 import { sanitizeForDiagnostics } from './diagnostics.js';
+import { realpath } from 'node:fs/promises';
 import { trustedRendererUrl } from './window.js';
 import path from 'node:path';
 
@@ -100,13 +101,20 @@ export function registerIpc(deps: IpcDependencies): void {
 
     [IPC.openPath]: async (params) => {
       const candidate = path.resolve(String(params.path));
-      const dataRoot = path.resolve(deps.dataRoot());
-      if (candidate !== dataRoot && !candidate.startsWith(dataRoot + path.sep)) {
+      const dataRoot = await realpath(path.resolve(deps.dataRoot()));
+      let resolved: string;
+      try {
+        resolved = await realpath(candidate);
+      } catch {
+        throw Object.assign(new Error('Only existing workspace paths may be opened.'), { code: 'PATH_NOT_ALLOWED' });
+      }
+      const relative = path.relative(dataRoot, resolved);
+      if (relative.startsWith('..') || path.isAbsolute(relative)) {
         throw Object.assign(new Error('Only workspace paths may be opened.'), { code: 'PATH_NOT_ALLOWED' });
       }
-      const result = await shell.openPath(candidate);
+      const result = await shell.openPath(resolved);
       if (result) throw Object.assign(new Error(result), { code: 'OPEN_PATH_FAILED' });
-      return { opened: true, path: candidate };
+      return { opened: true, path: resolved };
     },
 
     [IPC.projectList]: async (params) => invoke('project.list', { includeArchived: params.includeArchived === true }),

@@ -12,6 +12,10 @@ function contentSecurityPolicy(): string {
     "img-src 'self' data:",
     "font-src 'self'",
     "object-src 'none'",
+    "media-src 'none'",
+    "frame-src 'none'",
+    "worker-src 'none'",
+    "child-src 'none'",
     "base-uri 'none'",
     "frame-ancestors 'none'",
     "form-action 'none'",
@@ -33,15 +37,26 @@ export function installSessionPolicy(): void {
   });
 }
 
-function isTrustedNavigation(target: string): boolean {
+function isInside(directory: string, candidate: string): boolean {
+  const relative = path.relative(directory, candidate);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+/** Only the packaged renderer directory or the explicit dev server is trusted. */
+export function isTrustedNavigation(target: string): boolean {
   if (DEV_SERVER) {
-    return target.startsWith(DEV_SERVER);
+    try {
+      return new URL(target).origin === new URL(DEV_SERVER).origin;
+    } catch {
+      return false;
+    }
   }
   try {
     const url = new URL(target);
     if (url.protocol !== 'file:') return false;
-    const allowed = path.join(app.getAppPath(), 'dist');
-    return decodeURIComponent(url.pathname).startsWith(allowed);
+    const allowed = path.resolve(app.getAppPath(), 'dist');
+    const candidate = path.resolve(decodeURIComponent(url.pathname));
+    return isInside(allowed, candidate);
   } catch {
     return false;
   }
@@ -92,14 +107,6 @@ export function createMainWindow({ show = true }: { show?: boolean } = {}): Brow
 
 export function trustedRendererUrl(url: string): boolean {
   if (!url) return false;
-  if (DEV_SERVER) return url.startsWith(DEV_SERVER);
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== 'file:') return false;
-    const allowed = path.join(app.getAppPath(), 'dist');
-    return decodeURIComponent(parsed.pathname).startsWith(allowed);
-  } catch {
-    return false;
-  }
+  return isTrustedNavigation(url);
 }
 

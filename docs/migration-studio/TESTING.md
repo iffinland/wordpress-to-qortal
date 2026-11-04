@@ -20,8 +20,17 @@ suites are deliberately separate runners.
 | Corbett compatibility | `node --test test/source/corbett-compat.test.js test/phase6/corbett-regression.test.js` |
 | Builds | `npm run migration:build && npm run cms:build && npm run cms-template:build` |
 | Desktop build | `npm --prefix desktop run build` |
+| Phase 9 release tests | `npm run test:phase9` |
+| Version consistency | `npm run version:check` |
+| Deterministic .deb | `npm run release:deb` |
+| Package validation | `npm run release:validate` |
+| Security gate | `npm run release:security` |
+| SBOM / provenance | `npm run release:sbom && npm run release:provenance` |
+| Clean-checkout reproducibility | `npm run release:repro` |
+| Isolated install test | `node scripts/release/install-test.mjs --rootfs=<dir> --distro=<label>` |
 
-`npm run check` runs `test:all` and all four builds.
+`npm run check` runs `test:all` and all four builds. `npm run check:phase9` runs
+the version check, Phase 9 tests, desktop typecheck and desktop tests.
 
 ## Root runner scope
 
@@ -113,14 +122,16 @@ Stability evidence after the fix:
 
 | Suite | Result |
 | --- | --- |
-| Root Node (`npm test`) | 378 tests, 377 pass, 1 skip (378/378 after CMS build) |
+| Root Node (`npm test`) | 415 tests, 415 pass, 0 fail, 0 skip |
+| Phase 9 release/security | 14 pass |
+| Phase 8 | 23 pass |
 | Phase 7 | 24 pass |
 | Phase 5.2 | 118 pass |
 | Deployment layout | 7 pass |
 | WordPress content policy | 7 pass |
 | Corbett compatibility (source + phase6 regression) | 11 pass |
 | Generic CMS Vitest | 19 tests / 3 files pass |
-| Desktop Vitest | 35 tests / 11 files pass |
+| Desktop Vitest | 43 tests / 12 files pass |
 | Desktop typecheck | clean |
 | Builds (migration, Corbett CMS, generic CMS, desktop) | all successful |
 
