@@ -1,3 +1,5 @@
+import { buildThemePalette } from './theme.js';
+
 export const CMS_TEMPLATE_CONFIG_SCHEMA = 'qms-cms-template-config@1';
 
 const REQUIRED_COLORS = ['background', 'surface', 'text', 'muted', 'accent', 'border'];
@@ -76,19 +78,10 @@ export function validateCmsConfig(config) {
   return { ok: errors.length === 0, errors };
 }
 
-export function themeStyle(config) {
+export function themeStyle(config, resolvedMode = 'dark') {
   const theme = config.theme;
   return {
-    '--qms-bg': theme.colors.background,
-    '--qms-surface': theme.colors.surface,
-    '--qms-surface-alt': theme.colors.surfaceAlt || theme.colors.surface,
-    '--qms-text': theme.colors.text,
-    '--qms-muted': theme.colors.muted,
-    '--qms-accent': theme.colors.accent,
-    '--qms-accent-text': theme.colors.accentText || theme.colors.background,
-    '--qms-border': theme.colors.border,
-    '--qms-danger': theme.colors.danger || '#ff7b72',
-    '--qms-warning': theme.colors.warning || '#e3b341',
+    ...buildThemePalette(config, resolvedMode),
     '--qms-font': theme.fontFamily,
     '--qms-heading-font': theme.headingFontFamily || theme.fontFamily,
     '--qms-radius': theme.radius || '10px',

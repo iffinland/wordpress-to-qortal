@@ -1,6 +1,7 @@
 import type { CmsTemplateConfig } from '../types';
 import { validateCmsConfig } from '../lib/config.js';
-import { discoverQdnResource } from '../lib/qortal.js';
+import { discoverHostedQdnName } from '../lib/qortal.js';
+import { removeTemplatePlaceholders } from '../lib/settings.js';
 
 /** Build-time defaults embedded by Vite. */
 export const baseCmsConfig: CmsTemplateConfig = __CMS_CONFIG__;
@@ -60,7 +61,8 @@ async function readRuntimeJson(): Promise<unknown | null> {
     // Fall through to the exact APP member read.
   }
   try {
-    const { name, identifier } = discoverQdnResource(baseCmsConfig.admin.qdnName || '', 'default');
+    const name = discoverHostedQdnName(baseCmsConfig.admin.qdnName || '');
+    const identifier = 'default';
     if (!name) return null;
     const url = '/arbitrary/APP/' + encodeURIComponent(name) + '/' + encodeURIComponent(identifier)
       + '?filepath=qms-cms-config.json&encoding=base64';
@@ -76,12 +78,13 @@ export async function loadRuntimeCmsConfig(): Promise<RuntimeCmsConfig> {
   try {
     const parsed = await readRuntimeJson();
     if (!parsed) return { config: baseCmsConfig, source: 'build', notice: '' };
-    const merged = merge(baseCmsConfig, parsed);
+    const merged = merge(baseCmsConfig, parsed) as CmsTemplateConfig;
+    merged.site = removeTemplatePlaceholders(merged.site, discoverHostedQdnName(merged.admin.qdnName || ''));
     const validation = validateCmsConfig(merged);
     if (!validation.ok) {
       return { config: baseCmsConfig, source: 'build', notice: 'Runtime CMS configuration is invalid; using build defaults.' };
     }
-    return { config: ensureAdminNavigation(merged as CmsTemplateConfig), source: 'runtime', notice: '' };
+    return { config: ensureAdminNavigation(merged), source: 'runtime', notice: '' };
   } catch {
     return { config: baseCmsConfig, source: 'build', notice: 'Runtime CMS configuration is unavailable; using build defaults.' };
   }

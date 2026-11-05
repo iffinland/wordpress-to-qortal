@@ -36,7 +36,12 @@ export function parseHashRoute(hash = '') {
     };
   }
   if (parts[0] === 'search') return { kind: 'search', query: query.get('q') || '' };
-  if (parts[0] === 'admin') return { kind: 'admin' };
+  if (parts[0] === 'gallery') return parts[1] ? { kind: 'gallery', slug: parts[1] } : { kind: 'gallery' };
+  if (parts[0] === 'admin') {
+    if (!parts[1]) return { kind: 'admin' };
+    const section = parts[1] === 'settings' || parts[1] === 'editor' || parts[1] === 'galleries' ? parts[1] : 'overview';
+    return { kind: 'admin', section, id: parts[2] ? parts[2] : undefined };
+  }
   return { kind: 'not-found' };
 }
 
@@ -73,8 +78,13 @@ export function searchHref(query = '') {
   return query ? '#/search?q=' + encode(query) : '#/search';
 }
 
-export function adminHref() {
-  return '#/admin';
+export function adminHref(section = 'overview', id = '') {
+  if (!section || section === 'overview') return '#/admin';
+  return '#/admin/' + encode(section) + (id ? '/' + encode(id) : '');
+}
+
+export function galleryHref(slug = '') {
+  return slug ? '#/gallery/' + encode(slug) : '#/gallery';
 }
 
 export function routeKey(route) {
@@ -84,5 +94,7 @@ export function routeKey(route) {
   if (route.kind === 'archive') return 'archive:' + (route.year || '') + ':' + (route.month || '') + ':' + route.page;
   if (route.kind === 'search') return 'search:' + route.query;
   if (route.kind === 'posts') return 'posts:' + route.page;
+  if (route.kind === 'gallery') return 'gallery:' + (route.slug || '');
+  if (route.kind === 'admin') return route.section && route.section !== 'overview' ? 'admin:' + route.section + ':' + (route.id || '') : 'admin';
   return route.kind;
 }

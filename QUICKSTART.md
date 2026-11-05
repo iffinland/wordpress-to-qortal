@@ -6,13 +6,13 @@ This path needs **no Node.js, npm, Git, compiler or manual build**. Do not clone
 the repository and do not run npm.
 
 1. Download
-   [qortal-migration-studio_0.6.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-studio_0.6.1_amd64.deb)
-   and [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/SHA256SUMS).
+   [qortal-migration-studio_0.7.0_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/qortal-migration-studio_0.7.0_amd64.deb)
+   and [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/SHA256SUMS).
 2. Verify and install:
 
    ~~~bash
-   sha256sum qortal-migration-studio_0.6.1_amd64.deb
-   sudo apt install ./qortal-migration-studio_0.6.1_amd64.deb
+   sha256sum qortal-migration-studio_0.7.0_amd64.deb
+   sudo apt install ./qortal-migration-studio_0.7.0_amd64.deb
    qortal-migration-studio
    ~~~
 
@@ -31,14 +31,15 @@ is preselected; if it owns several, pick the exact name. A loaded package stays
 bound to the name recorded in its handoff, so do not retarget it to a different
 name.
 
-The Generic CMS can only read the catalog when it knows the exact Qortal name it
-runs under. Open it as `qortal://WEBSITE/<name>/` (for example
-`qortal://WEBSITE/developer%20iffi/`) or append `?name=<encoded name>`.
-Percent-encoded names from the URL or Hub globals are decoded before lookup, so
-`developer%20iffi` and `developer iffi` mean the same name. Without that name
-the site shows its empty or unverified state. If you redeploy
-a CMS that already has a `qms-cms-config.json`, keep that file in the new
-bundle.
+The Generic CMS can only read the catalog and authorize admin when it knows the
+exact Qortal name it runs under. Open it as `qortal://WEBSITE/<name>/` or
+`qortal://APP/<name>/` (for example `qortal://WEBSITE/developer%20iffi/`).
+Percent-encoded path names from the URL or Hub globals are decoded before lookup,
+so `developer%20iffi` and `developer iffi` mean the same name. Visitor query
+parameters such as `?name=` are ignored for identity and cannot grant ownership.
+If you redeploy a CMS that already has a `qms-cms-config.json`, keep that file in
+the new bundle. Owner settings and CMS content are separate versioned QDN
+documents and survive the upgrade.
 
 ## For developers / legacy Corbett Report CLI
 

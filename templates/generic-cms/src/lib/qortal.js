@@ -1,4 +1,4 @@
-import { evaluateOwnership } from './ownership.js';
+import { evaluateOwnership, evaluateRevalidation, requireOwner } from './ownership.js';
 
 const DEFAULT_NODE = 'http://localhost:12391';
 const READ_TIMEOUT_MS = 15000;
@@ -78,6 +78,20 @@ export function getNodeUrl() {
   return String(fromQuery || fromEnv || DEFAULT_NODE).replace(/\/+$/, '');
 }
 
+/**
+ * Trusted node for authorization and fee decisions. Never derived from the
+ * visitor-controlled ?node= query parameter, which could otherwise point
+ * ownership checks at an attacker's fake node.
+ */
+export function getTrustedNodeUrl() {
+  const fromEnv = import.meta.env && import.meta.env.VITE_QORTAL_NODE_URL;
+  if (fromEnv) return String(fromEnv).replace(/\/+$/, '');
+  if (typeof window !== 'undefined' && window.location && /^https?:$/.test(window.location.protocol)) {
+    return window.location.origin;
+  }
+  return DEFAULT_NODE;
+}
+
 export function createQdnResourcePath(service, name, identifier) {
   return '/arbitrary/' + encodeURIComponent(service) + '/' + encodeURIComponent(name) + '/' + encodeURIComponent(identifier);
 }
@@ -145,7 +159,7 @@ export async function fetchQdnResource(ref, timeoutMs = READ_TIMEOUT_MS) {
 export async function fetchNameRecord(name, timeoutMs = 6000) {
   if (!name) return { record: null, error: 'No name was provided.' };
   try {
-    const response = await fetch(getNodeUrl() + '/names/' + encodeURIComponent(name), {
+    const response = await fetch(getTrustedNodeUrl() + '/names/' + encodeURIComponent(name), {
       signal: AbortSignal.timeout(timeoutMs)
     });
     if (!response.ok) throw new Error('HTTP ' + response.status);
@@ -207,14 +221,10 @@ export function discoverQdnResource(fallbackName = '', fallbackIdentifier = 'def
 }
 
 export function discoverQdnName(fallback = '') {
-  if (typeof window === 'undefined') return fallback;
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const fromQuery = params.get('name') || params.get('qdnName') || params.get('appName');
-    if (fromQuery) return fromQuery;
-  } catch {
-    // Ignore malformed query strings.
-  }
+  if (typeof window === 'undefined') return safeDecodeQdnName(fallback);
+  // Never read ?name= / ?qdnName= here. Query parameters are visitor-controlled
+  // and must not be able to change which name owner authorization is checked
+  // against. Only the actual hosting context and the published config count.
   const qortalWindow = window;
   const globals = [
     qortalWindow._qdnName,
@@ -247,6 +257,15 @@ export function discoverQdnName(fallback = '') {
   return safeDecodeQdnName(fallback);
 }
 
+/**
+ * The QDN name this document is actually served under. Query parameters are
+ * intentionally ignored; only Host/Path/globals or the published config are
+ * allowed. Returns '' when no trustworthy name exists.
+ */
+export function discoverHostedQdnName(fallback = '') {
+  return discoverQdnName(fallback);
+}
+
 function accountNameList(value) {
   if (!Array.isArray(value)) return [];
   return value.map((entry) => {
@@ -255,9 +274,7 @@ function accountNameList(value) {
   }).filter(Boolean);
 }
 
-export async function resolveViewerIdentity(options = {}) {
-  const qdnName = String(options.qdnName || discoverQdnName('')).trim();
-  const bridgeAvailable = hasQortalBridge();
+async function readIdentityFacts() {
   const account = await tryRequestQortal({ action: 'GET_USER_ACCOUNT' });
   const address = account && account.address ? String(account.address) : '';
   let names = [];
@@ -273,35 +290,181 @@ export async function resolveViewerIdentity(options = {}) {
   if (account && account.name) names.push(account.name);
   if (account && account.primaryName) names.push(account.primaryName);
   if (primaryName) names.push(primaryName);
-  names = Array.from(new Set(names.filter(Boolean)));
+  return { account: address ? { address } : null, names: Array.from(new Set(names.filter(Boolean))), primaryName };
+}
 
+export async function resolveViewerIdentity(options = {}) {
+  const qdnName = String(options.qdnName || discoverHostedQdnName('')).trim();
+  const bridgeAvailable = hasQortalBridge();
+  const facts = await readIdentityFacts();
   const nameResult = qdnName ? await fetchNameRecord(qdnName) : { record: null, error: null };
   const identity = evaluateOwnership({
     qdnName,
-    account: address ? { address } : null,
-    accountNames: names,
+    account: facts.account,
+    accountNames: facts.names,
     nameRecord: nameResult.record,
     bridgeAvailable,
-    displayName: primaryName || names[0] || '',
-    requireNameRecord: Boolean(options.requireNameRecord)
+    displayName: facts.primaryName || facts.names[0] || ''
   });
-  if (!bridgeAvailable) {
+  if (nameResult.error && identity.nameRecordStatus !== 'verified') {
     return {
       ...identity,
-      message: 'Open this site as a Qortal Q-App to sign in. Read-only mode is active.'
-    };
-  }
-  if (!address) {
-    return {
-      ...identity,
-      message: 'Qortal did not return a signed-in account. Read-only mode is active.'
-    };
-  }
-  if (nameResult.error && identity.owner) {
-    return {
-      ...identity,
-      message: identity.message + ' The on-chain name record could not be cross-checked (' + nameResult.error + ').'
+      message: identity.message + ' Name record lookup failed: ' + nameResult.error
     };
   }
   return identity;
+}
+
+/**
+ * Revalidate ownership immediately before any mutation. Fetches the active
+ * account and name record again; a cached identity is never sufficient.
+ */
+export async function revalidateViewerIdentity(identity) {
+  const guard = requireOwner(identity, 'publishing changes');
+  if (!guard.ok) return { ok: false, error: guard.error, message: guard.message, identity: null };
+  if (!hasQortalBridge()) {
+    return { ok: false, error: 'bridge-unavailable', message: 'Qortal Hub is unavailable. Publishing was cancelled.', identity: null };
+  }
+  const facts = await readIdentityFacts();
+  const nameResult = await fetchNameRecord(identity.qdnName);
+  const result = evaluateRevalidation(identity, {
+    account: facts.account,
+    accountNames: facts.names,
+    nameRecord: nameResult.record
+  });
+  if (!result.ok && nameResult.error) {
+    return { ...result, message: result.message + ' Name record lookup failed: ' + nameResult.error };
+  }
+  return result;
+}
+
+export function bytesToBase64(bytes) {
+  const view = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let index = 0; index < view.length; index += chunk) {
+    binary += String.fromCharCode.apply(null, view.subarray(index, index + chunk));
+  }
+  return btoa(binary);
+}
+
+export function base64ToBytes(value) {
+  const binary = atob(String(value || '').replace(/\s+/g, ''));
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return bytes;
+}
+
+export async function sha256Hex(bytes) {
+  const body = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', body);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+export function createQdnHttpUrl(service, name, identifier) {
+  return getNodeUrl() + createQdnResourcePath(service, name, identifier);
+}
+
+export async function fetchUnitFee(txType = 'ARBITRARY', timeoutMs = 6000) {
+  try {
+    const response = await fetch(getTrustedNodeUrl() + '/transactions/unitfee?txType=' + encodeURIComponent(txType), {
+      signal: AbortSignal.timeout(timeoutMs),
+      cache: 'no-store'
+    });
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const value = Number(await response.text());
+    return Number.isFinite(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function publishQdnResource(payload) {
+  return requestQortal({
+    action: 'PUBLISH_QDN_RESOURCE',
+    service: payload.service,
+    name: payload.name,
+    identifier: payload.identifier,
+    data64: payload.data64,
+    filename: payload.filename,
+    title: payload.title,
+    description: payload.description,
+    ...(payload.file ? { file: payload.file } : {})
+  }, payload.timeoutMs || 180000);
+}
+
+export async function fetchQdnBytes(service, name, identifier) {
+  const result = await requestQortal({
+    action: 'FETCH_QDN_RESOURCE',
+    service,
+    name,
+    identifier,
+    encoding: 'base64'
+  });
+  if (typeof result !== 'string') throw new Error('Qortal returned a parsed value instead of exact bytes.');
+  return base64ToBytes(result);
+}
+
+/**
+ * Verify exact published bytes. Returns { ok, actualSha256 } and never claims
+ * success from a submitted transaction alone.
+ */
+export async function verifyPublishedBytes({ service, name, identifier, expectedBytes, timeoutMs = 45000 }) {
+  const expected = await sha256Hex(expectedBytes);
+  const started = Date.now();
+  let lastError = null;
+  let delayMs = 700;
+  while (Date.now() - started < timeoutMs) {
+    try {
+      const actual = await fetchQdnBytes(service, name, identifier);
+      const actualSha256 = await sha256Hex(actual);
+      if (actualSha256 === expected) return { ok: true, actualSha256, expectedSha256: expected, error: null };
+      lastError = 'Published bytes do not match yet.';
+    } catch (error) {
+      lastError = error && error.message ? error.message : String(error);
+    }
+    await new Promise((resolve) => setTimeout(resolve, delayMs));
+    delayMs = Math.min(4000, Math.round(delayMs * 1.6));
+  }
+  return { ok: false, actualSha256: null, expectedSha256: expected, error: lastError || 'Timed out waiting for QDN read-back.' };
+}
+
+export async function getQdnResourceStatus(service, name, identifier) {
+  try {
+    return await requestQortal({ action: 'GET_QDN_RESOURCE_STATUS', service, name, identifier, build: false });
+  } catch {
+    return null;
+  }
+}
+
+export async function searchQdnResources(options = {}) {
+  try {
+    const result = await requestQortal({
+      action: 'SEARCH_QDN_RESOURCES',
+      service: options.service,
+      name: options.name,
+      query: options.query || '',
+      limit: Math.min(50, Math.max(1, Number(options.limit) || 20)),
+      includeStatus: false,
+      includeMetadata: true
+    });
+    return Array.isArray(result) ? result : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Open a qortal:// link in a new Qortal Hub tab. Hub supports OPEN_NEW_TAB
+ * with a qortalLink field. Outside Hub the caller gets a graceful false and
+ * may show the destination so it can be pasted manually.
+ */
+export async function openQortalLink(qortalLink) {
+  if (!hasQortalBridge()) return { ok: false, message: 'Open this link inside Qortal Hub.' };
+  try {
+    await requestQortal({ action: 'OPEN_NEW_TAB', qortalLink }, 15000);
+    return { ok: true, message: '' };
+  } catch (error) {
+    return { ok: false, message: error && error.message ? error.message : 'Qortal Hub could not open the link.' };
+  }
 }

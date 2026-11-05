@@ -76,24 +76,17 @@ test('an on-chain owner mismatch overrides a matching name string', () => {
   assert.equal(identity.nameRecordStatus, 'mismatch');
 });
 
-test('unavailable name records can be required for owner mode', () => {
-  const withoutRequirement = evaluateOwnership({
+test('unavailable name records always fail closed', () => {
+  const identity = evaluateOwnership({
     qdnName: 'QortalDemo',
     account: { address: OWNER.address },
     accountNames: ['QortalDemo'],
     nameRecord: null
   });
-  assert.equal(withoutRequirement.owner, true);
-  assert.equal(withoutRequirement.reason, 'account-names-verified');
-  const withRequirement = evaluateOwnership({
-    qdnName: 'QortalDemo',
-    account: { address: OWNER.address },
-    accountNames: ['QortalDemo'],
-    nameRecord: null,
-    requireNameRecord: true
-  });
-  assert.equal(withRequirement.owner, false);
-  assert.equal(withRequirement.reason, 'name-record-unavailable');
+  assert.equal(identity.owner, false);
+  assert.equal(identity.reason, 'name-record-unavailable');
+  assert.equal(identity.nameRecordStatus, 'unavailable');
+  assert.equal(canMutate(identity), false);
 });
 
 test('missing account or name config is read-only', () => {

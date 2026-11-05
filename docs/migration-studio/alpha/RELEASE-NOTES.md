@@ -1,10 +1,44 @@
 # Qortal Migration Studio alpha release notes
 
-<!-- alpha-release-version: 0.6.1 -->
+<!-- alpha-release-version: 0.7.0 -->
 
-## 0.6.1 alpha.2 — current
+## 0.7.0 alpha.1 — current
 
-Qortal Migration Studio **0.6.1 alpha.2** is the current GitHub prerelease:
+Qortal Migration Studio **0.7.0 alpha.1** is the current GitHub prerelease:
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.7.0-alpha.1>.
+
+The release ships three artifacts from one commit:
+
+- [Qortal Migration Studio 0.7.0 .deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/qortal-migration-studio_0.7.0_amd64.deb)
+- [Migration Publisher Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/qortal-migration-publisher-v0.7.0.zip)
+- [Generic CMS Q-App ZIP](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/qortal-migration-generic-cms-v0.7.0.zip)
+
+### What changed in 0.7.0
+
+- **Admin authorization fixed.** Non-owners previously could open `#/admin`
+  and see catalog/import state. Admin is now hidden from them, direct navigation
+  shows **Access denied**, and no admin state is rendered. Ownership requires the
+  exact live name record owner to match the active account and the account name
+  list to contain that name. Every publish revalidates; missing bridge, account,
+  record, node access or a transferred name fails closed.
+- **Themes.** Light, dark and system, persisted and applied before hydration.
+- **Owner site settings.** Versioned `qms-cms-site-settings@1` with draft,
+  preview, explicit destination/fee and revision conflict protection.
+- **Footer attribution.** `Qortal. Template v<real version>` opens Qortal Web
+  Builders in a new Hub tab through `OPEN_NEW_TAB`.
+- **Native editor and galleries.** TipTap rich text with local drafts, sanitized
+  HTML, media publishing/search, and responsive galleries with an accessible
+  full-screen viewer.
+- **QMS compatibility.** CMS posts use `qms-qdn-content@1` and a versioned
+  supplement merged into the same public catalog; WordPress incremental sync
+  never removes them.
+
+Detailed evidence and limitations:
+[../RELEASE-0.7.0-ALPHA.md](../RELEASE-0.7.0-ALPHA.md).
+
+## 0.6.1 alpha.2 — previous
+
+Qortal Migration Studio **0.6.1 alpha.2** was the previous GitHub prerelease:
 <https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.2>.
 
 The release ships the same three artifacts from the current main commit:

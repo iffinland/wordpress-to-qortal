@@ -168,9 +168,10 @@ describe('generic CMS routes render from the fixture manifest', () => {
       { kind: 'admin' },
       readerIdentity
     );
-    expect(reader).toContain('Read-only mode');
-    expect(reader).toMatch(/<fieldset class="admin-fieldset" disabled/);
-    expect(reader).toContain('disabled');
+    expect(reader).toContain('Access denied');
+    expect(reader).not.toContain('Import and adoption');
+    expect(reader).not.toContain('Adopted items');
+    expect(reader).not.toContain('admin-fieldset');
   });
 });
 
@@ -183,14 +184,12 @@ describe('admin preconditions stay visible without a published catalog', () => {
 
   it('explains that publishing must happen first instead of rendering an empty menu', () => {
     const html = render(
-      <AdminPage dataset={null} loading={false} identity={null} identityLoading={false} identityNotice="Qortal identity could not be resolved." adoptionQueue={[]} {...noop} />,
+      <AdminPage dataset={null} loading={false} identity={ownerIdentity} identityLoading={false} identityNotice="" adoptionQueue={[]} {...noop} />,
       { kind: 'admin' }
     );
     expect(html).toContain('No published catalog is available yet');
     expect(html).toContain('Publish the site with the Migration Publisher first');
     expect(html).toContain('Import is unavailable until a published catalog exists');
-    expect(html).toMatch(/<fieldset class="admin-fieldset" disabled/);
-    expect(html).toContain('Qortal identity could not be resolved');
   });
 
   it('keeps the admin page reachable while the catalog is loading', () => {
@@ -198,8 +197,8 @@ describe('admin preconditions stay visible without a published catalog', () => {
       <AdminPage dataset={null} loading identity={null} identityLoading adoptionQueue={[]} identityNotice="" {...noop} />,
       { kind: 'admin' }
     );
-    expect(html).toContain('Reading the published catalog...');
-    expect(html).toContain('Admin and import');
+    expect(html).toContain('Checking QDN name ownership...');
+    expect(html).toContain('verified on-chain owner');
   });
 
   it('shows the catalog error and disables import rather than hiding the reason', () => {
@@ -227,9 +226,8 @@ describe('admin preconditions stay visible without a published catalog', () => {
   it('renders the admin route directly instead of the global catalog error', () => {
     window.location.hash = '#/admin';
     const html = renderToStaticMarkup(<App />);
-    expect(html).toContain('Admin and import');
-    expect(html).toContain('Reading the published catalog...');
-    expect(html).not.toContain('Loading the QDN catalog...');
+    expect(html).toContain('Checking QDN name ownership...');
+    expect(html).not.toContain('Import and adoption');
     window.location.hash = '';
   });
 });

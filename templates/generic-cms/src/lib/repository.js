@@ -7,6 +7,8 @@ import {
 } from './manifest.js';
 import { createQdnResourceUrl, discoverQdnName, fetchQdnResource } from './qortal.js';
 import { rewriteMediaUrls } from './media.js';
+import { mergeNativeCatalog, readNativeIndex, NATIVE_INDEX_IDENTIFIER } from './nativeCatalog.js';
+import { readGalleryCatalog, GALLERY_CATALOG_IDENTIFIER } from './gallery.js';
 
 const MANIFEST_TIMEOUT_MS = 7000;
 const CACHE_SCHEMA = 'qms-cms-dataset-cache@1';
@@ -46,8 +48,12 @@ async function fetchJson(url) {
 export function createCmsRepository(config, options = {}) {
   const query = options.query
     || (typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams());
-  const source = String(options.source || query.get('source') || config.content.source || 'qdn');
-  const manifestName = String(options.name || query.get('name') || discoverQdnName(config.site.ownerName || ''));
+  const requestedSource = String(options.source || query.get('source') || config.content.source || 'qdn');
+  const devMode = Boolean(import.meta.env && import.meta.env.DEV);
+  const source = requestedSource === 'fixture' && !devMode ? 'qdn' : requestedSource;
+  // Visitor query parameters must never select a different QDN identity for
+  // catalog reads; only the hosting context or published config may.
+  const manifestName = String(options.name || discoverQdnName(config.site.ownerName || ''));
   const fixtureManifestUrl = options.fixtureManifestUrl || query.get('manifest') || '/cms-fixture/qms-cms-manifest.json';
   const siteDefaults = {
     id: config.site.id,
@@ -123,6 +129,24 @@ export function createCmsRepository(config, options = {}) {
         staleAfterMs,
         cache: cached ? { ...cached.dataset, cachedAt: cached.cachedAt } : null
       });
+      if (source !== 'fixture' && dataset.state !== 'error') {
+        try {
+          const nativeRaw = await fetchQdnResource(
+            { service: 'DOCUMENT', name: manifestName, identifier: NATIVE_INDEX_IDENTIFIER },
+            MANIFEST_TIMEOUT_MS
+          );
+          const native = readNativeIndex(nativeRaw);
+          if (native.ok) dataset = mergeNativeCatalog(dataset, native.index);
+          else {
+            dataset = {
+              ...dataset,
+              notices: [...dataset.notices, { code: 'cms-native-index-invalid', level: 'warning', message: 'CMS-authored content could not be merged: ' + native.errors.join(' ') }]
+            };
+          }
+        } catch {
+          // No CMS supplement is normal for an imported-only site.
+        }
+      }
       if (dataset.state !== 'error') writeCache(cacheKey, dataset);
       return dataset;
     } catch (error) {
@@ -171,6 +195,18 @@ export function createCmsRepository(config, options = {}) {
     async findPage(slug) {
       const current = await this.loadDataset();
       return current.pages.find((item) => item.type === 'page' && item.slug === slug) || null;
+    },
+    async loadGalleries() {
+      if (source === 'fixture') return { ok: true, catalog: { schema: 'qms-cms-gallery@1', version: 1, revision: 0, galleries: [] }, errors: [] };
+      try {
+        const raw = await fetchQdnResource(
+          { service: 'DOCUMENT', name: manifestName, identifier: GALLERY_CATALOG_IDENTIFIER },
+          MANIFEST_TIMEOUT_MS
+        );
+        return readGalleryCatalog(raw);
+      } catch {
+        return { ok: true, catalog: { schema: 'qms-cms-gallery@1', version: 1, revision: 0, galleries: [] }, errors: [] };
+      }
     },
     async loadContent(item) {
       const current = await this.loadDataset();

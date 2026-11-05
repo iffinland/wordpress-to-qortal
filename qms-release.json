@@ -1,12 +1,12 @@
 {
   "schema": "qms-release@1",
   "product": "Qortal Migration Studio",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "channel": "alpha",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
-  "releaseNotes": "docs/migration-studio/RELEASE-0.6.1-ALPHA.md",
+  "releaseNotes": "docs/migration-studio/RELEASE-0.7.0-ALPHA.md",
   "versionMarkers": [
     "desktop/package.json",
     "viewer/package.json",

@@ -6,22 +6,22 @@ normalizes the content, downloads and de-duplicates supported media, prepares
 deterministic QDN batches, hands them to a separate Qortal Hub publishing app,
 and verifies the resulting QDN resources byte-for-byte.
 
-## Download Qortal Migration Studio 0.6.1 alpha.2
+## Download Qortal Migration Studio 0.7.0 alpha.1
 
 The release ships three files. Most people need the desktop application; the
 two Q-App ZIPs are for publishing and for the public website runtime.
 
 | What you need | Download | What it does |
 | --- | --- | --- |
-| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.6.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-studio_0.6.1_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
-| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-publisher-v0.6.1.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
-| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-generic-cms-v0.6.1.zip) | The neutral website/APP Q-App that renders a published QDN catalog. It is the site runtime, not the migration tool. |
+| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.7.0_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/qortal-migration-studio_0.7.0_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
+| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.7.0.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/qortal-migration-publisher-v0.7.0.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
+| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.7.0.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/qortal-migration-generic-cms-v0.7.0.zip) | The neutral website/APP Q-App that renders a published QDN catalog. It is the site runtime, not the migration tool. |
 
-Also download [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/SHA256SUMS),
-[sbom.cdx.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/sbom.cdx.json)
-and [provenance.intoto.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/provenance.intoto.json)
+Also download [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/SHA256SUMS),
+[sbom.cdx.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/sbom.cdx.json)
+and [provenance.intoto.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/provenance.intoto.json)
 to verify the files. Release page:
-<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.2>.
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.7.0-alpha.1>.
 
 **Who needs what**
 
@@ -57,14 +57,17 @@ migrate, or by the Qortal project.
 
 ## Alpha status
 
-Version **0.6.1 alpha.2** is the latest published alpha. It adds the
-standalone Migration Publisher Q-App, single-file Publisher packages and
-Generic CMS APP deployment, and fixes the Publisher target-name gate and
-Generic CMS Admin reachability. A live DOCUMENT publication through the
-deployed Migration Publisher completed: the package published, the catalog
-manifest read back with the exact expected SHA-256, and the CMS rendered its
-content when opened under the correct Qortal name. General APP/WEBSITE and
-IMAGE acceptance is still outstanding. Read
+Version **0.7.0 alpha.1** is the latest published alpha. It fixes a confirmed
+Generic CMS authorization defect: a different signed-in account could open the
+Admin page. Admin is now owner-only and fails closed, every publication
+revalidates the live on-chain owner, and unauthorized visitors see Access
+denied with no admin state. The CMS also adds light/dark/system themes,
+owner-published site settings, a TipTap blog editor with local drafts and media,
+native galleries with a full-screen viewer, and a single public catalog that
+keeps QMS-imported WordPress content compatible with CMS-authored posts. The
+previous live DOCUMENT publication proved the QMS catalog path; the new CMS
+authoring flows are covered by automated tests but have not been signed against
+mainnet. Read
 [docs/migration-studio/alpha/KNOWN-ISSUES.md](docs/migration-studio/alpha/KNOWN-ISSUES.md)
 before you rely on any build.
 
@@ -84,11 +87,13 @@ Important limitations:
   published a real package. A general shared public deployment still needs the
   owner's registered name and wallet approval. See
   [PUBLISHER-QAPP-DEPLOYMENT.md](docs/migration-studio/PUBLISHER-QAPP-DEPLOYMENT.md).
-- The Generic CMS only reads its catalog when it can determine the exact Qortal
-  name it is running under. Open it as `qortal://WEBSITE/<name>/` or add
-  `?name=<encoded name>` to the URL. Percent-encoded names are decoded before
-  lookup, so `developer%20iffi` and `developer iffi` resolve to the same name.
-  Without the name it shows its empty or unverified state rather than guessing.
+- The Generic CMS only reads its catalog and authorizes admin when it can
+  determine the exact Qortal name it is running under. Open it as
+  `qortal://WEBSITE/<name>/` or `qortal://APP/<name>/`. Percent-encoded path
+  names are decoded before lookup. Visitor query parameters such as `?name=`
+  are deliberately ignored for identity; they cannot select a catalog or grant
+  ownership. Without a hosting context the CMS falls back to its published
+  config, then shows an honest readonly/empty state.
 - Launch verification used a headless X server (Xvfb), not a complete graphical
   session with a real keyring unlock prompt.
 - One source adapter exists (WordPress REST). Windows and macOS are not
@@ -109,14 +114,14 @@ or any development tools.
 ## Download, install and launch
 
 1. Download
-   [qortal-migration-studio_0.6.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-studio_0.6.1_amd64.deb)
+   [qortal-migration-studio_0.7.0_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/qortal-migration-studio_0.7.0_amd64.deb)
    and the release assets `SHA256SUMS`, `sbom.cdx.json` and
    `provenance.intoto.json`.
 2. Verify the checksum (see [Security](#security-and-checksums)).
 3. Install and launch:
 
 ```bash
-sudo apt install ./qortal-migration-studio_0.6.1_amd64.deb
+sudo apt install ./qortal-migration-studio_0.7.0_amd64.deb
 qortal-migration-studio
 ```
 
@@ -217,37 +222,56 @@ application.
 
 ## Generic CMS template
 
-`templates/generic-cms/` is a neutral, accessible Qortal Q-App site template
-that renders a published QDN catalog. It supports a configurable title,
-tagline, navigation, colors and typography, and routes for home, posts, post,
-page, category, tag, archive, search and admin/import. It reads
-`qms-cms-manifest@1`, the Phase 5 `qms-qdn-manifest@1` output, and the legacy
+`templates/generic-cms/` is a neutral, accessible Qortal Q-App site that renders
+a published QDN catalog and provides owner-only authoring. It reads
+`qms-cms-manifest@1`, the Phase 5 `qms-qdn-manifest@1` output and the legacy
 `cr-qdn-manifest` shape through one read-only adapter.
 
-The template is a starting point for your own site, not a hosted service. It
-does not publish or sign; its admin route only stages imported items in a local
-adoption queue and requires the signed-in account to own the configured QDN
-name.
+New in 0.7.0:
 
-**Admin** is part of the default navigation and renders before any catalog
-gating, so a missing manifest is explained instead of hiding the entry. The
-page states its two preconditions explicitly: a published `qms-cms-manifest`
-with its indexes under this site's exact QDN name, and a signed-in account that
-owns that name. Runtime navigation also injects **Admin** for an already
-published `qms-cms-config.json` that predates this change. When you redeploy a
-site that already has a `qms-cms-config.json`, preserve that file in the new
-bundle; replacing the bundle without it drops the site-specific title,
-navigation, theme and manifest identifier.
+- **Owner-only admin.** The confirmed defect where a different signed-in
+  account could open `#/admin` is fixed. Authorization requires the active
+  account and the live on-chain name record to agree; missing bridge, account,
+  name record or node access fails closed. Non-owners see **Access denied** and
+  no catalog, adoption queue or editing state. Every publish revalidates
+  immediately before signing. Query parameters, localStorage and React state
+  cannot grant ownership.
+- **Light, dark and system themes**, persisted locally and applied by an inline
+  pre-hydration script. The owner's accent survives; contrast is computed.
+- **Owner-published site settings** (title, tagline, description, navigation,
+  footer text, branding) as `qms-cms-site-settings@1`, with draft, preview,
+  explicit destination/fee confirmation, revision-conflict protection and exact
+  read-back.
+- **TipTap blog editor** with resumable local drafts, sanitized rich text,
+  preview, categories/tags, media upload and existing QDN media search.
+- **Native galleries** with batches of up to 10 images, captions, responsive
+  grids, accessible full-screen viewer, keyboard arrows, Escape and swipe.
+- **One public catalog.** CMS-authored posts use `qms-qdn-content@1` plus a
+  versioned `qms-cms-native-index` supplement merged with imported QMS content.
+  Search, categories and tags include both; a WordPress incremental sync never
+  removes CMS posts.
+- **Footer attribution** `Qortal. Template v<real version>` links to Qortal Web
+  Builders in a new Hub tab through `OPEN_NEW_TAB`.
+
+Admin is hidden from non-owners. Authorized owners get `#/admin` (overview and
+import), `#/admin/settings`, `#/admin/editor` and `#/admin/galleries`.
+
+When you redeploy a site that already has a `qms-cms-config.json`, preserve that
+file. Published settings and CMS content live in separate DOCUMENT resources, so
+they survive template upgrades and do not require rewriting QMS resources.
 
 ```bash
 cd templates/generic-cms
 npm install
+npm run typecheck
 npm test
 npm run build
 ```
 
-See [templates/generic-cms/README.md](templates/generic-cms/README.md) and
-[docs/migration-studio/PHASE-6-GENERIC-CMS.md](docs/migration-studio/PHASE-6-GENERIC-CMS.md).
+See [templates/generic-cms/README.md](templates/generic-cms/README.md),
+[docs/migration-studio/CMS-AUTHORING-SECURITY.md](docs/migration-studio/CMS-AUTHORING-SECURITY.md),
+[docs/migration-studio/CMS-SCHEMAS.md](docs/migration-studio/CMS-SCHEMAS.md)
+and [docs/migration-studio/PHASE-6-GENERIC-CMS.md](docs/migration-studio/PHASE-6-GENERIC-CMS.md).
 
 ## Incremental sync, recovery and cleanup
 
@@ -291,14 +315,14 @@ before migrating a site with heavy plugin functionality.
 
 ## Security and checksums
 
-The 0.6.1 package is an **unsigned alpha**. There is no owner-approved Debian
+The 0.7.0 package is an **unsigned alpha**. There is no owner-approved Debian
 signing key in the release environment, so `apt` cannot verify a signature.
 Verify the published hash before installing:
 
 ```bash
-sha256sum qortal-migration-studio_0.6.1_amd64.deb
+sha256sum qortal-migration-studio_0.7.0_amd64.deb
 # Compare the output with this artifact's line in SHA256SUMS
-# from the v0.6.1-alpha.2 release page.
+# from the v0.7.0-alpha.1 release page.
 sha256sum -c SHA256SUMS
 ```
 
@@ -315,7 +339,7 @@ for the full security posture.
 ## Documentation
 
 - [Alpha documentation index](docs/migration-studio/alpha/README.md)
-- [Release notes — 0.6.1 alpha](docs/migration-studio/RELEASE-0.6.1-ALPHA.md)
+- [Release notes — 0.7.0 alpha](docs/migration-studio/RELEASE-0.7.0-ALPHA.md)
 - [Developer build and release guide](docs/migration-studio/DEVELOPER-BUILD.md)
 - [Install, upgrade and uninstall](docs/migration-studio/INSTALL-LINUX.md)
 - [First run](docs/migration-studio/alpha/FIRST-RUN-GUIDE.md)
