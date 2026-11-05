@@ -13,7 +13,7 @@ two Q-App ZIPs are for publishing and for the public website runtime.
 
 | What you need | Download | What it does |
 | --- | --- | --- |
-| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.7.0_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/qortal-migration-studio_0.8.0~alpha.1_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
+| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0~alpha.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/qortal-migration-studio_0.8.0~alpha.1_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
 | **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-alpha.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/qortal-migration-publisher-v0.8.0-alpha.1.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
 | **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.8.0-alpha.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/qortal-migration-generic-cms-v0.8.0-alpha.1.zip) | The neutral website/APP Q-App that renders a published QDN catalog. It is the site runtime, not the migration tool. |
 
@@ -114,14 +114,14 @@ or any development tools.
 ## Download, install and launch
 
 1. Download
-   [qortal-migration-studio_0.7.0_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/qortal-migration-studio_0.8.0~alpha.1_amd64.deb)
+   [qortal-migration-studio_0.8.0~alpha.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/qortal-migration-studio_0.8.0~alpha.1_amd64.deb)
    and the release assets `SHA256SUMS`, `sbom.cdx.json` and
    `provenance.intoto.json`.
 2. Verify the checksum (see [Security](#security-and-checksums)).
 3. Install and launch:
 
 ```bash
-sudo apt install ./qortal-migration-studio_0.7.0_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0~alpha.1_amd64.deb
 qortal-migration-studio
 ```
 
@@ -227,6 +227,18 @@ a published QDN catalog and provides owner-only authoring. It reads
 `qms-cms-manifest@1`, the Phase 5 `qms-qdn-manifest@1` output and the legacy
 `cr-qdn-manifest` shape through one read-only adapter.
 
+New in 0.8.0:
+
+- **Independent update checks.** Desktop, Migration Publisher and Generic CMS
+  read one shared QDN update registry at startup and on demand. A compact badge
+  appears only when that component itself has a newer compatible release;
+  unchanged components stay silent. Nothing is downloaded or installed
+  automatically, and a missing or malformed registry never blocks normal work.
+- **Verified release metadata.** Each component record carries the release tag,
+  changelog summary, platforms, verified asset name, size, SHA-256 and manual
+  deployment instructions. The registry is published only after owner approval
+  of a Publisher handoff.
+
 New in 0.7.0:
 
 - **Owner-only admin.** The confirmed defect where a different signed-in
@@ -320,7 +332,7 @@ signing key in the release environment, so `apt` cannot verify a signature.
 Verify the published hash before installing:
 
 ```bash
-sha256sum qortal-migration-studio_0.7.0_amd64.deb
+sha256sum qortal-migration-studio_0.8.0~alpha.1_amd64.deb
 # Compare the output with this artifact's line in SHA256SUMS
 # from the v0.8.0-alpha.1 release page.
 sha256sum -c SHA256SUMS

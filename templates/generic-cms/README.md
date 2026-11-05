@@ -10,7 +10,7 @@ it does not publish anything to QDN. The CMS can be published as an **APP** or a
 ## Beginner path (no Node.js, npm, Git or compiler)
 
 1. Download
-   [qortal-migration-generic-cms-v0.7.0.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/qortal-migration-generic-cms-v0.7.0.zip)
+   [qortal-migration-generic-cms-v0.8.0-alpha.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/qortal-migration-generic-cms-v0.8.0-alpha.1.zip)
    and verify it against `SHA256SUMS`.
 2. Inspect the ZIP: `index.html` and `assets/` are at the root, with no
    parent folder.
