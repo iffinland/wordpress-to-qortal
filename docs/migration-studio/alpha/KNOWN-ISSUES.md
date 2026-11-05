@@ -1,9 +1,29 @@
-# Known issues and limitations — 0.6.1 alpha
+# Known issues and limitations — 0.7.0 alpha
 
 These are release-gate facts, not a substitute for testing your own site. The
-0.6.1 release is published as a prerelease with all three artifacts:
-<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.6.1-alpha.2>.
+0.7.0 release is published as a prerelease with all three artifacts:
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.7.0-alpha.1>.
 Downloading an artifact is not deployment or live validation.
+
+## New in 0.7.0
+
+1. **CMS authoring is tested, not signed live.** Settings, editor and gallery
+   publication use real Hub actions and exact read-back, but this release run
+   could not sign mainnet transactions. Do a supervised first publish.
+2. **The authorization fix changes a documented behavior.** Only the verified
+   on-chain owner can open Admin. Non-owners now see Access denied and no admin
+   state. Missing name records, a different active account or a transferred
+   name all fail closed.
+3. **`?name=` is no longer an identity source.** Open the CMS through its
+   hosting path (`qortal://APP/<name>/` or `qortal://WEBSITE/<name>/`). Query
+   parameters cannot select a catalog or grant ownership.
+4. **Android file selection depends on the Hub build.** When the Hub file input
+   is unavailable, the media picker says so and existing QDN media can still be
+   reused.
+5. **TipTap increases the public bundle size.** The editor is in the admin
+   path but currently bundled; a future build can code-split owner-only views.
+6. **Gallery batches are 10 images per publish, with no lifetime cap.** The
+   limit is per batch, not per gallery.
 
 ## Blocking or unverified release gates
 
@@ -56,15 +76,16 @@ Downloading an artifact is not deployment or live validation.
 - The CMS application-bundle member read-back depends on Core's `filepath` query; the
   Publisher tries the Hub bridge first and falls back to a same-origin node
   read. A Hub build that blocks both paths reports `blocked`, not verified.
-- The Generic CMS reads its catalog only when the URL carries the exact Qortal
-  name, for example `qortal://WEBSITE/developer%20iffi/` or
-  `?name=developer%20iffi`. Percent-encoded names from the URL or Hub globals
-  are decoded before lookup. Without the name it cannot choose a catalog and
-  shows an empty or unverified state.
+- The Generic CMS reads its catalog and authorizes admin only when the hosting
+  context carries the exact Qortal name, for example
+  `qortal://WEBSITE/developer%20iffi/` or `qortal://APP/developer%20iffi/`.
+  Percent-encoded path names and Hub globals are decoded before lookup. Query
+  parameters such as `?name=` are ignored and cannot select a catalog or grant
+  ownership.
 - Redeploying a CMS bundle without its existing `qms-cms-config.json` loses the
-  site title, nav, theme and manifest identifier. Preserve that file when it
-  exists. Admin remains in the default navigation, and runtime navigation
-  injects it for older published configs.
+  fallback site title, nav, theme and manifest identifier. Preserve that file
+  when it exists. Admin is shown only after owner verification; it is never in
+  the visitor-visible navigation.
 - Qortal Hub does not publish a multi-file APP from its normal form, so the
   Publisher Q-App is deployed by the owner through an APP ZIP flow, not by
   each user.

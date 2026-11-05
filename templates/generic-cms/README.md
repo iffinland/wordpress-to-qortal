@@ -1,44 +1,95 @@
-# Qortal Migration Studio - Generic CMS Template
+# Qortal Migration Studio — Generic CMS Template
 
-A neutral, accessible Qortal Q-App site template that renders a published QDN
-catalog. It is independent from the Corbett Report custom clone and does not
-import engine or Corbett code.
+A neutral, accessible Qortal Q-App website that renders a published QDN
+catalog and now provides owner-only authoring, themes, settings and galleries.
 
 **The download is a ZIP package, not a live website.** Downloading or unzipping
-it does not publish anything to QDN. The Generic CMS can be published as either
-an **APP** or a **WEBSITE** where the verified package and current application
-flow support that service. A QMS migration normally publishes its configured
-CMS bundle for you; deploying this neutral ZIP by hand is optional.
+it does not publish anything to QDN. The CMS can be published as an **APP** or a
+**WEBSITE** where the verified package and current flow support that service.
 
-## Beginner path (no development tools)
+## Beginner path (no Node.js, npm, Git or compiler)
 
 1. Download
-   [qortal-migration-generic-cms-v0.6.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.6.1-alpha.2/qortal-migration-generic-cms-v0.6.1.zip)
+   [qortal-migration-generic-cms-v0.7.0.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/qortal-migration-generic-cms-v0.7.0.zip)
    and verify it against `SHA256SUMS`.
-2. Inspect the root: it contains `index.html` and `assets/` with no parent
-   folder.
+2. Inspect the ZIP: `index.html` and `assets/` are at the root, with no
+   parent folder.
 3. Publish it to QDN as an APP or WEBSITE through an owner-approved Qortal
-   publication flow. Until that happens it is only a local file.
+   publication flow.
+4. Open it as the owner under the exact name, for example
+   `qortal://WEBSITE/developer%20iffi/`.
+5. Open **Admin → Site settings** and publish the owner settings revision. This
+   replaces the template placeholders with your title, tagline, footer and
+   colors.
 
-No Node.js, npm, Git, compiler or manual build is required for this path.
+Downloading a ZIP is not deployment.
 
 ## Features
 
-- Configurable title, tagline, navigation, colors and typography in cms.config.json.
-- **Admin** in the default navigation. It renders before catalog gating, so a
-  missing manifest is explained instead of the entry disappearing. Runtime
-  navigation also injects Admin for an already published `qms-cms-config.json`
-  that predates this change.
-- Routes: home, posts, post, page, category, tag, archive, search and admin/import.
-- Reads qms-cms-manifest@1, the Phase 5 qms-qdn-manifest@1 output, and the legacy
-  cr-qdn-manifest shape through one read-only adapter.
+- **Owner-only administration** verified against the live on-chain name record.
+  Non-owners see an Access denied page and no admin controls.
+- **Light, dark and system themes** with pre-hydration application, local
+  persistence, accessible contrast and no reload.
+- **Versioned site settings** (title, tagline, description, navigation, footer,
+  branding colors) published as `qms-cms-site-settings@1`.
+- **Native blog editor** (TipTap) with local drafts, sanitized rich text,
+  categories/tags, preview, media publishing and existing QDN media search.
+- **Galleries** with multi-file batches of up to 10 images, captions, responsive
+  grids, full-screen keyboard/swipe viewer and accessible focus handling.
+- **One public catalog** for QMS-imported WordPress content and CMS-authored
+  posts: same search, categories and tags. Imported content is never overwritten
+  or removed by the CMS or by an incremental WordPress sync.
+- Footer attribution `Qortal. Template v<real version>` linking to
+  `qortal://WEBSITE/Qortal Web Builders/` in a new Hub tab.
+- Reads `qms-cms-manifest@1`, `qms-qdn-manifest@1` and the legacy
+  `cr-qdn-manifest` shape through one read-only adapter.
 - Honest loading, empty, partial, stale and error states.
-- HTML and URL sanitization with DOMPurify.
-- Owner-only import/adoption actions based on the signed-in account's QDN name
-  ownership and an optional on-chain name record cross-check.
-- Accessible layout with skip link, landmarks, labelled controls, focus styles,
-  visible status regions and reduced-motion support.
-- Valid root-layout Q-App build with relative assets and a bundle validator.
+- DOMPurify HTML/URL sanitization.
+- Accessible landmarks, skip link, labelled controls, focus styles, status
+  regions and reduced-motion support.
+- Valid root-layout Q-App bundle with relative assets and a bundle validator.
+
+## Routes
+
+Home, posts, post, page, category, tag, archive, search, galleries and
+owner-gated admin sections:
+
+- `#/admin` — overview and import/adoption
+- `#/admin/settings` — owner site settings
+- `#/admin/editor` — CMS posts
+- `#/admin/galleries` — gallery batches
+
+## Security model
+
+Only the verified on-chain owner of the exact QDN name can use admin. The check
+requires the active account, the exact name record on the trusted node and the
+account name list to agree. Missing bridge, account, name record or node access
+fails closed. Query parameters (`?name=`, `?node=`), localStorage and React
+state cannot select the authorization target. Every publish revalidates
+immediately before signing. See
+[../../docs/migration-studio/CMS-AUTHORING-SECURITY.md](../../docs/migration-studio/CMS-AUTHORING-SECURITY.md)
+and [../../docs/migration-studio/CMS-SCHEMAS.md](../../docs/migration-studio/CMS-SCHEMAS.md).
+
+## Published resources
+
+| Resource | Service | Identifier | Purpose |
+| --- | --- | --- | --- |
+| QMS catalog | DOCUMENT | `qms-cms-manifest` / `qms-qdn-manifest@1` | Imported catalog |
+| Site settings | DOCUMENT | `qms-cms-site-settings` | Versioned owner settings |
+| CMS content index | DOCUMENT | `qms-cms-native-index` | CMS-authored posts/pages |
+| Gallery catalog | DOCUMENT | `qms-cms-galleries` | Versioned galleries |
+| CMS post content | DOCUMENT | stable per slug | `qms-qdn-content@1` |
+| Gallery images | IMAGE/VIDEO/FILE | `qms-cms-media-<hash>` | Content-addressed media |
+
+Publication always verifies exact bytes on read-back. Uncertain submissions are
+marked **ambiguous** and are not resent automatically.
+
+## Upgrading a deployed site
+
+Preserve the existing `qms-cms-config.json` and all identifiers. Publish the
+new CMS bundle under the same name, then publish site settings revision 1 (or
+the next revision) as the owner. Existing imported posts, categories, tags and
+media remain readable. No QMS resource is rewritten by this upgrade.
 
 ## For developers / Build from source
 
@@ -46,65 +97,29 @@ Do not use this section for a normal installation.
 
     npm install
     npm run dev
+    npm run typecheck
     npm run test
     npm run build
     npm run build -- --zip
 
-Use a different configuration file with:
+Use a different configuration file:
 
     CMS_TEMPLATE_CONFIG=/path/to/site.json npm run build
 
-The development fixture catalog is available at:
+Development fixture:
 
     npm run dev
-    open http://localhost:5191/#/home
     open http://localhost:5191/?source=fixture#/
 
-An optional Qortal node URL can be supplied with the node query parameter or
-VITE_QORTAL_NODE_URL. Production Q-App builds read the catalog from
-DOCUMENT/<ownerName>/<manifestIdentifier> and fall back to the legacy identifier.
-
-## Manifest identifiers
-
-| Identifier | Default | Purpose |
-| --- | --- | --- |
-| CMS manifest | qms-cms-manifest | Generic CMS catalog |
-| Legacy manifest | cr-qdn-manifest | Existing Corbett-compatible catalog |
-| Engine manifest | qms-qdn-manifest@1 | Phase 5 exact publication output |
-
-Content indexes and content resources are referenced from the manifest. The
-template never rewrites published resources.
-
-## Administrative actions
-
-The admin/import route stages items in a local adoption queue. It does not sign
-or publish anything. The page states its preconditions explicitly: a published
-`qms-cms-manifest` with its indexes under this site's exact QDN name, and a
-signed-in account that owns that name. Owner mode additionally requires:
-
-1. A Qortal account from GET_USER_ACCOUNT.
-2. The account's name list from GET_ACCOUNT_NAMES to include the configured QDN
-   site name.
-3. If GET /names/<name> is reachable, the name record owner must equal the
-   account address.
-
-Without a published catalog, owner identity or a verified name, the page remains
-read-only. Admin stays reachable so the missing precondition is visible.
-
-The site must be opened under a URL that carries its exact QDN name, for
-example `qortal://WEBSITE/developer%20iffi/` or `?name=developer%20iffi`.
-Otherwise the app cannot determine which name's catalog to read and shows an
-empty or unverified state.
-
-When redeploying an existing site, preserve its `qms-cms-config.json` in the
-new bundle. It carries the site title, tagline, navigation, theme and manifest
-identifier; without it the bundle falls back to the build-time defaults.
+`source=fixture` is ignored in production builds. An optional node URL for
+catalog reads can be set with `VITE_QORTAL_NODE_URL`; ownership and fee checks
+always use a trusted node, never `?node=`.
 
 ## Output
 
-The build creates template/dist with index.html at the bundle root and relative
-asset URLs. The validator checks the root layout, referenced assets and absence
-of engine imports. With --zip it also writes
-release/qortal-migration-generic-cms-v<version>.zip. The release pipeline
+The build creates `dist` with `index.html` at the bundle root and relative asset
+URLs. With `--zip` it writes
+`release/qortal-migration-generic-cms-v<version>.zip`. The release pipeline
 validates that ZIP as a root-layout Q-App and ships it with the .deb and the
 Publisher ZIP.
+

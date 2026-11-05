@@ -179,9 +179,9 @@ authorized scope:
 - the package published through the deployed Migration Publisher;
 - `DOCUMENT/developer iffi/qms-cms-manifest` read back with the exact expected
   SHA-256;
-- the Generic CMS displayed its content only when opened with the correct name,
-  for example `qortal://WEBSITE/developer%20iffi/` or
-  `?name=developer%20iffi`.
+- the Generic CMS displayed its content only when opened with the correct
+  hosting name, for example `qortal://WEBSITE/developer%20iffi/`. The 0.7.0 CMS
+  intentionally ignores `?name=` for identity and authorization.
 
 That proof covers DOCUMENT resources. IMAGE and APP/WEBSITE publication were
 not part of the authorized live run, so the first full site deployment remains

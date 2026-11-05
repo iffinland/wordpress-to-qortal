@@ -9,6 +9,16 @@
 | Base commit | 74b67454ce476d16e73935f5c0d2939cdb450c08 |
 | Scope | Neutral CMS template, manifest compatibility, sanitized rendering, owner gating, accessibility, Q-App build |
 
+## 0.7.0 update (2026-11-05)
+
+The CMS grew beyond the original read-only Phase 6 scope. See
+[CMS-AUTHORING-SECURITY.md](CMS-AUTHORING-SECURITY.md) and
+[CMS-SCHEMAS.md](CMS-SCHEMAS.md) for the current authorization model, themes,
+owner settings, TipTap editor, galleries and QMS-compatible CMS supplement.
+The owner check is now strict: a missing name record always fails closed, the
+account name list must also contain the exact name, and every mutation
+revalidates. Query parameters and localStorage never select the identity.
+
 ## 1. Result in one paragraph
 
 Phase 6 adds a standalone, neutral Qortal CMS at templates/generic-cms. It builds

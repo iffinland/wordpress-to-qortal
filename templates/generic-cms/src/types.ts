@@ -85,6 +85,7 @@ export interface CmsContentItem {
   contentRef: QdnRef | null;
   featuredImageRef: QdnRef | null;
   contentHash: string | null;
+  native?: boolean;
   legacy?: {
     sourceId?: number | null;
     oldUrl?: string | null;
@@ -132,6 +133,7 @@ export interface CmsDataset {
   urls: {
     bySourceUrl: Record<string, QdnRef>;
   };
+  nativeIndex?: unknown;
 }
 
 export interface LoadedContent {
@@ -155,7 +157,7 @@ export interface ViewerIdentity {
   names: string[];
   qdnName: string;
   bridgeAvailable: boolean;
-  nameRecordStatus: 'verified' | 'unavailable' | 'mismatch' | 'none';
+  nameRecordStatus: 'verified' | 'unavailable' | 'mismatch' | 'none' | 'invalid';
   reason: string;
   message: string;
 }
@@ -180,6 +182,8 @@ export type ArchiveRoute = {
   page: number;
 };
 
+export type AdminSection = 'overview' | 'settings' | 'editor' | 'galleries';
+
 export type AppRoute =
   | { kind: 'home' }
   | { kind: 'posts'; page: number }
@@ -189,5 +193,38 @@ export type AppRoute =
   | { kind: 'tag'; slug: string; page: number }
   | ArchiveRoute
   | { kind: 'search'; query: string }
-  | { kind: 'admin' }
+  | { kind: 'gallery'; slug?: string }
+  | { kind: 'admin'; section?: AdminSection; id?: string }
   | { kind: 'not-found' };
+
+export interface GalleryImage {
+  service: string;
+  name: string;
+  identifier: string;
+  mimeType?: string | null;
+  bytes?: number | null;
+  sha256?: string | null;
+  caption?: string;
+  alt?: string;
+  width?: number | null;
+  height?: number | null;
+}
+
+export interface Gallery {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+  images: GalleryImage[];
+}
+
+export interface GalleryCatalog {
+  schema: 'qms-cms-gallery@1';
+  version: number;
+  revision: number;
+  site_id: string;
+  updated_at: string | null;
+  galleries: Gallery[];
+}
