@@ -1,10 +1,30 @@
-# Known issues and limitations — 0.8.0 alpha.3
+# Known issues and limitations — 0.8.0 alpha.4
 
 These are release-gate facts, not a substitute for testing your own site. The
-0.8.0-alpha.3 release is published as a prerelease with all three artifacts.
+0.8.0-alpha.4 release is published as a prerelease with all three artifacts.
 Downloading an artifact is not deployment or live validation.
 
+## New in 0.8.0-alpha.4
+
+1. **Packaging-only fix for the alpha.3 startup abort.** The alpha.3 .deb
+   shipped an engine that imported `fflate` without shipping the package, so
+   the app aborted with `QMS_STARTUP_FAILED: Engine host connection closed.`.
+   Alpha.4 declares fflate 0.8.3, stages `src/config.js`, resolves the entire
+   engine import graph at build time and runs a packaged-engine JSON-RPC
+   handshake from the extracted .deb in the release gate.
+2. **The gate proves the failure mode.** A negative run hides `fflate` from a
+   throwaway extraction and requires `ERR_MODULE_NOT_FOUND`. A package without
+   complete runtime dependencies therefore cannot be published.
+3. **No host npm workaround exists or is supported.** Users never run
+   `npm install`; the .deb contains the locked production node_modules tree.
+4. **The engine handshake is not a graphical install test.** The gate starts
+   `resources/engine/bin/qms-host.js` with Node/Electron-as-Node on the build
+   host. The separate isolated-rootfs test covers apt installation and the
+   Electron GUI under Xvfb; a full MX Linux graphical session is still not
+   executed in this release run.
+
 ## New in 0.8.0-alpha.3
+
 
 1. **Live Admin regression fixed in the Generic CMS.** Version 0.8.0-alpha.2
    built `VITE_QORTAL_NODE_URL=http://localhost:12391` into release bundles and

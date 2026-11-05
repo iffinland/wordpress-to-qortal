@@ -39,13 +39,34 @@ npm run dist:deb
 
 This builds the renderer and main process, stages the engine and its runtime
 dependencies into `engine-runtime/`, and writes
-`release/qortal-migration-studio-<version>-amd64.deb`.
+`release/qortal-migration-studio_<version>_amd64.deb`.
+
+The engine runtime is a locked node_modules tree, not a single bundle, because
+the engine resolves templates and other assets relative to its own directory.
+Every package reached from `bin/qms-host.js` must be declared and pinned in
+`engine-package/package.json`; `prepare:engine` resolves the complete import
+graph against an isolated copy of `engine-runtime/` and fails on any unresolved
+import. Missing a runtime package (the 0.8.0-alpha.3 `fflate` defect) produces a
+broken .deb even though the app installs.
+
+Before publishing, prove the packaged engine from the real .deb:
+
+~~~bash
+node ../scripts/release/engine-clean-install-test.mjs
+node ../scripts/release/engine-clean-install-test.mjs --hide-node-module=fflate --expect-failure
+~~~
+
+The first command extracts the .deb and performs an `engine.info` JSON-RPC
+handshake with the packaged host. The second hides `fflate` from a throwaway
+extraction and requires `ERR_MODULE_NOT_FOUND`, proving the gate detects an
+incomplete runtime. `release:prepare` runs both and the three-artifact gate
+requires their evidence files.
 
 The generated package is not committed. Verify it with:
 
 ~~~bash
 npm run verify:package
-dpkg-deb -I release/qortal-migration-studio-0.5.0-amd64.deb
+dpkg-deb -I release/qortal-migration-studio_<version>_amd64.deb
 ~~~
 
 ## Publishing (Phase 5)

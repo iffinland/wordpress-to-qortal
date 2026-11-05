@@ -82,6 +82,20 @@ async function makeFakeRelease() {
     dirty: false
   }, null, 2));
   await writeFile(path.join(root, 'desktop/release/validation.json'), JSON.stringify({ checks: 10, failed: 0, version: VERSION }, null, 2));
+  const engineEvidence = {
+    schema: 'qms-engine-clean-install@1',
+    status: 'pass',
+    artifact: debName,
+    artifactSha256: sha256(debBytes),
+    version: VERSION,
+    handshake: { method: 'engine.info', ok: true, apiVersion: 'qms-engine@1' }
+  };
+  await writeFile(path.join(root, 'desktop/release/engine-clean-install.json'), JSON.stringify(engineEvidence, null, 2));
+  await writeFile(path.join(root, 'desktop/release/engine-clean-install-negative.json'), JSON.stringify({
+    ...engineEvidence,
+    schema: 'qms-engine-clean-install-negative@1',
+    hiddenModules: ['fflate']
+  }, null, 2));
   const publisher = path.join(root, 'release/qortal-migration-publisher-v' + VERSION + '.zip');
   const cms = path.join(root, 'release/qortal-migration-generic-cms-v' + VERSION + '.zip');
   await writeZip(publisher, qappFiles({ kind: 'publisher' }));
@@ -205,6 +219,17 @@ test('the three-artifact gate passes only with all artifacts and writes complete
     const blocked = await runThreeArtifactGate({ repoRoot: fake.root });
     assert.equal(blocked.ok, false);
     assert.match(blocked.failures.join('; '), /cms: Required artifact is missing/);
+  });
+  await rm(fake.root, { recursive: true, force: true });
+});
+
+test('the gate blocks a .deb without packaged-engine evidence', async () => {
+  const fake = await makeFakeRelease();
+  await rm(path.join(fake.root, 'desktop/release/engine-clean-install.json'));
+  await withSourceEnv(async () => {
+    const result = await runThreeArtifactGate({ repoRoot: fake.root });
+    assert.equal(result.ok, false);
+    assert.match(result.failures.join('; '), /clean-install evidence/);
   });
   await rm(fake.root, { recursive: true, force: true });
 });

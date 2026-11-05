@@ -265,3 +265,25 @@ The engine remains Electron-free, the desktop remains presentation plus IPC,
 templates are bundled with their own manifest, and the release process is
 independent of the legacy CLI. A second adapter, Windows shell or additional
 locale can be added without rewriting the package contract.
+
+## 11. Engine runtime dependency gate (0.8.0-alpha.4)
+
+The alpha.3 .deb installed but the engine aborted with
+`ERR_MODULE_NOT_FOUND: Cannot find package fflate`. The locked engine
+dependency set had drifted from the actual ESM import graph.
+
+The gate now has four layers:
+
+1. `desktop/engine-package` declares and pins every top-level runtime package;
+2. `scripts/release/verify-engine-runtime.mjs` resolves the complete import
+   graph against an isolated copy of the staged tree (no ancestor
+   node_modules) and fails the build on an unresolved import;
+3. `scripts/release/engine-clean-install-test.mjs` extracts the built .deb and
+   performs a real `engine.info` JSON-RPC handshake with the packaged engine;
+4. the same script with `--hide-node-module=fflate --expect-failure` proves the
+   detector fails on a missing dependency, and the three-artifact gate requires
+   both evidence records with matching artifact SHA-256.
+
+The engine is still shipped as a node_modules tree, not a single bundle,
+because it resolves runtime assets relative to its own directory. The tree is
+reproducible from the committed `desktop/engine-package/package-lock.json`.

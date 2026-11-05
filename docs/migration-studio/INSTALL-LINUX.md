@@ -3,7 +3,7 @@
 This guide installs the self-contained Debian package. The target machine does
 not need Node.js, npm, Git or development tools.
 
-This is the **0.6.1 alpha.2** release. It is unsigned and amd64 only. Read
+This is the **0.8.0 alpha.4** release. It is unsigned and amd64 only. Read
 [alpha/RELEASE-NOTES.md](alpha/RELEASE-NOTES.md) and
 [alpha/KNOWN-ISSUES.md](alpha/KNOWN-ISSUES.md) before installing.
 
@@ -17,15 +17,15 @@ building is documented separately in
 - Debian 12 (bookworm)
 - Debian 13 (trixie)
 - Debian-based distributions with equivalent packages, including MX Linux 23
-  (Debian 12 base). MX Linux is a compatibility target; the Phase 9 release
-  evidence covers Debian 12 and Debian 13.
+  (Debian 12 base). MX Linux is a compatibility target; the install and engine
+  tests are run on Debian 12/13 and on an extracted .deb without system Node.
 
 The package is amd64 only in this release.
 
 ## Verify the download
 
 ~~~bash
-sha256sum qortal-migration-studio_0.6.1_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-alpha.4_amd64.deb
 cat SHA256SUMS
 ~~~
 
@@ -36,7 +36,7 @@ installing. Do not install an artifact whose hash does not match.
 ## Install
 
 ~~~bash
-sudo apt install ./qortal-migration-studio_0.6.1_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-alpha.4_amd64.deb
 ~~~
 
 apt resolves the GTK, NSS, libsecret and audio dependencies. Launch **Qortal
@@ -46,9 +46,35 @@ Migration Studio** from the desktop application menu, or run:
 qortal-migration-studio
 ~~~
 
+Verify the installed version:
+
+~~~bash
+dpkg-query -W -f='${Version}\n' qortal-migration-studio
+# expected: 0.8.0~alpha.4
+~~~
+
 Downloading the .deb installs the migration tool. It does **not** publish
 anything to QDN. Publishing is a separate, explicit action in a later step; a
 downloaded Q-App ZIP is likewise not deployed until an owner publishes it.
+
+## Upgrading from 0.8.0-alpha.3 (startup failure fix)
+
+0.8.0-alpha.3 could install but abort with
+`QMS_STARTUP_FAILED: Engine host connection closed.` because its engine bundle
+referenced `fflate` without shipping it. 0.8.0-alpha.4 ships and verifies the
+complete engine runtime. Replace the package in place:
+
+~~~bash
+sudo apt install ./qortal-migration-studio_0.8.0-alpha.4_amd64.deb
+qortal-migration-studio
+~~~
+
+If the app is already running, quit it first. The package replaces only
+`/opt/qortal-migration-studio`. Projects, media, handoffs and history under
+`~/.local/share/qortal-migration-studio` are preserved.
+
+Do **not** run `npm install` or install Node.js to work around the old error.
+The .deb is self-contained; a package that needs host npm is a packaging bug.
 
 ## Where your data lives
 
@@ -62,15 +88,6 @@ downloaded Q-App ZIP is likewise not deployed until an owner publishes it.
 Project data is outside /opt. Upgrading or uninstalling the package never
 deletes projects, media, handoffs or history. Remove the data directory manually
 only when you intentionally want to erase a project.
-
-## Upgrade
-
-~~~bash
-sudo apt install ./qortal-migration-studio_<new-version>_amd64.deb
-~~~
-
-The new package replaces /opt/qortal-migration-studio; existing projects are
-opened with the same data root and schema migration rules as the desktop app.
 
 ## Uninstall
 
@@ -102,6 +119,8 @@ the normal unlock prompt.
 - **The window does not open**: run qortal-migration-studio in a terminal and
   check the error. On a headless machine, use a real graphical session; the app
   needs an X11/Wayland display.
+- **Engine host connection closed**: this was the alpha.3 packaging defect.
+  Install 0.8.0-alpha.4 or newer. Do not install npm packages on the host.
 - **Missing libraries**: sudo apt install -f completes dependency resolution.
 - **Credentials are not remembered**: confirm secret-tool --version works in
   your session and that a keyring is unlocked.
@@ -112,4 +131,6 @@ the normal unlock prompt.
 
 See docs/migration-studio/PHASE-9-PRODUCTION-RELEASE.md for the tested
 distributions, exact commands, SHA-256, SBOM, provenance and the remaining
-signing/live-network blockers.
+signing/live-network blockers. See
+docs/migration-studio/DEVELOPER-BUILD.md for the engine dependency rule and the
+clean-install handshake gate.

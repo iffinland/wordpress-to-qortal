@@ -1,63 +1,108 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-alpha.3 -->
+<!-- qms-release-version: 0.8.0-alpha.4 -->
 
-This is an unsigned alpha prerelease. It supersedes `v0.8.0-alpha.2`. It fixes a
-live regression that hid Admin from the real owner when the Generic CMS was
-opened in Qortal Hub on Android, and it adds an explicit, fail-closed
-**Connect owner account** recovery action.
+## 0.8.0 alpha.4 — current
 
-## Components
+This is an unsigned alpha prerelease. It supersedes `v0.8.0-alpha.3` and fixes a
+packaging defect that made the installed desktop application abort at startup.
+
+### What was broken in 0.8.0-alpha.3
+
+The .deb installed correctly, but starting the application produced:
+
+~~~text
+QMS_STARTUP_FAILED: Engine host connection closed.
+~~~
+
+Running the packaged engine directly showed the real cause:
+
+~~~text
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'fflate' imported from
+/opt/qortal-migration-studio/resources/engine/lib/engine/publication/index.js
+~~~
+
+`desktop/engine-package/package.json` is the locked production dependency set
+copied into `/opt/qortal-migration-studio/resources/engine`. It declared only
+`cheerio` and `dotenv`. The engine entry imports
+`lib/engine/publication/index.js`, which imports `fflate` at module load, so the
+host process exited before it could answer the first JSON-RPC request. The
+engine also dynamically imports `src/config.js`; that file was not staged, so
+`compat.loadLegacyConfig()` would have failed as well.
+
+### What changed
+
+- `fflate` 0.8.3 is a declared and lockfile-pinned engine runtime dependency.
+- `src/config.js` is staged into the engine runtime.
+- `prepare-engine` now resolves the complete import graph from
+  `bin/qms-host.js` against an isolated copy of the staged tree. A missing
+  relative module or package fails the build with the importing file and line.
+- `release:prepare` extracts the built .deb and performs a real `engine.info`
+  JSON-RPC handshake with the packaged engine. It also hides `fflate` in a
+  throwaway extraction and asserts that the handshake then fails with
+  `ERR_MODULE_NOT_FOUND`, proving the gate detects this class of bug.
+- The three-artifact gate refuses to publish without both evidence files matching
+  the .deb SHA-256.
+
+No application logic, wallet, signing, broker or QDN behavior changed. Users do
+not need Node.js, npm, Git or any post-install command.
+
+### Components
 
 | Component | Version | Artifact |
 | --- | --- | --- |
-| Desktop (Linux amd64) | 0.8.0-alpha.3 | `qortal-migration-studio_0.8.0-alpha.3_amd64.deb` |
+| Desktop (Linux amd64) | 0.8.0-alpha.4 | `qortal-migration-studio_0.8.0-alpha.4_amd64.deb` |
 | Migration Publisher (Q-App) | 0.8.0-alpha.2 | `qortal-migration-publisher-v0.8.0-alpha.2.zip` |
 | Generic CMS (Q-App) | 0.8.0-alpha.3 | `qortal-migration-generic-cms-v0.8.0-alpha.3.zip` |
 
-The GitHub release bundle version is independent of these component versions.
-The Publisher source did not change in this release, so its version and artifact
-bytes stay at 0.8.0-alpha.2. The desktop package is bumped because it bundles
-the Generic CMS template; the CMS template itself is bumped for the fix.
+The Publisher and Generic CMS sources did not change. Their artifacts are
+byte-identical to the previous release; only the desktop package version moves.
 
-## What changed
+### Upgrade an existing installation
 
-### Owner can reach Admin again (live regression)
+~~~bash
+sudo apt install ./qortal-migration-studio_0.8.0-alpha.4_amd64.deb
+~~~
 
-The previous CMS checked the on-chain name record by calling
-`<trusted-node>/names/<name>`. The Vite build injected
-`VITE_QORTAL_NODE_URL=http://localhost:12391` as the trusted node default, so
-every release build ignored the page origin and asked the device's own
-loopback address. On a desktop with a local node that happened to work. In
-Qortal Hub on Android there is no node on `localhost:12391`, so the name record
-read failed, ownership stayed unverified and Admin disappeared for the real
-owner.
+Then start the application again:
 
-The fix makes the hosting node origin authoritative in release builds
-(`resolveNodeBase` in `src/lib/qortal.js`). The build-time node URL is now an
-optional local-development override only, never a release default. Ownership is
-still granted only when the live name record names the exact QDN name with the
-active account as owner and the account's name list contains that name.
+~~~bash
+qortal-migration-studio
+~~~
 
-### Explicit recovery action
+Confirm the installed version:
 
-- The CMS header and the Admin gate now offer **Connect owner account** when the
-  bridge is available but no active account was returned. It calls the supported
-  `GET_USER_ACCOUNT` bridge action from a user gesture and then re-runs the full
-  verification.
-- **Retry verification** is offered when the node or name registry is
-  unreachable, and the wording distinguishes that from "name not owned".
-- A genuinely different owner still gets **Access denied**, never a bypass.
-- If the direct node read fails but the bridge is available, ownership can be
-  confirmed from the Hub-connected node's `GET_NAME_DATA` record. The same exact
-  name and owner-address equality rules apply.
-- Every publish and mutation still revalidates the active account and the name
-  record immediately before signing.
+~~~bash
+dpkg-query -W -f='${Version}\n' qortal-migration-studio
+# expected: 0.8.0~alpha.4
+~~~
 
-### Documentation
+An installed alpha.3 package may be replaced directly. Projects, media, handoffs
+and history under `~/.local/share/qortal-migration-studio` are preserved.
 
-The Generic CMS README now explains how ownership verification works and what an
-owner should do when Admin is missing after an update.
+### Verification
+
+The release gate records `desktop/release/engine-clean-install.json` (packaged
+engine started from the extracted .deb and answered `engine.info` with
+`apiVersion=qms-engine@1`) and `desktop/release/engine-clean-install-negative.json`
+(the same test fails when `fflate` is hidden). `release/release-manifest.json`
+records both artifacts and their SHA-256 values.
+
+## 0.8.0 alpha.3 — previous
+
+The 0.8.0-alpha.3 release fixed a live Generic CMS owner Admin regression in
+Qortal Hub on Android. Its desktop .deb is affected by the engine dependency
+defect above; use 0.8.0-alpha.4 instead.
+
+The CMS now reads the on-chain name record from the node that serves the page.
+A build-time `http://localhost:12391` default made Android devices query their
+own loopback, fail the ownership check and hide Admin from the real owner. The
+CMS also adds **Connect owner account** and **Retry verification** recovery
+actions. They re-run the complete fail-closed check; they never grant owner mode
+themselves.
+
+The component versions in that release were desktop 0.8.0-alpha.3, Publisher
+0.8.0-alpha.2 and CMS 0.8.0-alpha.3.
 
 ## Registry publication status
 
@@ -69,11 +114,11 @@ See `docs/migration-studio/UPDATE-REGISTRY.md`.
 
 ## Install
 
-### Desktop (Debian 12/13)
+### Desktop (Debian 12/13, MX Linux 23)
 
 ```bash
-sha256sum qortal-migration-studio_0.8.0-alpha.3_amd64.deb
-sudo apt install ./qortal-migration-studio_0.8.0-alpha.3_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-alpha.4_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-alpha.4_amd64.deb
 ```
 
 Verify the hash against the release assets. The package is unsigned.
@@ -101,6 +146,9 @@ with the generic ZIP. After deployment, open the site in Qortal Hub and use
   copyable release URL as the fallback.
 - The registry is published only after the owner approves the Publisher handoff.
   A GitHub release alone never advertises an update.
+- Engine dependency completeness is verified on the build host from an extracted
+  .deb. The gate does not install the .deb into a full graphical MX Linux
+  desktop session; the isolated Debian rootfs install test remains separate.
 
 ## Verification
 

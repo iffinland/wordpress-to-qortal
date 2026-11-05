@@ -2,9 +2,28 @@
 
 <!-- alpha-release-version: 0.8.0 -->
 
-## 0.8.0 alpha.3 — current
+## 0.8.0 alpha.4 — current
 
-Qortal Migration Studio **0.8.0 alpha.3** is the current GitHub prerelease. It
+Qortal Migration Studio **0.8.0 alpha.4** fixes the desktop packaging defect in
+alpha.3: the .deb installed but the engine aborted at startup with
+`ERR_MODULE_NOT_FOUND: Cannot find package 'fflate'`.
+
+- The engine runtime now declares and ships `fflate` 0.8.3 and stages
+  `src/config.js`.
+- `prepare-engine` resolves the complete engine import graph against an
+  isolated staged tree and fails the build on an unresolved import.
+- The release gate extracts the built .deb, starts the packaged engine and
+  performs a real `engine.info` JSON-RPC handshake. A negative run hides
+  `fflate` and requires the test to fail with `ERR_MODULE_NOT_FOUND`.
+- No user action beyond installing the new .deb. Do not install Node.js or npm.
+- Desktop is 0.8.0-alpha.4. Publisher stays 0.8.0-alpha.2 and CMS stays
+  0.8.0-alpha.3; both artifact bytes are unchanged.
+- Detailed evidence:
+  [../RELEASE-0.8.0-ALPHA.md](../RELEASE-0.8.0-ALPHA.md).
+
+## 0.8.0 alpha.3 — previous
+
+Qortal Migration Studio **0.8.0 alpha.3** was the previous GitHub prerelease. It
 fixes the Generic CMS owner Admin regression seen in Qortal Hub on Android.
 
 - The CMS now reads the on-chain name record from the node that serves the page.

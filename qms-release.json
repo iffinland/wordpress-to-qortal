@@ -1,22 +1,22 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-alpha.3",
+  "version": "0.8.0-alpha.4",
   "channel": "alpha",
-  "releaseTag": "v0.8.0-alpha.3",
+  "releaseTag": "v0.8.0-alpha.4",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
   "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-ALPHA.md",
   "changelog": {
-    "summary": "Fixes the Generic CMS owner Admin regression in Qortal Hub on Android: release builds now verify ownership against the hosting node origin instead of a build-time localhost default, and the CMS adds an explicit fail-closed Connect owner account recovery action."
+    "summary": "Fixes the 0.8.0-alpha.3 desktop packaging defect that aborted the installed app with QMS_STARTUP_FAILED: the .deb now contains and verifies every engine runtime dependency, including fflate. The release gate extracts the built .deb, starts the packaged engine and performs a real engine.info JSON-RPC handshake, and proves it detects a removed dependency."
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-alpha.3",
+      "version": "0.8.0-alpha.4",
       "channel": "alpha",
       "source": "desktop/package.json",
-      "changelog": "Rebuilt with the corrected Generic CMS template bundled in the engine. No desktop source change; the version is bumped because the package contents change."
+      "changelog": "Packaging-only fix. desktop/engine-package now declares fflate 0.8.3 and the engine runtime also stages src/config.js (dynamically imported by compat.loadLegacyConfig). prepare-engine resolves the complete import graph against an isolated copy of the staged tree and fails the build on any unresolved import. release:prepare runs the extracted-.deb JSON-RPC handshake and a missing-dependency negative test."
     },
     "publisher": {
       "version": "0.8.0-alpha.2",
@@ -28,7 +28,7 @@
       "version": "0.8.0-alpha.3",
       "channel": "alpha",
       "source": "templates/generic-cms/package.json",
-      "changelog": "Owner Admin restored on Qortal Hub Android: ownership verification uses the hosting node origin, no longer a build-time localhost URL. Adds Connect owner account and precise registry-unavailable recovery guidance while keeping fail-closed authorization."
+      "changelog": "Unchanged in this release; the Generic CMS artifact is byte-identical to 0.8.0-alpha.3 owner-Admin fix."
     }
   },
   "versionMarkers": [

@@ -43,6 +43,53 @@ Preparation always rebuilds both ZIPs and the .deb from a clean checkout to
 compare SHA-256 values. Use `-- --skip-repro` only for a local trial run; a
 release without reproducibility evidence is not acceptable.
 
+## Engine runtime dependency rule
+
+The .deb ships the engine as plain ESM plus a locked production node_modules
+tree under `/opt/qortal-migration-studio/resources/engine`. The engine is not
+bundled into one file because it resolves templates and assets relative to its
+own directory and must keep native/optional package semantics.
+
+Rules:
+
+1. Every bare package imported anywhere in the runtime graph must be declared
+   in `desktop/engine-package/package.json` and pinned in its lockfile.
+   `npm run engine:verify` resolves the graph from `bin/qms-host.js` with
+   esbuild against an isolated copy of the staged tree. A missing relative
+   module or package fails `prepare:engine`, and therefore `release:deb`.
+2. Every module the engine reaches outside `lib/` must be staged by
+   `desktop/scripts/prepare-engine.mjs`. `compat.loadLegacyConfig()` lazily
+   imports `src/config.js`; omitting it is a startup/runtime failure.
+3. Never fix a user-facing dependency error by asking the user to run npm.
+   The .deb is self-contained by contract.
+
+The 0.8.0-alpha.3 regression is the reference case:
+`lib/engine/publication/index.js` imported `fflate`, but engine-package
+declared only cheerio and dotenv. The host process died before the first
+JSON-RPC response. The regression test
+`test/phase9/engine-runtime-deps.test.js` keeps the static graph complete, and
+the release gate proves it from the real .deb.
+
+## Clean-install engine gate
+
+`npm run release:prepare` runs, after building and validating the .deb:
+
+~~~bash
+node scripts/release/engine-clean-install-test.mjs
+# dpkg-deb -x -> spawn resources/engine/bin/qms-host.js -> engine.info
+# asserts apiVersion=qms-engine@1 and the packaged version
+
+node scripts/release/engine-clean-install-test.mjs \
+  --hide-node-module=fflate --expect-failure
+# proves the same test fails with ERR_MODULE_NOT_FOUND when a dependency
+# is removed from a throwaway extraction
+~~~
+
+Both write evidence files under `desktop/release/`. The three-artifact gate
+requires them, checks `status=pass` and requires their `artifactSha256` to
+match the .deb being published. A .deb without a successful handshake and a
+successful negative run cannot be published.
+
 ## Artifacts
 
 | Kind | Path |

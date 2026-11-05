@@ -45,6 +45,9 @@ await mkdir(stage, { recursive: true });
 
 await cp(path.join(repo, 'lib'), path.join(stage, 'lib'), { recursive: true });
 await cp(path.join(repo, 'src/profile.js'), path.join(stage, 'src/profile.js'));
+// compat.loadLegacyConfig() dynamically imports src/config.js; without it the
+// packaged engine reports ERR_MODULE_NOT_FOUND on that code path.
+await cp(path.join(repo, 'src/config.js'), path.join(stage, 'src/config.js'));
 await cp(path.join(repo, 'src/utils'), path.join(stage, 'src/utils'), { recursive: true });
 await mkdir(path.join(stage, 'bin'), { recursive: true });
 await cp(path.join(repo, 'bin/qms-host.js'), path.join(stage, 'bin/qms-host.js'));
@@ -104,14 +107,23 @@ for (const required of [
   'lib/engine/history.js',
   'lib/engine/cleanup.js',
   'bin/qms-host.js',
+  'src/config.js',
   'node_modules/cheerio/package.json',
   'node_modules/dotenv/package.json',
+  'node_modules/fflate/package.json',
   'templates/generic-cms/dist/index.html'
 ]) {
   if (!(await exists(path.join(stage, required)))) {
     throw new Error('engine runtime is missing ' + required);
   }
 }
+
+// Resolve the complete runtime import graph against an isolated copy of the
+// staged tree. This fails the build instead of shipping an incomplete .deb.
+execFileSync(process.execPath, [path.join(repo, 'scripts/release/verify-engine-runtime.mjs'), stage], {
+  cwd: repo,
+  stdio: 'inherit'
+});
 
 const engineFiles = await hashTree(stage);
 const manifest = {
