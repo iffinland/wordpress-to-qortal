@@ -59,6 +59,9 @@ if (existing.status === 0) {
 
 const notesPath = path.join(releaseDir, 'RELEASE-NOTES.md');
 const sourceNotes = await readFile(path.join(REPO_ROOT, release.releaseNotes), 'utf8');
+const componentLine = ['desktop', 'publisher', 'cms']
+  .map((id) => id + ' ' + (release.components?.[id]?.version ?? release.version))
+  .join(', ');
 const table = [
   '## Release components',
   '',
