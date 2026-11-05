@@ -429,6 +429,16 @@ export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
       createdAt: '2026-11-03T10:00:00.000Z',
       sections: ['app', 'project']
     })) },
+    updates: {
+      state: vi.fn(async () => ({
+        status: 'up_to_date', componentId: 'desktop', installedVersion: '0.8.0-alpha.1',
+        checkedAt: Date.parse('2026-11-05T05:00:00.000Z'), stale: false, showBadge: false,
+        reason: 'Installed version is current.'
+      }) as never),
+      check: vi.fn(async () => ({}) as never),
+      setNode: vi.fn(async () => ({}) as never),
+      openRelease: vi.fn(async () => ({ ok: true }))
+    },
     events: { on: vi.fn(() => () => {}) }
   };
   return { ...base, ...overrides };

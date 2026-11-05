@@ -27,6 +27,7 @@ import type { OwnedName } from './ownership';
 import { preselectTargetName, resolveTargetGate, targetPhaseMessage } from './targetState';
 import { createReceipt, downloadReceipt, receiptFileText, type ReceiptDocument } from './receipt';
 import { APP_VERSION } from '../version';
+import { PublisherUpdate } from './PublisherUpdate';
 
 interface ResourceState {
   status: PublicationState;
@@ -755,6 +756,7 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
         <p className="eyebrow">Universal QDN publication</p>
         <h1>Migration Publisher</h1>
         <p className="version-line">Version {APP_VERSION}</p>
+        <PublisherUpdate />
         <div className="publisher-controls">
           <label>
             Handoff folder

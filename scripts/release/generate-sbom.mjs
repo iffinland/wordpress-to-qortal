@@ -11,12 +11,13 @@ import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { REPO_ROOT, gitInfo, readJson, sha256File, writeJson } from './lib.mjs';
+import { componentVersion } from './artifact-set.mjs';
 
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const artifactArg = process.argv.find((value) => value.startsWith('--artifact='));
 const artifact = artifactArg
   ? path.resolve(artifactArg.slice('--artifact='.length))
-  : path.join(REPO_ROOT, 'desktop/release', 'qortal-migration-studio_' + release.version + '_amd64.deb');
+  : path.join(REPO_ROOT, 'desktop/release', 'qortal-migration-studio_' + componentVersion(release, 'desktop') + '_amd64.deb');
 const outArg = process.argv.find((value) => value.startsWith('--out='));
 const output = outArg ? path.resolve(outArg.slice('--out='.length)) : path.join(REPO_ROOT, 'desktop/release/sbom.cdx.json');
 
@@ -94,17 +95,19 @@ if (!releaseManifest || releaseManifest.schema !== 'qms-release-artifacts@1') {
 const releaseArtifacts = releaseManifest?.artifacts ?? [];
 for (const entry of releaseArtifacts) {
   if (entry.kind === 'deb') continue;
-  const bomRef = 'pkg:generic/' + entry.name.replace(/\.zip$/, '') + '@' + release.version;
+  const entryVersion = entry.componentVersion ?? entry.version ?? release.version;
+  const bomRef = 'pkg:generic/' + entry.name.replace(/\.zip$/, '') + '@' + entryVersion;
   components.set(bomRef, {
     type: 'application',
     'bom-ref': bomRef,
     name: entry.name,
-    version: release.version,
+    version: entryVersion,
     purl: bomRef,
     scope: 'required',
     hashes: [{ alg: 'SHA-256', content: entry.sha256 }],
     properties: [
       { name: 'qms:artifactKind', value: entry.kind },
+      { name: 'qms:component', value: entry.component ?? '' },
       { name: 'qms:artifactLayout', value: entry.layout },
       { name: 'qms:artifactBytes', value: String(entry.bytes) }
     ]
@@ -127,10 +130,10 @@ const sbom = {
     authors: [{ name: 'Qortal Migration Studio release pipeline' }],
     component: {
       type: 'application',
-      'bom-ref': 'pkg:generic/qortal-migration-studio@' + release.version,
+      'bom-ref': 'pkg:generic/qortal-migration-studio@' + componentVersion(release, 'desktop'),
       name: release.debianPackage,
-      version: release.version,
-      purl: 'pkg:generic/qortal-migration-studio@' + release.version,
+      version: componentVersion(release, 'desktop'),
+      purl: 'pkg:generic/qortal-migration-studio@' + componentVersion(release, 'desktop'),
       hashes: [{ alg: 'SHA-256', content: artifactSha }],
       properties: [
         { name: 'qms:sourceCommit', value: git.commit },
@@ -138,6 +141,7 @@ const sbom = {
         { name: 'qms:channel', value: release.channel },
         { name: 'qms:signing', value: release.signing },
         { name: 'qms:artifact', value: path.basename(artifact) },
+        { name: 'qms:bundleVersion', value: release.version },
         { name: 'qms:artifactId', value: 'sha256:' + artifactSha }
       ]
     }

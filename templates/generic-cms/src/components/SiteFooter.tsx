@@ -10,7 +10,7 @@ export const ATTRIBUTION_LINK = 'qortal://WEBSITE/Qortal%20Web%20Builders/';
  * goes through the Hub OPEN_NEW_TAB bridge action; outside Hub the href remains
  * a normal link so an installed protocol handler can still take over.
  */
-export function SiteFooter(props: { config: CmsTemplateConfig; templateVersion: string }) {
+export function SiteFooter(props: { config: CmsTemplateConfig; templateVersion: string; onCheckUpdates?: () => void }) {
   const [fallback, setFallback] = useState('');
   const label = 'Qortal. Template v' + props.templateVersion;
   const open = async (event: MouseEvent<HTMLAnchorElement>) => {
@@ -34,6 +34,11 @@ export function SiteFooter(props: { config: CmsTemplateConfig; templateVersion: 
       {props.config.site.footerText ? <p className="site-footer__text">{props.config.site.footerText}</p> : null}
       <p className="site-footer__meta">
         {props.config.site.ownerName ? <span>QDN name: {props.config.site.ownerName}. </span> : null}
+        {props.onCheckUpdates ? (
+          <button type="button" className="site-footer__updates" onClick={props.onCheckUpdates}>
+            Check for updates
+          </button>
+        ) : null}
         <a
           className="site-footer__attribution"
           href={ATTRIBUTION_LINK}

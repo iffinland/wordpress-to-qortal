@@ -11,11 +11,13 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { REPO_ROOT, artifactName, gitInfo, readJson, sha256File, writeJson } from './lib.mjs';
 import { runThreeArtifactGate } from './three-artifact-gate.mjs';
+import { componentVersion } from './artifact-set.mjs';
 
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const config = await readJson(path.join(REPO_ROOT, 'desktop/release.config.json'));
+const desktopVersion = componentVersion(release, 'desktop');
 const releaseDir = path.join(REPO_ROOT, 'desktop/release');
-const artifact = path.join(releaseDir, artifactName(config.packageName, release.version, release.architecture));
+const artifact = path.join(releaseDir, artifactName(config.packageName, desktopVersion, release.architecture));
 const artifactInfo = await readJson(path.join(releaseDir, 'artifact.json'));
 const validation = await readJson(path.join(releaseDir, 'validation.json'));
 const security = await readJson(path.join(releaseDir, 'security-report.json'));
@@ -58,7 +60,7 @@ expect('SBOM commit matches artifact metadata', sbom.metadata?.component?.proper
 expect('validation passed', validation.failed === 0 && validation.checks > 0);
 expect('security gate passed', security.verdict === 'pass');
 expect('reproducible clean build', reproducibility.reproducible === true);
-expect('release version matches artifact', artifactInfo.version === release.version);
+expect('release version matches artifact', artifactInfo.version === desktopVersion);
 expect('release commit matches current HEAD', artifactInfo.sourceCommit === git.commit);
 expect('source tree clean at release', artifactInfo.dirty === false);
 
@@ -71,6 +73,7 @@ const releaseState = {
   schema: 'qms-release-state@1',
   product: release.product,
   version: release.version,
+  components: Object.fromEntries(['desktop','publisher','cms'].map((id) => [id, componentVersion(release, id)])),
   debianVersion: artifactInfo.debianVersion,
   channel: release.channel,
   architecture: release.architecture,

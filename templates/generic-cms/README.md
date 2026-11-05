@@ -86,6 +86,16 @@ marked **ambiguous** and are not resent automatically.
 
 ## Upgrading a deployed site
 
+The running site shows its template version in the footer. When the shared QDN
+update registry lists a newer CMS template, a compact **Update available** badge
+appears. The update view shows the installed and available versions, changes,
+compatibility and a copyable verified download link. It does not replace the
+running site. Update manually by republishing the template bundle in Qortal Hub.
+
+If the site already uses a runtime `qms-cms-config.json` or published settings,
+the update view warns that the generic ZIP must not overwrite a customized CMS.
+Preserve the existing configuration and custom assets.
+
 Preserve the existing `qms-cms-config.json` and all identifiers. Publish the
 new CMS bundle under the same name, then publish site settings revision 1 (or
 the next revision) as the owner. Existing imported posts, categories, tags and

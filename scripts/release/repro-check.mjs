@@ -9,14 +9,16 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { REPO_ROOT, artifactName, capture, gitInfo, readJson, run, sha256File } from './lib.mjs';
+import { componentVersion } from './artifact-set.mjs';
 
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const config = await readJson(path.join(REPO_ROOT, 'desktop/release.config.json'));
+const desktopVersion = componentVersion(release, 'desktop');
 const keep = process.argv.includes('--keep');
 const referenceArg = process.argv.find((value) => value.startsWith('--reference='));
 const reference = referenceArg
   ? path.resolve(referenceArg.slice('--reference='.length))
-  : path.join(REPO_ROOT, 'desktop/release', artifactName(config.packageName, release.version, release.architecture));
+  : path.join(REPO_ROOT, 'desktop/release', artifactName(config.packageName, desktopVersion, release.architecture));
 const git = gitInfo(REPO_ROOT);
 const epoch = Number(process.env.SOURCE_DATE_EPOCH) || git.commitTime;
 const workRoot = path.join('/home/iffi/dev-workspace/tmp/qms-phase9-repro', git.commit);

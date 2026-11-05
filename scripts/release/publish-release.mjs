@@ -60,6 +60,10 @@ if (existing.status === 0) {
 const notesPath = path.join(releaseDir, 'RELEASE-NOTES.md');
 const sourceNotes = await readFile(path.join(REPO_ROOT, release.releaseNotes), 'utf8');
 const table = [
+  '## Release components',
+  '',
+  'Bundle: `' + release.version + '` (' + release.releaseTag + '). Components: ' + componentLine + '.',
+  '',
   '## Release artifacts',
   '',
   '| Artifact | File | Size (bytes) | SHA-256 |',

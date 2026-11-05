@@ -2,9 +2,10 @@ import { BrowserWindow, app } from 'electron';
 import path from 'node:path';
 import { EngineHost, resolveHostPaths } from './host.js';
 import { CredentialStore } from './credentials.js';
-import { defaultDataRoot, loadConfig, saveConfig, validateDataRoot, desktopSettings } from './paths.js';
+import { defaultDataRoot, loadConfig, saveConfig, validateDataRoot, desktopSettings, type DesktopConfig } from './paths.js';
 import { createMainWindow, installSessionPolicy, isTrustedNavigation } from './window.js';
 import { forwardEngineEvent, registerIpc } from './ipc.js';
+import { DesktopUpdates, validateUpdateNodeUrl } from './updates.js';
 
 const smokeTest = process.argv.includes('--qms-smoke-test') || process.env.QMS_SMOKE_TEST === '1';
 const devArg = process.argv.find((arg) => arg.startsWith('--dev-server='));
@@ -12,7 +13,8 @@ if (devArg) process.env.QMS_DEV_SERVER = devArg.slice('--dev-server='.length);
 
 let mainWindow: BrowserWindow | null = null;
 let host: EngineHost | null = null;
-let currentConfig = { schema: 'qms-desktop-config@1' as const, dataRoot: defaultDataRoot(), updatedAt: '' };
+let updates: DesktopUpdates | null = null;
+let currentConfig: DesktopConfig = { schema: 'qms-desktop-config@1', dataRoot: defaultDataRoot(), updatedAt: '' };
 let keyringStatus = { available: false, backend: 'session-memory' };
 const credentials = new CredentialStore();
 let quitting = false;
@@ -89,8 +91,16 @@ if (!gotLock) {
     }
     await saveConfig(currentConfig);
     host = await startHost(currentConfig.dataRoot);
+    updates = new DesktopUpdates({
+      appVersion: app.getVersion(),
+      userDataDir: app.getPath('userData'),
+      nodeUrl: currentConfig.updateNodeUrl ?? null
+    });
 
     mainWindow = createMainWindow({ show: !smokeTest });
+    void updates.start().catch((error) => {
+      console.error('QMS_UPDATE_CHECK_FAILED ' + (error instanceof Error ? error.message : String(error)));
+    });
     mainWindow.on('closed', () => { mainWindow = null; });
     const unsubscribe = host.onEvent((event) => forwardEngineEvent(mainWindow, event));
     app.on('before-quit', () => unsubscribe());
@@ -102,7 +112,19 @@ if (!gotLock) {
       getSettings: settingsPayload,
       setDataRoot: changeDataRoot,
       appInfo,
-      dataRoot: () => currentConfig.dataRoot
+      dataRoot: () => currentConfig.dataRoot,
+      updates: () => {
+        if (!updates) throw new Error('Update service is not available.');
+        return updates;
+      },
+      setUpdateNode: async (value: string) => {
+        const normalized = validateUpdateNodeUrl(value);
+        if (!updates) throw new Error('Update service is not available.');
+        const state = await updates.setNodeUrl(normalized);
+        currentConfig = { ...currentConfig, updateNodeUrl: normalized, updatedAt: new Date().toISOString() };
+        await saveConfig(currentConfig);
+        return state;
+      }
     });
 
     if (smokeTest) {

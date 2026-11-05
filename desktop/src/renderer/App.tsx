@@ -9,6 +9,7 @@ import { Publishing } from './components/Publishing.js';
 import { SyncView } from './components/Sync.js';
 import { Recovery } from './components/Recovery.js';
 import { ErrorText } from './components/Common.js';
+import { Updates } from './components/Updates.js';
 
 type View = 'dashboard' | 'wizard' | 'progress' | 'history' | 'publishing' | 'sync' | 'recovery';
 
@@ -218,6 +219,8 @@ export default function App() {
           </div>
         </div>
         <div className="row wrap gap">
+          <Updates />
+          {settings && <span className="pill">installed v{settings.appVersion}</span>}
           {info && <span className="pill">engine {info.version}</span>}
           {settings && <span className={'pill ' + (settings.keyring.available ? 'good-text' : 'warn-text')}>{settings.keyring.available ? 'keyring available' : 'session-only credentials'}</span>}
           {project && <button className="ghost" onClick={() => void openSync(project.id)}>Sync</button>}

@@ -3,6 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { unzipSync } from 'fflate';
 import { artifactName } from './lib.mjs';
+import { stripPinnedRegistryIdentity } from './identity-scrub.mjs';
 
 /**
  * The three production artifacts every QMS release must ship. The names are
@@ -16,24 +17,35 @@ export const ARTIFACT_LABELS = {
   cms: 'Generic CMS (Q-App ZIP)'
 };
 
+export const ARTIFACT_COMPONENTS = Object.freeze({ deb: 'desktop', publisher: 'publisher', cms: 'cms' });
+
 export const QAPP_LIMIT_BYTES = 20 * 1024 * 1024;
 
+/** Component versions are independent of the GitHub release bundle version. */
+export function componentVersion(release, kind) {
+  const component = ARTIFACT_COMPONENTS[kind];
+  return release?.components?.[component]?.version ?? release.version;
+}
+
 export function releaseArtifactPaths(repoRoot, release) {
+  const desktopVersion = componentVersion(release, 'deb');
+  const publisherVersion = componentVersion(release, 'publisher');
+  const cmsVersion = componentVersion(release, 'cms');
   return {
     deb: path.join(
       repoRoot,
       'desktop/release',
-      artifactName('qortal-migration-studio', release.version, release.architecture)
+      artifactName('qortal-migration-studio', desktopVersion, release.architecture)
     ),
     publisher: path.join(
       repoRoot,
       'release',
-      'qortal-migration-publisher-v' + release.version + '.zip'
+      'qortal-migration-publisher-v' + publisherVersion + '.zip'
     ),
     cms: path.join(
       repoRoot,
       'release',
-      'qortal-migration-generic-cms-v' + release.version + '.zip'
+      'qortal-migration-generic-cms-v' + cmsVersion + '.zip'
     )
   };
 }
@@ -117,9 +129,10 @@ function inspectEntries(entries, kind, version) {
   const scripts = names.filter((name) => name.endsWith('.js'));
   if (scripts.length === 0) fail(errors, 'ZIP contains no JavaScript bundle.');
   const text = [html, ...scripts.map((name) => decodeText(entries[name]))].join('\n');
+  const scanText = stripPinnedRegistryIdentity(text);
 
   for (const rule of FORBIDDEN_CONTENT_MARKERS) {
-    if (rule.pattern.test(text)) fail(errors, 'Bundle contains ' + rule.message + '.');
+    if (rule.pattern.test(scanText)) fail(errors, 'Bundle contains ' + rule.message + '.');
   }
   if (!text.includes(version)) fail(errors, 'Bundle does not carry the release version ' + version + '.');
   if (kind === 'publisher') {

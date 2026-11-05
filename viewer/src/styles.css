@@ -778,3 +778,112 @@ select {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Publisher update notice */
+.publisher-update {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.publisher-update__badge {
+  background: #1f6feb;
+  border: 1px solid #58a6ff;
+  border-radius: 999px;
+  color: #fff;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.35rem 0.8rem;
+}
+
+.publisher-update__link {
+  background: none;
+  border: 0;
+  color: #58a6ff;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.publisher-update__status {
+  color: #8b949e;
+  font-size: 0.85rem;
+}
+
+.publisher-update__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(3, 7, 12, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.publisher-update__dialog {
+  background: #0d1117;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  color: #c9d1d9;
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 1.25rem;
+  width: min(720px, 100%);
+}
+
+.publisher-update__dialog h2,
+.publisher-update__dialog h3 {
+  margin-top: 0.4rem;
+}
+
+.publisher-update__row {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+
+.publisher-update__artifact {
+  display: grid;
+  gap: 0.3rem 1rem;
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+
+.publisher-update__artifact dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.publisher-update__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.publisher-update__actions input {
+  flex: 1 1 280px;
+  min-width: 0;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  color: #c9d1d9;
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.45rem 0.6rem;
+}
+
+@media (max-width: 560px) {
+  .publisher-update__overlay { padding: 0; }
+  .publisher-update__dialog { border-radius: 0; max-height: 100vh; min-height: 100vh; }
+  .publisher-update__artifact { grid-template-columns: 1fr; }
+}

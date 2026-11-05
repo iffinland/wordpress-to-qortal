@@ -2,6 +2,7 @@ import { BrowserWindow, ipcMain, shell } from 'electron';
 import { IPC } from '../shared/channels.js';
 import { validateIpcPayload } from '../shared/validation.js';
 import type { EngineHost } from './host.js';
+import type { DesktopUpdates } from './updates.js';
 import type { CredentialStore } from './credentials.js';
 import { sanitizeForDiagnostics } from './diagnostics.js';
 import { realpath } from 'node:fs/promises';
@@ -73,6 +74,8 @@ export interface IpcDependencies {
   setDataRoot: (candidate: string) => Promise<Record<string, unknown>>;
   appInfo: () => Promise<Record<string, unknown>>;
   dataRoot: () => string;
+  updates: () => DesktopUpdates;
+  setUpdateNode: (url: string) => Promise<unknown>;
 }
 
 function errorPayload(error: unknown) {
@@ -101,6 +104,17 @@ export function registerIpc(deps: IpcDependencies): void {
     [IPC.setDataRoot]: async (params) => deps.setDataRoot(String(params.path)),
 
     [IPC.openUrl]: async (params) => {
+      await shell.openExternal(String(params.url));
+      return { ok: true };
+    },
+    [IPC.updatesState]: async () => {
+      const service = deps.updates();
+      await service.start();
+      return service.state;
+    },
+    [IPC.updatesCheck]: async () => deps.updates().check(true),
+    [IPC.updatesSetNode]: async (params) => deps.setUpdateNode(String(params.url)),
+    [IPC.updatesOpenRelease]: async (params) => {
       await shell.openExternal(String(params.url));
       return { ok: true };
     },

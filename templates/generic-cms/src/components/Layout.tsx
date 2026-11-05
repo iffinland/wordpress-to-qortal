@@ -38,6 +38,8 @@ export function Layout(props: {
   resolvedTheme?: 'light' | 'dark';
   onThemeChange?: (mode: 'light' | 'dark' | 'system') => void;
   hasGalleries?: boolean;
+  updateBadge?: ReactNode;
+  onCheckUpdates?: () => void;
 }) {
   const owner = Boolean(props.viewer && props.viewer.owner && props.viewer.nameRecordStatus === 'verified');
   const navigation = publicNavigation(props.config, owner, Boolean(props.hasGalleries));
@@ -67,6 +69,7 @@ export function Layout(props: {
             </ul>
           </nav>
           <div className="site-header__tools">
+            {props.updateBadge}
             <ThemeToggle mode={props.themeMode || 'system'} onChange={props.onThemeChange} />
             <p className={'viewer-badge ' + (owner ? 'viewer-badge--owner' : '')}>
               {props.viewer ? (owner ? 'Owner mode' : 'Read-only') : props.viewerLoading ? 'Checking access' : 'Read-only'}
@@ -77,7 +80,7 @@ export function Layout(props: {
       <main id="main-content" className="site-main" tabIndex={-1}>
         {props.children}
       </main>
-      <SiteFooter config={props.config} templateVersion={props.templateVersion} />
+      <SiteFooter config={props.config} templateVersion={props.templateVersion} onCheckUpdates={props.onCheckUpdates} />
     </div>
   );
 }

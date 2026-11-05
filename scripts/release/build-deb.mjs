@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { REPO_ROOT, artifactName, fileModeFor, gitInfo, readJson, run, sha256File, sourceDateEpoch, walkFiles, writeJson, debVersion } from './lib.mjs';
 import { checkVersions } from '../qms-release.mjs';
+import { componentVersion } from './artifact-set.mjs';
 
 const args = new Set(process.argv.slice(2));
 const allowDirty = args.has('--allow-dirty');
@@ -21,6 +22,7 @@ const skipBuild = args.has('--skip-build');
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const config = await readJson(path.join(REPO_ROOT, 'desktop/release.config.json'));
 const desktopPackage = await readJson(path.join(REPO_ROOT, 'desktop/package.json'));
+const desktopVersion = componentVersion(release, 'desktop');
 
 const versions = await checkVersions(REPO_ROOT);
 if (!versions.ok) {
@@ -28,7 +30,7 @@ if (!versions.ok) {
   for (const failure of versions.failures) console.error(' - ' + failure);
   process.exit(1);
 }
-if (desktopPackage.version !== release.version) {
+if (desktopPackage.version !== desktopVersion) {
   console.error('desktop/package.json version does not match qms-release.json');
   process.exit(1);
 }
@@ -50,7 +52,7 @@ const epoch = sourceDateEpoch(git);
 const releaseDir = path.join(REPO_ROOT, 'desktop/release');
 const unpacked = path.join(releaseDir, 'linux-unpacked');
 const stage = path.join(releaseDir, 'deb-stage');
-const artifact = path.join(releaseDir, artifactName(config.packageName, release.version, release.architecture));
+const artifact = path.join(releaseDir, artifactName(config.packageName, desktopVersion, release.architecture));
 
 if (!skipBuild) {
   console.log('[1/6] building generic CMS template');
@@ -207,7 +209,7 @@ function chmodStaged(file, mode) { chmodSync(file, mode); }
 const descriptionLines = wrapDescription(config.description, 78);
 const control = [
   'Package: ' + config.packageName,
-  'Version: ' + debVersion(release.version),
+  'Version: ' + debVersion(desktopVersion),
   'Section: ' + config.section,
   'Priority: ' + config.priority,
   'Architecture: ' + release.architecture,
@@ -264,8 +266,8 @@ const built = {
   path: artifact,
   bytes: info.size,
   sha256,
-  version: release.version,
-  debianVersion: debVersion(release.version),
+  version: desktopVersion,
+  debianVersion: debVersion(desktopVersion),
   architecture: release.architecture,
   channel: release.channel,
   signing: release.signing,

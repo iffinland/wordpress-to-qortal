@@ -10,10 +10,12 @@ import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { REPO_ROOT, artifactName, gitInfo, readJson, sha256File, writeJson } from './lib.mjs';
+import { componentVersion } from './artifact-set.mjs';
 
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const config = await readJson(path.join(REPO_ROOT, 'desktop/release.config.json'));
-const artifact = path.join(REPO_ROOT, 'desktop/release', artifactName(config.packageName, release.version, release.architecture));
+const desktopVersion = componentVersion(release, 'desktop');
+const artifact = path.join(REPO_ROOT, 'desktop/release', artifactName(config.packageName, desktopVersion, release.architecture));
 const git = gitInfo(REPO_ROOT);
 const artifactSha = await sha256File(artifact);
 const artifactInfo = await readJson(path.join(REPO_ROOT, 'desktop/release/artifact.json')).catch(() => null);
@@ -79,11 +81,14 @@ const statement = {
       externalParameters: {
         product: release.product,
         version: release.version,
+        components: Object.fromEntries(['desktop','publisher','cms'].map((id) => [id, componentVersion(release, id)])),
         channel: release.channel,
         architecture: release.architecture,
         signing: release.signing,
         artifacts: manifestArtifacts.map((entry) => ({
           kind: entry.kind,
+          component: entry.component,
+          componentVersion: entry.componentVersion,
           name: entry.name,
           sha256: entry.sha256,
           bytes: entry.bytes,
