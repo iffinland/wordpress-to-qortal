@@ -84,7 +84,7 @@ bytes; if its bytes differ without a version bump, `release:registry` fails.
           "name": "qortal-migration-studio_0.8.0-alpha.2_amd64.deb",
           "bytes": 123456789,
           "sha256": "64 lowercase hex characters",
-          "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.2/…"
+          "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.4/…"
         }
       ]
     },
