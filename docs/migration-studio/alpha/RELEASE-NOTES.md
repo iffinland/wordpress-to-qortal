@@ -1,10 +1,33 @@
 # Qortal Migration Studio alpha release notes
 
-<!-- alpha-release-version: 0.7.0 -->
+<!-- alpha-release-version: 0.8.0 -->
 
-## 0.7.0 alpha.1 — current
+## 0.8.0 alpha.3 — current
 
-Qortal Migration Studio **0.7.0 alpha.1** is the current GitHub prerelease:
+Qortal Migration Studio **0.8.0 alpha.3** is the current GitHub prerelease. It
+fixes the Generic CMS owner Admin regression seen in Qortal Hub on Android.
+
+- The CMS now reads the on-chain name record from the node that serves the page.
+  A build-time `http://localhost:12391` default made Android devices query their
+  own loopback, fail the ownership check and hide Admin from the real owner.
+- The CMS adds **Connect owner account** and **Retry verification** recovery
+  actions. They re-run the complete fail-closed check; they never grant owner
+  mode themselves.
+- Precise messages now distinguish "connect owner account", "name not owned" and
+  "registry/node unavailable".
+- Desktop 0.8.0-alpha.3 is rebuilt because it bundles the corrected CMS
+  template. Publisher stays 0.8.0-alpha.2 with byte-identical artifacts.
+- Detailed evidence:
+  [../RELEASE-0.8.0-ALPHA.md](../RELEASE-0.8.0-ALPHA.md).
+
+## 0.8.0 alpha.2 — previous
+
+Independent update notifications for the desktop app, Migration Publisher and
+Generic CMS, backed by a shared QDN update registry.
+
+## 0.7.0 alpha.1 — previous
+
+Qortal Migration Studio **0.7.0 alpha.1** was the GitHub prerelease at that time:
 <https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.7.0-alpha.1>.
 
 The release ships three artifacts from one commit:

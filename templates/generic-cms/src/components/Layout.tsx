@@ -40,10 +40,14 @@ export function Layout(props: {
   hasGalleries?: boolean;
   updateBadge?: ReactNode;
   onCheckUpdates?: () => void;
+  onConnectOwner?: () => void;
+  onRetryIdentity?: () => void;
 }) {
   const owner = Boolean(props.viewer && props.viewer.owner && props.viewer.nameRecordStatus === 'verified');
   const navigation = publicNavigation(props.config, owner, Boolean(props.hasGalleries));
   const resolved = props.resolvedTheme || 'dark';
+  const canConnect = Boolean(!owner && !props.viewerLoading && props.viewer && props.viewer.action === 'connect' && props.onConnectOwner);
+  const canRetry = Boolean(!owner && !props.viewerLoading && props.viewer && props.viewer.action === 'retry' && props.onRetryIdentity);
   return (
     <div className="qms-app" style={themeStyle(props.config, resolved) as CSSProperties} data-theme={resolved}>
       <a className="skip-link" href="#main-content">Skip to main content</a>
@@ -74,6 +78,16 @@ export function Layout(props: {
             <p className={'viewer-badge ' + (owner ? 'viewer-badge--owner' : '')}>
               {props.viewer ? (owner ? 'Owner mode' : 'Read-only') : props.viewerLoading ? 'Checking access' : 'Read-only'}
             </p>
+            {canConnect ? (
+              <button type="button" className="button button--ghost viewer-connect" onClick={props.onConnectOwner}>
+                Connect owner account
+              </button>
+            ) : null}
+            {canRetry ? (
+              <button type="button" className="button button--ghost viewer-connect" onClick={props.onRetryIdentity}>
+                Retry verification
+              </button>
+            ) : null}
           </div>
         </div>
       </header>

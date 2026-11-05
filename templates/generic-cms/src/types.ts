@@ -158,6 +158,9 @@ export interface ViewerIdentity {
   qdnName: string;
   bridgeAvailable: boolean;
   nameRecordStatus: 'verified' | 'unavailable' | 'mismatch' | 'none' | 'invalid';
+  nameRecordSource?: 'node' | 'bridge' | '';
+  nameRecordError?: string;
+  action?: 'connect' | 'retry' | 'open-in-hub' | 'none';
   reason: string;
   message: string;
 }

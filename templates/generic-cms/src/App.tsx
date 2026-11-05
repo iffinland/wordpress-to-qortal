@@ -19,7 +19,7 @@ import { applyAdoption, readAdoptionQueue, removeAdoption, writeAdoptionQueue } 
 import { previousAndNext } from './lib/archive.js';
 import { createCmsRepository } from './lib/repository.js';
 import { routeKey } from './lib/routes.js';
-import { discoverHostedQdnName, revalidateViewerIdentity, resolveViewerIdentity } from './lib/qortal.js';
+import { connectOwnerAccount, discoverHostedQdnName, revalidateViewerIdentity, resolveViewerIdentity } from './lib/qortal.js';
 import { applyThemeToDocument, readStoredTheme, resolveThemeMode, writeStoredTheme } from './lib/theme.js';
 import { loadPublishedSettings, applyPublishedSettings } from './lib/authoring.js';
 import { removeTemplatePlaceholders } from './lib/settings.js';
@@ -195,6 +195,36 @@ export function App() {
     return { ok: true, message: '' };
   };
 
+  const connectOwner = async () => {
+    setIdentityLoading(true);
+    setIdentityNotice('');
+    try {
+      const next = await connectOwnerAccount(hostedName) as ViewerIdentity;
+      setIdentity(next);
+      if (!next.owner) setIdentityNotice(next.message);
+    } catch (error) {
+      setIdentity(null);
+      setIdentityNotice(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIdentityLoading(false);
+    }
+  };
+
+  const retryIdentity = async () => {
+    setIdentityLoading(true);
+    setIdentityNotice('');
+    try {
+      const next = await resolveViewerIdentity({ qdnName: hostedName }) as ViewerIdentity;
+      setIdentity(next);
+      if (!next.owner) setIdentityNotice(next.message);
+    } catch (error) {
+      setIdentity(null);
+      setIdentityNotice(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIdentityLoading(false);
+    }
+  };
+
   const adopt = async (items: CmsContentItem[]) => {
     const authorized = await authorize();
     if (!authorized.ok) return { ok: false, message: authorized.message };
@@ -258,6 +288,8 @@ export function App() {
       resolvedTheme={resolvedTheme}
       onThemeChange={(mode) => setThemeMode(mode)}
       hasGalleries={galleries.length > 0}
+      onConnectOwner={connectOwner}
+      onRetryIdentity={retryIdentity}
       updateBadge={updates.state.showBadge ? (
         <button type="button" className="update-badge" onClick={updates.openPanel}>
           Update available
@@ -288,6 +320,8 @@ export function App() {
           galleries={galleries}
           galleriesLoading={galleriesLoading}
           loadContent={loadContent}
+          onConnectOwner={connectOwner}
+          onRetryIdentity={retryIdentity}
         />
       ) : loading && !dataset ? (
         <div className="page" aria-busy="true"><StateNotice state="loading" title="Loading the QDN catalog..." message="Reading the manifest and indexes from QDN." /></div>

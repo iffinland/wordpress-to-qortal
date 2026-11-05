@@ -66,6 +66,29 @@ describe('owner-only administration interaction', () => {
     expect(screen.queryByText('Galleries')).toBeNull();
   });
 
+  it('offers an explicit Connect owner account action without opening admin', () => {
+    const onConnect = vi.fn();
+    const identity = { ...readerIdentity, address: '', reason: 'no-account', action: 'connect' as const, nameRecordStatus: 'none' as const, message: 'No active Qortal account was returned.' };
+    render(
+      <AdminPage dataset={dataset} identity={identity} identityLoading={false} identityNotice="" adoptionQueue={[]} onAdopt={() => ({ ok: false, message: '' })} onRemove={() => undefined} onRefresh={() => undefined} onConnectOwner={onConnect} />
+    );
+    expect(screen.getByText('Access denied')).toBeTruthy();
+    expect(screen.getByText(/No active Qortal account was returned/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Connect owner account' }));
+    expect(onConnect).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Site settings')).toBeNull();
+  });
+
+  it('distinguishes a registry failure from a permission failure', () => {
+    const identity = { ...readerIdentity, address: '', reason: 'name-record-unavailable', action: 'retry' as const, nameRecordStatus: 'unavailable' as const, message: 'The Qortal name registry could not be read.' };
+    render(
+      <AdminPage dataset={dataset} identity={identity} identityLoading={false} identityNotice="" adoptionQueue={[]} onAdopt={() => ({ ok: false, message: '' })} onRemove={() => undefined} onRefresh={() => undefined} onRetryIdentity={vi.fn()} />
+    );
+    expect(screen.getByText(/not a permission problem/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retry ownership check' })).toBeTruthy();
+    expect(screen.queryByText('Site settings')).toBeNull();
+  });
+
   it('shows the settings publication destination and fee before any signature', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 404 })));
     render(

@@ -70,6 +70,44 @@ immediately before signing. See
 [../../docs/migration-studio/CMS-AUTHORING-SECURITY.md](../../docs/migration-studio/CMS-AUTHORING-SECURITY.md)
 and [../../docs/migration-studio/CMS-SCHEMAS.md](../../docs/migration-studio/CMS-SCHEMAS.md).
 
+### How ownership is verified
+
+1. The QDN name comes from the hosting context (`_qdnName`, `_qdnBase` or the
+   `/render/WEBSITE/<name>` path), never from `?name=`. Percent-encoded names
+   are decoded exactly once.
+2. Qortal Hub is asked for the active account (`GET_USER_ACCOUNT`) and the
+   account's registered names (`GET_ACCOUNT_NAMES`).
+3. The CMS reads `/names/<name>` from the node that serves the page. If that
+   direct read is blocked, it asks the Hub-connected node for the same record
+   through `GET_NAME_DATA`.
+4. Owner mode is enabled only when the record name, the record owner address,
+   the active address and the account name list all match exactly. Anything else
+   stays read-only.
+
+Release builds always use the page's hosting node origin for step 3. The
+`VITE_QORTAL_NODE_URL` build variable is a local-development override only; it
+must never contain a loopback default in a published bundle. A build-time
+`http://localhost:12391` made Android Hub devices check their own loopback and
+was the cause of the 0.8.0-alpha.2 Admin regression.
+
+### If Admin is missing
+
+The header shows the current access state. Use the message and action shown:
+
+- **Connect owner account**: the bridge is available but no active account was
+  returned. Tap it and approve the account request in Qortal Hub. This never
+  grants owner mode by itself; the full check runs again.
+- **Retry verification**: the node or name registry could not be read. This is
+  not a permission problem. Check the Hub connection and retry.
+- **Access denied** with "not registered to" or a different owner address: the
+  active Hub account is not the on-chain owner. Switch to the owning account and
+  retry. A different account cannot be granted admin through this screen.
+- "Open this site inside Qortal Hub": the page was opened in a normal browser,
+  where the Qortal request bridge does not exist.
+
+Admin appears in the navigation only after verification succeeds. Direct
+navigation to `#/admin` by a non-owner still shows **Access denied**.
+
 ## Published resources
 
 | Resource | Service | Identifier | Purpose |

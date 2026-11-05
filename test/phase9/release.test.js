@@ -36,9 +36,9 @@ test('component versions are independent of the GitHub release bundle version', 
   assert.equal(typeof release.components.desktop.version, 'string');
   assert.equal(typeof release.components.publisher.version, 'string');
   assert.equal(typeof release.components.cms.version, 'string');
-  // The model does not require component versions to equal the bundle version;
-  // this release happens to align them because all three apps changed.
-  assert.equal(release.components.desktop.version, release.components.publisher.version);
+  // The model does not require component versions to equal the bundle version.
+  // A component that did not change keeps its previous version and artifact.
+  assert.ok(Object.values(release.components).some((component) => component.version === release.version));
 });
 
 test('Debian release metadata is complete and uses Debian 12/13 alternatives', async () => {
