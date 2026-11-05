@@ -71,6 +71,24 @@ async function inspectDeb(repoRoot, release, expected) {
     if (validation.failed !== 0 || !(validation.checks > 0)) errors.push('Debian artifact validation did not pass.');
     if (validation.version && validation.version !== componentVersion(release, 'deb')) errors.push('Debian validation version does not match.');
   }
+  for (const [label, file] of [
+    ['clean-install', 'engine-clean-install.json'],
+    ['missing-dependency', 'engine-clean-install-negative.json']
+  ]) {
+    let evidence = null;
+    try {
+      evidence = await readJson(path.join(repoRoot, 'desktop/release', file));
+    } catch {
+      errors.push('Engine ' + label + ' evidence (desktop/release/' + file + ') is missing.');
+      continue;
+    }
+    if (evidence.status !== 'pass') errors.push('Engine ' + label + ' evidence did not pass.');
+    if (evidence.artifactSha256 !== sha256) errors.push('Engine ' + label + ' evidence was produced for a different .deb.');
+    if (evidence.version !== componentVersion(release, 'deb')) errors.push('Engine ' + label + ' evidence version does not match.');
+    if (label === 'missing-dependency' && !(evidence.hiddenModules ?? []).includes('fflate')) {
+      errors.push('Engine missing-dependency evidence did not hide a runtime package.');
+    }
+  }
   return {
     ok: errors.length === 0,
     errors,

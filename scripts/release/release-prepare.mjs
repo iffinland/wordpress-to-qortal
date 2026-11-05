@@ -35,6 +35,8 @@ run('validate Migration Publisher bundle', 'npm', ['run', 'publisher:validate'])
 run('package Migration Publisher Q-App', 'npm', ['run', 'publisher:package']);
 run('build Debian package', 'npm', ['run', 'release:deb']);
 run('validate Debian package', 'npm', ['run', 'release:validate']);
+run('verify packaged engine JSON-RPC handshake from the extracted .deb', process.execPath, ['scripts/release/engine-clean-install-test.mjs']);
+run('prove the gate detects a missing engine runtime dependency', process.execPath, ['scripts/release/engine-clean-install-test.mjs', '--hide-node-module=fflate', '--expect-failure']);
 run('run release security gate', 'npm', ['run', 'release:security']);
 
 if (!args.has('--skip-repro')) {

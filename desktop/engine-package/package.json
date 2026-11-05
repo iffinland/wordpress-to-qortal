@@ -1,11 +1,12 @@
 {
   "name": "qortal-migration-studio-engine-runtime",
-  "version": "0.8.0-alpha.3",
+  "version": "0.8.0-alpha.4",
   "private": true,
   "type": "module",
   "description": "Locked production dependency set for the QMS engine host.",
   "dependencies": {
     "cheerio": "1.2.0",
-    "dotenv": "16.6.1"
+    "dotenv": "16.6.1",
+    "fflate": "0.8.3"
   }
 }

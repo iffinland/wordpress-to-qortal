@@ -42,6 +42,12 @@ GH_BROWSER=/bin/true /home/iffi/.local/bin/gh auth login \
 - Verify with `gh auth status`; expected scopes: `repo`, `gist`, `read:org`.
 - If the token expires, repeat the device flow. No other credential store is involved.
 
+The gate also requires packaged-engine evidence. Before an artifact can be
+published, `release:prepare` must extract the .deb, start the packaged engine
+and obtain a valid `engine.info` JSON-RPC response, and must prove that the
+same test fails when `fflate` is hidden from the extraction. Never bypass these
+steps or publish a .deb by hand.
+
 ## Independent component versions
 
 Since 0.8.0, the GitHub release bundle and the three shipped components have
