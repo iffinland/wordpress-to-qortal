@@ -106,7 +106,7 @@ async function inspectZip(repoRoot, release, kind) {
 export async function runThreeArtifactGate({ repoRoot = REPO_ROOT, release: releaseOverride = null, tag = null, write = true } = {}) {
   const release = releaseOverride ?? await readJson(path.join(repoRoot, 'qms-release.json'));
   const git = gitInfo(repoRoot);
-  const expectedDeb = 'qortal-migration-studio_' + String(componentVersion(release, 'deb')).replace(/-/g, '~') + '_' + release.architecture + '.deb';
+  const expectedDeb = 'qortal-migration-studio_' + String(componentVersion(release, 'deb')) + '_' + release.architecture + '.deb';
   const artifacts = {};
   const failures = [];
 

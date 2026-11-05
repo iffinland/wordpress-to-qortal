@@ -6,22 +6,22 @@ normalizes the content, downloads and de-duplicates supported media, prepares
 deterministic QDN batches, hands them to a separate Qortal Hub publishing app,
 and verifies the resulting QDN resources byte-for-byte.
 
-## Download Qortal Migration Studio 0.8.0 alpha.1
+## Download Qortal Migration Studio 0.8.0 alpha.2
 
 The release ships three files. Most people need the desktop application; the
 two Q-App ZIPs are for publishing and for the public website runtime.
 
 | What you need | Download | What it does |
 | --- | --- | --- |
-| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0~alpha.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/qortal-migration-studio_0.8.0~alpha.1_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
-| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-alpha.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/qortal-migration-publisher-v0.8.0-alpha.1.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
-| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.8.0-alpha.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/qortal-migration-generic-cms-v0.8.0-alpha.1.zip) | The neutral website/APP Q-App that renders a published QDN catalog. It is the site runtime, not the migration tool. |
+| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0-alpha.2_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.2/qortal-migration-studio_0.8.0-alpha.2_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
+| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-alpha.2.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.2/qortal-migration-publisher-v0.8.0-alpha.2.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
+| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.8.0-alpha.2.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.2/qortal-migration-generic-cms-v0.8.0-alpha.2.zip) | The neutral website/APP Q-App that renders a published QDN catalog. It is the site runtime, not the migration tool. |
 
-Also download [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/SHA256SUMS),
-[sbom.cdx.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/sbom.cdx.json)
-and [provenance.intoto.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/provenance.intoto.json)
+Also download [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.2/SHA256SUMS),
+[sbom.cdx.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.2/sbom.cdx.json)
+and [provenance.intoto.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.2/provenance.intoto.json)
 to verify the files. Release page:
-<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-alpha.1>.
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-alpha.2>.
 
 **Who needs what**
 
@@ -57,7 +57,7 @@ migrate, or by the Qortal project.
 
 ## Alpha status
 
-Version **0.8.0 alpha.1** is the latest published alpha. It adds independent update notifications for the desktop app, Migration Publisher and Generic CMS, backed by the shared `DOCUMENT/developer iffi/qms-update-registry` update registry. No component is updated automatically; see [docs/migration-studio/UPDATES.md](docs/migration-studio/UPDATES.md). It also includes the previous alpha's fixes: a confirmed
+Version **0.8.0 alpha.2** is the latest published alpha. It adds independent update notifications for the desktop app, Migration Publisher and Generic CMS, backed by the shared `DOCUMENT/developer iffi/qms-update-registry` update registry. No component is updated automatically; see [docs/migration-studio/UPDATES.md](docs/migration-studio/UPDATES.md). It also includes the previous alpha's fixes: a confirmed
 Generic CMS authorization defect: a different signed-in account could open the
 Admin page. Admin is now owner-only and fails closed, every publication
 revalidates the live on-chain owner, and unauthorized visitors see Access
@@ -114,14 +114,14 @@ or any development tools.
 ## Download, install and launch
 
 1. Download
-   [qortal-migration-studio_0.8.0~alpha.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/qortal-migration-studio_0.8.0~alpha.1_amd64.deb)
+   [qortal-migration-studio_0.8.0-alpha.2_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.2/qortal-migration-studio_0.8.0-alpha.2_amd64.deb)
    and the release assets `SHA256SUMS`, `sbom.cdx.json` and
    `provenance.intoto.json`.
 2. Verify the checksum (see [Security](#security-and-checksums)).
 3. Install and launch:
 
 ```bash
-sudo apt install ./qortal-migration-studio_0.8.0~alpha.1_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-alpha.2_amd64.deb
 qortal-migration-studio
 ```
 
@@ -332,9 +332,9 @@ signing key in the release environment, so `apt` cannot verify a signature.
 Verify the published hash before installing:
 
 ```bash
-sha256sum qortal-migration-studio_0.8.0~alpha.1_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-alpha.2_amd64.deb
 # Compare the output with this artifact's line in SHA256SUMS
-# from the v0.8.0-alpha.1 release page.
+# from the v0.8.0-alpha.2 release page.
 sha256sum -c SHA256SUMS
 ```
 

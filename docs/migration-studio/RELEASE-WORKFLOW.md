@@ -52,7 +52,7 @@ separate versions in `qms-release.json` (`qms-release@2`):
 - `publisher`: Migration Publisher Q-App;
 - `cms`: Generic CMS template.
 
-Component versions include their channel as a prerelease (`0.8.0-alpha.1`).
+Component versions include their channel as a prerelease (`0.8.0-alpha.2`).
 A release may change one component and keep the other versions unchanged. Use
 `node scripts/qms-release.mjs set-component --component=<id> --version=<v>`
 before releasing; `npm run version:check` verifies every marker. Never bump an

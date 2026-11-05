@@ -14,7 +14,7 @@
  *   handoff into Qortal Hub and approves the publication.
  *
  * Usage:
- *   npm run release:registry -- --tag=v0.8.0-alpha.1 --node-url=http://127.0.0.1:12391
+ *   npm run release:registry -- --tag=v0.8.0-alpha.2 --node-url=http://127.0.0.1:12391
  *   npm run release:registry -- --verify-published --node-url=...
  *   npm run release:registry -- --registry-file=release/current-registry.json --skip-public-check
  */

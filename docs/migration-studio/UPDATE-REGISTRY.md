@@ -34,7 +34,7 @@ http://100.116.185.83:12391/arbitrary/DOCUMENT/developer%20iffi/qms-update-regis
 | CMS version | `templates/generic-cms/package.json` (build-time `__CMS_TEMPLATE_VERSION__`) | Generic CMS template |
 
 A component version carries its channel as a SemVer prerelease:
-`0.8.0-alpha.1`, `0.8.0-beta.1`, `0.8.0-rc.1` or `0.8.0` (stable).
+`0.8.0-alpha.2`, `0.8.0-beta.1`, `0.8.0-rc.1` or `0.8.0` (stable).
 `npm run version:check` verifies each marker against its own component, not a
 single global value. `npm run version:sync` writes component versions from
 `qms-release.json`.
@@ -68,11 +68,11 @@ bytes; if its bytes differ without a version bump, `release:registry` fails.
     "desktop": {
       "id": "desktop",
       "displayName": "Qortal Migration Studio (Desktop)",
-      "version": "0.8.0-alpha.1",
+      "version": "0.8.0-alpha.2",
       "channel": "alpha",
-      "releaseTag": "v0.8.0-alpha.1",
+      "releaseTag": "v0.8.0-alpha.2",
       "releaseDate": "2026-11-05T05:25:00.000Z",
-      "releaseUrl": "https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-alpha.1",
+      "releaseUrl": "https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-alpha.2",
       "changelog": { "summary": "…", "url": "https://github.com/…" },
       "supportedPlatforms": ["linux-x64"],
       "minimumDependencies": {},
@@ -81,10 +81,10 @@ bytes; if its bytes differ without a version bump, `release:registry` fails.
         {
           "platform": "linux-x64",
           "format": "deb",
-          "name": "qortal-migration-studio_0.8.0~alpha.1_amd64.deb",
+          "name": "qortal-migration-studio_0.8.0-alpha.2_amd64.deb",
           "bytes": 123456789,
           "sha256": "64 lowercase hex characters",
-          "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.1/…"
+          "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.2/…"
         }
       ]
     },
@@ -135,10 +135,10 @@ than the freshness window never shows a badge and is explained as cached.
 
 ## Release pipeline
 
-After `npm run release:publish -- --tag=v0.8.0-alpha.1` succeeds:
+After `npm run release:publish -- --tag=v0.8.0-alpha.2` succeeds:
 
 ```bash
-npm run release:registry -- --tag=v0.8.0-alpha.1 \
+npm run release:registry -- --tag=v0.8.0-alpha.2 \
   --node-url=http://100.116.185.83:12391
 ```
 

@@ -95,5 +95,6 @@ test('Electron packaging enables renderer hardening fuses', async () => {
 
 test('Debian artifact names and versions are deterministic', () => {
   assert.equal(artifactName('qortal-migration-studio', '0.6.0', 'amd64'), 'qortal-migration-studio_0.6.0_amd64.deb');
+  assert.equal(artifactName('qortal-migration-studio', '0.8.0-alpha.2', 'amd64'), 'qortal-migration-studio_0.8.0-alpha.2_amd64.deb');
   assert.equal(debVersion('0.6.0-alpha.1'), '0.6.0~alpha.1');
 });

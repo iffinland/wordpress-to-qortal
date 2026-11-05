@@ -1,17 +1,19 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-alpha.1 -->
+<!-- qms-release-version: 0.8.0-alpha.2 -->
 
-This is an unsigned alpha prerelease. It adds independent update notifications
+This is an unsigned alpha prerelease. It supersedes `v0.8.0-alpha.1`, whose
+Debian asset name was normalized by GitHub (`~` became `.`); do not use that
+first tag for installation or registry metadata. It adds independent update notifications
 for all three QMS applications, backed by one shared QDN update registry.
 
 ## Components
 
 | Component | Version | Artifact |
 | --- | --- | --- |
-| Desktop (Linux amd64) | 0.8.0-alpha.1 | `qortal-migration-studio_0.8.0~alpha.1_amd64.deb` |
-| Migration Publisher (Q-App) | 0.8.0-alpha.1 | `qortal-migration-publisher-v0.8.0-alpha.1.zip` |
-| Generic CMS (Q-App) | 0.8.0-alpha.1 | `qortal-migration-generic-cms-v0.8.0-alpha.1.zip` |
+| Desktop (Linux amd64) | 0.8.0-alpha.2 | `qortal-migration-studio_0.8.0-alpha.2_amd64.deb` |
+| Migration Publisher (Q-App) | 0.8.0-alpha.2 | `qortal-migration-publisher-v0.8.0-alpha.2.zip` |
+| Generic CMS (Q-App) | 0.8.0-alpha.2 | `qortal-migration-generic-cms-v0.8.0-alpha.2.zip` |
 
 The GitHub release bundle version is independent of these component versions.
 A later release that changes only one component keeps the other component
@@ -55,21 +57,21 @@ and continue to work normally. See `docs/migration-studio/UPDATE-REGISTRY.md`.
 ### Desktop (Debian 12/13)
 
 ```bash
-sha256sum qortal-migration-studio_0.8.0~alpha.1_amd64.deb
-sudo apt install ./qortal-migration-studio_0.8.0~alpha.1_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-alpha.2_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-alpha.2_amd64.deb
 ```
 
 Verify the hash against the release assets. The package is unsigned.
 
 ### Migration Publisher
 
-Download `qortal-migration-publisher-v0.8.0-alpha.1.zip`, verify its SHA-256,
+Download `qortal-migration-publisher-v0.8.0-alpha.2.zip`, verify its SHA-256,
 and republish it as an APP under your own Qortal name. Downloading the ZIP is not
 publishing it to QDN.
 
 ### Generic CMS
 
-Download `qortal-migration-generic-cms-v0.8.0-alpha.1.zip`, verify its SHA-256,
+Download `qortal-migration-generic-cms-v0.8.0-alpha.2.zip`, verify its SHA-256,
 and republish the APP or WEBSITE under the site's existing Qortal name. Preserve
 `qms-cms-config.json` and any custom assets; do not overwrite a customized CMS
 with the generic ZIP.
