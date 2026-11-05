@@ -13,9 +13,28 @@ export function formatBytes(value: unknown): string {
 
 export function formatDate(value: unknown): string {
   if (!value) return 'never';
+  if (value instanceof Date) return value.toLocaleString();
+  if (typeof value === 'object') return 'invalid date';
   const time = Date.parse(String(value));
   if (!Number.isFinite(time)) return String(value);
   return new Date(time).toLocaleString();
+}
+
+/** Render a value without ever producing [object Object] in the UI. */
+export function formatScalar(value: unknown): string {
+  if (value === null || value === undefined) return '—';
+  if (typeof value === 'string') return value;
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') return String(value);
+  if (Array.isArray(value)) return value.map((entry) => formatScalar(entry)).join(', ');
+  if (typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const label = record.name ?? record.type ?? record.feature ?? record.message ?? record.code;
+    if (label !== undefined) return formatScalar(label);
+    const entries = Object.entries(record);
+    if (entries.length === 0) return '—';
+    return entries.map(([key, entry]) => key + ': ' + formatScalar(entry)).join(', ');
+  }
+  return 'unsupported value';
 }
 
 export function shortId(value: unknown): string {

@@ -9,6 +9,7 @@ import { Publishing } from './components/Publishing.js';
 import { SyncView } from './components/Sync.js';
 import { Recovery } from './components/Recovery.js';
 import { ErrorText } from './components/Common.js';
+import { normalizeCompletedSteps } from '../shared/wizard.js';
 import { Updates } from './components/Updates.js';
 
 type View = 'dashboard' | 'wizard' | 'progress' | 'history' | 'publishing' | 'sync' | 'recovery';
@@ -23,8 +24,7 @@ function wizardPlanId(project: ProjectDocument): string | null {
 function wizardComplete(project: ProjectDocument): boolean {
   const settings = (project.settings ?? {}) as Record<string, unknown>;
   const wizard = settings.desktopWizard as Record<string, unknown> | undefined;
-  const completed = Array.isArray(wizard?.completedSteps) ? wizard.completedSteps : [];
-  return completed.includes(5);
+  return normalizeCompletedSteps(wizard?.completedSteps).includes('plan');
 }
 
 export default function App() {

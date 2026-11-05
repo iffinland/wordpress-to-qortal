@@ -1,5 +1,6 @@
 import { IPC } from './channels.js';
 import { checkQortalName } from './qortalName.js';
+import { migrateWizardForLoad, normalizeCompletedSteps } from './wizard.js';
 
 export class IpcValidationError extends Error {
   code = 'IPC_INVALID_INPUT';
@@ -291,22 +292,41 @@ export function sanitizePersisted(value: unknown, depth = 0): unknown {
 function sanitizeWizard(input: unknown): Dict {
   const wizard = object(input, 'wizard');
   const step = integer(wizard.step, 'wizard.step', { min: 1, max: 5 }) as number;
-  const completedSteps = stringArray(wizard.completedSteps, 'wizard.completedSteps', 5) ?? [];
-  const parsed = completedSteps.map((entry) => Number(entry));
-  if (parsed.some((entry) => !Number.isInteger(entry) || entry < 1 || entry > 5)) fail('wizard.completedSteps is invalid.');
+  if (wizard.completedSteps !== undefined && !Array.isArray(wizard.completedSteps)) {
+    fail('wizard.completedSteps must be an array.');
+  }
+  // Accept legacy numeric indexes and canonical string ids by migrating them
+  // to the canonical representation. Never reject an existing project record
+  // only because an older build wrote numbers.
+  const migrated = migrateWizardForLoad(wizard);
+  const loaded = migrated.wizard;
+  const completedSteps = normalizeCompletedSteps(loaded.completedSteps);
+  const loadedWebsite = loaded.website ? object(loaded.website, 'wizard.website', { optional: true }) : {};
+  const service = text(loadedWebsite.service, 'wizard.website.service', { optional: true, max: 10 });
+  const normalizedService = service === undefined ? undefined : service.toUpperCase();
+  if (normalizedService !== undefined && !['APP', 'WEBSITE'].includes(normalizedService)) {
+    fail('wizard.website.service must be APP or WEBSITE.');
+  }
   return {
     step,
-    completedSteps: parsed,
-    adapterId: text(wizard.adapterId, 'wizard.adapterId', { optional: true, max: 32 }) ?? 'wordpress',
-    sourceUrl: text(wizard.sourceUrl, 'wizard.sourceUrl', { optional: true, max: 2000 }) ?? '',
-    authMode: text(wizard.authMode, 'wizard.authMode', { optional: true, max: 40 }) ?? 'none',
-    connection: wizard.connection ? sanitizePersisted(wizard.connection) : null,
-    targetQdnName: text(wizard.targetQdnName, 'wizard.targetQdnName', { optional: true, max: 40 }) ?? '',
-    siteTitle: text(wizard.siteTitle, 'wizard.siteTitle', { optional: true, max: 200 }) ?? '',
-    siteDescription: text(wizard.siteDescription, 'wizard.siteDescription', { optional: true, max: 2000 }) ?? '',
-    preferences: wizard.preferences ? sanitizePersisted(wizard.preferences) : {},
-    planId: wizard.planId === null || wizard.planId === undefined ? null : text(wizard.planId, 'wizard.planId', { pattern: PLAN_ID }) as string,
-    updatedAt: text(wizard.updatedAt, 'wizard.updatedAt', { optional: true, max: 40 }) ?? new Date().toISOString()
+    completedSteps,
+    wizardVersion: 2,
+    adapterId: text(loaded.adapterId, 'wizard.adapterId', { optional: true, max: 32 }) ?? 'wordpress',
+    sourceUrl: text(loaded.sourceUrl, 'wizard.sourceUrl', { optional: true, max: 2000 }) ?? '',
+    authMode: text(loaded.authMode, 'wizard.authMode', { optional: true, max: 40 }) ?? 'none',
+    connection: loaded.connection ? sanitizePersisted(loaded.connection) : null,
+    targetQdnName: text(loaded.targetQdnName, 'wizard.targetQdnName', { optional: true, max: 40 }) ?? '',
+    siteTitle: text(loaded.siteTitle, 'wizard.siteTitle', { optional: true, max: 200 }) ?? '',
+    siteDescription: text(loaded.siteDescription, 'wizard.siteDescription', { optional: true, max: 2000 }) ?? '',
+    ...(normalizedService !== undefined ? {
+      website: {
+        ...sanitizePersisted(loadedWebsite) as Dict,
+        service: normalizedService
+      }
+    } : {}),
+    preferences: loaded.preferences ? sanitizePersisted(loaded.preferences) : {},
+    planId: loaded.planId === null || loaded.planId === undefined ? null : text(loaded.planId, 'wizard.planId', { pattern: PLAN_ID }) as string,
+    updatedAt: text(loaded.updatedAt, 'wizard.updatedAt', { optional: true, max: 40 }) ?? new Date().toISOString()
   };
 }
 

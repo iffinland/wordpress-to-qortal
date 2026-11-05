@@ -48,6 +48,17 @@ and obtain a valid `engine.info` JSON-RPC response, and must prove that the
 same test fails when `fflate` is hidden from the extraction. Never bypass these
 steps or publish a .deb by hand.
 
+The wizard vertical test is separate from the handshake:
+
+```bash
+npm run release:engine-wizard -- --artifact=desktop/release/qortal-migration-studio_<version>_amd64.deb
+```
+
+It extracts the same .deb and drives `project.create` → `source.discover` →
+`plan.create` over the packaged stdio JSON-RPC host, including a five-post
+preview and an empty date range that must explain its exclusions. Evidence is
+written to `desktop/release/engine-wizard-flow.json`.
+
 ## Independent component versions
 
 Since 0.8.0, the GitHub release bundle and the three shipped components have

@@ -144,7 +144,8 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
   async function openPublishedSite() {
     if (!siteResource) return;
     const base = nodeUrl.replace(/\/+$/, '');
-    const url = base + '/arbitrary/APP/' + encodeURIComponent(siteResource.name) + '/' + encodeURIComponent(siteResource.identifier) + '?filepath=index.html';
+    const service = siteResource.service === 'WEBSITE' ? 'WEBSITE' : 'APP';
+    const url = base + '/arbitrary/' + service + '/' + encodeURIComponent(siteResource.name) + '/' + encodeURIComponent(siteResource.identifier) + '?filepath=index.html';
     try {
       await api().app.openUrl(url);
     } catch (openError) {
@@ -297,6 +298,20 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
           </div>
         )}
 
+        {plan && (
+          <div data-testid="publication-safety">
+            <Alert tone="warn" title="Before preparing a publication">
+              <p>
+                Target Qortal name: <strong>{String(plan.target.qdnName)}</strong>. APP and WEBSITE are separate deployments,
+                and a different project identity always derives a different QDN identifier.
+              </p>
+              <p className="small">
+                QMS never overwrites an existing deployment. A resource is updated only when this project republishes the exact
+                service, name and identifier shown in the handoff table. Review the service column before approving in Qortal Hub.
+              </p>
+            </Alert>
+          </div>
+        )}
         <div className="row gap wrap">
           <button className="primary" type="button" disabled={!plan || selection.size === 0 || loading} onClick={() => void prepareHandoff()}>
             Generate handoff package
@@ -389,6 +404,12 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
               Package {handoff.packageValid ? 'validated' : 'not validated'} · {handoff.resources.length} resources ·
               {' '}{handoff.validation?.filesVerified ?? 0} files hashed · target {handoff.handoff.target.qdnName}
             </p>
+            {siteResource && (
+              <p className="small warn-text" data-testid="site-deployment">
+                Site deployment: {siteResource.service} / {siteResource.name} / <code>{siteResource.identifier}</code>.
+                Existing resources with a different service or identifier are not modified.
+              </p>
+            )}
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Kind</th><th>Service</th><th>Identifier</th><th>Status</th><th>Receipt</th><th>Signature</th><th>Bytes</th></tr></thead>

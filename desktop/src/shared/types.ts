@@ -1,4 +1,16 @@
 import type { UpdateCheckerState } from '../../../lib/update/registry.js';
+import type { WizardStepId } from './wizard.js';
+
+export interface UnsupportedFeature {
+  code?: string;
+  type?: string;
+  name?: string;
+  feature?: string;
+  message?: string;
+  count?: number | null;
+  restBase?: string | null;
+  supported?: false;
+}
 
 export interface AdapterInfo {
   id: string;
@@ -14,7 +26,7 @@ export interface AdapterInfo {
     incremental: Record<string, unknown>;
     authentication: string[];
     limits: Record<string, unknown>;
-    unsupported: Record<string, string>;
+    unsupported: Record<string, string> | UnsupportedFeature[];
   };
 }
 
@@ -171,7 +183,7 @@ export interface SourceValidationResult {
     capabilities?: AdapterInfo['capabilities'];
     counts?: Record<string, number>;
     contentTypes?: string[];
-    unsupported?: Record<string, unknown>;
+    unsupported?: UnsupportedFeature[] | Record<string, unknown>;
     warnings?: Array<{ code: string; message: string }>;
   };
   error?: { code: string; message: string; details?: Record<string, unknown> };
@@ -180,7 +192,8 @@ export interface SourceValidationResult {
 
 export interface WizardState {
   step: number;
-  completedSteps: number[];
+  completedSteps: WizardStepId[];
+  wizardVersion?: number;
   adapterId: string;
   sourceUrl: string;
   authMode: string;
@@ -247,7 +260,13 @@ export interface PlanDocument {
   runId: string;
   filters: Record<string, unknown>;
   config: Record<string, unknown>;
-  selection: Record<string, unknown>;
+  selection: Record<string, unknown> & {
+    empty?: boolean;
+    emptyReason?: string | null;
+    emptyExplanation?: string[];
+    filterDiagnostics?: FilterDiagnostics;
+  };
+  filterDiagnostics?: FilterDiagnostics;
   stats: Record<string, number>;
   entries: PlanEntry[];
   media: Array<Record<string, unknown>>;
@@ -278,6 +297,22 @@ export interface PlanDocument {
 
 export interface PlanRecord extends PlanSummary {}
 
+export interface FilterDiagnostics {
+  indexed: number;
+  supported: number;
+  unsupported: number;
+  contentTypeExcluded: number;
+  sourceKeyExcluded: number;
+  statusExcluded: number;
+  searchExcluded: number;
+  missingPublishedAt: number;
+  publishedBeforeAfter: number;
+  publishedAfterBefore: number;
+  modifiedOutsideRange: number;
+  matched: number;
+  actionable: number;
+}
+
 export interface PlanCreateResult {
   runId: string;
   status: string;
@@ -290,6 +325,7 @@ export interface PlanCreateResult {
   warnings?: Array<{ code: string; message: string }>;
   errors?: Array<{ code: string; message: string }>;
   error?: Record<string, unknown>;
+  filterDiagnostics?: FilterDiagnostics;
 }
 
 export interface MediaDownloadResult {

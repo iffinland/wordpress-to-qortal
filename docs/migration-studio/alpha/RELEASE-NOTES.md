@@ -2,26 +2,31 @@
 
 <!-- alpha-release-version: 0.8.0 -->
 
-## 0.8.0 alpha.4 — current
+## 0.8.0 alpha.5 — current
 
-Qortal Migration Studio **0.8.0 alpha.4** fixes the desktop packaging defect in
-alpha.3: the .deb installed but the engine aborted at startup with
-`ERR_MODULE_NOT_FOUND: Cannot find package 'fflate'`.
+Qortal Migration Studio **0.8.0 alpha.5** fixes the two blocking defects found in
+the first real graphical test of alpha.4 on MX Linux.
 
-- The engine runtime now declares and ships `fflate` 0.8.3 and stages
-  `src/config.js`.
-- `prepare-engine` resolves the complete engine import graph against an
-  isolated staged tree and fails the build on an unresolved import.
-- The release gate extracts the built .deb, starts the packaged engine and
-  performs a real `engine.info` JSON-RPC handshake. A negative run hides
-  `fflate` and requires the test to fail with `ERR_MODULE_NOT_FOUND`.
-- No user action beyond installing the new .deb. Do not install Node.js or npm.
-- Desktop is 0.8.0-alpha.4. Publisher stays 0.8.0-alpha.2 and CMS stays
+- `completedSteps` now uses canonical string step ids. Existing numeric arrays
+  and mixed arrays are migrated once on load and saved with
+  `wizardVersion: 2`; no project needs to be deleted or recreated.
+- The wizard now runs a real source discovery before planning. Previously it
+  only tested the connection and then failed with
+  `SOURCE_DISCOVERY_REQUIRED`.
+- Plan failures show the engine code, message and details instead of a generic
+  "did not become ready" sentence.
+- An empty plan explains which filters excluded content and cannot be approved.
+- The `before` date is inclusive through the end of the selected UTC day, and
+  the applied range is visible. Unsupported capabilities render as readable
+  names instead of `[object Object]`.
+- APP and WEBSITE are explained as separate deployments; QMS never silently
+  changes the service and never overwrites a different QDN identifier.
+- Desktop is 0.8.0-alpha.5. Publisher stays 0.8.0-alpha.2 and CMS stays
   0.8.0-alpha.3; both artifact bytes are unchanged.
 - Detailed evidence:
   [../RELEASE-0.8.0-ALPHA.md](../RELEASE-0.8.0-ALPHA.md).
 
-## 0.8.0 alpha.3 — previous
+## 0.8.0 alpha.4 — previous
 
 Qortal Migration Studio **0.8.0 alpha.3** was the previous GitHub prerelease. It
 fixes the Generic CMS owner Admin regression seen in Qortal Hub on Android.

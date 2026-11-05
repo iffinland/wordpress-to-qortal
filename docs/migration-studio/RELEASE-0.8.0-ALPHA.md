@@ -1,57 +1,72 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-alpha.4 -->
+<!-- qms-release-version: 0.8.0-alpha.5 -->
 
-## 0.8.0 alpha.4 — current
+## 0.8.0 alpha.5 — current
 
-This is an unsigned alpha prerelease. It supersedes `v0.8.0-alpha.3` and fixes a
-packaging defect that made the installed desktop application abort at startup.
+This is an unsigned alpha prerelease. It supersedes `v0.8.0-alpha.4` and fixes
+two blocking defects found in the first real graphical test on MX Linux, plus
+the date-filter, capability-rendering and destination-safety defects that
+surfaced with them.
 
-### What was broken in 0.8.0-alpha.3
+### What was broken
 
-The .deb installed correctly, but starting the application produced:
-
-~~~text
-QMS_STARTUP_FAILED: Engine host connection closed.
-~~~
-
-Running the packaged engine directly showed the real cause:
-
-~~~text
-Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'fflate' imported from
-/opt/qortal-migration-studio/resources/engine/lib/engine/publication/index.js
-~~~
-
-`desktop/engine-package/package.json` is the locked production dependency set
-copied into `/opt/qortal-migration-studio/resources/engine`. It declared only
-`cheerio` and `dotenv`. The engine entry imports
-`lib/engine/publication/index.js`, which imports `fflate` at module load, so the
-host process exited before it could answer the first JSON-RPC request. The
-engine also dynamically imports `src/config.js`; that file was not staged, so
-`compat.loadLegacyConfig()` would have failed as well.
+1. **Wizard state validation blocked every save.** The renderer persisted
+   `completedSteps` as numeric indexes, while desktop IPC validation required
+   strings. The wizard showed a permanent red banner:
+   `wizard.completedSteps[0] must be a string.`
+2. **The wizard never ran source discovery.** It tested the WordPress
+   connection, then called `plan.create` against an empty index. Planning failed
+   with `SOURCE_DISCOVERY_REQUIRED` and the UI reduced it to "The plan did not
+   become ready".
+3. **Date filters could silently exclude everything.** The `before` date was
+   serialized as the start of the selected day, so the whole final day was
+   outside the range. Nothing explained an empty result.
+4. **Unsupported capabilities rendered as `[object Object]`.** The connection
+   report's `unsupported` array was iterated as an object.
+5. **Empty plans could be approved**, advancing the wizard with zero selected
+   items.
 
 ### What changed
 
-- `fflate` 0.8.3 is a declared and lockfile-pinned engine runtime dependency.
-- `src/config.js` is staged into the engine runtime.
-- `prepare-engine` now resolves the complete import graph from
-  `bin/qms-host.js` against an isolated copy of the staged tree. A missing
-  relative module or package fails the build with the importing file and line.
-- `release:prepare` extracts the built .deb and performs a real `engine.info`
-  JSON-RPC handshake with the packaged engine. It also hides `fflate` in a
-  throwaway extraction and asserts that the handshake then fails with
-  `ERR_MODULE_NOT_FOUND`, proving the gate detects this class of bug.
-- The three-artifact gate refuses to publish without both evidence files matching
-  the .deb SHA-256.
+- **Canonical step ids with a real migration.** `completedSteps` now stores
+  `source | connection | destination | preferences | plan`. Existing numeric
+  arrays (and mixed arrays) are mapped on load, deduplicated, sorted and saved
+  once as `wizardVersion: 2`. The migration is idempotent and preserves every
+  setting. Existing projects do not need to be deleted or recreated.
+- **The wizard discovers the source.** Step 4 has an explicit scan action and
+  Continue/Plan preview runs discovery automatically when no completed batch
+  exists. Progress is streamed from engine events.
+- **Plan failures are visible.** The UI shows the engine error code, message and
+  technical details, and disables approval when no ready, non-empty plan exists.
+- **Empty plans explain themselves.** The engine records per-filter exclusion
+  counts and the UI shows the applied range plus how many items were excluded
+  by content type, missing dates or the lower/upper published bound.
+- **Date ranges are inclusive and explicit.** `before` is stored as
+  `23:59:59.999Z`; the applied range is displayed in UTC. Legacy midnight end
+  dates are migrated once to the end of that day.
+- **Media sizes recover from HEAD-unsupported servers.** When HEAD is rejected
+  or omits `Content-Length`, media estimation sends a one-byte ranged GET and
+  reads the total from `Content-Range`. Unknown sizes remain explicitly
+  unknown; they are never treated as zero.
+- **Capabilities are readable.** Unsupported features render as names,
+  descriptions and counts; no renderer path stringifies a capability object.
+- **APP vs WEBSITE safety.** The destination step explains that APP and WEBSITE
+  are separate deployments under one name, that switching service creates a
+  second deployment, and that QMS never overwrites a different identifier. The
+  Publishing view repeats the warning before preparing a handoff.
+- **Packaged-engine vertical proof.** `release:engine-wizard` extracts the
+  built .deb and drives `project.create → source.discover → plan.create` over
+  the same stdio JSON-RPC surface the desktop uses.
 
-No application logic, wallet, signing, broker or QDN behavior changed. Users do
-not need Node.js, npm, Git or any post-install command.
+No signing, wallet, broker or QDN transaction behavior changed. Nothing is
+published to QDN by this release.
 
 ### Components
 
 | Component | Version | Artifact |
 | --- | --- | --- |
-| Desktop (Linux amd64) | 0.8.0-alpha.4 | `qortal-migration-studio_0.8.0-alpha.4_amd64.deb` |
+| Desktop (Linux amd64) | 0.8.0-alpha.5 | `qortal-migration-studio_0.8.0-alpha.5_amd64.deb` |
 | Migration Publisher (Q-App) | 0.8.0-alpha.2 | `qortal-migration-publisher-v0.8.0-alpha.2.zip` |
 | Generic CMS (Q-App) | 0.8.0-alpha.3 | `qortal-migration-generic-cms-v0.8.0-alpha.3.zip` |
 
@@ -61,38 +76,25 @@ byte-identical to the previous release; only the desktop package version moves.
 ### Upgrade an existing installation
 
 ~~~bash
-sudo apt install ./qortal-migration-studio_0.8.0-alpha.4_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-alpha.5_amd64.deb
 ~~~
 
-Then start the application again:
-
-~~~bash
-qortal-migration-studio
-~~~
+Open the existing project normally. QMS migrates the wizard record on load; do
+not delete the project or its workspace. Projects, media, handoffs and history
+under `~/.local/share/qortal-migration-studio` are preserved.
 
 Confirm the installed version:
 
 ~~~bash
 dpkg-query -W -f='${Version}\n' qortal-migration-studio
-# expected: 0.8.0~alpha.4
+# expected: 0.8.0~alpha.5
 ~~~
 
-An installed alpha.3 package may be replaced directly. Projects, media, handoffs
-and history under `~/.local/share/qortal-migration-studio` are preserved.
-
-### Verification
-
-The release gate records `desktop/release/engine-clean-install.json` (packaged
-engine started from the extracted .deb and answered `engine.info` with
-`apiVersion=qms-engine@1`) and `desktop/release/engine-clean-install-negative.json`
-(the same test fails when `fflate` is hidden). `release/release-manifest.json`
-records both artifacts and their SHA-256 values.
-
-## 0.8.0 alpha.3 — previous
+## 0.8.0 alpha.4 — previous
 
 The 0.8.0-alpha.3 release fixed a live Generic CMS owner Admin regression in
 Qortal Hub on Android. Its desktop .deb is affected by the engine dependency
-defect above; use 0.8.0-alpha.4 instead.
+defect above; use 0.8.0-alpha.5 instead.
 
 The CMS now reads the on-chain name record from the node that serves the page.
 A build-time `http://localhost:12391` default made Android devices query their
@@ -117,8 +119,8 @@ See `docs/migration-studio/UPDATE-REGISTRY.md`.
 ### Desktop (Debian 12/13, MX Linux 23)
 
 ```bash
-sha256sum qortal-migration-studio_0.8.0-alpha.4_amd64.deb
-sudo apt install ./qortal-migration-studio_0.8.0-alpha.4_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-alpha.5_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-alpha.5_amd64.deb
 ```
 
 Verify the hash against the release assets. The package is unsigned.
