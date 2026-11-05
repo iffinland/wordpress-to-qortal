@@ -10,7 +10,7 @@ it does not publish anything to QDN. The CMS can be published as an **APP** or a
 ## Beginner path (no Node.js, npm, Git or compiler)
 
 1. Download
-   [qortal-migration-generic-cms-v0.7.0.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.7.0-alpha.1/qortal-migration-generic-cms-v0.7.0.zip)
+   [qortal-migration-generic-cms-v0.8.0-alpha.2.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.2/qortal-migration-generic-cms-v0.8.0-alpha.2.zip)
    and verify it against `SHA256SUMS`.
 2. Inspect the ZIP: `index.html` and `assets/` are at the root, with no
    parent folder.
@@ -85,6 +85,16 @@ Publication always verifies exact bytes on read-back. Uncertain submissions are
 marked **ambiguous** and are not resent automatically.
 
 ## Upgrading a deployed site
+
+The running site shows its template version in the footer. When the shared QDN
+update registry lists a newer CMS template, a compact **Update available** badge
+appears. The update view shows the installed and available versions, changes,
+compatibility and a copyable verified download link. It does not replace the
+running site. Update manually by republishing the template bundle in Qortal Hub.
+
+If the site already uses a runtime `qms-cms-config.json` or published settings,
+the update view warns that the generic ZIP must not overwrite a customized CMS.
+Preserve the existing configuration and custom assets.
 
 Preserve the existing `qms-cms-config.json` and all identifiers. Publish the
 new CMS bundle under the same name, then publish site settings revision 1 (or

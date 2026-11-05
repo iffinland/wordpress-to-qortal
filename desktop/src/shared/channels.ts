@@ -73,6 +73,10 @@ export const IPC = {
   credentialStatus: 'qms:credential:status',
   credentialForget: 'qms:credential:forget',
   diagnosticsExport: 'qms:diagnostics:export',
+  updatesState: 'qms:updates:state',
+  updatesCheck: 'qms:updates:check',
+  updatesSetNode: 'qms:updates:set-node',
+  updatesOpenRelease: 'qms:updates:open-release',
   event: 'qms:event'
 } as const;
 

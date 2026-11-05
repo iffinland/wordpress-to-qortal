@@ -129,6 +129,12 @@ const api = {
     status: () => invoke(IPC.credentialStatus),
     forget: (projectId: string) => invoke(IPC.credentialForget, { projectId })
   },
+  updates: {
+    state: () => invoke(IPC.updatesState),
+    check: () => invoke(IPC.updatesCheck),
+    setNode: (url: string) => invoke(IPC.updatesSetNode, { url }),
+    openRelease: (url: string) => invoke(IPC.updatesOpenRelease, { url })
+  },
   diagnostics: {
     export: (projectId: string) => invoke(IPC.diagnosticsExport, { projectId })
   },

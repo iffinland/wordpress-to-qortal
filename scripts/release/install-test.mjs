@@ -7,6 +7,7 @@ import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { REPO_ROOT, readJson, sha256File } from './lib.mjs';
+import { componentVersion } from './artifact-set.mjs';
 
 function argument(name) {
   const entry = process.argv.find((value) => value.startsWith('--' + name + '='));
@@ -53,6 +54,7 @@ try {
 const resultFile = path.join(rootfs, 'tmp/qms-result.txt');
 await rm(resultFile, { force: true }).catch(() => {});
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
+const desktopVersion = componentVersion(release, 'desktop');
 const debInfo = await stat(deb);
 const debSha = await sha256File(deb);
 
@@ -101,7 +103,7 @@ const evidence = {
   artifact: path.basename(deb),
   artifactBytes: debInfo.size,
   artifactSha256: debSha,
-  version: release.version,
+  version: desktopVersion,
   method: 'isolated debootstrap-style Debian rootfs; apt-get install of the local .deb; real dpkg database; Xvfb X server',
   isolation: 'user + PID + mount namespaces (unshare -rmpf); no host services or host package database modified',
   executed: {

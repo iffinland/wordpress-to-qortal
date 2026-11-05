@@ -79,6 +79,17 @@ A single generic deployment should be used for all users:
 Do not publish the Publisher under a migrated user's name, and do not use the
 development broker or its `developer iffi` scope for this deployment.
 
+## Publisher update notifications
+
+The Publisher checks the shared QDN update registry at startup and through
+**Check for updates**. It shows an update badge only when the Publisher
+component version itself changed; a desktop or CMS release does not notify
+Publisher users. The update view shows the installed/available version,
+Publisher-specific changelog, deployment steps and verified ZIP SHA-256. Nothing
+is downloaded or installed automatically. Republish the new Publisher Q-App in
+Qortal Hub; existing handoff validation, owner checks, approvals and receipts
+are unchanged. See [UPDATES.md](UPDATES.md).
+
 ## Owner deployment checklist
 
 1. Verify the name and owner:

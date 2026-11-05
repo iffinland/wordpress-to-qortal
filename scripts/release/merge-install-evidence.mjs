@@ -7,10 +7,12 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { REPO_ROOT, artifactName, readJson, sha256File } from './lib.mjs';
+import { componentVersion } from './artifact-set.mjs';
 
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const config = await readJson(path.join(REPO_ROOT, 'desktop/release.config.json'));
-const artifact = path.join(REPO_ROOT, 'desktop/release', artifactName(config.packageName, release.version, release.architecture));
+const desktopVersion = componentVersion(release, 'desktop');
+const artifact = path.join(REPO_ROOT, 'desktop/release', artifactName(config.packageName, desktopVersion, release.architecture));
 const inputs = process.argv.slice(2).filter((value) => value.startsWith('--input=')).map((value) => path.resolve(value.slice('--input='.length)));
 if (inputs.length < 2) {
   console.error('usage: merge-install-evidence.mjs --input=<trixie.json> --input=<bookworm.json> [--out=<file>]');
@@ -25,7 +27,7 @@ const sha256 = await sha256File(artifact);
 const summary = {
   schema: 'qms-install-verification@1',
   artifact: path.basename(artifact),
-  version: release.version,
+  version: desktopVersion,
   sha256,
   status: environments.every((entry) => entry.status === 'pass') ? 'pass' : 'fail',
   environments: environments.map((entry) => ({

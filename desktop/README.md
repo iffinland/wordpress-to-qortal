@@ -21,6 +21,16 @@ npm run typecheck
 npm test
 ~~~
 
+## Update checks
+
+The app shows its installed version in the header and checks the shared QDN
+update registry at startup and on demand. A badge appears only for a newer
+desktop release. The update view shows the verified .deb name, size, SHA-256,
+release link and manual installation steps. It never downloads or executes an
+installer and never blocks startup when the registry is offline. The update
+source (Qortal node URL) is configurable; HTTPS is required except for a
+loopback node.
+
 ## Debian package
 
 ~~~bash

@@ -9,14 +9,17 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { REPO_ROOT, artifactName, capture, readJson, sha256File, writeJson } from './lib.mjs';
 import { checkVersions } from '../qms-release.mjs';
+import { componentVersion } from './artifact-set.mjs';
 
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const config = await readJson(path.join(REPO_ROOT, 'desktop/release.config.json'));
+const desktopVersion = componentVersion(release, 'desktop');
+const cmsVersion = componentVersion(release, 'cms');
 const artifactArg = process.argv.find((value) => value.startsWith('--artifact='));
 const artifact = artifactArg
   ? path.resolve(artifactArg.slice('--artifact='.length))
-  : path.join(REPO_ROOT, 'desktop/release', artifactName(config.packageName, release.version, release.architecture));
-const expectVersion = process.argv.find((value) => value.startsWith('--version='))?.slice('--version='.length) ?? release.version;
+  : path.join(REPO_ROOT, 'desktop/release', artifactName(config.packageName, desktopVersion, release.architecture));
+const expectVersion = process.argv.find((value) => value.startsWith('--version='))?.slice('--version='.length) ?? desktopVersion;
 
 const checks = [];
 function check(name, ok, detail = null) {
@@ -26,7 +29,7 @@ function check(name, ok, detail = null) {
 
 await stat(artifact);
 const info = await stat(artifact);
-check('artifact name follows Debian convention', path.basename(artifact) === artifactName(config.packageName, release.version, release.architecture), path.basename(artifact));
+check('artifact name follows Debian convention', path.basename(artifact) === artifactName(config.packageName, desktopVersion, release.architecture), path.basename(artifact));
 check('artifact is a plausible Electron package size', info.size > 30 * 1024 * 1024, String(info.size));
 const sha256 = await sha256File(artifact);
 
@@ -116,7 +119,7 @@ try {
   const manifest = JSON.parse(await readFile(path.join(engineRoot, 'engine-runtime.json'), 'utf8'));
   check('engine runtime schema', manifest.schema === 'qms-engine-runtime@1', manifest.schema);
   check('engine runtime version', manifest.version === expectVersion, manifest.version);
-  check('engine runtime template version', manifest.template?.version === expectVersion, manifest.template?.version);
+  check('engine runtime template version', manifest.template?.version === cmsVersion, manifest.template?.version);
   let hashFailures = 0;
   for (const entry of manifest.files) {
     const absolute = path.join(engineRoot, entry.path);
@@ -128,7 +131,7 @@ try {
 
   const templateMeta = JSON.parse(await readFile(path.join(engineRoot, 'templates/generic-cms/template.json'), 'utf8'));
   check('bundled template schema', templateMeta.schema === 'qms-bundled-template@1');
-  check('bundled template version', templateMeta.version === expectVersion, templateMeta.version);
+  check('bundled template version', templateMeta.version === cmsVersion, templateMeta.version);
   check('bundled template has root index.html', (await stat(path.join(engineRoot, 'templates/generic-cms/dist/index.html'))).size > 0);
 
   const asarApi = path.join(REPO_ROOT, 'desktop/node_modules/@electron/asar');

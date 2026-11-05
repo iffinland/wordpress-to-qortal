@@ -122,5 +122,9 @@ export function debVersion(version) {
 }
 
 export function artifactName(packageName, version, architecture) {
-  return packageName + '_' + debVersion(version) + '_' + architecture + '.deb';
+  // Keep the SemVer text unchanged in the file name. GitHub normalizes '~' in
+  // release asset names (0.8.0~alpha.1 becomes 0.8.0.alpha.1), which would
+  // break exact public-download and registry URL verification. The Debian
+  // control Version still uses debVersion().
+  return packageName + '_' + String(version) + '_' + architecture + '.deb';
 }

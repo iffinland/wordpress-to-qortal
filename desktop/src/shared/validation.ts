@@ -17,6 +17,7 @@ const TOKEN = /^mig_[a-z0-9]{8,64}$/;
 const HANDOFF_ID = /^hof_[a-z0-9]{8,40}$/;
 const CLEANUP_ID = /^cln_[a-z0-9]{8,40}$/;
 const STAGE_ID = /^stg_[a-z0-9_-]{4,80}$/;
+const RELEASE_PAGE_URL = /^https:\/\/github\.com\/iffinland\/wordpress-to-qortal\/releases\/tag\/v[0-9A-Za-z.-]+$/;
 
 const SECRET_KEY = /(password|passwd|secret|token|apikey|api_key|seed|privatekey|private_key|wallet|authorization|cookie)/i;
 const MAX_STRING = 20_000;
@@ -318,7 +319,15 @@ export function validateIpcPayload(channel: string, payload: unknown): Dict {
     case IPC.appSettings:
     case IPC.sourceList:
     case IPC.credentialStatus:
+    case IPC.updatesState:
+    case IPC.updatesCheck:
       return {};
+
+    case IPC.updatesSetNode:
+      return { url: text(params.url, 'url', { max: 1000 }) as string };
+
+    case IPC.updatesOpenRelease:
+      return { url: text(params.url, 'url', { max: 1000, pattern: RELEASE_PAGE_URL }) as string };
 
     case IPC.setDataRoot:
       return { path: absolutePath(params.path, 'path') };

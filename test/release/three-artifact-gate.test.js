@@ -219,3 +219,22 @@ test('version mismatch between a ZIP bundle and the release descriptor fails', a
   });
   await rm(fake.root, { recursive: true, force: true });
 });
+
+test('the pinned public update-registry identity is allowed but an owner identity is not', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'qms-zip-'));
+  const allied = qappFiles({ kind: 'cms' });
+  allied['assets/app.js'] += 'const REGISTRY={service:"DOCUMENT",name:"developer iffi",identifier:"qms-update-registry"};';
+  const allowedFile = path.join(root, 'allowed.zip');
+  await writeZip(allowedFile, allied);
+  const allowed = await inspectQappZip(allowedFile, { kind: 'cms', version: VERSION });
+  assert.equal(allowed.ok, true, allowed.errors.join('; '));
+
+  const owner = qappFiles({ kind: 'cms' });
+  owner['assets/app.js'] += 'const owner="developer iffi";';
+  const blockedFile = path.join(root, 'owner.zip');
+  await writeZip(blockedFile, owner);
+  const blocked = await inspectQappZip(blockedFile, { kind: 'cms', version: VERSION });
+  assert.equal(blocked.ok, false);
+  assert.match(blocked.errors.join('; '), /hardcoded developer identity/);
+  await rm(root, { recursive: true, force: true });
+});

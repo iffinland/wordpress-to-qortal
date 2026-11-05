@@ -42,6 +42,23 @@ GH_BROWSER=/bin/true /home/iffi/.local/bin/gh auth login \
 - Verify with `gh auth status`; expected scopes: `repo`, `gist`, `read:org`.
 - If the token expires, repeat the device flow. No other credential store is involved.
 
+## Independent component versions
+
+Since 0.8.0, the GitHub release bundle and the three shipped components have
+separate versions in `qms-release.json` (`qms-release@2`):
+
+- bundle: `version` and `releaseTag` (GitHub release identity);
+- `desktop`: desktop, engine package and `ENGINE_VERSION`;
+- `publisher`: Migration Publisher Q-App;
+- `cms`: Generic CMS template.
+
+Component versions include their channel as a prerelease (`0.8.0-alpha.2`).
+A release may change one component and keep the other versions unchanged. Use
+`node scripts/qms-release.mjs set-component --component=<id> --version=<v>`
+before releasing; `npm run version:check` verifies every marker. Never bump an
+unchanged component just because a new GitHub release is created: the update
+registry uses component versions to decide whether users see a notification.
+
 ## Mandatory three-artifact release gate
 
 Every alpha or stable release must ship exactly these production artifacts:
@@ -111,6 +128,9 @@ Document these operational behaviours whenever they change:
    manifest, install and user guides, `KNOWN-ISSUES.md`, `sbom.cdx.json` and
    `provenance.intoto.json`. Always use `npm run release:publish`, which derives
    this list from the manifest and uploads all three artifacts automatically.
+8. Run `npm run release:registry` and hand the generated ZIP to the owner for
+   QDN approval. The release is not update-advertising until that approval and
+   the exact read-back succeed.
 8. Do not attach secrets, broker configuration, wallets, private credentials or internal operational files.
 
 ## Publish
@@ -129,6 +149,36 @@ If a release for the tag already exists, the publisher stops. Inspect it with
 assets or editing notes. Never delete and recreate a published release, never
 silently replace an existing asset, and never overwrite an unrelated stable
 release.
+
+## Update-registry handoff
+
+A successful GitHub release does **not** advertise an update by itself. After
+`release:publish`, generate and review the registry handoff:
+
+```bash
+npm run release:registry -- --tag=v<version> \
+  --node-url=http://100.116.185.83:12391
+```
+
+The step verifies all public assets (exact size and SHA-256), validates the
+currently published `DOCUMENT/developer iffi/qms-update-registry`, changes only
+components whose version increased, and writes
+`release/qms-update-registry.json`, `release/registry-diff.json` and
+`release/registry-publication.json`. If a registry change is needed it also
+writes `release/qms-update-registry-handoff.zip`; if nothing changed it creates
+no handoff. The owner imports that ZIP in the Migration Publisher and approves
+the QDN publication in Hub. Do not publish the registry automatically and do not
+assume the Publisher/broker is authorized.
+
+After owner approval, verify exact read-back:
+
+```bash
+npm run release:registry:verify -- --node-url=http://100.116.185.83:12391
+```
+
+See `docs/migration-studio/UPDATE-REGISTRY.md` for the schema, fee, collision
+handling and manual fallback. A rerun is idempotent: identical bytes produce no
+new handoff.
 
 ## Post-publication verification
 

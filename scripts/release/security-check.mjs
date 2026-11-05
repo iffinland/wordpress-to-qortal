@@ -11,10 +11,12 @@ import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { REPO_ROOT, artifactName, capture, readJson, run, writeJson } from './lib.mjs';
+import { componentVersion } from './artifact-set.mjs';
 
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const config = await readJson(path.join(REPO_ROOT, 'desktop/release.config.json'));
-const artifact = path.join(REPO_ROOT, 'desktop/release', artifactName(config.packageName, release.version, release.architecture));
+const desktopVersion = componentVersion(release, 'desktop');
+const artifact = path.join(REPO_ROOT, 'desktop/release', artifactName(config.packageName, desktopVersion, release.architecture));
 
 function audit(cwd) {
   const result = run('npm', ['audit', '--omit=dev', '--json'], { cwd, allowFailure: true, quiet: true });
@@ -103,7 +105,7 @@ try {
 const productionHigh = audits.reduce((total, entry) => total + entry.vulnerabilities.high + entry.vulnerabilities.critical, 0);
 const record = {
   schema: 'qms-security-report@1',
-  version: release.version,
+  version: desktopVersion,
   artifact: path.basename(artifact),
   dependencyAudits: audits,
   productionHighOrCritical: productionHigh,

@@ -12,6 +12,8 @@ import { PostsPage } from './pages/PostsPage';
 import { SearchPage } from './pages/SearchPage';
 import { TermPage } from './pages/TermPage';
 import { baseCmsConfig, loadRuntimeCmsConfig, templateVersion } from './config/cmsConfig';
+import { UpdateDialog } from './components/UpdateDialog';
+import { useCmsUpdate } from './lib/useCmsUpdate';
 import { useHashRoute } from './hooks/useHashRoute';
 import { applyAdoption, readAdoptionQueue, removeAdoption, writeAdoptionQueue } from './lib/adoption.js';
 import { previousAndNext } from './lib/archive.js';
@@ -40,6 +42,7 @@ function titleForRoute(route: AppRoute): string {
 export function App() {
   const route = useHashRoute();
   const [cmsConfig, setCmsConfig] = useState(baseCmsConfig);
+  const [configSource, setConfigSource] = useState<'build' | 'runtime'>('build');
   const [configNotice, setConfigNotice] = useState('');
   const [publishedSettings, setPublishedSettings] = useState<unknown>(null);
   const [previewSettings, setPreviewSettings] = useState<unknown>(null);
@@ -60,6 +63,7 @@ export function App() {
   const [detailError, setDetailError] = useState('');
   const [detailRetry, setDetailRetry] = useState(0);
 
+  const updates = useCmsUpdate(templateVersion);
   const hostedName = useMemo(() => discoverHostedQdnName(cmsConfig.admin.qdnName || ''), [cmsConfig.admin.qdnName]);
   const effectiveConfig = useMemo(() => {
     const base = hostedName
@@ -75,6 +79,7 @@ export function App() {
     loadRuntimeCmsConfig().then(async (loaded) => {
       if (cancelled) return;
       setCmsConfig(loaded.config);
+      setConfigSource(loaded.source);
       setConfigNotice(loaded.notice);
       const name = discoverHostedQdnName(loaded.config.admin.qdnName || '');
       const settings = await loadPublishedSettings(name);
@@ -242,6 +247,7 @@ export function App() {
   const resolvedTheme = resolveThemeMode(themeMode, prefersDark);
 
   return (
+    <>
     <Layout
       config={effectiveConfig}
       route={route}
@@ -252,6 +258,12 @@ export function App() {
       resolvedTheme={resolvedTheme}
       onThemeChange={(mode) => setThemeMode(mode)}
       hasGalleries={galleries.length > 0}
+      updateBadge={updates.state.showBadge ? (
+        <button type="button" className="update-badge" onClick={updates.openPanel}>
+          Update available
+        </button>
+      ) : null}
+      onCheckUpdates={updates.openPanel}
     >
       {adminRequested ? (
         <AdminPage
@@ -289,6 +301,15 @@ export function App() {
         </>
       )}
     </Layout>
+    <UpdateDialog
+      state={updates.state}
+      open={updates.open}
+      onClose={updates.closePanel}
+      onCheck={() => updates.check(true)}
+      customized={configSource === 'runtime'}
+      hasPublishedSettings={Boolean(publishedSettings)}
+    />
+    </>
   );
 }
 

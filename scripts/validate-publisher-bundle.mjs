@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { stripPinnedRegistryIdentity } from './release/identity-scrub.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'viewer', 'dist-publisher');
@@ -57,8 +58,9 @@ if (errors.length === 0) {
   }
   const js = await Promise.all(files.filter((file) => file.path.endsWith('.js')).map((file) => readFile(path.join(dist, file.path), 'utf8')));
   const joined = js.join('\n');
+  const scanText = stripPinnedRegistryIdentity(joined);
   for (const forbidden of ['developer iffi', 'Corbett Report', 'corbettreport', 'profiles/corbettreport']) {
-    if (joined.includes(forbidden)) errors.push('Publisher bundle contains a hardcoded identity or profile: ' + forbidden);
+    if (scanText.includes(forbidden)) errors.push('Publisher bundle contains a hardcoded identity or profile: ' + forbidden);
   }
   if (/window\.(?:parent|top)\.qortalRequest/.test(joined)) {
     errors.push('Publisher bundle assumes a parent/top frame bridge.');

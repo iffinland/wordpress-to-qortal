@@ -13,8 +13,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { REPO_ROOT, gitInfo, readJson, sha256File, writeJson } from './lib.mjs';
 import {
+  ARTIFACT_COMPONENTS,
   ARTIFACT_LABELS,
   REQUIRED_ARTIFACT_KINDS,
+  componentVersion,
   fileSize,
   inspectQappZip,
   releaseArtifactPaths
@@ -23,7 +25,7 @@ import {
 export const RELEASE_MANIFEST_SCHEMA = 'qms-release-artifacts@1';
 
 export function releaseTag(release) {
-  return 'v' + release.version + '-' + release.channel + '.1';
+  return release.releaseTag ?? ('v' + release.version + '-' + release.channel + '.1');
 }
 
 function requiredSchemas(kind) {
@@ -54,7 +56,8 @@ async function inspectDeb(repoRoot, release, expected) {
   }
   if (artifact) {
     if (artifact.schema !== 'qms-deb-artifact@1') errors.push('Debian artifact metadata schema is unexpected.');
-    if (artifact.version !== release.version) errors.push('Debian artifact version ' + artifact.version + ' does not match ' + release.version + '.');
+    const desktopVersion = componentVersion(release, 'deb');
+    if (artifact.version !== desktopVersion) errors.push('Debian artifact version ' + artifact.version + ' does not match ' + desktopVersion + '.');
     if (artifact.sha256 !== sha256) errors.push('Debian artifact SHA-256 does not match its metadata.');
     if (artifact.bytes !== bytes) errors.push('Debian artifact size does not match its metadata.');
   }
@@ -66,7 +69,7 @@ async function inspectDeb(repoRoot, release, expected) {
   }
   if (validation) {
     if (validation.failed !== 0 || !(validation.checks > 0)) errors.push('Debian artifact validation did not pass.');
-    if (validation.version && validation.version !== release.version) errors.push('Debian validation version does not match.');
+    if (validation.version && validation.version !== componentVersion(release, 'deb')) errors.push('Debian validation version does not match.');
   }
   return {
     ok: errors.length === 0,
@@ -86,7 +89,7 @@ async function inspectZip(repoRoot, release, kind) {
   } catch {
     return { ok: false, errors: ['Required artifact is missing: ' + path.basename(file)], name: path.basename(file), path: file, bytes: 0, sha256: '', files: [] };
   }
-  const result = await inspectQappZip(file, { kind, version: release.version });
+  const result = await inspectQappZip(file, { kind, version: componentVersion(release, kind) });
   const downloadBytes = await fileSize(file);
   return {
     ok: result.ok,
@@ -103,7 +106,7 @@ async function inspectZip(repoRoot, release, kind) {
 export async function runThreeArtifactGate({ repoRoot = REPO_ROOT, release: releaseOverride = null, tag = null, write = true } = {}) {
   const release = releaseOverride ?? await readJson(path.join(repoRoot, 'qms-release.json'));
   const git = gitInfo(repoRoot);
-  const expectedDeb = 'qortal-migration-studio_' + String(release.version).replace(/-/g, '~') + '_' + release.architecture + '.deb';
+  const expectedDeb = 'qortal-migration-studio_' + String(componentVersion(release, 'deb')) + '_' + release.architecture + '.deb';
   const artifacts = {};
   const failures = [];
 
@@ -115,7 +118,7 @@ export async function runThreeArtifactGate({ repoRoot = REPO_ROOT, release: rele
     for (const error of result.errors) failures.push(kind + ': ' + error);
   }
 
-  const versions = Object.fromEntries(REQUIRED_ARTIFACT_KINDS.map((kind) => [kind, release.version]));
+  const versions = Object.fromEntries(REQUIRED_ARTIFACT_KINDS.map((kind) => [kind, componentVersion(release, kind)]));
   const compatibilitySchemas = REQUIRED_ARTIFACT_KINDS.flatMap((kind) => requiredSchemas(kind));
 
   if (artifacts.deb.ok) {
@@ -155,6 +158,7 @@ export async function runThreeArtifactGate({ repoRoot = REPO_ROOT, release: rele
     },
     artifacts: REQUIRED_ARTIFACT_KINDS.map((kind) => ({
       kind,
+      component: ARTIFACT_COMPONENTS[kind],
       label: ARTIFACT_LABELS[kind],
       name: artifacts[kind].name,
       bytes: artifacts[kind].bytes,
@@ -162,6 +166,7 @@ export async function runThreeArtifactGate({ repoRoot = REPO_ROOT, release: rele
       sha256: artifacts[kind].sha256,
       entrypoint: kind === 'deb' ? null : '/index.html',
       files: artifacts[kind].files.length,
+      componentVersion: versions[kind],
       version: versions[kind],
       layout: kind === 'deb' ? 'debian-package' : 'qapp-root'
     })),

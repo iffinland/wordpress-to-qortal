@@ -7,6 +7,7 @@ import type { Plugin } from 'vite';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
+const publisherPackage = JSON.parse(readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
 
 const contentTypes: Record<string, string> = {
   '.css': 'text/css',
@@ -78,6 +79,7 @@ export default defineConfig(({ mode }) => {
   return {
     base: './',
     define: {
+      __PUBLISHER_VERSION__: JSON.stringify(publisherPackage.version),
       'import.meta.env.VITE_QDN_MANIFEST_IDENTIFIER': JSON.stringify(`${profile.resource_prefix}-qdn-manifest`)
     },
     plugins: [react(), qortalContentPlugin(contentRoot)],

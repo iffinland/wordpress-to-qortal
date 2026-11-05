@@ -1,3 +1,5 @@
+import type { UpdateCheckerState } from '../../../lib/update/registry.js';
+
 export interface AdapterInfo {
   id: string;
   displayName: string;
@@ -128,6 +130,7 @@ export interface DesktopSettings {
   platform: string;
   arch: string;
   packaged: boolean;
+  updateNodeUrl?: string | null;
 }
 
 export interface QmsEvent {
@@ -867,6 +870,12 @@ export interface QmsApi {
   };
   diagnostics: {
     export(projectId: string): Promise<SupportBundleExport>;
+  };
+  updates: {
+    state(): Promise<UpdateCheckerState>;
+    check(): Promise<UpdateCheckerState>;
+    setNode(url: string): Promise<UpdateCheckerState>;
+    openRelease(url: string): Promise<Record<string, unknown>>;
   };
   events: {
     on(listener: (event: QmsEvent) => void): () => void;

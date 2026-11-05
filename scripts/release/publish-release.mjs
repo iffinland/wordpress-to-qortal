@@ -59,7 +59,14 @@ if (existing.status === 0) {
 
 const notesPath = path.join(releaseDir, 'RELEASE-NOTES.md');
 const sourceNotes = await readFile(path.join(REPO_ROOT, release.releaseNotes), 'utf8');
+const componentLine = ['desktop', 'publisher', 'cms']
+  .map((id) => id + ' ' + (release.components?.[id]?.version ?? release.version))
+  .join(', ');
 const table = [
+  '## Release components',
+  '',
+  'Bundle: `' + release.version + '` (' + release.releaseTag + '). Components: ' + componentLine + '.',
+  '',
   '## Release artifacts',
   '',
   '| Artifact | File | Size (bytes) | SHA-256 |',
@@ -114,6 +121,19 @@ const create = gh([
 if (create.status !== 0) {
   console.error('gh release create failed with status ' + create.status);
   process.exit(create.status ?? 1);
+}
+
+const view = gh(['release', 'view', tag, '--repo', REPO, '--json', 'assets']);
+if (view.status !== 0) {
+  console.error('Could not read back the created release assets.');
+  process.exit(1);
+}
+const uploadedNames = new Set(JSON.parse(view.stdout).assets.map((asset) => asset.name));
+const missingNames = manifest.artifacts.map((entry) => entry.name).filter((name) => !uploadedNames.has(name));
+if (missingNames.length > 0) {
+  console.error('GitHub stored different asset names than the release manifest: ' + missingNames.join(', '));
+  console.error('Do not continue: registry URLs and SHA256SUMS would not match. Inspect the release and publish a new tag.');
+  process.exit(1);
 }
 
 const base = 'https://github.com/' + REPO + '/releases/download/' + tag + '/';

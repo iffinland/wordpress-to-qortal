@@ -1,17 +1,42 @@
 {
-  "schema": "qms-release@1",
+  "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.7.0",
+  "version": "0.8.0-alpha.2",
   "channel": "alpha",
+  "releaseTag": "v0.8.0-alpha.2",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
-  "releaseNotes": "docs/migration-studio/RELEASE-0.7.0-ALPHA.md",
+  "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-ALPHA.md",
+  "changelog": {
+    "summary": "Independent update notifications for the desktop app, Migration Publisher and Generic CMS, backed by a shared QDN update registry."
+  },
+  "components": {
+    "desktop": {
+      "version": "0.8.0-alpha.2",
+      "channel": "alpha",
+      "source": "desktop/package.json",
+      "changelog": "Desktop startup update check with installed/latest versions, verified Debian download metadata, SHA-256 and manual install instructions. No automatic download or execution."
+    },
+    "publisher": {
+      "version": "0.8.0-alpha.2",
+      "channel": "alpha",
+      "source": "viewer/package.json",
+      "changelog": "Publisher update badge and update view backed by the shared QDN registry. Existing handoff validation, approval gates and read-back receipts are unchanged."
+    },
+    "cms": {
+      "version": "0.8.0-alpha.2",
+      "channel": "alpha",
+      "source": "templates/generic-cms/package.json",
+      "changelog": "Generic CMS startup update check with a compact badge and update view. Preserves runtime qms-cms-config.json and never replaces the running site."
+    }
+  },
   "versionMarkers": [
     "desktop/package.json",
+    "desktop/engine-package/package.json",
     "viewer/package.json",
     "templates/generic-cms/package.json",
     "lib/engine/index.js",
-    "docs/migration-studio/PHASE-9-PRODUCTION-RELEASE.md"
+    "docs/migration-studio/RELEASE-0.8.0-ALPHA.md"
   ]
 }

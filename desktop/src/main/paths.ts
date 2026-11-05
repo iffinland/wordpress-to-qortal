@@ -7,6 +7,7 @@ import path from 'node:path';
 export interface DesktopConfig {
   schema: 'qms-desktop-config@1';
   dataRoot: string;
+  updateNodeUrl?: string;
   updatedAt: string;
 }
 
@@ -65,7 +66,12 @@ export async function loadConfig(): Promise<DesktopConfig> {
       throw new Error('invalid config');
     }
     const resolved = path.resolve(parsed.dataRoot);
-    return { schema: 'qms-desktop-config@1', dataRoot: resolved, updatedAt: String(parsed.updatedAt ?? '') };
+    return {
+      schema: 'qms-desktop-config@1',
+      dataRoot: resolved,
+      ...(typeof parsed.updateNodeUrl === 'string' && parsed.updateNodeUrl ? { updateNodeUrl: parsed.updateNodeUrl } : {}),
+      updatedAt: String(parsed.updatedAt ?? '')
+    };
   } catch {
     const dataRoot = defaultDataRoot();
     return { schema: 'qms-desktop-config@1', dataRoot, updatedAt: new Date().toISOString() };
@@ -82,6 +88,7 @@ export async function saveConfig(config: DesktopConfig): Promise<void> {
 export function desktopSettings(config: DesktopConfig, keyring: { available: boolean; backend: string }, extra: Record<string, unknown>) {
   return {
     dataRoot: config.dataRoot,
+    updateNodeUrl: config.updateNodeUrl ?? null,
     configFile: configFile(),
     keyring: { ...keyring, persistentCredentials: keyring.available },
     ...extra

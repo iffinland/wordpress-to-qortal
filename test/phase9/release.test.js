@@ -8,21 +8,37 @@ import { artifactName, debVersion } from '../../scripts/release/lib.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
-test('one canonical release version is synchronized across all markers', async () => {
+test('the bundle and all three component versions are synchronized with their markers', async () => {
   const result = await checkVersions(repo);
   assert.equal(result.ok, true, result.failures.join('\n'));
-  assert.equal(result.entries.length >= 5, true);
+  assert.equal(result.entries.length >= 6, true);
   assert.match(result.release.version, /^\d+\.\d+\.\d+/);
+  assert.deepEqual(Object.keys(result.release.components).sort(), ['cms', 'desktop', 'publisher']);
+  for (const id of ['desktop', 'publisher', 'cms']) {
+    assert.match(result.release.components[id].version, /^\d+\.\d+\.\d+/);
+  }
+  assert.equal(result.release.releaseTag, 'v' + result.release.version);
 });
 
 test('release descriptor declares the alpha channel and signing state honestly', async () => {
   const release = await readRelease(repo);
-  assert.equal(release.schema, 'qms-release@1');
+  assert.equal(release.schema, 'qms-release@2');
   assert.equal(release.product, 'Qortal Migration Studio');
   assert.equal(release.debianPackage, 'qortal-migration-studio');
   assert.ok(['alpha', 'beta', 'rc', 'stable'].includes(release.channel));
   assert.ok(['signed', 'unsigned'].includes(release.signing));
   assert.equal(release.architecture, 'amd64');
+});
+
+test('component versions are independent of the GitHub release bundle version', async () => {
+  const release = await readRelease(repo);
+  assert.equal(release.legacySchema, false);
+  assert.equal(typeof release.components.desktop.version, 'string');
+  assert.equal(typeof release.components.publisher.version, 'string');
+  assert.equal(typeof release.components.cms.version, 'string');
+  // The model does not require component versions to equal the bundle version;
+  // this release happens to align them because all three apps changed.
+  assert.equal(release.components.desktop.version, release.components.publisher.version);
 });
 
 test('Debian release metadata is complete and uses Debian 12/13 alternatives', async () => {
@@ -79,5 +95,6 @@ test('Electron packaging enables renderer hardening fuses', async () => {
 
 test('Debian artifact names and versions are deterministic', () => {
   assert.equal(artifactName('qortal-migration-studio', '0.6.0', 'amd64'), 'qortal-migration-studio_0.6.0_amd64.deb');
+  assert.equal(artifactName('qortal-migration-studio', '0.8.0-alpha.2', 'amd64'), 'qortal-migration-studio_0.8.0-alpha.2_amd64.deb');
   assert.equal(debVersion('0.6.0-alpha.1'), '0.6.0~alpha.1');
 });
