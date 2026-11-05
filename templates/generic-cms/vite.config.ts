@@ -75,7 +75,10 @@ export default defineConfig({
   define: {
     __CMS_CONFIG__: JSON.stringify(cmsConfig),
     __CMS_TEMPLATE_VERSION__: JSON.stringify(packageJson.version),
-    'import.meta.env.VITE_QORTAL_NODE_URL': JSON.stringify(process.env.VITE_QORTAL_NODE_URL || 'http://localhost:12391')
+    // Empty in release builds: the hosting node origin is authoritative at
+    // runtime. A localhost default here would make every Android Hub device
+    // try to reach its own loopback address for ownership checks.
+    'import.meta.env.VITE_QORTAL_NODE_URL': JSON.stringify(process.env.VITE_QORTAL_NODE_URL || '')
   },
   plugins: [react(), fixturePlugin()],
   build: {

@@ -1,34 +1,34 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-alpha.2",
+  "version": "0.8.0-alpha.3",
   "channel": "alpha",
-  "releaseTag": "v0.8.0-alpha.2",
+  "releaseTag": "v0.8.0-alpha.3",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
   "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-ALPHA.md",
   "changelog": {
-    "summary": "Independent update notifications for the desktop app, Migration Publisher and Generic CMS, backed by a shared QDN update registry."
+    "summary": "Fixes the Generic CMS owner Admin regression in Qortal Hub on Android: release builds now verify ownership against the hosting node origin instead of a build-time localhost default, and the CMS adds an explicit fail-closed Connect owner account recovery action."
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-alpha.2",
+      "version": "0.8.0-alpha.3",
       "channel": "alpha",
       "source": "desktop/package.json",
-      "changelog": "Desktop startup update check with installed/latest versions, verified Debian download metadata, SHA-256 and manual install instructions. No automatic download or execution."
+      "changelog": "Rebuilt with the corrected Generic CMS template bundled in the engine. No desktop source change; the version is bumped because the package contents change."
     },
     "publisher": {
       "version": "0.8.0-alpha.2",
       "channel": "alpha",
       "source": "viewer/package.json",
-      "changelog": "Publisher update badge and update view backed by the shared QDN registry. Existing handoff validation, approval gates and read-back receipts are unchanged."
+      "changelog": "Unchanged in this release; the Publisher artifact is byte-identical to 0.8.0-alpha.2."
     },
     "cms": {
-      "version": "0.8.0-alpha.2",
+      "version": "0.8.0-alpha.3",
       "channel": "alpha",
       "source": "templates/generic-cms/package.json",
-      "changelog": "Generic CMS startup update check with a compact badge and update view. Preserves runtime qms-cms-config.json and never replaces the running site."
+      "changelog": "Owner Admin restored on Qortal Hub Android: ownership verification uses the hosting node origin, no longer a build-time localhost URL. Adds Connect owner account and precise registry-unavailable recovery guidance while keeping fail-closed authorization."
     }
   },
   "versionMarkers": [

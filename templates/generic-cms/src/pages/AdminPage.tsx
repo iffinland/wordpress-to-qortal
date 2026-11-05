@@ -213,13 +213,23 @@ export function AdminPage(props: {
   galleriesLoading?: boolean;
   loadContent?: any;
   initialEditorId?: string;
+  onConnectOwner?: () => void;
+  onRetryIdentity?: () => void;
 }) {
   if (props.identityLoading) {
     return <div className="page"><StateNotice state="loading" title="Checking QDN name ownership..." message="Administration opens only for the verified on-chain owner." /></div>;
   }
   const owner = Boolean(props.identity && props.identity.owner && props.identity.role === 'owner' && props.identity.nameRecordStatus === 'verified');
   if (!owner) {
-    return <AccessDeniedPage identity={props.identity} notice={props.identityNotice} />;
+    return (
+      <AccessDeniedPage
+        identity={props.identity}
+        notice={props.identityNotice}
+        busy={props.identityLoading}
+        onConnect={props.onConnectOwner}
+        onRetry={props.onRetryIdentity}
+      />
+    );
   }
   return (
     <OwnerAdmin

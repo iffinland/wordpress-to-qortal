@@ -37,6 +37,14 @@ function parentBridge() {
 export function findQortalRequest() {
   if (typeof window !== 'undefined' && typeof window.qortalRequest === 'function') return window.qortalRequest;
   if (typeof globalThis.qortalRequest === 'function') return globalThis.qortalRequest;
+  // Core's /apps/q-apps.js declares qortalRequest as a top-level const. That is
+  // a global lexical binding, not a window property, so read it directly before
+  // falling back to the Function probe. Hub Android provides it this way.
+  try {
+    if (typeof qortalRequest === 'function') return qortalRequest;
+  } catch {
+    // Not declared in this realm.
+  }
   return parentBridge() || getInjectedGlobalBridge();
 }
 
@@ -70,12 +78,49 @@ export async function tryRequestQortal(payload, timeoutMs = 60000) {
   }
 }
 
+function stripTrailingSlash(value) {
+  return String(value || '').replace(/\/+$/, '');
+}
+
+function hostedHttpOrigin() {
+  if (typeof window === 'undefined' || !window.location) return '';
+  if (!/^https?:$/.test(window.location.protocol)) return '';
+  return stripTrailingSlash(window.location.origin);
+}
+
+function buildTimeNodeUrl() {
+  const value = import.meta.env && import.meta.env.VITE_QORTAL_NODE_URL;
+  return value ? stripTrailingSlash(value) : '';
+}
+
+/**
+ * Pure node-URL resolver, exported for tests.
+ *
+ * A QDN page is served by a node at that node's own origin. In Qortal Hub the
+ * page origin is the only address guaranteed to point at a node reachable from
+ * the device (on Android there is no localhost node). A build-time default such
+ * as http://localhost:12391 must therefore never win over the hosting origin.
+ * The env override is used only for local development.
+ */
+export function resolveNodeBase(options = {}) {
+  const origin = stripTrailingSlash(options.origin || '');
+  const envUrl = stripTrailingSlash(options.envUrl || '');
+  const fallback = stripTrailingSlash(options.fallback || DEFAULT_NODE);
+  if (options.isDev) return envUrl || fallback;
+  if (origin && /^https?:\/\//i.test(origin)) return origin;
+  return envUrl || fallback;
+}
+
 export function getNodeUrl() {
-  if (typeof window === 'undefined') return DEFAULT_NODE;
+  if (typeof window === 'undefined') return buildTimeNodeUrl() || DEFAULT_NODE;
   const params = new URLSearchParams(window.location.search);
   const fromQuery = params.get('node');
-  const fromEnv = import.meta.env && import.meta.env.VITE_QORTAL_NODE_URL;
-  return String(fromQuery || fromEnv || DEFAULT_NODE).replace(/\/+$/, '');
+  if (fromQuery) return stripTrailingSlash(fromQuery);
+  return resolveNodeBase({
+    origin: hostedHttpOrigin(),
+    envUrl: buildTimeNodeUrl(),
+    isDev: Boolean(import.meta.env && import.meta.env.DEV)
+  });
 }
 
 /**
@@ -84,12 +129,11 @@ export function getNodeUrl() {
  * ownership checks at an attacker's fake node.
  */
 export function getTrustedNodeUrl() {
-  const fromEnv = import.meta.env && import.meta.env.VITE_QORTAL_NODE_URL;
-  if (fromEnv) return String(fromEnv).replace(/\/+$/, '');
-  if (typeof window !== 'undefined' && window.location && /^https?:$/.test(window.location.protocol)) {
-    return window.location.origin;
-  }
-  return DEFAULT_NODE;
+  return resolveNodeBase({
+    origin: hostedHttpOrigin(),
+    envUrl: buildTimeNodeUrl(),
+    isDev: Boolean(import.meta.env && import.meta.env.DEV)
+  });
 }
 
 export function createQdnResourcePath(service, name, identifier) {
@@ -156,21 +200,40 @@ export async function fetchQdnResource(ref, timeoutMs = READ_TIMEOUT_MS) {
   }
 }
 
+function validNameRecord(record) {
+  return Boolean(record && typeof record.name === 'string' && typeof record.owner === 'string');
+}
+
+/**
+ * Second independent read of the same on-chain fact. Some devices can reach
+ * the Hub's connected node through the bridge but not the page origin (for
+ * example a proxied Hub web build). The record still comes from a Qortal node,
+ * and ownership is granted only when this record agrees exactly with the name
+ * and with the active account address.
+ */
+async function fetchNameRecordThroughBridge(name) {
+  if (!hasQortalBridge()) return null;
+  const record = await tryRequestQortal({ action: 'GET_NAME_DATA', name }, 15000);
+  return validNameRecord(record) ? record : null;
+}
+
 export async function fetchNameRecord(name, timeoutMs = 6000) {
-  if (!name) return { record: null, error: 'No name was provided.' };
+  if (!name) return { record: null, error: 'No name was provided.', source: '' };
+  let directError = '';
   try {
     const response = await fetch(getTrustedNodeUrl() + '/names/' + encodeURIComponent(name), {
       signal: AbortSignal.timeout(timeoutMs)
     });
     if (!response.ok) throw new Error('HTTP ' + response.status);
     const record = await response.json();
-    if (!record || typeof record.name !== 'string' || typeof record.owner !== 'string') {
-      throw new Error('The name record did not include name and owner.');
-    }
-    return { record, error: null };
+    if (!validNameRecord(record)) throw new Error('The name record did not include name and owner.');
+    return { record, error: null, source: 'node' };
   } catch (error) {
-    return { record: null, error: error && error.message ? error.message : String(error) };
+    directError = error && error.message ? error.message : String(error);
   }
+  const bridged = await fetchNameRecordThroughBridge(name);
+  if (bridged) return { record: bridged, error: null, source: 'bridge' };
+  return { record: null, error: directError, source: '' };
 }
 
 /**
@@ -297,22 +360,83 @@ export async function resolveViewerIdentity(options = {}) {
   const qdnName = String(options.qdnName || discoverHostedQdnName('')).trim();
   const bridgeAvailable = hasQortalBridge();
   const facts = await readIdentityFacts();
-  const nameResult = qdnName ? await fetchNameRecord(qdnName) : { record: null, error: null };
+  const nameResult = qdnName ? await fetchNameRecord(qdnName) : { record: null, error: null, source: '' };
   const identity = evaluateOwnership({
     qdnName,
     account: facts.account,
     accountNames: facts.names,
     nameRecord: nameResult.record,
+    nameRecordSource: nameResult.source,
+    nameRecordError: nameResult.error || '',
     bridgeAvailable,
     displayName: facts.primaryName || facts.names[0] || ''
   });
   if (nameResult.error && identity.nameRecordStatus !== 'verified') {
     return {
       ...identity,
-      message: identity.message + ' Name record lookup failed: ' + nameResult.error
+      message: identity.message + ' Registry detail: ' + nameResult.error
     };
   }
   return identity;
+}
+
+/**
+ * Ask Qortal Hub for the active account. This is the only supported way to
+ * trigger the account permission prompt from a user gesture. It returns the
+ * address for display/diagnostics; ownership is still decided by
+ * resolveViewerIdentity against the node's name record and the account's name
+ * list. Nothing here is persisted or trusted across a mutation.
+ */
+export async function requestActiveAccount(timeoutMs = 300000) {
+  if (!hasQortalBridge()) {
+    return { ok: false, address: '', error: 'bridge-unavailable', message: 'Open this site inside Qortal Hub to connect an owner account.' };
+  }
+  try {
+    const account = await requestQortal({ action: 'GET_USER_ACCOUNT' }, timeoutMs);
+    const address = account && account.address ? String(account.address) : '';
+    if (!address) {
+      return { ok: false, address: '', error: 'no-account', message: 'Qortal Hub did not return an active account. Unlock a wallet account in Hub and try again.' };
+    }
+    return { ok: true, address, error: '', message: '' };
+  } catch (error) {
+    return {
+      ok: false,
+      address: '',
+      error: 'account-request-failed',
+      message: 'Qortal Hub did not return an active account: ' + (error && error.message ? error.message : String(error))
+    };
+  }
+}
+
+/**
+ * Explicit "Connect owner account" action. Requests the active account through
+ * the supported bridge (user gesture), then re-runs the complete ownership
+ * verification. It never grants owner mode directly.
+ */
+export async function connectOwnerAccount(qdnName) {
+  const name = String(qdnName || discoverHostedQdnName('')).trim();
+  if (!hasQortalBridge()) {
+    return evaluateOwnership({ qdnName: name, bridgeAvailable: false });
+  }
+  const account = await requestActiveAccount();
+  if (!account.ok) {
+    return {
+      role: 'reader',
+      owner: false,
+      reason: 'no-account',
+      message: account.message || 'The owner account was not connected. Approve the request in Qortal Hub and try again.',
+      address: '',
+      name: '',
+      names: [],
+      qdnName: name,
+      bridgeAvailable: true,
+      nameRecordStatus: 'none',
+      nameRecordSource: '',
+      nameRecordError: '',
+      action: 'connect'
+    };
+  }
+  return resolveViewerIdentity({ qdnName: name });
 }
 
 /**
@@ -330,10 +454,12 @@ export async function revalidateViewerIdentity(identity) {
   const result = evaluateRevalidation(identity, {
     account: facts.account,
     accountNames: facts.names,
-    nameRecord: nameResult.record
+    nameRecord: nameResult.record,
+    nameRecordSource: nameResult.source,
+    nameRecordError: nameResult.error || ''
   });
   if (!result.ok && nameResult.error) {
-    return { ...result, message: result.message + ' Name record lookup failed: ' + nameResult.error };
+    return { ...result, message: result.message + ' Registry detail: ' + nameResult.error };
   }
   return result;
 }

@@ -1,9 +1,30 @@
-# Known issues and limitations — 0.7.0 alpha
+# Known issues and limitations — 0.8.0 alpha.3
 
 These are release-gate facts, not a substitute for testing your own site. The
-0.7.0 release is published as a prerelease with all three artifacts:
-<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.7.0-alpha.1>.
+0.8.0-alpha.3 release is published as a prerelease with all three artifacts.
 Downloading an artifact is not deployment or live validation.
+
+## New in 0.8.0-alpha.3
+
+1. **Live Admin regression fixed in the Generic CMS.** Version 0.8.0-alpha.2
+   built `VITE_QORTAL_NODE_URL=http://localhost:12391` into release bundles and
+   used it as the trusted node for the `/names/<name>` ownership read. On
+   Qortal Hub for Android the page is served by a remote node, so the lookup
+   targeted the phone's own loopback, failed, and the real owner stayed
+   read-only with no Admin entry. 0.8.0-alpha.3 uses the hosting page origin in
+   release builds and keeps the env value as a development-only override.
+2. **Recovery actions do not expand authorization.** `Connect owner account`
+   requests `GET_USER_ACCOUNT` and re-runs the complete check; `Retry
+   verification` repeats the same check. Neither can grant owner mode to a
+   non-owner. Direct `#/admin` navigation by a non-owner still shows **Access
+   denied**.
+3. **The desktop package is rebuilt but has no desktop source change.** Its
+   version moves to 0.8.0-alpha.3 because the bundled Generic CMS template
+   changed. The Publisher source and artifact are unchanged at 0.8.0-alpha.2.
+4. **The fix is verified in the built bundle and unit matrix, not yet on a
+   physical Android device in this release run.** The previous live failure
+   matched the localhost name-record path exactly. Owner verification must still
+   be confirmed on the owner's Hub after deploying the new CMS ZIP.
 
 ## New in 0.7.0
 

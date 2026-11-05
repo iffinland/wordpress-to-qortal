@@ -40,14 +40,48 @@ or mutation. The check is layered:
 Public posts, search, categories, tags and galleries remain read-only and open to
 everyone.
 
+### Trusted node selection (0.8.0-alpha.3)
+
+The trusted node for step 4 is the origin that serves the QDN page. In release
+builds `getTrustedNodeUrl()` ignores the build-time node variable and uses
+`window.location.origin`. This is both a correctness and a security rule:
+
+- Qortal Hub on Android serves the page from a remote node. A build-time
+  `http://localhost:12391` points at the phone itself, so the name record read
+  fails and the real owner is denied (the 0.8.0-alpha.2 regression).
+- `?node=` must never influence authorization. It is only honoured by the
+  catalogue read helper when no Qortal bridge exists.
+- The env override is applied only in development builds.
+
+If the direct `/names/<name>` read fails, the CMS may ask the Hub-connected node
+for the same record through `GET_NAME_DATA`. The returned record must still name
+the exact QDN name and the exact active address, and the account name list must
+still contain the name. The fallback changes availability, not the authorization
+rule.
+
+### Recovery actions are not authorization
+
+`connectOwnerAccount()` calls `GET_USER_ACCOUNT` from a user gesture and then
+runs `resolveViewerIdentity()` again. It never sets `owner`, never writes a
+remembered identity and never skips the node check. `Retry verification` only
+repeats the same check. A non-owner cannot turn Access denied into owner mode by
+clicking either action.
+
+Reasons are reported distinctly so the owner is not misled: `no-account`
+(connect), `name-record-unavailable` or `name-list-unavailable` (retry),
+`owner-address-mismatch` / `name-not-owned` (definitive denial),
+`bridge-unavailable` (open in Hub).
+
 ### Test matrix
 
 The CMS suite covers: correct owner; different registered name; different
-signed-in account; no auth; no bridge; name record unavailable; name transfer;
-stale account at mutation time; forged `?name=`; forged localStorage owner;
-forged `?node=`; and a direct admin navigation as a reader. See
-`templates/generic-cms/tests/security.test.ts`,
-`tests/render.test.tsx` and `tests/interactions.test.tsx`.
+signed-in account; no auth; no bridge; name record unavailable; empty name list;
+name transfer; case mismatch; stale account at mutation time; forged `?name=`;
+forged localStorage owner; forged `?node=`; a direct admin navigation as a
+reader; connect declined; connect succeeds then re-verifies; and the trusted-node
+origin resolver. See `templates/generic-cms/tests/security.test.ts`,
+`tests/ownership-recovery.test.ts`, `tests/render.test.tsx` and
+`tests/interactions.test.tsx`.
 
 ## 2. Themes
 
