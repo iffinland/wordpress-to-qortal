@@ -17,7 +17,7 @@ const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const artifactArg = process.argv.find((value) => value.startsWith('--artifact='));
 const artifact = artifactArg
   ? path.resolve(artifactArg.slice('--artifact='.length))
-  : path.join(REPO_ROOT, 'desktop/release', 'qortal-migration-studio_' + componentVersion(release, 'desktop') + '_amd64.deb');
+  : path.join(REPO_ROOT, 'desktop/release', 'qortal-migration-studio_' + componentVersion(release, 'desktop').replace(/-/g, '~') + '_amd64.deb');
 const outArg = process.argv.find((value) => value.startsWith('--out='));
 const output = outArg ? path.resolve(outArg.slice('--out='.length)) : path.join(REPO_ROOT, 'desktop/release/sbom.cdx.json');
 
