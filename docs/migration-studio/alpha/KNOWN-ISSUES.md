@@ -1,8 +1,34 @@
-# Known issues and limitations — 0.8.0 alpha.4
+# Known issues and limitations — 0.8.0 alpha.5
 
 These are release-gate facts, not a substitute for testing your own site. The
-0.8.0-alpha.4 release is published as a prerelease with all three artifacts.
+0.8.0-alpha.5 release is published as a prerelease with all three artifacts.
 Downloading an artifact is not deployment or live validation.
+
+## New in 0.8.0-alpha.5
+
+1. **Existing projects are migrated, not recreated.** A wizard record with
+   numeric `completedSteps` is normalized to canonical ids on first open. The
+   migration is idempotent and preserves website settings, dates, plan ids and
+   connection metadata. If a project is open in two app instances at once, close
+   one before continuing.
+2. **The first plan after upgrading may scan the whole site.** The desktop now
+   requires a completed discovery batch. A large site (thousands of posts,
+   tags and media) can take minutes; progress is shown, and the scan is not a
+   publication or a transaction.
+3. **Date filters are UTC date-only ranges.** "Published before" means through
+   `23:59:59.999Z` of the selected day. WordPress timestamps are normalized as
+   UTC; a post near local midnight can appear on the adjacent UTC date.
+4. **An empty plan is intentionally not approvable.** Use the explanation to
+   adjust the date range or content types. An empty plan never marks the wizard
+   complete.
+5. **APP and WEBSITE are separate deployments under the same name.** Changing
+   the service after preparation creates a second site bundle; it does not
+   overwrite the existing deployment. A different project identity derives a
+   different identifier.
+6. **This release run did not perform a QDN transaction.** Signing, wallet,
+   broker and QDN publication were not exercised. The live first-run test was a
+   real MX Linux graphical session by the owner, reported separately from the
+   automated gates.
 
 ## New in 0.8.0-alpha.4
 

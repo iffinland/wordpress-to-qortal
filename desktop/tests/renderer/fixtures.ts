@@ -217,7 +217,13 @@ export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
       list: vi.fn(async () => [adapter()]),
       capabilities: vi.fn(async () => adapter()),
       validate: vi.fn(async () => ({ runId: 'run_test', status: 'completed', report: { ok: true, adapter: 'wordpress', adapterVersion: '1.0.0', auth: { mode: 'none', authenticated: true }, site: { name: 'Demo' }, counts: {}, contentTypes: ['post', 'page'], unsupported: {}, warnings: [] } })),
-      discover: vi.fn(async () => ({}))
+      discover: vi.fn(async () => ({
+        runId: 'run_discover',
+        status: 'completed',
+        batchId: 'bat_test',
+        summary: { counts: { posts: 5, pages: 1, categories: 1, tags: 1, media: 2 }, truncated: false },
+        report: { counts: { posts: 5, pages: 1, categories: 1, tags: 1, media: 2 } }
+      }))
     },
     identity: {
       get: vi.fn(async () => ({ identity: {}, mappings: [], conflicts: [] })),

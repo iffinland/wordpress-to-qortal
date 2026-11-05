@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatScalar } from '../format.js';
 
 export function Badge({ tone = 'neutral', children }: { tone?: 'neutral' | 'good' | 'warn' | 'bad' | 'info'; children: React.ReactNode }) {
   return <span className={'badge badge-' + tone}>{children}</span>;
@@ -67,6 +68,6 @@ export function Alert({ tone = 'info', title, children }: { tone?: 'info' | 'war
 export function ErrorText({ error }: { error: unknown }) {
   if (!error) return null;
   const value = error as { message?: string; code?: string };
-  return <Alert tone="bad" title={value.code ?? 'Error'}>{value.message ?? String(error)}</Alert>;
+  return <Alert tone="bad" title={value.code ?? 'Error'}>{value.message ?? formatScalar(error)}</Alert>;
 }
 

@@ -95,7 +95,7 @@ export async function startMediaServer({ chunkSize = 64 * 1024, chunkDelayMs = 0
 
     let start = 0;
     const rangeHeader = req.headers.range;
-    if (rangeHeader) {
+    if (rangeHeader && !isUnknown) {
       const match = /^bytes=(\d+)-$/.exec(String(rangeHeader));
       if (match) start = Number(match[1]);
       if (start >= body.length) {

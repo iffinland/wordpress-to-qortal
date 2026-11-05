@@ -70,6 +70,7 @@
     "release:validate": "node scripts/release/validate-artifact.mjs",
     "release:engine-test": "node scripts/release/engine-clean-install-test.mjs",
     "release:engine-test:negative": "node scripts/release/engine-clean-install-test.mjs --hide-node-module=fflate --expect-failure",
+    "release:engine-wizard": "node scripts/release/engine-wizard-flow-test.mjs",
     "engine:verify": "node scripts/release/verify-engine-runtime.mjs",
     "release:security": "node scripts/release/security-check.mjs",
     "release:sbom": "node scripts/release/generate-sbom.mjs",

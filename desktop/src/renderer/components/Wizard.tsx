@@ -1,17 +1,66 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
-import type { AdapterInfo, DesktopSettings, PlanCreateResult, PlanDocument, ProjectDocument, SourceValidationResult, WizardState } from '../../shared/types.js';
+import type { AdapterInfo, DesktopSettings, FilterDiagnostics, PlanCreateResult, PlanDocument, ProjectDocument, QmsEvent, SourceValidationResult, WizardState } from '../../shared/types.js';
 import { Alert, Badge, Card, ErrorText, Field } from './Common.js';
-import { formatBytes, formatDate } from '../format.js';
+import { formatBytes, formatDate, formatScalar } from '../format.js';
 import { checkQortalName } from '../../shared/qortalName.js';
+import {
+  WIZARD_STEP_IDS,
+  WIZARD_STEP_LABELS,
+  completedStepIndexes,
+  dateInputValue,
+  describeDateRange,
+  describeUnsupportedList,
+  endOfDayIso,
+  migrateWizardForLoad,
+  normalizeCompletedSteps,
+  startOfDayIso,
+  type WizardStepId
+} from '../../shared/wizard.js';
 
-const STEPS = [
-  'Source CMS',
-  'WordPress connection',
-  'Qortal destination',
-  'Import preferences',
-  'Plan and review'
-];
+const STEPS = WIZARD_STEP_IDS.map((id) => WIZARD_STEP_LABELS[id]);
+
+interface DiscoveryInfo {
+  batchId: string | null;
+  completedAt: string;
+  counts: Record<string, number>;
+  contentTypes: string[];
+  truncated: boolean;
+}
+
+function discoveryFromWizard(wizard: Record<string, unknown>): DiscoveryInfo | null {
+  const value = wizard.discovery;
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  const counts = record.counts && typeof record.counts === 'object' && !Array.isArray(record.counts)
+    ? Object.fromEntries(Object.entries(record.counts as Record<string, unknown>).map(([key, raw]) => [key, Number(raw) || 0]))
+    : {};
+  return {
+    batchId: typeof record.batchId === 'string' ? record.batchId : null,
+    completedAt: typeof record.completedAt === 'string' ? record.completedAt : '',
+    counts,
+    contentTypes: Array.isArray(record.contentTypes) ? record.contentTypes.map(String) : [],
+    truncated: record.truncated === true
+  };
+}
+
+function planFailureFrom(result: PlanCreateResult): { code: string; message: string; details?: Record<string, unknown> } | null {
+  if (result.status !== 'failed') return null;
+  const error = result.error ?? {};
+  return {
+    code: typeof error.code === 'string' ? error.code : 'PLAN_FAILED',
+    message: typeof error.message === 'string' ? error.message : 'The plan could not be created.',
+    details: error.details && typeof error.details === 'object' ? error.details as Record<string, unknown> : undefined
+  };
+}
+
+function selectedCountOf(plan: PlanDocument | null, preview: PlanCreateResult | null): number {
+  return Number(plan?.stats?.selected ?? preview?.stats?.selected ?? 0);
+}
+
+function planDiagnosticsOf(plan: PlanDocument | null, preview: PlanCreateResult | null): FilterDiagnostics | null {
+  return (preview?.filterDiagnostics ?? plan?.filterDiagnostics ?? plan?.selection?.filterDiagnostics ?? null) as FilterDiagnostics | null;
+}
 
 interface WizardProps {
   project: ProjectDocument;
@@ -29,16 +78,21 @@ function storedWizard(project: ProjectDocument): Partial<WizardState> {
 }
 
 function defaultWizard(project: ProjectDocument, adapters: AdapterInfo[]): WizardState {
-  const stored = storedWizard(project);
+  const rawStored = storedWizard(project);
+  const migrated = migrateWizardForLoad(rawStored);
+  const stored = migrated.wizard as Partial<WizardState> & Record<string, unknown>;
   const source = (project.source ?? {}) as Record<string, unknown>;
   const target = (project.target ?? {}) as Record<string, unknown>;
   const projectSettings = (project.settings ?? {}) as Record<string, unknown>;
-  const website = (projectSettings.website ?? {}) as Record<string, unknown>;
+  const storedWebsite = (stored.website ?? {}) as Record<string, unknown>;
+  const projectWebsite = (projectSettings.website ?? {}) as Record<string, unknown>;
+  const website = { ...projectWebsite, ...storedWebsite };
   const theme = (website.theme ?? {}) as Record<string, unknown>;
   const colors = (theme.colors ?? {}) as Record<string, unknown>;
   return {
-    step: stored.step ?? 1,
-    completedSteps: Array.isArray(stored.completedSteps) ? stored.completedSteps : [],
+    step: typeof stored.step === 'number' ? stored.step : 1,
+    completedSteps: normalizeCompletedSteps(stored.completedSteps),
+    wizardVersion: 2,
     adapterId: stored.adapterId ?? String(source.adapter ?? adapters[0]?.id ?? 'wordpress'),
     sourceUrl: stored.sourceUrl ?? String(source.baseUrl ?? ''),
     authMode: stored.authMode ?? 'none',
@@ -48,12 +102,12 @@ function defaultWizard(project: ProjectDocument, adapters: AdapterInfo[]): Wizar
     siteDescription: stored.siteDescription ?? String(target.siteDescription ?? ''),
     website: {
       cms: String(website.cms ?? 'generic-cms'),
-      service: String(website.service ?? 'APP').toUpperCase(),
+      service: String(website.service ?? 'APP').toUpperCase() === 'WEBSITE' ? 'WEBSITE' : 'APP',
       tagline: String(website.tagline ?? ''),
       accent: String(colors.accent ?? '#4da3ff')
     },
-    preferences: stored.preferences ?? {},
-    planId: stored.planId ?? null,
+    preferences: (stored.preferences ?? {}) as Record<string, unknown>,
+    planId: (stored.planId as string | null | undefined) ?? null,
     updatedAt: stored.updatedAt ?? new Date().toISOString()
   };
 }
@@ -75,9 +129,13 @@ function mibToBytes(value: string): number {
 
 export function Wizard({ project, adapters, settings, onClose, onComplete }: WizardProps) {
   const initial = useMemo(() => defaultWizard(project, adapters), [project, adapters]);
+  const initialService = String(initial.website?.service ?? 'APP').toUpperCase();
+  const migrationNeeded = useMemo(() => migrateWizardForLoad(storedWizard(project)).changed, [project]);
+  const migrationSaved = useRef(false);
+  const previewInFlight = useRef(false);
   const preferences = (initial.preferences ?? {}) as Record<string, unknown>;
   const [step, setStep] = useState(Math.max(1, Math.min(5, initial.step)));
-  const [completed, setCompleted] = useState<number[]>(initial.completedSteps);
+  const [completed, setCompleted] = useState<WizardStepId[]>(initial.completedSteps);
   const [adapterId, setAdapterId] = useState(initial.adapterId);
   const [sourceUrl, setSourceUrl] = useState(initial.sourceUrl);
   const [authMode, setAuthMode] = useState(initial.authMode);
@@ -107,7 +165,12 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
   const [unknownPolicy, setUnknownPolicy] = useState(String(preferences.unknownPolicy ?? 'reject'));
   const [planPreview, setPlanPreview] = useState<PlanCreateResult | null>(null);
   const [planDocument, setPlanDocument] = useState<PlanDocument | null>(null);
+  const [planDiagnostics, setPlanDiagnostics] = useState<FilterDiagnostics | null>(null);
+  const [planFailure, setPlanFailure] = useState<{ code: string; message: string; details?: Record<string, unknown> } | null>(null);
   const [diskPreview, setDiskPreview] = useState<Record<string, unknown> | null>(null);
+  const [scan, setScan] = useState<DiscoveryInfo | null>(discoveryFromWizard(preferences));
+  const [scanning, setScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState('');
   const [busy, setBusy] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -123,14 +186,41 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
   }, [authModes, authMode]);
 
   useEffect(() => {
-    if (step === 5 && !planPreview) void loadPreview();
+    if (step === 5 && !planPreview && !previewing && !previewInFlight.current) void loadPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  function wizardState(nextStep = step, nextCompleted = completed): WizardState {
+  useEffect(() => {
+    if (!migrationNeeded || migrationSaved.current) return;
+    migrationSaved.current = true;
+    void persist(step, completed).catch((migrationError) => setError(migrationError));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [migrationNeeded]);
+
+  useEffect(() => {
+    const unsubscribe = api().events.on((payload) => {
+      const event = payload as QmsEvent;
+      if (event.project_id !== project.id) return;
+      if (event.progress && (event.type === 'progress_updated' || event.type === 'operation_started')) {
+        const total = Number(event.progress.total ?? 0);
+        const completed = Number(event.progress.completed ?? 0);
+        setScanProgress(event.message ?? ('Scanning: ' + completed + (total > 0 ? '/' + total : '') + ' item(s)'));
+      }
+    });
+    return unsubscribe;
+  }, [project.id]);
+
+  function wizardState(
+    nextStep = step,
+    nextCompleted = completed,
+    scanOverride: DiscoveryInfo | null | undefined = undefined,
+    planOverride: PlanCreateResult | null | undefined = undefined
+  ): WizardState {
+    const effectiveScan = scanOverride === undefined ? scan : scanOverride;
     return {
       step: nextStep,
       completedSteps: nextCompleted,
+      wizardVersion: 2,
       adapterId,
       sourceUrl,
       authMode,
@@ -166,15 +256,21 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
         maxRunGib: Number(maxRunGib),
         maxFileMib: Number(maxFileMib),
         maxFiles: Number(maxFiles),
-        unknownPolicy
+        unknownPolicy,
+        discovery: effectiveScan ?? undefined
       },
-      planId: planPreview?.planId ?? initial.planId ?? null,
+      planId: planOverride?.planId ?? planPreview?.planId ?? initial.planId ?? null,
       updatedAt: new Date().toISOString()
     };
   }
 
-  async function persist(nextStep = step, nextCompleted = completed) {
-    await api().projects.saveWizard(project.id, wizardState(nextStep, nextCompleted));
+  async function persist(
+    nextStep = step,
+    nextCompleted = completed,
+    scanOverride: DiscoveryInfo | null | undefined = undefined,
+    planOverride: PlanCreateResult | null | undefined = undefined
+  ) {
+    await api().projects.saveWizard(project.id, wizardState(nextStep, nextCompleted, scanOverride, planOverride));
   }
 
   async function goTo(nextStep: number) {
@@ -222,14 +318,93 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       if (!Number.isFinite(file) || file <= 0) return 'Maximum bytes per file must be greater than zero.';
       if (run > 0 && file > run * 1024) return 'Per-file limit cannot exceed the per-run limit.';
       if (unknownPolicy === 'estimate' && file <= 0) return 'The estimate policy needs a positive per-file size.';
+      if (after && before && Date.parse(after) > Date.parse(before)) {
+        return 'The "published after" date must not be later than "published before".';
+      }
       return '';
     }
     if (current === 5) {
       if (!planPreview) return 'Load the plan review first.';
+      if (planFailure) return 'Planning failed (' + planFailure.code + '): ' + planFailure.message;
       if (planPreview.status === 'blocked') return 'The plan is blocked. Adjust preferences before approval.';
+      if (planPreview.status !== 'completed') return 'The plan did not complete successfully. Review the error above and refresh the preview.';
+      if (!planPreview.planId || planDocument?.status !== 'ready') return 'No ready plan exists. Refresh the preview before approving.';
+      if (selectedCountOf(planDocument, planPreview) === 0) {
+        return 'No content matches the current filters, so there is nothing to approve. Adjust the published-date filters or content types.';
+      }
       return '';
     }
     return '';
+  }
+
+  function numericCounts(value: unknown): Record<string, number> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+    const out: Record<string, number> = {};
+    for (const [key, raw] of Object.entries(value as Record<string, unknown>)) {
+      const number = Number(raw);
+      out[key] = Number.isFinite(number) ? number : 0;
+    }
+    return out;
+  }
+
+  async function hasCompletedDiscovery(): Promise<boolean> {
+    try {
+      const runs = await api().runs.list(project.id);
+      const completed = runs.some((run) => run.kind === 'source.discover' && run.state === 'completed');
+      if (completed) return true;
+    } catch {
+      // Fall through to the persisted wizard hint; the plan itself remains the
+      // authoritative check and will return SOURCE_DISCOVERY_REQUIRED.
+    }
+    return Boolean(scan?.batchId);
+  }
+
+  async function runScan(): Promise<DiscoveryInfo | null> {
+    setScanning(true);
+    setScanProgress('Connecting to the source…');
+    setError(null);
+    setStepError('');
+    try {
+      const result = await api().sources.discover(project.id, {
+        adapterId,
+        contentTypes,
+        perPage: 100
+      }) as Record<string, unknown>;
+      if (result.status !== 'completed') {
+        const failure = result.error && typeof result.error === 'object' ? result.error as Record<string, unknown> : {};
+        const message = typeof failure.message === 'string' ? failure.message : 'The source scan did not complete.';
+        const code = typeof failure.code === 'string' ? failure.code : 'SOURCE_SCAN_FAILED';
+        setPlanFailure({ code, message, details: failure.details as Record<string, unknown> | undefined });
+        setStepError('Source scan failed (' + code + '): ' + message);
+        return null;
+      }
+      const report = result.report && typeof result.report === 'object' ? result.report as Record<string, unknown> : {};
+      const summary = result.summary && typeof result.summary === 'object' ? result.summary as Record<string, unknown> : {};
+      const info: DiscoveryInfo = {
+        batchId: typeof result.batchId === 'string' ? result.batchId : null,
+        completedAt: new Date().toISOString(),
+        counts: numericCounts(report.counts ?? summary.counts),
+        contentTypes,
+        truncated: Boolean(summary.truncated ?? report.truncated)
+      };
+      setScan(info);
+      setScanProgress('Scan complete.');
+      await persist(step, completed, info);
+      return info;
+    } catch (scanError) {
+      setError(scanError);
+      setStepError('Source scan failed: ' + (scanError instanceof Error ? scanError.message : 'unknown error'));
+      return null;
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  function applyPlanResult(result: PlanCreateResult) {
+    setPlanPreview(result);
+    setPlanDocument(result.plan ?? null);
+    setPlanDiagnostics(planDiagnosticsOf(result.plan ?? null, result));
+    setPlanFailure(planFailureFrom(result));
   }
 
   async function next() {
@@ -260,14 +435,20 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
           }
         });
       }
+      let scanOverride: DiscoveryInfo | null | undefined;
       if (step === 4) {
         await savePreferences();
+        if (!(await hasCompletedDiscovery())) {
+          scanOverride = await runScan();
+          if (!scanOverride) return;
+        }
       }
       const nextStep = Math.min(5, step + 1);
-      const nextCompleted = completed.includes(step) ? completed : [...completed, step];
+      const currentId = WIZARD_STEP_IDS[step - 1];
+      const nextCompleted: WizardStepId[] = completed.includes(currentId) ? completed : [...completed, currentId];
       setCompleted(nextCompleted);
       setStep(nextStep);
-      await persist(nextStep, nextCompleted);
+      await persist(nextStep, nextCompleted, scanOverride);
       if (nextStep === 5) await loadPreview();
     } catch (nextError) {
       setError(nextError);
@@ -311,7 +492,8 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       maxBytesPerRun: gibToBytes(maxRunGib),
       maxFileBytes: mibToBytes(maxFileMib),
       maxFilesPerRun: Number(maxFiles) || 500,
-      unknownSizePolicy: unknownPolicy
+      unknownSizePolicy: unknownPolicy,
+      ...(unknownPolicy === 'estimate' ? { unknownSizeBytes: mibToBytes(maxFileMib) } : {})
     };
   }
 
@@ -362,15 +544,25 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
   }
 
   async function loadPreview() {
+    previewInFlight.current = true;
     setPreviewing(true);
     setError(null);
+    setPlanFailure(null);
     try {
+      if (!(await hasCompletedDiscovery())) {
+        const info = await runScan();
+        if (!info) return;
+      }
       const result = await api().plans.create(project.id, planOptions(false));
-      setPlanPreview(result);
-      setPlanDocument(result.plan ?? null);
+      applyPlanResult(result);
     } catch (previewError) {
       setError(previewError);
+      setPlanFailure({
+        code: (previewError as { code?: string } | null)?.code ?? 'PLAN_PREVIEW_FAILED',
+        message: previewError instanceof Error ? previewError.message : 'The plan preview could not be loaded.'
+      });
     } finally {
+      previewInFlight.current = false;
       setPreviewing(false);
     }
   }
@@ -382,13 +574,15 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
     setError(null);
     try {
       const result = await api().plans.create(project.id, planOptions(true));
-      setPlanPreview(result);
-      setPlanDocument(result.plan ?? null);
+      applyPlanResult(result);
       if (result.status !== 'completed' || !result.planId || result.plan?.status !== 'ready') {
-        setStepError('The plan did not become ready. Nothing was approved for preparation.');
+        const failure = planFailureFrom(result);
+        setStepError(failure
+          ? 'The plan was not approved. ' + failure.code + ': ' + failure.message
+          : 'The plan did not become ready (' + result.status + '). Nothing was approved for preparation.');
         return;
       }
-      const nextCompleted = completed.includes(5) ? completed : [...completed, 5];
+      const nextCompleted: WizardStepId[] = completed.includes('plan') ? completed : [...completed, 'plan'];
       setCompleted(nextCompleted);
       await persist(5, nextCompleted);
       await onComplete(project.id, result.planId);
@@ -400,6 +594,31 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
   }
 
   const identity = (project.identity ?? {}) as Record<string, unknown>;
+  const completedIndexes = completedStepIndexes(completed);
+  const selectedCount = selectedCountOf(planDocument, planPreview);
+  const planReady = Boolean(
+    planPreview &&
+    planPreview.status === 'completed' &&
+    planPreview.planId &&
+    planDocument?.status === 'ready'
+  );
+  const canApprove = planReady && selectedCount > 0 && !planFailure;
+  const approveBlockReason = planFailure
+    ? 'Planning failed (' + planFailure.code + '): ' + planFailure.message
+    : !planPreview
+      ? 'Load the plan review before approving.'
+      : planPreview.status === 'blocked'
+        ? 'The plan is blocked by a safety check. Adjust the filters or disk limits.'
+        : planPreview.status !== 'completed'
+          ? 'The plan did not complete; nothing can be approved.'
+          : !planReady
+            ? 'No ready plan exists. Refresh the preview.'
+            : selectedCount === 0
+              ? 'No content matches the current filters, so nothing can be approved.'
+              : '';
+  const serviceChanged = cmsService !== initialService;
+  const readOnlyReasons = planDocument?.warnings?.filter((warning) => warning.code === 'READ_ONLY').length ?? 0;
+  void readOnlyReasons;
 
   return (
     <div className="wizard stack">
@@ -414,11 +633,13 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       <ol className="stepper">
         {STEPS.map((label, index) => {
           const number = index + 1;
-          const clickable = number <= Math.max(1, ...completed.map((value) => value + 1));
+          const stepId = WIZARD_STEP_IDS[index];
+          const done = completed.includes(stepId);
+          const clickable = number <= Math.max(1, ...completedIndexes.map((value) => value + 1));
           return (
-            <li key={label} className={number === step ? 'active' : completed.includes(number) ? 'done' : ''}>
+            <li key={label} className={number === step ? 'active' : done ? 'done' : ''}>
               <button disabled={!clickable} onClick={() => void goTo(number)}>
-                <span className="step-number">{completed.includes(number) ? '✓' : number}</span>
+                <span className="step-number">{done ? '✓' : number}</span>
                 <span>{label}</span>
               </button>
             </li>
@@ -446,7 +667,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
               <strong>Reported capabilities</strong>
               <div className="row wrap gap"><span>Terms: {adapter.capabilities.terms.join(', ') || 'none'}</span><span>States: {adapter.capabilities.states.join(', ') || 'none'}</span></div>
               <div className="row wrap gap"><span>Assets: {Object.entries(adapter.capabilities.assets).filter(([, enabled]) => enabled).map(([key]) => key).join(', ') || 'none'}</span></div>
-              <div className="row wrap gap"><span>Unsupported: {Object.keys(adapter.capabilities.unsupported).join(', ') || 'none reported'}</span></div>
+              <div className="row wrap gap"><span>Unsupported: {describeUnsupportedList(adapter.capabilities.unsupported).join(', ') || 'none reported'}</span></div>
             </div>
           )}
         </Card>
@@ -501,10 +722,15 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
                 <span>Content types: {(connection.report.contentTypes ?? []).join(', ') || 'unknown'}</span>
               </div>
               <div className="row wrap gap">
-                {Object.entries(connection.report.counts ?? {}).map(([key, value]) => <span key={key} className="pill">{key}: {String(value)}</span>)}
+                {Object.entries(connection.report.counts ?? {}).map(([key, value]) => <span key={key} className="pill">{key}: {formatScalar(value)}</span>)}
               </div>
-              {Object.keys(connection.report.unsupported ?? {}).length > 0 && (
-                <div className="small muted">Unsupported features: {Object.entries(connection.report.unsupported ?? {}).map(([key, value]) => key + ' (' + String(value) + ')').join(', ')}</div>
+              {describeUnsupportedList(connection.report.unsupported).length > 0 && (
+                <div className="small muted" data-testid="unsupported-features">
+                  Unsupported features:
+                  <ul>
+                    {describeUnsupportedList(connection.report.unsupported).map((entry, index) => <li key={String(index)}>{entry}</li>)}
+                  </ul>
+                </div>
               )}
               {(connection.report.warnings ?? []).length > 0 && (
                 <ul className="small warn-text">
@@ -538,15 +764,28 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
                 <option value="none">Content only (no website bundle)</option>
               </select>
             </Field>
-            <Field label="Website hosting service" hint="APP and WEBSITE can both live under the same registered Qortal name. The identifier keeps them separate.">
+            <Field label="Website hosting service" hint="APP and WEBSITE are separate QDN deployments even under the same registered name.">
               <select value={cmsService} onChange={(event) => setCmsService(event.target.value)}>
-                <option value="APP">APP (recommended)</option>
-                <option value="WEBSITE">WEBSITE</option>
+                <option value="APP">APP — application bundle (recommended for the Generic CMS)</option>
+                <option value="WEBSITE">WEBSITE — classic QDN website</option>
               </select>
             </Field>
             <Field label="Accent colour" hint="Used by the Generic CMS theme.">
               <input value={siteAccent} onChange={(event) => setSiteAccent(event.target.value)} placeholder="#4da3ff" />
             </Field>
+            <div className="wide" data-testid="service-safety">
+              <Alert tone={serviceChanged ? 'warn' : 'info'} title={serviceChanged ? 'Hosting service changed' : 'APP and WEBSITE are separate deployments'}>
+                <p>
+                  A Qortal name can host both an APP and a WEBSITE, but they are different deployments with different QDN identifiers.
+                  QMS never overwrites an existing deployment: a resource is only updated when its exact service, name and identifier are republished by this project.
+                </p>
+                <p>
+                  Changing the service after preparation creates a second site bundle under the same name instead of modifying the existing one.
+                  {serviceChanged ? ' You changed ' + initialService + ' to ' + cmsService + '; the existing ' + initialService + ' deployment is left untouched. ' : ' '}
+                  Review the chosen service before publishing.
+                </p>
+              </Alert>
+            </div>
             <div className="stack-sm">
               <strong>Generated site identity</strong>
               <p className="small muted">Created automatically when the project was created. It is immutable and never typed by a user.</p>
@@ -578,12 +817,18 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
                 </label>
               ))}
             </div>
-            <Field label="Published after" hint="Optional ISO date.">
-              <input type="date" value={after.slice(0, 10)} onChange={(event) => setAfter(event.target.value ? new Date(event.target.value + 'T00:00:00Z').toISOString() : '')} />
+            <Field label="Published after" hint="Optional date, UTC, inclusive. Empty means no lower bound.">
+              <input type="date" value={dateInputValue(after)} onChange={(event) => setAfter(event.target.value ? startOfDayIso(event.target.value) : '')} />
             </Field>
-            <Field label="Published before">
-              <input type="date" value={before.slice(0, 10)} onChange={(event) => setBefore(event.target.value ? new Date(event.target.value + 'T00:00:00Z').toISOString() : '')} />
+            <Field label="Published before" hint="Optional date, UTC, inclusive through the end of the selected day.">
+              <input type="date" value={dateInputValue(before)} onChange={(event) => setBefore(event.target.value ? endOfDayIso(event.target.value) : '')} />
             </Field>
+            <div className="wide small" data-testid="applied-date-filter">
+              <strong>Applied published-date filter:</strong> {describeDateRange(after, before)}
+              {after && before && Date.parse(after) > Date.parse(before) && (
+                <span className="danger-text"> The lower bound is later than the upper bound; this interval can never match content.</span>
+              )}
+            </div>
             <Field label="Minimum free disk (GiB)" hint="Reserve kept free on the workspace filesystem.">
               <input type="number" min={0} step={0.5} value={reserveGib} onChange={(event) => setReserveGib(event.target.value)} />
             </Field>
@@ -614,6 +859,34 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
               <input type="checkbox" checked={includeReserved} onChange={(event) => setIncludeReserved(event.target.checked)} />
               Re-include reserved items for preparation (recovery; never marks them published)
             </label>
+            <div className="wide capability-box" data-testid="source-scan">
+              <strong>Source scan</strong>
+              {scan ? (
+                <div className="stack-sm">
+                  <p className="small">
+                    Last completed scan {scan.completedAt ? formatDate(scan.completedAt) : 'just now'}
+                    {scan.batchId ? ' · batch ' + scan.batchId : ''}
+                  </p>
+                  <div className="row wrap gap">
+                    <span className="pill">Posts: {scan.counts.posts ?? 0}</span>
+                    <span className="pill">Pages: {scan.counts.pages ?? 0}</span>
+                    <span className="pill">Categories: {scan.counts.categories ?? 0}</span>
+                    <span className="pill">Tags: {scan.counts.tags ?? 0}</span>
+                    <span className="pill">Media: {scan.counts.media ?? 0}</span>
+                  </div>
+                  {scan.truncated && (
+                    <p className="small warn-text">The scan stopped at an item limit; this batch is partial. Rescan before relying on an empty result.</p>
+                  )}
+                </div>
+              ) : (
+                <p className="small muted">No source scan has completed for this project. Planning needs an indexed content batch; QMS will scan automatically when you continue.</p>
+              )}
+              <button type="button" onClick={() => void runScan()} disabled={scanning || busy}>
+                {scanning ? 'Scanning…' : scan ? 'Rescan WordPress content' : 'Scan WordPress content'}
+              </button>
+              {scanning && <p className="small">{scanProgress || 'Scanning the source…'}</p>}
+              {!scanning && scanProgress && <p className="small muted">{scanProgress}</p>}
+            </div>
             <div className="wide capability-box">
               <strong>Workspace location</strong>
               <code>{settings.dataRoot}</code>
@@ -633,12 +906,26 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       {step === 5 && (
         <div className="stack">
           <Card title="Plan review" subtitle="This is a qms-plan@1 preview. It prepares locally and never publishes, signs or spends QORT." actions={<button onClick={() => void loadPreview()} disabled={previewing}>{previewing ? 'Loading…' : 'Refresh preview'}</button>}>
-            {!planPreview && <p className="muted">Loading plan preview…</p>}
+            {previewing && <p className="muted">Scanning the source and building the plan preview…</p>}
+            {!planPreview && !previewing && <p className="muted">No plan preview has been loaded.</p>}
+            {planFailure && (
+              <Alert tone="bad" title={'Planning failed: ' + planFailure.code}>
+                <p>{planFailure.message}</p>
+                {planFailure.details && (
+                  <details>
+                    <summary>Technical details</summary>
+                    <pre className="small">{formatScalar(planFailure.details)}</pre>
+                  </details>
+                )}
+                <p className="small">Nothing was approved. Fix the cause and refresh the preview.</p>
+              </Alert>
+            )}
             {planPreview && (
               <div className="stack-sm" data-testid="plan-review">
                 <div className="row wrap gap">
                   <Badge tone={planDocument?.status === 'blocked' ? 'bad' : 'info'}>{planDocument?.status ?? planPreview.status}</Badge>
                   <span className="pill">Selected: {planDocument?.stats.selected ?? planPreview.stats?.selected ?? 0}</span>
+                  <span className="pill">Scanned: {planDocument?.stats.scanned ?? planPreview.stats?.scanned ?? 0}</span>
                   <span className="pill">New: {planDocument?.stats.new ?? 0}</span>
                   <span className="pill">Modified: {planDocument?.stats.modified ?? 0}</span>
                   <span className="pill">Route-only: {planDocument?.stats.route_changed ?? 0}</span>
@@ -646,6 +933,25 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
                   <span className="pill">Reserved pending: {planDocument?.stats.reserved ?? 0}</span>
                   <span className="pill">Conflicts: {planDocument?.stats.conflict ?? 0}</span>
                 </div>
+                {planDocument?.selection?.empty && (
+                  <Alert tone="warn" title="No content matches the current filters">
+                    <p>{describeDateRange(planDocument.filters?.after, planDocument.filters?.before)}</p>
+                    {planDocument.selection.emptyExplanation && planDocument.selection.emptyExplanation.length > 0 ? (
+                      <ul className="small">
+                        {planDocument.selection.emptyExplanation.map((entry, index) => <li key={String(index)}>{entry}</li>)}
+                      </ul>
+                    ) : (
+                      <p className="small">The plan selected 0 items. Adjust the date range or content types and refresh the preview.</p>
+                    )}
+                    {planDiagnostics && (
+                      <p className="small muted">
+                        Indexed: {planDiagnostics.indexed} · supported: {planDiagnostics.supported} · matched filters: {planDiagnostics.matched} · actionable: {planDiagnostics.actionable}
+                        {planDiagnostics.unsupported > 0 ? ' · unsupported: ' + planDiagnostics.unsupported : ''}
+                      </p>
+                    )}
+                    <p className="small">Approval is disabled while nothing is selected. This prevents an empty plan from being marked complete.</p>
+                  </Alert>
+                )}
                 {planDocument && (
                   <>
                     <div className="grid-2">
@@ -658,7 +964,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
                         <strong>Disk</strong>
                         <p className="small">Available: {formatBytes(planDocument.disk.availableBytes)}</p>
                         <p className="small">Reserve: {formatBytes(planDocument.disk.reserveBytes)} · projected: {formatBytes(planDocument.disk.projectedBytes)}</p>
-                        <p className={planDocument.disk.fits ? 'small good-text' : 'small danger-text'}>{planDocument.disk.fits ? 'Fits the configured safety limits.' : 'Blocked: ' + String(planDocument.disk.message ?? planDocument.disk.reason ?? 'does not fit')}</p>
+                        <p className={planDocument.disk.fits ? 'small good-text' : 'small danger-text'}>{planDocument.disk.fits ? 'Fits the configured safety limits.' : 'Blocked: ' + formatScalar(planDocument.disk.message ?? planDocument.disk.reason ?? 'does not fit')}</p>
                       </div>
                       <div className="capability-box">
                         <strong>Estimated QDN fee</strong>
@@ -705,7 +1011,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
                     {planDocument.conflicts.length > 0 && (
                       <div>
                         <strong>Conflicts</strong>
-                        <ul className="small danger-text">{planDocument.conflicts.map((conflict, index) => <li key={String(index)}>{String(conflict.kind ?? 'conflict')}: {String(conflict.message ?? '')}</li>)}</ul>
+                        <ul className="small danger-text">{planDocument.conflicts.map((conflict, index) => <li key={String(index)}>{formatScalar(conflict.kind ?? 'conflict')}: {formatScalar(conflict.message ?? '')}</li>)}</ul>
                       </div>
                     )}
                     <p className="small muted">Plan created {formatDate(planDocument.createdAt)}. Batch {planDocument.batchId}.</p>
@@ -715,9 +1021,9 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
             )}
           </Card>
           <div className="row wrap gap">
-            <button className="primary" onClick={() => void approve()} disabled={busy || !planPreview || planPreview.status === 'blocked'}>Approve local preparation</button>
+            <button className="primary" onClick={() => void approve()} disabled={busy || !canApprove}>Approve local preparation</button>
             <button onClick={() => void goTo(4)}>Back to settings</button>
-            <span className="muted small">Approval reserves identity mappings and writes a plan. It does not publish.</span>
+            <span className="muted small">{canApprove ? 'Approval reserves identity mappings and writes a plan. It does not publish.' : approveBlockReason}</span>
           </div>
         </div>
       )}

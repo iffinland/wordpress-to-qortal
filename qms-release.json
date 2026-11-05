@@ -1,22 +1,22 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-alpha.4",
+  "version": "0.8.0-alpha.5",
   "channel": "alpha",
-  "releaseTag": "v0.8.0-alpha.4",
+  "releaseTag": "v0.8.0-alpha.5",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
   "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-ALPHA.md",
   "changelog": {
-    "summary": "Fixes the 0.8.0-alpha.3 desktop packaging defect that aborted the installed app with QMS_STARTUP_FAILED: the .deb now contains and verifies every engine runtime dependency, including fflate. The release gate extracts the built .deb, starts the packaged engine and performs a real engine.info JSON-RPC handshake, and proves it detects a removed dependency."
+    "summary": "Fixes the blocking first-run defects in 0.8.0-alpha.4: completedSteps now migrates from numeric indexes to canonical step ids without data loss; the wizard runs source discovery before planning; plan failures and empty filter results are explained with exact codes and exclusion counts; date ranges are inclusive; capability objects render readably; empty plans cannot be approved; and APP vs WEBSITE destination safety is explained before publication."
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-alpha.4",
+      "version": "0.8.0-alpha.5",
       "channel": "alpha",
       "source": "desktop/package.json",
-      "changelog": "Packaging-only fix. desktop/engine-package now declares fflate 0.8.3 and the engine runtime also stages src/config.js (dynamically imported by compat.loadLegacyConfig). prepare-engine resolves the complete import graph against an isolated copy of the staged tree and fails the build on any unresolved import. release:prepare runs the extracted-.deb JSON-RPC handshake and a missing-dependency negative test."
+      "changelog": "Wizard/plan/UX fix release. Canonical completedSteps ids with an idempotent numeric-index migration, automatic source discovery, explicit SOURCE_DISCOVERY_REQUIRED and plan failure details, per-filter empty-plan diagnostics, inclusive end-of-day date ranges, object-safe capability rendering, disabled approval for empty plans, and APP/WEBSITE safety warnings. Publisher and CMS sources are unchanged."
     },
     "publisher": {
       "version": "0.8.0-alpha.2",

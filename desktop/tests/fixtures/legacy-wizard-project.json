@@ -1,0 +1,67 @@
+{
+  "schema": "qms-project@1",
+  "version": 1,
+  "id": "prj_7vhfkdo51nrbd0us",
+  "name": "Vabadused test migration",
+  "slug": "vabadused-test-migration",
+  "source": {
+    "adapter": "wordpress",
+    "baseUrl": "https://vabadused.ee"
+  },
+  "target": {
+    "qdnName": "developer iffi",
+    "siteName": "Vabadused"
+  },
+  "settings": {
+    "desktopWizard": {
+      "step": 5,
+      "completedSteps": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "adapterId": "wordpress",
+      "sourceUrl": "https://vabadused.ee",
+      "authMode": "none",
+      "connection": {
+        "status": "completed",
+        "report": {
+          "ok": true,
+          "counts": {
+            "posts": 1145,
+            "pages": 29
+          }
+        }
+      },
+      "targetQdnName": "developer iffi",
+      "siteTitle": "Vabadused",
+      "siteDescription": "Test project",
+      "website": {
+        "cms": "generic-cms",
+        "service": "APP",
+        "tagline": "Test",
+        "accent": "#4da3ff"
+      },
+      "preferences": {
+        "batchSize": 5,
+        "contentTypes": [
+          "post",
+          "page"
+        ],
+        "after": "2026-10-05T00:00:00.000Z",
+        "before": "2026-10-21T00:00:00.000Z",
+        "includeReserved": false,
+        "allowExternalMedia": false,
+        "concurrency": 4,
+        "reserveGib": 10,
+        "maxRunGib": 2,
+        "maxFileMib": 256,
+        "maxFiles": 500,
+        "unknownPolicy": "reject"
+      },
+      "planId": null,
+      "updatedAt": "2026-11-05T12:00:00.000Z"
+    }
+  }
+}
