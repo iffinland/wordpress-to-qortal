@@ -32,7 +32,7 @@ import {
   compareSemver,
   parseRegistryDocument
 } from '../../lib/update/registry.js';
-import { REPO_ROOT, gitInfo, readJson, sha256File, writeJson } from './lib.mjs';
+import { REPO_ROOT, capture, gitInfo, readJson, sha256File, writeJson } from './lib.mjs';
 import { componentVersion } from './artifact-set.mjs';
 
 export const REGISTRY_PUBLICATION_SCHEMA = 'qms-update-registry-publication@1';
@@ -446,7 +446,18 @@ async function run() {
   const publicVerification = skipPublicCheck ? { skipped: true, artifacts: [] } : { skipped: false, artifacts: await verifyPublicArtifacts(Object.values(artifacts)) };
 
   const git = gitInfo(REPO_ROOT);
-  const generatedAt = new Date(git.commitTime * 1000).toISOString();
+  // Bind the document timestamp to the release source commit, not to whatever
+  // branch/merge commit happens to be checked out. Re-running after the PR
+  // merge must produce the same bytes and the same handoff hash.
+  let sourceCommitTime = git.commitTime;
+  if (manifest.source?.commit) {
+    try {
+      sourceCommitTime = Number(capture('git', ['show', '-s', '--format=%ct', manifest.source.commit], { cwd: REPO_ROOT }));
+    } catch {
+      sourceCommitTime = git.commitTime;
+    }
+  }
+  const generatedAt = new Date(sourceCommitTime * 1000).toISOString();
   const summary = release.changelog?.summary ?? 'Qortal Migration Studio release ' + release.version + '.';
   const built = buildRegistryDocument({
     release,
