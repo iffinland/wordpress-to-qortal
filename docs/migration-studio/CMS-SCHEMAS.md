@@ -140,6 +140,71 @@ Rules:
   and reused when identical bytes already exist.
 - Publication is revision-checked and verified byte-for-byte on read-back.
 
+## qms-cms-edit-overlay@1
+
+Resource: `DOCUMENT / <name> / qms-cms-edit-overlay`
+
+Owner edits of WordPress-imported content. The imported manifest, indexes and
+content resources are never modified. Each entry points at a CMS-owned
+`qms-qdn-content@1` resource and keeps the imported identity.
+
+```json
+{
+  "schema": "qms-cms-edit-overlay@1",
+  "version": 1,
+  "revision": 3,
+  "site_id": "site-fixture",
+  "updated_at": "2026-11-06T00:00:00.000Z",
+  "published_by": { "address": "Q...", "name": "developer iffi" },
+  "entries": [
+    {
+      "schema": "qms-cms-edit-overlay@1",
+      "source_item_id": "wp-42",
+      "source_type": "post",
+      "source_slug": "imported-title",
+      "source_adapter": "wordpress",
+      "source_id": 42,
+      "source_old_url": "https://old.example/imported-title/",
+      "slug": "imported-title",
+      "slug_aliases": ["older-imported-slug"],
+      "title": "Owner-edited title",
+      "excerpt": "Owner-edited excerpt",
+      "category_ids": ["cat-news"],
+      "tag_ids": ["tag-intro"],
+      "author": "Owner",
+      "content": {
+        "service": "DOCUMENT",
+        "name": "developer iffi",
+        "identifier": "qms-cms-ov-..."
+      },
+      "content_hash": "sha256:...",
+      "base_source_hash": "sha256:...",
+      "base_source_modified_at": "2026-10-20T10:30:00.000Z",
+      "source_modified_at": "2026-10-20T10:30:00.000Z",
+      "state": "published",
+      "conflict_state": "clean",
+      "edited_at": "2026-11-06T00:00:00.000Z",
+      "edited_by": { "address": "Q...", "name": "developer iffi" }
+    }
+  ]
+}
+```
+
+Rules:
+
+- `source_item_id` is the imported catalog id and the stable overlay key.
+- `base_source_hash` is the upstream fingerprint the edit was based on. An
+  unchanged source applies the edit silently; a changed source sets
+  `conflict_state` to `open` until the owner keeps local edits or accepts
+  upstream.
+- `slug_aliases` preserves old URLs after an explicit published slug change.
+- Imported resources are never referenced as write targets. The overlay content
+  is a new CMS-owned resource using the same `qms-qdn-content@1` schema.
+- Revision-checked upsert; a stale base revision blocks the write.
+
+Native index entries additionally accept `slug_aliases` and `original_slug`
+for the published slug-change workflow.
+
 ## Resources deliberately not used
 
 - No localStorage-only ownership or settings.

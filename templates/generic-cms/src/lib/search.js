@@ -162,6 +162,29 @@ export function upsertSearchEntry(index, rawEntry, { now = Date.now() } = {}) {
   };
 }
 
+export function removeSearchEntry(index, match = {}, { now = Date.now() } = {}) {
+  const current = index && index.schema === SEARCH_INDEX_SCHEMA ? index : emptySearchIndex();
+  const id = match.id == null ? null : String(match.id);
+  const type = match.type === 'page' ? 'page' : 'post';
+  const slug = match.slug == null ? null : String(match.slug);
+  if (!id && !slug) return { ok: true, message: '', index: current };
+  const entries = (Array.isArray(current.entries) ? current.entries : [])
+    .map(normalizeSearchEntry)
+    .filter(Boolean)
+    .filter((item) => !((id && item.id === id) || (slug && item.type === type && item.slug === slug)));
+  return {
+    ok: true,
+    message: '',
+    index: buildSearchIndexDocument({
+      siteId: current.site_id,
+      entries,
+      revision: Math.max(0, Number(current.revision) || 0) + 1,
+      now,
+      source: 'cms'
+    })
+  };
+}
+
 export function readSearchIndex(payload) {
   if (!payload || typeof payload !== 'object') {
     return { ok: false, index: null, errors: ['The search index is not a JSON object.'] };

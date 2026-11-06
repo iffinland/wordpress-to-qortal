@@ -20,6 +20,7 @@ import { previousAndNext } from './lib/archive.js';
 import { createCmsRepository } from './lib/repository.js';
 import { routeKey } from './lib/routes.js';
 import { tokenizeQuery } from './lib/search.js';
+import { resolveBySlug } from './lib/slug.js';
 import { connectOwnerAccount, discoverHostedQdnName, revalidateViewerIdentity, resolveViewerIdentity } from './lib/qortal.js';
 import { applyThemeToDocument, readStoredTheme, resolveThemeMode, writeStoredTheme } from './lib/theme.js';
 import { loadPublishedSettings, applyPublishedSettings } from './lib/authoring.js';
@@ -262,13 +263,13 @@ export function App() {
     if (route.kind === 'search') return <SearchPage dataset={dataset} query={route.query} loadSearchIndex={() => repository.loadSearchIndex(false)} />;
     if (route.kind === 'gallery') return <GalleryPage galleries={galleries} catalogLoading={galleriesLoading} slug={route.slug} />;
     if (route.kind === 'post') {
-      const item = dataset.posts.find((entry) => entry.slug === route.slug) || null;
-      const related = previousAndNext(dataset.posts, route.slug);
+      const item = resolveBySlug(dataset.posts, route.slug);
+      const related = previousAndNext(dataset.posts, item ? item.slug : route.slug);
       const highlightTerms = route.q ? tokenizeQuery(route.q).all : [];
       return <PostPage dataset={dataset} item={item} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} previous={related.previous} next={related.next} highlightTerms={highlightTerms} />;
     }
     if (route.kind === 'page') {
-      const item = dataset.pages.find((entry) => entry.slug === route.slug) || null;
+      const item = resolveBySlug(dataset.pages, route.slug);
       const highlightTerms = route.q ? tokenizeQuery(route.q).all : [];
       return <PageView dataset={dataset} item={item} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} highlightTerms={highlightTerms} />;
     }

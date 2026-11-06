@@ -12,7 +12,7 @@
  * this resource, and publishing here never deletes manifest entries.
  */
 
-import { slugify } from './text.js';
+import { slugify, slugAvailability as sharedSlugAvailability } from './slug.js';
 
 export const NATIVE_INDEX_SCHEMA = 'qms-cms-native-index@1';
 export const NATIVE_INDEX_VERSION = 1;
@@ -108,6 +108,9 @@ export function mergeNativeCatalog(dataset, nativeIndex) {
       contentRef: entry.qdn || entry.content || null,
       featuredImageRef: entry.featured_image || null,
       contentHash: entry.contentHash || entry.content_hash || null,
+      slugAliases: Array.isArray(entry.slug_aliases) ? entry.slug_aliases.map(String) : [],
+      originalSlug: entry.original_slug || null,
+      sourceKind: 'cms-authored',
       native: true,
       legacy: null
     };
@@ -174,6 +177,8 @@ export function nativeEntryFromDraft(draft, { siteId, qdnName, contentIdentifier
       updated_at: new Date(now).toISOString(),
       published_at: draft.publishedAt || new Date(now).toISOString(),
       contentHash: contentHash || null,
+      slug_aliases: Array.isArray(draft.slugAliases) ? draft.slugAliases.map(String) : [],
+      original_slug: draft.originalSlug || null,
       qdn: { service: 'DOCUMENT', name: qdnName, identifier: contentIdentifier }
     },
     categories,
@@ -212,18 +217,16 @@ export function buildNativeContentPayload(draft, { contentIdentifier, qdnName, c
   };
 }
 
+/**
+ * Collision check shared with the editor. Imported content, CMS-authored
+ * entries, overlay edits and preserved aliases all participate. Short slugs
+ * are not rejected merely for being short.
+ */
 export function slugAvailable(dataset, slug, options = {}) {
-  const key = slugKey(slug);
-  if (!key) return { ok: false, message: 'A slug is required.' };
-  const exceptId = options.exceptId || null;
-  const items = [...(dataset && dataset.posts || []), ...(dataset && dataset.pages || [])];
-  for (const item of items) {
-    if (exceptId && item.id === exceptId && item.native) continue;
-    if (slugKey(item.slug) === key) {
-      return { ok: false, message: 'The slug "' + slug + '" is already used by ' + (item.native ? 'a CMS post' : 'imported content') + '. Choose another slug.' };
-    }
-  }
-  return { ok: true, message: '' };
+  const result = sharedSlugAvailability(dataset, slug, {
+    exceptIds: options.exceptIds || (options.exceptId ? [options.exceptId] : [])
+  });
+  return { ok: result.ok, message: result.message, suggestion: result.suggestion || '' };
 }
 
 /**

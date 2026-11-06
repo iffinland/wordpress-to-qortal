@@ -5,7 +5,7 @@ import { loadGalleryCatalog, publishGalleryDraft } from '../../lib/authoring.js'
 import { publishMediaFile, quotePublication } from '../../lib/publish.js';
 import { MAX_BATCH_IMAGES, gallerySlug, validateGalleryDraft } from '../../lib/gallery.js';
 import { createQdnResourceUrl } from '../../lib/qortal.js';
-import { slugify } from '../../lib/text.js';
+import { sanitizeSlugTyping, slugify, uniqueSlug } from '../../lib/slug.js';
 
 interface LocalImage {
   key: string;
@@ -61,17 +61,45 @@ export function GalleryAdmin(props: {
   }, [props.name]);
 
   const startNew = () => {
-    setEditing({ id: 'gallery-' + Date.now().toString(36), slug: '', title: '', description: '', images: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    setEditing({ id: 'gallery-' + Date.now().toString(36), slug: '', title: '', description: '', images: [], slugTouched: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     setLocals([]);
     setState('idle');
     setMessage('');
   };
 
   const edit = (gallery: Gallery) => {
-    setEditing({ ...gallery, images: [...gallery.images] });
+    // An existing gallery keeps its published slug when the title changes.
+    setEditing({ ...gallery, images: [...gallery.images], slugTouched: true });
     setLocals([]);
     setState('idle');
     setMessage('');
+  };
+
+  const takenGallerySlugs = () => new Set(
+    props.galleries.filter((gallery) => !editing || gallery.id !== editing.id).map((gallery) => gallery.slug)
+  );
+
+  const changeGalleryTitle = (value: string) => {
+    if (!editing) return;
+    const base = slugify(value);
+    const nextSlug = editing.slugTouched || !base ? editing.slug : uniqueSlug(base, takenGallerySlugs());
+    setEditing({ ...editing, title: value, slug: nextSlug });
+  };
+
+  const regenerateGallerySlug = () => {
+    if (!editing) return;
+    const base = slugify(editing.title);
+    setEditing({ ...editing, slug: base ? uniqueSlug(base, takenGallerySlugs()) : '', slugTouched: false });
+  };
+
+  const moveImage = (index: number, delta: number) => {
+    if (!editing) return;
+    const target = index + delta;
+    if (target < 0 || target >= editing.images.length) return;
+    const images = [...editing.images];
+    const [moved] = images.splice(index, 1);
+    images.splice(target, 0, moved);
+    setEditing({ ...editing, images });
   };
 
   const addFiles = (files: FileList | null) => {
@@ -199,8 +227,9 @@ export function GalleryAdmin(props: {
             <button type="button" className="button" onClick={publish} disabled={state === 'publishing'}>Publish gallery…</button>
           </div>
           <div className="editor-fields">
-            <label>Gallery title<input value={editing.title} onChange={(event) => setEditing({ ...editing, title: event.target.value, slug: editing.slug || slugify(event.target.value) })} /></label>
-            <label>Slug<input value={editing.slug} onChange={(event) => setEditing({ ...editing, slug: slugify(event.target.value) })} /></label>
+            <label>Gallery title<input value={editing.title} onChange={(event) => changeGalleryTitle(event.target.value)} /></label>
+            <label>Slug<input value={editing.slug} onChange={(event) => setEditing({ ...editing, slug: sanitizeSlugTyping(event.target.value), slugTouched: true })} /></label>
+            <button type="button" className="button button--ghost" onClick={regenerateGallerySlug}>Regenerate slug</button>
             <label>Description<textarea rows={3} value={editing.description} onChange={(event) => setEditing({ ...editing, description: event.target.value })} /></label>
           </div>
 
@@ -210,10 +239,18 @@ export function GalleryAdmin(props: {
               <li key={image.service + image.identifier}>
                 <img src={createQdnResourceUrl(image.service, image.name, image.identifier)} alt={image.alt || ''} />
                 <label>Caption<input value={image.caption || ''} onChange={(event) => {
-                  const images = editing.images.map((item: GalleryImage, itemIndex: number) => itemIndex === index ? { ...item, caption: event.target.value } : item);
+                  const images = editing.images.map((item: GalleryImage, itemIndex: number) => itemIndex === index ? { ...item, caption: event.target.value, alt: event.target.value } : item);
                   setEditing({ ...editing, images });
                 }} /></label>
-                <button type="button" className="button button--ghost" onClick={() => removeImage(index)}>Remove</button>
+                <label>Alt text<input value={image.alt || ''} onChange={(event) => {
+                  const images = editing.images.map((item: GalleryImage, itemIndex: number) => itemIndex === index ? { ...item, alt: event.target.value } : item);
+                  setEditing({ ...editing, images });
+                }} /></label>
+                <div className="admin-toolbar">
+                  <button type="button" className="button button--ghost" aria-label={'Move image ' + (index + 1) + ' up'} onClick={() => moveImage(index, -1)} disabled={index === 0}>Move up</button>
+                  <button type="button" className="button button--ghost" aria-label={'Move image ' + (index + 1) + ' down'} onClick={() => moveImage(index, 1)} disabled={index === editing.images.length - 1}>Move down</button>
+                  <button type="button" className="button button--ghost" onClick={() => removeImage(index)}>Remove</button>
+                </div>
               </li>
             ))}
           </ul>

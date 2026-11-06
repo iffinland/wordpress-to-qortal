@@ -1,22 +1,22 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-alpha.7",
+  "version": "0.8.0-alpha.8",
   "channel": "alpha",
-  "releaseTag": "v0.8.0-alpha.7",
+  "releaseTag": "v0.8.0-alpha.8",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
   "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-ALPHA.md",
   "changelog": {
-    "summary": "Fixes CMS-authored posts never appearing publicly: the editor published the native catalog entry with status 'draft', so categories/tags merged while every public list filtered the post out. The editor now uses an explicit draft/pending-approval/pending-confirmation/published/partial/failed/ambiguous state machine, publishes with status 'published', and reports a verified but search-index-pending post as partial instead of success. Also adds first-class qortal:// links, https copy-with-badge behaviour, full-text search with a versioned qms-cms-search-index@1 (CMS and imports), footer/header attribution fixes, and a durable completion-notification module. The CMS also corrects its pre-publication fee quote to include the search-index resource (three signatures, not two)."
+    "summary": "Universal owner editing for the Generic CMS, including WordPress-imported posts. Fixes the live slug defect where typing a title produced the first keystroke as the slug ('t' for 'Teine test post'): auto-generation now follows the complete title, stops at the first manual edit, offers explicit regeneration, transliterates Estonian/Unicode letters deterministically, and prevents duplicates across imported and CMS-authored content. Published slugs are locked; changing one is an explicit advanced action that preserves the old URL as an alias and keeps the old QDN resource. Imported WordPress posts are edited through a versioned conflict-aware qms-cms-edit-overlay@1 overlay that never modifies the imported resources and survives incremental sync. Adds gallery caption/alt/order editing, full draft/preview/cancel states and an unsaved-change guard."
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-alpha.7",
+      "version": "0.8.0-alpha.8",
       "channel": "alpha",
       "source": "desktop/package.json",
-      "changelog": "Rebuilt with the CMS 0.8.0-alpha.5 fee-quote correction on top of 0.8.0-alpha.6. Desktop sources are otherwise unchanged."
+      "changelog": "Rebuilt with CMS 0.8.0-alpha.6. Desktop sources are otherwise unchanged; the desktop artifact carries the new CMS template and the new release identity."
     },
     "publisher": {
       "version": "0.8.0-alpha.2",
@@ -25,10 +25,10 @@
       "changelog": "Unchanged in this release; the Publisher artifact is byte-identical to 0.8.0-alpha.2."
     },
     "cms": {
-      "version": "0.8.0-alpha.5",
+      "version": "0.8.0-alpha.6",
       "channel": "alpha",
       "source": "templates/generic-cms/package.json",
-      "changelog": "CMS 0.8.0-alpha.4: publish state machine and status fix (CMS posts now appear in Posts/Latest/detail/terms after verified publication); first-class qortal:// links accepted by the editor and sanitizer and opened through Hub OPEN_NEW_TAB; https links copy with a transient badge; live full-text search over a versioned qms-cms-search-index@1 with Unicode and phrase support; 'Qortal Migration Studio CMS' footer attribution without QDN-name labels; hardcoded 'Qortal QDN publication' eyebrow removed. Corrects the pre-publication fee quote to three resources (content, native catalog index, search index)."
+      "changelog": "CMS 0.8.0-alpha.6: fixes first-keystroke slug generation ('t' for 'Teine test post') with a pure auto-slug reducer, full-title updates, manual-edit stop, Regenerate slug, Unicode/Estonian transliteration, deterministic duplicate suffixes and cross-source collision checks. Adds owner editing for imported WordPress posts through a versioned conflict-aware qms-cms-edit-overlay@1 overlay (keep-local/accept-upstream; imported resources never modified), published-slug advanced change with aliases and resource preservation, slug-health repair reporting, gallery caption/alt/order/membership editing, unsaved-change guards and clearer draft/pending/published/partial/ambiguous states. See docs/migration-studio/CMS-EDITING-AND-SLUGS.md."
     }
   },
   "versionMarkers": [

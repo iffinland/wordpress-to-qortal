@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CmsTemplateConfig, ViewerIdentity } from '../../types';
 import { defaultSettingsDraft, mergeSettingsIntoConfig, readSettingsDocument, validateSettingsDraft, SITE_SETTINGS_IDENTIFIER } from '../../lib/settings.js';
 import { publishSettingsDraft } from '../../lib/authoring.js';
+import { useUnsavedGuard } from '../../hooks/useUnsavedGuard';
 import { quotePublication } from '../../lib/publish.js';
 import { StateNotice } from '../../components/StateNotice';
 
@@ -51,6 +52,8 @@ export function SettingsPanel(props: {
   const [fee, setFee] = useState('Checking node fee...');
   const [previewing, setPreviewing] = useState(false);
   const [publishTimestamp, setPublishTimestamp] = useState<number | null>(null);
+  const [dirty, setDirty] = useState(false);
+  useUnsavedGuard(dirty);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,16 +61,24 @@ export function SettingsPanel(props: {
     return () => { cancelled = true; };
   }, []);
 
-  const updateSite = (key: string, value: string) => setDraft((current: any) => ({ ...current, site: { ...current.site, [key]: value } }));
-  const updateColor = (key: string, value: string) => setDraft((current: any) => ({ ...current, colors: { ...current.colors, [key]: value } }));
-  const updateNav = (index: number, key: 'label' | 'href', value: string) => setDraft((current: any) => {
+  const updateSite = (key: string, value: string) => { setDirty(true); setDraft((current: any) => ({ ...current, site: { ...current.site, [key]: value } })); };
+  const updateColor = (key: string, value: string) => { setDirty(true); setDraft((current: any) => ({ ...current, colors: { ...current.colors, [key]: value } })); };
+  const updateNav = (index: number, key: 'label' | 'href', value: string) => { setDirty(true); setDraft((current: any) => {
     const navigation = current.navigation.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, [key]: value } : item);
     return { ...current, navigation };
-  });
-  const addNav = () => setDraft((current: any) => ({ ...current, navigation: [...current.navigation, { label: 'New link', href: '#/' }] }));
-  const removeNav = (index: number) => setDraft((current: any) => ({ ...current, navigation: current.navigation.filter((_: unknown, itemIndex: number) => itemIndex !== index) }));
+  }); };
+  const addNav = () => { setDirty(true); setDraft((current: any) => ({ ...current, navigation: [...current.navigation, { label: 'New link', href: '#/' }] })); };
+  const removeNav = (index: number) => { setDirty(true); setDraft((current: any) => ({ ...current, navigation: current.navigation.filter((_: unknown, itemIndex: number) => itemIndex !== index) })); };
 
-  const persistDraft = (next: unknown) => { setDraft(next as any); saveDraft(props.siteId, next); };
+  const persistDraft = (next: unknown) => { setDirty(false); setDraft(next as any); saveDraft(props.siteId, next); };
+
+  const revertToPublished = () => {
+    setDraft(fallback);
+    setDirty(false);
+    setMessage('Reverted to the last published settings. Local draft changes were discarded.');
+    setState('idle');
+    props.onPreview(null);
+  };
 
   const togglePreview = () => {
     if (previewing) {
@@ -108,6 +119,7 @@ export function SettingsPanel(props: {
       setState('verified');
       setMessage(result.message || 'Published and verified.');
       saveDraft(props.siteId, draft);
+      setDirty(false);
       props.onPublished((result as any).document);
       setPreviewing(false);
       setPublishTimestamp(null);
@@ -163,8 +175,11 @@ export function SettingsPanel(props: {
         <p className="muted">Light mode uses an accessible light palette derived from these colors; the accent is preserved.</p>
       </fieldset>
 
+      {dirty ? <p className="preview-banner" role="status">Unsaved settings changes. A local draft is not a published update.</p> : null}
+      {message ? <p className="admin-message" role="status" aria-live="polite">{message}</p> : null}
       <div className="admin-toolbar">
         <button type="button" className="button button--ghost" onClick={() => persistDraft(draft)}>Save local draft</button>
+        <button type="button" className="button button--ghost" onClick={revertToPublished}>Revert to published</button>
         <button type="button" className="button button--ghost" onClick={togglePreview} aria-pressed={previewing}>{previewing ? 'Stop preview' : 'Preview draft'}</button>
         <button type="button" className="button" onClick={requestPublish} disabled={state === 'publishing'}>Publish settings…</button>
       </div>
