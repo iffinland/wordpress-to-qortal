@@ -1,22 +1,22 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-alpha.5",
+  "version": "0.8.0-alpha.6",
   "channel": "alpha",
-  "releaseTag": "v0.8.0-alpha.5",
+  "releaseTag": "v0.8.0-alpha.6",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
   "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-ALPHA.md",
   "changelog": {
-    "summary": "Fixes the blocking first-run defects in 0.8.0-alpha.4: completedSteps now migrates from numeric indexes to canonical step ids without data loss; the wizard runs source discovery before planning; plan failures and empty filter results are explained with exact codes and exclusion counts; date ranges are inclusive; capability objects render readably; empty plans cannot be approved; and APP vs WEBSITE destination safety is explained before publication."
+    "summary": "Fixes CMS-authored posts never appearing publicly: the editor published the native catalog entry with status 'draft', so categories/tags merged while every public list filtered the post out. The editor now uses an explicit draft/pending-approval/pending-confirmation/published/partial/failed/ambiguous state machine, publishes with status 'published', and reports a verified but search-index-pending post as partial instead of success. Also adds first-class qortal:// links, https copy-with-badge behaviour, full-text search with a versioned qms-cms-search-index@1 (CMS and imports), footer/header attribution fixes, and a durable completion-notification module."
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-alpha.5",
+      "version": "0.8.0-alpha.6",
       "channel": "alpha",
       "source": "desktop/package.json",
-      "changelog": "Wizard/plan/UX fix release. Canonical completedSteps ids with an idempotent numeric-index migration, automatic source discovery, explicit SOURCE_DISCOVERY_REQUIRED and plan failure details, per-filter empty-plan diagnostics, inclusive end-of-day date ranges, object-safe capability rendering, disabled approval for empty plans, and APP/WEBSITE safety warnings. Publisher and CMS sources are unchanged."
+      "changelog": "Wizard/plan/UX baseline from 0.8.0-alpha.5 plus the bundled CMS 0.8.0-alpha.4 fixes: CMS-authored posts publish publicly, qortal:// and https link behaviour, full-text search index and UI, footer attribution and header branding. Desktop sources are otherwise unchanged."
     },
     "publisher": {
       "version": "0.8.0-alpha.2",
@@ -25,10 +25,10 @@
       "changelog": "Unchanged in this release; the Publisher artifact is byte-identical to 0.8.0-alpha.2."
     },
     "cms": {
-      "version": "0.8.0-alpha.3",
+      "version": "0.8.0-alpha.4",
       "channel": "alpha",
       "source": "templates/generic-cms/package.json",
-      "changelog": "Unchanged in this release; the Generic CMS artifact is byte-identical to 0.8.0-alpha.3 owner-Admin fix."
+      "changelog": "CMS 0.8.0-alpha.4: publish state machine and status fix (CMS posts now appear in Posts/Latest/detail/terms after verified publication); first-class qortal:// links accepted by the editor and sanitizer and opened through Hub OPEN_NEW_TAB; https links copy with a transient badge; live full-text search over a versioned qms-cms-search-index@1 with Unicode and phrase support; 'Qortal Migration Studio CMS' footer attribution without QDN-name labels; hardcoded 'Qortal QDN publication' eyebrow removed."
     }
   },
   "versionMarkers": [

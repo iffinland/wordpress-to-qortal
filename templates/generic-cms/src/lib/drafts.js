@@ -6,6 +6,25 @@
 export const DRAFT_STORAGE_SCHEMA = 'qms-cms-post-drafts@1';
 export const DRAFT_STORAGE_VERSION = 1;
 
+/** Explicit publication states; ambiguous outcomes are always distinct. */
+export const PUBLICATION_STATES = Object.freeze([
+  'draft',
+  'pending-approval',
+  'pending-confirmation',
+  'published',
+  'partial',
+  'failed',
+  'ambiguous'
+]);
+
+export function publicationStateForResult(result) {
+  if (!result || typeof result !== 'object') return 'failed';
+  if (result.ok) return 'published';
+  if (result.searchPending) return 'partial';
+  if (result.state === 'ambiguous' || result.state === 'in-flight') return 'ambiguous';
+  return 'failed';
+}
+
 function keyFor(siteId) {
   return 'qms-cms-post-drafts:' + String(siteId || 'site');
 }

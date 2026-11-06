@@ -1,8 +1,63 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-alpha.5 -->
+<!-- qms-release-version: 0.8.0-alpha.6 -->
 
-## 0.8.0 alpha.5 — current
+## 0.8.0 alpha.6 — current
+
+This is an unsigned alpha prerelease. It supersedes `v0.8.0-alpha.5` and fixes
+the live Generic CMS defect where a CMS-authored post was published but never
+appeared publicly. It also adds first-class qortal:// links, https copy-with-badge
+behaviour, live full-text search and the footer/header attribution fixes.
+
+### Why the CMS post disappeared
+
+The editor created every draft with `status: 'draft'` and published that value
+into `qms-cms-native-index`. Catalog merging still merged the native term
+definitions, so categories and tags appeared, but `publishedPosts()` filtered the
+entry out of Posts, Latest posts, term pages and the detail route. The editor now
+publishes with `status: 'published'` and records an explicit state machine:
+draft → pending-approval → pending-confirmation → published, with partial,
+failed and ambiguous kept distinct. A verified post whose search-index write is
+not confirmed is reported as partial, never as full success.
+
+### Added and fixed
+
+- **qortal:// links** are accepted by the editor, preserved byte-for-byte by the
+  sanitizer (including `developer%20iffi` encodings) and opened through the Hub
+  `OPEN_NEW_TAB` bridge. Outside Hub the page copies the link and explains why.
+- **https links copy instead of navigating**, show `Link copied.` next to the
+  clicked link for about 2 seconds and show an explicit error when clipboard
+  access fails. Mouse, touch and keyboard (Enter/Space) work.
+- **Full-text search** searches titles, excerpts and bodies through a versioned
+  `qms-cms-search-index@1`. CMS publishing and QMS imports both write it. The UI
+  debounces input (220 ms), caches the index, highlights terms with safe text
+  nodes and handles missing/stale indexes honestly.
+- **Footer attribution** now reads **Qortal Migration Studio CMS**, links to
+  `qortal://WEBSITE/Qortal%20Web%20Builders/` and no longer renders a
+  `QDN name:` label. Owner footer text stays separate.
+- **Header branding**: the hardcoded `Qortal QDN publication` eyebrow is removed.
+
+Nothing is signed or published to QDN by this release.
+
+### Components
+
+| Component | Version | Artifact |
+| --- | --- | --- |
+| Desktop (Linux amd64) | 0.8.0-alpha.6 | `qortal-migration-studio_0.8.0-alpha.6_amd64.deb` |
+| Migration Publisher (Q-App) | 0.8.0-alpha.2 | `qortal-migration-publisher-v0.8.0-alpha.2.zip` |
+| Generic CMS (Q-App) | 0.8.0-alpha.4 | `qortal-migration-generic-cms-v0.8.0-alpha.4.zip` |
+
+The Publisher sources are unchanged; its ZIP is byte-identical to
+0.8.0-alpha.2. Desktop is rebuilt because it bundles the CMS template. The CMS
+ZIP changes to 0.8.0-alpha.4.
+
+```bash
+sudo apt install ./qortal-migration-studio_0.8.0-alpha.6_amd64.deb
+dpkg-query -W -f='${Version}\n' qortal-migration-studio
+# expected: 0.8.0~alpha.6
+```
+
+## 0.8.0 alpha.5 — previous
 
 This is an unsigned alpha prerelease. It supersedes `v0.8.0-alpha.4` and fixes
 two blocking defects found in the first real graphical test on MX Linux, plus
@@ -70,8 +125,8 @@ published to QDN by this release.
 | Migration Publisher (Q-App) | 0.8.0-alpha.2 | `qortal-migration-publisher-v0.8.0-alpha.2.zip` |
 | Generic CMS (Q-App) | 0.8.0-alpha.3 | `qortal-migration-generic-cms-v0.8.0-alpha.3.zip` |
 
-The Publisher and Generic CMS sources did not change. Their artifacts are
-byte-identical to the previous release; only the desktop package version moves.
+The Publisher and Generic CMS sources did not change in alpha.5. Their artifacts
+were byte-identical to the alpha.4 release; only the desktop package version moved.
 
 ### Upgrade an existing installation
 
@@ -87,7 +142,7 @@ Confirm the installed version:
 
 ~~~bash
 dpkg-query -W -f='${Version}\n' qortal-migration-studio
-# expected: 0.8.0~alpha.5
+# expected: 0.8.0~alpha.5 (alpha.6 installs as 0.8.0~alpha.6)
 ~~~
 
 ## 0.8.0 alpha.4 — previous
@@ -119,8 +174,8 @@ See `docs/migration-studio/UPDATE-REGISTRY.md`.
 ### Desktop (Debian 12/13, MX Linux 23)
 
 ```bash
-sha256sum qortal-migration-studio_0.8.0-alpha.5_amd64.deb
-sudo apt install ./qortal-migration-studio_0.8.0-alpha.5_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-alpha.6_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-alpha.6_amd64.deb
 ```
 
 Verify the hash against the release assets. The package is unsigned.
@@ -133,7 +188,7 @@ publishing it to QDN. The Publisher artifact is unchanged in this release.
 
 ### Generic CMS
 
-Download `qortal-migration-generic-cms-v0.8.0-alpha.3.zip`, verify its SHA-256,
+Download `qortal-migration-generic-cms-v0.8.0-alpha.4.zip`, verify its SHA-256,
 and republish the APP or WEBSITE under the site's existing Qortal name. Preserve
 `qms-cms-config.json` and any custom assets; do not overwrite a customized CMS
 with the generic ZIP. After deployment, open the site in Qortal Hub and use

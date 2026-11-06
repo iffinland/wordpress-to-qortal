@@ -19,6 +19,7 @@ import { applyAdoption, readAdoptionQueue, removeAdoption, writeAdoptionQueue } 
 import { previousAndNext } from './lib/archive.js';
 import { createCmsRepository } from './lib/repository.js';
 import { routeKey } from './lib/routes.js';
+import { tokenizeQuery } from './lib/search.js';
 import { connectOwnerAccount, discoverHostedQdnName, revalidateViewerIdentity, resolveViewerIdentity } from './lib/qortal.js';
 import { applyThemeToDocument, readStoredTheme, resolveThemeMode, writeStoredTheme } from './lib/theme.js';
 import { loadPublishedSettings, applyPublishedSettings } from './lib/authoring.js';
@@ -258,16 +259,18 @@ export function App() {
     if (route.kind === 'category') return <TermPage dataset={dataset} kind="category" slug={route.slug} page={route.page} />;
     if (route.kind === 'tag') return <TermPage dataset={dataset} kind="tag" slug={route.slug} page={route.page} />;
     if (route.kind === 'archive') return <ArchivePage dataset={dataset} year={route.year} month={route.month} page={route.page} />;
-    if (route.kind === 'search') return <SearchPage dataset={dataset} query={route.query} />;
+    if (route.kind === 'search') return <SearchPage dataset={dataset} query={route.query} loadSearchIndex={() => repository.loadSearchIndex(false)} />;
     if (route.kind === 'gallery') return <GalleryPage galleries={galleries} catalogLoading={galleriesLoading} slug={route.slug} />;
     if (route.kind === 'post') {
       const item = dataset.posts.find((entry) => entry.slug === route.slug) || null;
       const related = previousAndNext(dataset.posts, route.slug);
-      return <PostPage dataset={dataset} item={item} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} previous={related.previous} next={related.next} />;
+      const highlightTerms = route.q ? tokenizeQuery(route.q).all : [];
+      return <PostPage dataset={dataset} item={item} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} previous={related.previous} next={related.next} highlightTerms={highlightTerms} />;
     }
     if (route.kind === 'page') {
       const item = dataset.pages.find((entry) => entry.slug === route.slug) || null;
-      return <PageView dataset={dataset} item={item} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} />;
+      const highlightTerms = route.q ? tokenizeQuery(route.q).all : [];
+      return <PageView dataset={dataset} item={item} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} highlightTerms={highlightTerms} />;
     }
     return <NotFoundPage />;
   }

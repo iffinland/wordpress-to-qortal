@@ -3,7 +3,7 @@ import type { CmsContentItem, CmsDataset, Gallery, LoadedContent, ViewerIdentity
 import { RichTextEditor } from './RichTextEditor';
 import { MediaPicker, type InsertedMedia } from './MediaPicker';
 import { StateNotice } from '../../components/StateNotice';
-import { createDraft, parseTerms, readDrafts, removeDraft, upsertDraft, writeDrafts } from '../../lib/drafts.js';
+import { createDraft, parseTerms, publicationStateForResult, readDrafts, removeDraft, upsertDraft, writeDrafts } from '../../lib/drafts.js';
 import { loadNativeIndex, publishNativePostDraft } from '../../lib/authoring.js';
 import { quotePublication } from '../../lib/publish.js';
 import { slugAvailable } from '../../lib/nativeCatalog.js';
@@ -49,7 +49,7 @@ export function EditorPage(props: {
   const [preview, setPreview] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [fee, setFee] = useState('Checking node fee...');
-  const [state, setState] = useState<'idle' | 'publishing' | 'verified' | 'ambiguous' | 'failed'>('idle');
+  const [state, setState] = useState<'idle' | 'publishing' | 'verified' | 'partial' | 'ambiguous' | 'failed'>('idle');
   const [message, setMessage] = useState('');
 
   const nativePosts = useMemo(() => (props.dataset ? props.dataset.posts.filter((item) => item.native) : []), [props.dataset]);
@@ -129,12 +129,14 @@ export function EditorPage(props: {
     if (!draft.html.trim()) { setState('failed'); setMessage('The post body is empty.'); return; }
     setMessage('');
     setState('idle');
+    persist({ ...draft, publicationState: 'pending-approval' });
     setConfirming(true);
   };
 
   const publish = async () => {
     setConfirming(false);
     setState('publishing');
+    persist({ ...draft, publicationState: 'pending-confirmation' });
     setMessage('Sanitizing and waiting for Qortal Hub approval...');
     let html = '';
     try {
@@ -152,7 +154,7 @@ export function EditorPage(props: {
       identity: props.identity,
       name: props.name,
       siteId: props.siteId,
-      draft: { ...draft, html, slug: slugify(draft.slug || draft.title), categories, tags, publishTimestamp: timestamp },
+      draft: { ...draft, html, slug: slugify(draft.slug || draft.title), status: 'published', categories, tags, publishTimestamp: timestamp },
       baseRevision: revision,
       storage: localStorage,
       author: props.dataset && props.dataset.site.publicAuthor || props.identity.name,
@@ -163,6 +165,7 @@ export function EditorPage(props: {
         ...draft,
         html,
         slug: slugify(draft.slug || draft.title),
+        status: 'published',
         publicationState: 'published',
         publicationMessage: 'Published and verified.',
         remoteId: result.entry ? result.entry.id : draft.remoteId,
@@ -178,7 +181,9 @@ export function EditorPage(props: {
       props.onRefresh();
       return;
     }
-    setState(result.state === 'ambiguous' ? 'ambiguous' : 'failed');
+    const publicationState = publicationStateForResult(result);
+    setState(publicationState === 'ambiguous' ? 'ambiguous' : publicationState === 'partial' ? 'partial' : 'failed');
+    persist({ ...draft, publicationState, publicationMessage: result.message || '' });
     setMessage(result.message || 'Publishing failed.');
   };
 
@@ -230,6 +235,7 @@ export function EditorPage(props: {
             <button type="button" className="button" onClick={requestPublish} disabled={state === 'publishing'}>Publish post…</button>
           </div>
           {state === 'ambiguous' ? <StateNotice state="partial" title="Publication unconfirmed" message={message + ' It was not resent automatically. Retry to verify the pending submission.'} /> : null}
+          {state === 'partial' ? <StateNotice state="partial" title="Published, search index pending" message={message} /> : null}
           {state === 'failed' ? <StateNotice state="error" title="Not published" message={message} /> : null}
           {state === 'verified' ? <StateNotice state="partial" title="Published" message={message} /> : null}
 

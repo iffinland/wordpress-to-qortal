@@ -1,8 +1,32 @@
-# Known issues and limitations — 0.8.0 alpha.5
+# Known issues and limitations — 0.8.0 alpha.6
 
 These are release-gate facts, not a substitute for testing your own site. The
-0.8.0-alpha.5 release is published as a prerelease with all three artifacts.
+0.8.0-alpha.6 release is published as a prerelease with all three artifacts.
 Downloading an artifact is not deployment or live validation.
+
+## New in 0.8.0-alpha.6
+
+1. **Existing sites need a republish to gain full-text search.** The template
+   reads `qms-cms-search-index@1` from the manifest entrypoint (imports) and
+   from `DOCUMENT/<name>/qms-cms-search-index` (CMS posts). Until a site is
+   republished or a CMS post is published, search falls back to titles and
+   excerpts and shows an honest notice.
+2. **The search index is text only.** It stores normalized plain text or a
+   compact excerpt, never media bytes. A very large body is truncated at 20 000
+   characters per entry; the opened article always shows the full body.
+3. **Index freshness is advisory.** Missing, invalid or newer-schema indexes are
+   reported and do not crash search. Freshness is judged from the index
+   timestamp with a 30-day threshold.
+4. **qortal:// navigation requires Hub.** Outside Hub the click copies the link
+   and explains that it must be opened in Hub. Browser protocol handlers are not
+   assumed.
+5. **Clipboard fallback depends on the embedding context.** `execCommand` is
+   used when the async Clipboard API is blocked; if both fail the UI shows an
+   explicit error and the URL so it can be copied manually.
+6. **No live QDN write was performed in this release run.** The publishing fix
+   is covered by unit and rendered-component tests; the owner must publish a
+   test post in Hub to confirm the deployed site. Signing, wallet and QDN
+   transaction behavior is unchanged.
 
 ## New in 0.8.0-alpha.5
 

@@ -28,6 +28,13 @@ import {
   serialiseJsonDocument
 } from './publish.js';
 import { sha256Hex } from './qortal.js';
+import {
+  createSearchEntryFromDraft,
+  emptySearchIndex,
+  readSearchIndex,
+  SEARCH_INDEX_IDENTIFIER,
+  upsertSearchEntry
+} from './search.js';
 
 export async function loadPublishedSettings(name) {
   const payload = await fetchPublishedSettings(name);
@@ -91,7 +98,62 @@ export async function publishNativePostDraft({ identity, name, siteId, draft, ba
     storage
   });
   if (!indexResult.ok) return { ...indexResult, stage: 'index', contentResult, index: updated.index };
-  return { ok: true, state: 'remote-verified', contentResult, indexResult, index: updated.index, contentIdentifier, contentHash, entry: built.entry };
+
+  // The full-text index is a separate versioned document. A post is not
+  // reported as fully published if its search entry could not be written.
+  const searchEntry = createSearchEntryFromDraft({
+    ...draft,
+    status: 'published',
+    html: draft.html,
+    excerpt: draft.excerpt,
+    updatedAt: new Date(now).toISOString()
+  });
+  const remoteSearchRaw = await readRemoteJson('DOCUMENT', name, SEARCH_INDEX_IDENTIFIER);
+  const remoteSearch = remoteSearchRaw ? readSearchIndex(remoteSearchRaw) : { ok: true, index: emptySearchIndex(siteId), errors: [] };
+  if (!remoteSearch.ok) {
+    return {
+      ok: false,
+      state: 'invalid-remote',
+      stage: 'search',
+      message: 'The published search index is invalid and was not overwritten. Rebuild it before publishing.',
+      contentResult,
+      indexResult,
+      index: updated.index
+    };
+  }
+  const upserted = upsertSearchEntry(remoteSearch.index, searchEntry, { now });
+  if (!upserted.ok) {
+    return { ok: false, state: 'invalid', stage: 'search', message: upserted.message, contentResult, indexResult, index: updated.index };
+  }
+  const searchResult = await publishJsonResource({
+    identity, name, identifier: SEARCH_INDEX_IDENTIFIER, document: upserted.index,
+    title: 'Search index revision ' + upserted.index.revision,
+    description: 'Full-text search index for CMS-authored and imported content on ' + name + '.',
+    storage
+  });
+  if (!searchResult.ok) {
+    return {
+      ...searchResult,
+      stage: 'search',
+      message: 'The post and catalog entry were verified, but the search index was not confirmed: ' + (searchResult.message || 'unknown error') + ' Republish after verification so search stays consistent.',
+      contentResult,
+      indexResult,
+      index: updated.index,
+      searchPending: true
+    };
+  }
+
+  return {
+    ok: true,
+    state: 'remote-verified',
+    contentResult,
+    indexResult,
+    searchResult,
+    index: updated.index,
+    contentIdentifier,
+    contentHash,
+    entry: built.entry
+  };
 }
 
 export async function loadGalleryCatalog(name) {

@@ -10,7 +10,7 @@ it does not publish anything to QDN. The CMS can be published as an **APP** or a
 ## Beginner path (no Node.js, npm, Git or compiler)
 
 1. Download
-   [qortal-migration-generic-cms-v0.8.0-alpha.3.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.4/qortal-migration-generic-cms-v0.8.0-alpha.3.zip)
+   [qortal-migration-generic-cms-v0.8.0-alpha.4.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.6/qortal-migration-generic-cms-v0.8.0-alpha.4.zip)
    and verify it against `SHA256SUMS`.
 2. Inspect the ZIP: `index.html` and `assets/` are at the root, with no
    parent folder.
@@ -34,13 +34,23 @@ Downloading a ZIP is not deployment.
   branding colors) published as `qms-cms-site-settings@1`.
 - **Native blog editor** (TipTap) with local drafts, sanitized rich text,
   categories/tags, preview, media publishing and existing QDN media search.
+  First-class `qortal://` links are accepted and opened through Hub.
+- **Verified publication state machine** (draft → pending-approval →
+  pending-confirmation → published/partial/failed/ambiguous). A post appears in
+  Posts, Latest posts, term pages and detail routes only after exact read-back.
+- **https links copy instead of navigating** with a transient `Link copied.`
+  badge and an explicit clipboard error state.
+- **Live full-text search** over `qms-cms-search-index@1`, including titles,
+  excerpts and bodies, Unicode case folding, phrases, safe highlighting,
+  debouncing and honest missing/stale-index states.
 - **Galleries** with multi-file batches of up to 10 images, captions, responsive
   grids, full-screen keyboard/swipe viewer and accessible focus handling.
 - **One public catalog** for QMS-imported WordPress content and CMS-authored
   posts: same search, categories and tags. Imported content is never overwritten
   or removed by the CMS or by an incremental WordPress sync.
-- Footer attribution `Qortal. Template v<real version>` linking to
-  `qortal://WEBSITE/Qortal Web Builders/` in a new Hub tab.
+- Footer attribution **Qortal Migration Studio CMS** linking to
+  `qortal://WEBSITE/Qortal Web Builders/` in a new Hub tab. The owner-editable
+  footer text is separate and is never overwritten.
 - Reads `qms-cms-manifest@1`, `qms-qdn-manifest@1` and the legacy
   `cr-qdn-manifest` shape through one read-only adapter.
 - Honest loading, empty, partial, stale and error states.
@@ -115,12 +125,16 @@ navigation to `#/admin` by a non-owner still shows **Access denied**.
 | QMS catalog | DOCUMENT | `qms-cms-manifest` / `qms-qdn-manifest@1` | Imported catalog |
 | Site settings | DOCUMENT | `qms-cms-site-settings` | Versioned owner settings |
 | CMS content index | DOCUMENT | `qms-cms-native-index` | CMS-authored posts/pages |
+| Full-text search | DOCUMENT | `qms-cms-search-index` | Versioned `qms-cms-search-index@1` text index |
 | Gallery catalog | DOCUMENT | `qms-cms-galleries` | Versioned galleries |
 | CMS post content | DOCUMENT | stable per slug | `qms-qdn-content@1` |
 | Gallery images | IMAGE/VIDEO/FILE | `qms-cms-media-<hash>` | Content-addressed media |
 
 Publication always verifies exact bytes on read-back. Uncertain submissions are
-marked **ambiguous** and are not resent automatically.
+marked **ambiguous** and are not resent automatically. See
+[../../docs/migration-studio/CMS-LINKS-AND-SEARCH.md](../../docs/migration-studio/CMS-LINKS-AND-SEARCH.md)
+for link handling, the search index format, rebuild/migration and stale-index
+behaviour.
 
 ## Upgrading a deployed site
 

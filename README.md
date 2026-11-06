@@ -6,22 +6,22 @@ normalizes the content, downloads and de-duplicates supported media, prepares
 deterministic QDN batches, hands them to a separate Qortal Hub publishing app,
 and verifies the resulting QDN resources byte-for-byte.
 
-## Download Qortal Migration Studio 0.8.0 alpha.3
+## Download Qortal Migration Studio 0.8.0 alpha.6
 
 The release ships three files. Most people need the desktop application; the
 two Q-App ZIPs are for publishing and for the public website runtime.
 
 | What you need | Download | What it does |
 | --- | --- | --- |
-| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0-alpha.5_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.5/qortal-migration-studio_0.8.0-alpha.5_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
-| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-alpha.2.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.5/qortal-migration-publisher-v0.8.0-alpha.2.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
-| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.8.0-alpha.3.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.5/qortal-migration-generic-cms-v0.8.0-alpha.3.zip) | The neutral website/APP Q-App that renders a published QDN catalog. It is the site runtime, not the migration tool. |
+| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0-alpha.6_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.6/qortal-migration-studio_0.8.0-alpha.6_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
+| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-alpha.2.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.6/qortal-migration-publisher-v0.8.0-alpha.2.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
+| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.8.0-alpha.4.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.6/qortal-migration-generic-cms-v0.8.0-alpha.4.zip) | The neutral website/APP Q-App that renders a published QDN catalog. It is the site runtime, not the migration tool. |
 
-Also download [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.5/SHA256SUMS),
-[sbom.cdx.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.5/sbom.cdx.json)
-and [provenance.intoto.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.5/provenance.intoto.json)
+Also download [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.6/SHA256SUMS),
+[sbom.cdx.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.6/sbom.cdx.json)
+and [provenance.intoto.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.6/provenance.intoto.json)
 to verify the files. Release page:
-<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-alpha.3>.
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-alpha.6>.
 The Publisher artifact is unchanged from 0.8.0-alpha.2; its download link below
 points at the original alpha.2 asset.
 
@@ -59,17 +59,23 @@ migrate, or by the Qortal project.
 
 ## Alpha status
 
-Version **0.8.0 alpha.3** is the latest published alpha. It fixes a live Generic CMS regression that hid Admin from the real owner in Qortal Hub on Android: release bundles verified ownership against a build-time `http://localhost:12391` instead of the hosting node, so Android devices queried their own loopback and stayed read-only. The CMS now uses the hosting node origin and offers explicit, fail-closed **Connect owner account** and **Retry verification** actions. Desktop is rebuilt with the corrected CMS template; Publisher is unchanged. No component is updated automatically; see [docs/migration-studio/UPDATES.md](docs/migration-studio/UPDATES.md). It also includes the previous alpha's fixes: a confirmed
-Generic CMS authorization defect: a different signed-in account could open the
-Admin page. Admin is now owner-only and fails closed, every publication
-revalidates the live on-chain owner, and unauthorized visitors see Access
-denied with no admin state. The CMS also adds light/dark/system themes,
-owner-published site settings, a TipTap blog editor with local drafts and media,
-native galleries with a full-screen viewer, and a single public catalog that
-keeps QMS-imported WordPress content compatible with CMS-authored posts. The
-previous live DOCUMENT publication proved the QMS catalog path; the new CMS
-authoring flows are covered by automated tests but have not been signed against
-mainnet. Read
+Version **0.8.0 alpha.6** is the latest published alpha. It fixes the confirmed
+Generic CMS defect where a CMS-authored post was published but never appeared
+publicly: the editor wrote `status: 'draft'` into the native catalog, so
+categories and tags merged while public lists filtered the post out. Publishing
+now uses an explicit draft → pending-approval → pending-confirmation →
+published/partial/failed/ambiguous state machine and only reports success after
+exact QDN read-back. The CMS also gains first-class `qortal://` links,
+copy-with-badge behaviour for `https://` links, live full-text search over a
+versioned `qms-cms-search-index@1`, the **Qortal Migration Studio CMS** footer
+attribution, and removal of the hardcoded header branding. Admin remains
+owner-only and fails closed, and the owner-published settings, TipTap editor,
+galleries and QMS-import compatibility from earlier alphas are unchanged. The
+Publisher artifact is unchanged; desktop and CMS are rebuilt. No component is
+updated automatically; see [docs/migration-studio/UPDATES.md](docs/migration-studio/UPDATES.md).
+The publishing and search behaviour is covered by automated unit and rendered
+component tests, but this run did not sign or publish a live QDN transaction.
+Read
 [docs/migration-studio/alpha/KNOWN-ISSUES.md](docs/migration-studio/alpha/KNOWN-ISSUES.md)
 before you rely on any build.
 
@@ -116,14 +122,14 @@ or any development tools.
 ## Download, install and launch
 
 1. Download
-   [qortal-migration-studio_0.8.0-alpha.5_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.5/qortal-migration-studio_0.8.0-alpha.5_amd64.deb)
+   [qortal-migration-studio_0.8.0-alpha.6_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.6/qortal-migration-studio_0.8.0-alpha.6_amd64.deb)
    and the release assets `SHA256SUMS`, `sbom.cdx.json` and
    `provenance.intoto.json`.
 2. Verify the checksum (see [Security](#security-and-checksums)).
 3. Install and launch:
 
 ```bash
-sudo apt install ./qortal-migration-studio_0.8.0-alpha.5_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-alpha.6_amd64.deb
 qortal-migration-studio
 ```
 
@@ -334,9 +340,9 @@ signing key in the release environment, so `apt` cannot verify a signature.
 Verify the published hash before installing:
 
 ```bash
-sha256sum qortal-migration-studio_0.8.0-alpha.5_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-alpha.6_amd64.deb
 # Compare the output with this artifact's line in SHA256SUMS
-# from the v0.8.0-alpha.3 release page.
+# from the v0.8.0-alpha.6 release page.
 sha256sum -c SHA256SUMS
 ```
 

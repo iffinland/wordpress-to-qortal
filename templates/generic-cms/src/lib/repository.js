@@ -8,6 +8,7 @@ import {
 import { createQdnResourceUrl, discoverQdnName, fetchQdnResource } from './qortal.js';
 import { rewriteMediaUrls } from './media.js';
 import { mergeNativeCatalog, readNativeIndex, NATIVE_INDEX_IDENTIFIER } from './nativeCatalog.js';
+import { readSearchIndex, SEARCH_INDEX_IDENTIFIER } from './search.js';
 import { readGalleryCatalog, GALLERY_CATALOG_IDENTIFIER } from './gallery.js';
 
 const MANIFEST_TIMEOUT_MS = 7000;
@@ -66,6 +67,8 @@ export function createCmsRepository(config, options = {}) {
   const staleAfterMs = Math.max(1, Number(config.content.staleAfterDays) || 30) * 24 * 60 * 60 * 1000;
   const cacheKey = 'qms-cms-dataset:' + String(config.site.id || 'site');
   let datasetPromise = null;
+  let searchPromise = null;
+  let searchCache = null;
   let dataset = null;
   let normalizedManifest = null;
   let manifestIdentifier = source === 'fixture' ? 'fixture' : config.content.manifestIdentifier;
@@ -195,6 +198,92 @@ export function createCmsRepository(config, options = {}) {
     async findPage(slug) {
       const current = await this.loadDataset();
       return current.pages.find((item) => item.type === 'page' && item.slug === slug) || null;
+    },
+    /**
+     * Load the versioned search index without scanning content. The imported
+     * catalog publishes one index through the manifest entrypoint; CMS-native
+     * publishing maintains a separate document in the same QDN name. Native
+     * entries win because they are the newest version of an edited post.
+     */
+    async loadSearchIndex(refresh = false) {
+      if (refresh) { searchPromise = null; searchCache = null; }
+      if (searchCache) return searchCache;
+      if (searchPromise) return searchPromise;
+      searchPromise = (async () => {
+        const current = await this.loadDataset();
+        const published = new Set(
+          [...(current.posts || []), ...(current.pages || [])]
+            .filter((item) => item.status === 'published')
+            .map((item) => item.type + ':' + item.slug)
+        );
+        const entries = new Map();
+        const notices = [];
+        let importedState = 'missing';
+        let nativeState = 'missing';
+        let updatedAt = null;
+
+        const importedRef = normalizedManifest && normalizedManifest.entrypoints
+          ? normalizedManifest.entrypoints.search
+          : null;
+        if (importedRef) {
+          try {
+            const payload = await (source === 'fixture' ? fixtureFetchRef(importedRef) : qdnFetchRef(importedRef));
+            const read = readSearchIndex(payload);
+            if (read.ok) {
+              importedState = 'ready';
+              if (read.index.updated_at && (!updatedAt || read.index.updated_at > updatedAt)) updatedAt = read.index.updated_at;
+              for (const entry of read.index.entries) entries.set(entry.type + ':' + entry.slug, entry);
+            } else {
+              importedState = 'invalid';
+              notices.push('Imported search index is invalid: ' + read.errors.join(' '));
+            }
+          } catch (error) {
+            importedState = 'unavailable';
+            notices.push('Imported search index could not be read: ' + (error && error.message ? error.message : String(error)));
+          }
+        }
+
+        if (source !== 'fixture') {
+          try {
+            const payload = await fetchQdnResource(
+              { service: 'DOCUMENT', name: manifestName, identifier: SEARCH_INDEX_IDENTIFIER },
+              MANIFEST_TIMEOUT_MS
+            );
+            const read = readSearchIndex(payload);
+            if (read.ok) {
+              nativeState = 'ready';
+              if (read.index.updated_at && (!updatedAt || read.index.updated_at > updatedAt)) updatedAt = read.index.updated_at;
+              for (const entry of read.index.entries) entries.set(entry.type + ':' + entry.slug, entry);
+            } else {
+              nativeState = 'invalid';
+              notices.push('CMS search index is invalid: ' + read.errors.join(' '));
+            }
+          } catch {
+            // A site that has never published a CMS post has no native index.
+          }
+        }
+
+        const filtered = [...entries.values()]
+          .filter((entry) => published.has(entry.type + ':' + entry.slug))
+          .sort((left, right) => left.title.localeCompare(right.title));
+        const state = filtered.length > 0 || importedState === 'ready' || nativeState === 'ready' ? 'ready' : 'missing';
+        searchCache = {
+          ok: state === 'ready',
+          state,
+          entries: filtered,
+          importedState,
+          nativeState,
+          updatedAt,
+          notices,
+          siteId: current.site.id
+        };
+        return searchCache;
+      })();
+      try {
+        return await searchPromise;
+      } finally {
+        searchPromise = null;
+      }
     },
     async loadGalleries() {
       if (source === 'fixture') return { ok: true, catalog: { schema: 'qms-cms-gallery@1', version: 1, revision: 0, galleries: [] }, errors: [] };

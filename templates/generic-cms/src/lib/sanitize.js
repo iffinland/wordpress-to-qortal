@@ -1,4 +1,5 @@
 import createDOMPurify from 'dompurify';
+import { sanitizeQortalHref } from './links.js';
 
 const ALLOWED_TAGS = [
   'a', 'abbr', 'b', 'blockquote', 'br', 'caption', 'cite', 'code', 'col', 'colgroup',
@@ -28,7 +29,14 @@ const FORBID_ATTR = [
   'contenteditable', 'autofocus'
 ];
 
-const ALLOWED_SCHEMES = new Set(['http', 'https', 'mailto', 'tel']);
+const ALLOWED_SCHEMES = new Set(['http', 'https', 'mailto', 'tel', 'qortal']);
+
+/**
+ * DOMPurify strips unknown schemes by default. qortal:// is allowed here
+ * explicitly and then re-validated structurally by sanitizeQortalHref, so the
+ * general URL policy is not loosened for any other scheme.
+ */
+const ALLOWED_URI_REGEXP = /^(?:(?:https?|mailto|tel|qortal):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
 
 export function sanitizeUrl(value, options = {}) {
   const raw = String(value == null ? '' : value).trim();
@@ -38,6 +46,9 @@ export function sanitizeUrl(value, options = {}) {
   const schemeMatch = /^([a-z][a-z0-9+.-]*):/i.exec(compact);
   if (schemeMatch) {
     const scheme = schemeMatch[1].toLowerCase();
+    if (scheme === 'qortal') {
+      return options.allowQortal === false ? '' : sanitizeQortalHref(raw);
+    }
     if (!ALLOWED_SCHEMES.has(scheme)) return '';
     if (scheme === 'http' || scheme === 'https') {
       try {
@@ -73,7 +84,7 @@ function postProcess(html, windowLike) {
     if (element.tagName.toLowerCase() === 'a') {
       const href = element.getAttribute('href');
       if (href != null) {
-        const safe = sanitizeUrl(href);
+        const safe = sanitizeUrl(href, { allowQortal: true });
         if (safe) {
           element.setAttribute('href', safe);
           const lower = safe.toLowerCase();
@@ -128,6 +139,7 @@ export function createSanitizer(windowLike) {
         ALLOW_DATA_ATTR: false,
         ALLOW_ARIA_ATTR: true,
         ALLOW_UNKNOWN_PROTOCOLS: false,
+        ALLOWED_URI_REGEXP,
         KEEP_CONTENT: true,
         RETURN_TRUSTED_TYPE: false
       });
