@@ -40,10 +40,5 @@ export function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-export function slugify(value) {
-  return String(value || '')
-    .toLowerCase()
-    .replace(/&/g, ' and ')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
+// Single implementation: see slug.js for Unicode/Estonian normalization.
+export { slugify } from './slug.js';

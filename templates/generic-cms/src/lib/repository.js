@@ -10,6 +10,8 @@ import { rewriteMediaUrls } from './media.js';
 import { mergeNativeCatalog, readNativeIndex, NATIVE_INDEX_IDENTIFIER } from './nativeCatalog.js';
 import { readSearchIndex, SEARCH_INDEX_IDENTIFIER } from './search.js';
 import { readGalleryCatalog, GALLERY_CATALOG_IDENTIFIER } from './gallery.js';
+import { mergeOverlayCatalog, readOverlay, OVERLAY_IDENTIFIER } from './overlay.js';
+import { resolveBySlug } from './slug.js';
 
 const MANIFEST_TIMEOUT_MS = 7000;
 const CACHE_SCHEMA = 'qms-cms-dataset-cache@1';
@@ -149,6 +151,25 @@ export function createCmsRepository(config, options = {}) {
         } catch {
           // No CMS supplement is normal for an imported-only site.
         }
+        // Owner edits of imported content are a separate versioned overlay.
+        // Imported resources are never modified; a sync rebuild cannot erase
+        // these edits because they live in CMS-owned resources.
+        try {
+          const overlayRaw = await fetchQdnResource(
+            { service: 'DOCUMENT', name: manifestName, identifier: OVERLAY_IDENTIFIER },
+            MANIFEST_TIMEOUT_MS
+          );
+          const overlayRead = readOverlay(overlayRaw);
+          if (overlayRead.ok) dataset = mergeOverlayCatalog(dataset, overlayRead.overlay);
+          else {
+            dataset = {
+              ...dataset,
+              notices: [...dataset.notices, { code: 'cms-edit-overlay-invalid', level: 'warning', message: 'Owner edits of imported content could not be merged: ' + overlayRead.errors.join(' ') }]
+            };
+          }
+        } catch {
+          // No overlay is normal before the first edit.
+        }
       }
       if (dataset.state !== 'error') writeCache(cacheKey, dataset);
       return dataset;
@@ -193,11 +214,13 @@ export function createCmsRepository(config, options = {}) {
     },
     async findPost(slug) {
       const current = await this.loadDataset();
-      return current.posts.find((item) => item.type === 'post' && item.slug === slug) || null;
+      const found = resolveBySlug(current.posts.filter((item) => item.type === 'post'), slug);
+      return found || null;
     },
     async findPage(slug) {
       const current = await this.loadDataset();
-      return current.pages.find((item) => item.type === 'page' && item.slug === slug) || null;
+      const found = resolveBySlug(current.pages, slug);
+      return found || null;
     },
     /**
      * Load the versioned search index without scanning content. The imported

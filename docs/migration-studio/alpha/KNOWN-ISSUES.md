@@ -1,8 +1,35 @@
-# Known issues and limitations — 0.8.0 alpha.7
+# Known issues and limitations — 0.8.0 alpha.8
 
 These are release-gate facts, not a substitute for testing your own site. The
-0.8.0-alpha.7 release is published as a prerelease with all three artifacts.
+0.8.0-alpha.8 release is published as a prerelease with all three artifacts.
 Downloading an artifact is not deployment or live validation.
+
+## New in 0.8.0-alpha.8
+
+1. **Slug generation is fixed in code and rendered tests, not re-tested on the
+   live deployed CMS.** The live site still runs an older bundle until the owner
+   redeploys. Typing a title now produces the full slug; the old one-character
+   slugs already stored in QDN are reported by the new slug-health panel and are
+   never renamed automatically.
+2. **Imported WordPress edit overlays are not yet live-published in this run.**
+   The overlay publication path is covered by unit tests (revision conflicts,
+   source conflicts, aliases, merge and sync preservation) and the content uses
+   the existing verified `qms-qdn-content@1` publication path. Do a supervised
+   first edit of an imported post in Hub.
+3. **Published slug changes rely on in-CMS alias resolution.** Old URL routes
+   keep working through `slug_aliases`; a custom template that ignores aliases
+   must block slug changes. External QDN identifier links keep working because
+   the old content resource is retained.
+4. **Conflict detection compares a content fingerprint.** It covers title,
+   body HTML, excerpt, modified time and source id. A source change that alters
+   only uncaptured metadata (for example a WordPress author display name outside
+   the content payload) may not raise a conflict.
+5. **Withdrawn imported items keep their local edit orphaned.** The edit is
+   preserved and reported; it is not deleted. Review orphan notices before
+   relying on those links.
+6. **No QDN write, signing or wallet action was performed in this release
+   run.** All artifacts are built and tested locally; the owner approves any
+   publication in Hub.
 
 ## New in 0.8.0-alpha.7
 

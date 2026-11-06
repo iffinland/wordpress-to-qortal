@@ -1,8 +1,62 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-alpha.7 -->
+<!-- qms-release-version: 0.8.0-alpha.8 -->
 
-## 0.8.0 alpha.7 — current
+## 0.8.0 alpha.8 — current
+
+This unsigned alpha prerelease supersedes `v0.8.0-alpha.7`. It makes the Generic
+CMS a real editor for every catalog item and fixes the live slug defect that
+produced one-character slugs.
+
+### Slug fix (root cause)
+
+Typing `Teine test post` produced the slug `t`. The title handler used
+`slug: draft.slug || slugify(event.target.value)`: the first keystroke created
+`t`, which was then truthy forever, so the fallback never ran again. The same
+one-time latch existed in the gallery editor, and the slug field called
+`slugify()` on every keystroke, making hyphens untypeable.
+
+The editor now uses a pure reducer that regenerates the slug from the complete
+title on every change while the slug is untouched, stops at the first manual
+edit, offers **Regenerate slug**, shows the final slug before publish and locks
+published slugs. Estonian and other Latin diacritics are transliterated
+consistently (`Põhja-Tallinn õäöüšž` → `pohja-tallinn-oaousz`); empty or
+invalid slugs are rejected. Duplicate titles get deterministic suffixes across
+imported and CMS-authored content. Changing a published slug is an explicit
+advanced action that preserves the old URL as an alias and keeps the old QDN
+resource. See `docs/migration-studio/CMS-EDITING-AND-SLUGS.md`.
+
+### Editing imported WordPress posts
+
+Imported posts and pages now have a real Edit action. Edits are published to a
+new versioned `qms-cms-edit-overlay@1` document plus a CMS-owned
+`qms-qdn-content@1` resource. The imported manifest, indexes, content and
+original URL metadata are never modified. An unchanged WordPress source never
+erases local edits; a changed source shows a conflict with **Keep my edits** and
+**Accept upstream**. Incremental sync and catalog rebuilds preserve the overlay.
+The editor also reports local draft, modified-unpublished, awaiting approval,
+pending confirmation, published+verified, partial and ambiguous states
+explicitly; a local draft is never called published.
+
+### Also in this release
+
+- Gallery editing: title, description, per-image caption and alt text, image
+  order and membership, with duplicate-safe slugs.
+- Unsaved-change guards in the post/page editor and site settings; site
+  settings can be reverted to the last published values.
+- Slug health report detects suspicious one-character drafts and published
+  items. It never renames published resources automatically.
+
+Desktop is 0.8.0-alpha.8 (rebuilt with CMS 0.8.0-alpha.6), CMS is
+0.8.0-alpha.6, and Publisher stays 0.8.0-alpha.2 with byte-identical bytes.
+
+| Component | Version | Artifact |
+| --- | --- | --- |
+| Desktop (Linux amd64) | 0.8.0-alpha.8 | `qortal-migration-studio_0.8.0-alpha.8_amd64.deb` |
+| Migration Publisher (Q-App) | 0.8.0-alpha.2 | `qortal-migration-publisher-v0.8.0-alpha.2.zip` |
+| Generic CMS (Q-App) | 0.8.0-alpha.6 | `qortal-migration-generic-cms-v0.8.0-alpha.6.zip` |
+
+## 0.8.0 alpha.7 — previous
 
 This unsigned alpha prerelease supersedes `v0.8.0-alpha.6`. It contains one CMS
 correction: the pre-publication fee quote now counts three resources (content,

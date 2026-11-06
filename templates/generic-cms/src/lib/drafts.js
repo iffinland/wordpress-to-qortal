@@ -9,6 +9,7 @@ export const DRAFT_STORAGE_VERSION = 1;
 /** Explicit publication states; ambiguous outcomes are always distinct. */
 export const PUBLICATION_STATES = Object.freeze([
   'draft',
+  'modified-unpublished',
   'pending-approval',
   'pending-confirmation',
   'published',
@@ -16,6 +17,18 @@ export const PUBLICATION_STATES = Object.freeze([
   'failed',
   'ambiguous'
 ]);
+
+/** Human labels used by the editor. A local draft is never "published". */
+export const PUBLICATION_STATE_LABELS = Object.freeze({
+  draft: 'Local draft — not published',
+  'modified-unpublished': 'Modified — not published',
+  'pending-approval': 'Awaiting your approval',
+  'pending-confirmation': 'Pending Hub confirmation',
+  published: 'Published and verified',
+  partial: 'Published, search index pending',
+  failed: 'Not published',
+  ambiguous: 'Publication unconfirmed — not resent'
+});
 
 export function publicationStateForResult(result) {
   if (!result || typeof result !== 'object') return 'failed';
@@ -78,7 +91,21 @@ export function createDraft(overrides = {}, now = Date.now()) {
     baseRevision: Number(overrides.baseRevision) || 0,
     remoteId: overrides.remoteId || null,
     contentIdentifier: overrides.contentIdentifier || null,
-    pendingHash: null
+    pendingHash: null,
+    // Slug provenance: auto-generated, manual, or locked because published.
+    slugTouched: overrides.slugTouched === true,
+    slugLocked: overrides.slugLocked === true,
+    slugChangeConfirmed: overrides.slugChangeConfirmed === true,
+    originalSlug: overrides.originalSlug || '',
+    slugAliases: Array.isArray(overrides.slugAliases) ? [...overrides.slugAliases] : [],
+    // Editing model: CMS-authored content or a WordPress-imported overlay.
+    sourceKind: overrides.sourceKind === 'wordpress-overlay' ? 'wordpress-overlay' : 'cms-native',
+    sourceItemId: overrides.sourceItemId || null,
+    sourceSlug: overrides.sourceSlug || '',
+    sourceRef: overrides.sourceRef || null,
+    baseSourceHash: overrides.baseSourceHash || null,
+    baseSourceModifiedAt: overrides.baseSourceModifiedAt || null,
+    savedSnapshot: overrides.savedSnapshot || null
   };
 }
 

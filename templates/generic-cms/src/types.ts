@@ -86,6 +86,22 @@ export interface CmsContentItem {
   featuredImageRef: QdnRef | null;
   contentHash: string | null;
   native?: boolean;
+  /** True when the imported item is shown through a CMS edit overlay. */
+  edited?: boolean;
+  sourceKind?: 'cms-authored' | 'wordpress-imported' | 'wordpress-overlay';
+  originalSlug?: string | null;
+  slugAliases?: string[];
+  /** The original imported content ref, kept for conflict detection. */
+  sourceContentRef?: QdnRef | null;
+  overlay?: {
+    entryKey: string;
+    state: string;
+    conflictState: 'clean' | 'open' | 'resolved' | string;
+    baseSourceHash?: string | null;
+    sourceAdapter?: string;
+    sourceId?: number | null;
+    sourceOldUrl?: string | null;
+  };
   legacy?: {
     sourceId?: number | null;
     oldUrl?: string | null;
@@ -134,6 +150,7 @@ export interface CmsDataset {
     bySourceUrl: Record<string, QdnRef>;
   };
   nativeIndex?: unknown;
+  editOverlay?: unknown;
 }
 
 export interface LoadedContent {
