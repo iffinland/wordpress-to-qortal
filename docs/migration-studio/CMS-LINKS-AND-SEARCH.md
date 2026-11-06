@@ -110,7 +110,7 @@ overwritten.
 
 ### Tests
 
-- templates/generic-cms/tests/search.test.ts - schema, Unicode, phrases,
+- templates/generic-cms/tests/search.test.tsx - schema, Unicode, phrases,
   snippets, ranking, highlighting, stale/missing index, drafts and mixed origins.
 - templates/generic-cms/tests/links.test.tsx - qortal parsing/sanitizing, https
   clipboard + badge lifecycle + failure, keyboard, Hub bridge, footer.

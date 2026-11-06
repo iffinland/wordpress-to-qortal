@@ -14,6 +14,10 @@ import {
 import { mergeNativeCatalog, emptyNativeIndex, nativeEntryFromDraft } from '../src/lib/nativeCatalog.js';
 import { publishedPosts } from '../src/lib/archive.js';
 import { loadFixture } from './support/fixtures';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { HomePage } from '../src/pages/HomePage';
+import { PostsPage } from '../src/pages/PostsPage';
+import { PostPage } from '../src/pages/PostPage';
 
 function entry(overrides: any = {}) {
   return {
@@ -141,6 +145,28 @@ describe('CMS publishing regression: draft is not public', () => {
     expect(merged.posts.some((item: any) => item.slug === 'new-cms-post' && item.native)).toBe(true);
     expect(merged.posts.some((item: any) => item.slug === 'hello-qortal')).toBe(true);
     expect(merged.categories.some((term: any) => term.name === 'News')).toBe(true);
+  });
+
+  it('renders a published native post on home, posts and its detail page', async () => {
+    const fixture = await loadFixture();
+    const draft = {
+      id: 'draft-render', type: 'post', title: 'Rendered CMS Post', slug: 'rendered-cms-post', status: 'published',
+      excerpt: 'Visible everywhere', categories: [], tags: [], createdAt: '2026-11-01T00:00:00.000Z'
+    };
+    const built = nativeEntryFromDraft(draft, { siteId: 'fixture', qdnName: 'name', contentIdentifier: 'id', contentHash: 'sha256:z' });
+    const merged = mergeNativeCatalog(fixture.dataset, { ...emptyNativeIndex('fixture'), revision: 1, entries: [built.entry] });
+    const item = merged.posts.find((entry: any) => entry.slug === 'rendered-cms-post');
+    expect(item).toBeTruthy();
+    const content = {
+      item, title: item.title, slug: item.slug, html: '<p>Rendered CMS body with sõnajalg.</p>',
+      excerptHtml: item.excerpt, author: 'Owner', publishedAt: item.publishedAt, modifiedAt: item.updatedAt,
+      media: [], source: 'qms-qdn'
+    };
+    expect(renderToStaticMarkup(<HomePage dataset={merged} />)).toContain('Rendered CMS Post');
+    expect(renderToStaticMarkup(<PostsPage dataset={merged} page={1} />)).toContain('Rendered CMS Post');
+    const detail = renderToStaticMarkup(<PostPage dataset={merged} item={item} content={content as any} loading={false} error="" onRetry={() => undefined} previous={null} next={null} />);
+    expect(detail).toContain('Rendered CMS Post');
+    expect(detail).toContain('sõnajalg');
   });
 
   it('creates a search entry from the published draft body', () => {
