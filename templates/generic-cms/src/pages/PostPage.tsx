@@ -25,6 +25,7 @@ export function PostPage(props: {
   onRetry: () => void;
   previous: CmsContentItem | null;
   next: CmsContentItem | null;
+  highlightTerms?: string[];
 }) {
   if (props.loading) {
     return (
@@ -75,7 +76,7 @@ export function PostPage(props: {
         {content.author ? <span>By {content.author}</span> : null}
       </p>
       {image ? <img className="article-image" src={image} alt={item.title} loading="lazy" decoding="async" /> : null}
-      <ContentHtml html={content.html} />
+      <ContentHtml html={content.html} highlightTerms={props.highlightTerms} />
       {terms.categories.length > 0 || terms.tags.length > 0 ? (
         <footer className="article-terms">
           {terms.categories.length > 0 ? (

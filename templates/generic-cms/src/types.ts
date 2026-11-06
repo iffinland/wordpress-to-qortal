@@ -190,8 +190,8 @@ export type AdminSection = 'overview' | 'settings' | 'editor' | 'galleries';
 export type AppRoute =
   | { kind: 'home' }
   | { kind: 'posts'; page: number }
-  | { kind: 'post'; slug: string }
-  | { kind: 'page'; slug: string }
+  | { kind: 'post'; slug: string; q?: string }
+  | { kind: 'page'; slug: string; q?: string }
   | { kind: 'category'; slug: string; page: number }
   | { kind: 'tag'; slug: string; page: number }
   | ArchiveRoute

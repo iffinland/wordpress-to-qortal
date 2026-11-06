@@ -112,6 +112,7 @@ export function normalizeManifest(raw, options = {}) {
         categories: copyRef(entrypoints.categories),
         tags: copyRef(entrypoints.tags),
         media: copyRef(entrypoints.media),
+        search: copyRef(entrypoints.search),
         urlMap: copyRef(entrypoints.url_map)
       },
       resources: { byPath, byIdentifier, bySourceUrl },
@@ -153,6 +154,7 @@ export function normalizeManifest(raw, options = {}) {
         categories: fromIdentifier(entrypoints.categories),
         tags: fromIdentifier(entrypoints.tags),
         media: fromIdentifier(entrypoints.media_map),
+        search: fromIdentifier(entrypoints.search),
         urlMap: fromIdentifier(entrypoints.url_map)
       },
       resources: { byPath, byIdentifier, bySourceUrl },
@@ -188,6 +190,7 @@ export function normalizeManifest(raw, options = {}) {
       categories: copyRef(entrypoints.categories, raw.qdn_content_name || ownerName),
       tags: copyRef(entrypoints.tags, raw.qdn_content_name || ownerName),
       media: copyRef(entrypoints.media_map, raw.qdn_content_name || ownerName),
+      search: copyRef(entrypoints.search_index, raw.qdn_content_name || ownerName),
       urlMap: copyRef(entrypoints.url_map, raw.qdn_content_name || ownerName)
     },
     resources: { byPath, byIdentifier, bySourceUrl },

@@ -30,7 +30,7 @@ test('a handoff package carries exact validated bytes, ordering and no secrets o
   const raw = await readFile(path.join(dir, 'handoff.json'), 'utf8');
   const manifest = JSON.parse(raw);
   assert.equal(manifest.schema, HANDOFF_SCHEMA);
-  assert.equal(manifest.resources.length, 11);
+  assert.equal(manifest.resources.length, 12);
   assert.deepEqual(
     [...new Set(manifest.resources.map((resource) => resource.kind))],
     ['content', 'index', 'manifest']

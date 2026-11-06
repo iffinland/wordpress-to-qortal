@@ -2,7 +2,33 @@
 
 <!-- alpha-release-version: 0.8.0 -->
 
-## 0.8.0 alpha.5 — current
+## 0.8.0 alpha.6 — current
+
+Qortal Migration Studio **0.8.0 alpha.6** fixes the live Generic CMS defect where a
+CMS-authored post was verified and published but never appeared publicly.
+
+- **Root cause.** The editor published `status: 'draft'` into the native catalog
+  index. Categories and tags were still merged, while public lists filter on
+  `status === 'published'`, so the post vanished from Posts, Latest posts, term
+  pages and detail routes.
+- **Fix.** Publishing now writes `status: 'published'` and tracks an explicit
+  state machine (draft, pending-approval, pending-confirmation, published,
+  partial, failed, ambiguous). Search-index failure is reported as partial.
+- **qortal:// links** are accepted and preserved through the editor, sanitizer
+  and renderer; Hub opens them with `OPEN_NEW_TAB`. Outside Hub the link is
+  copied with an explanation.
+- **https links** copy to the clipboard with a transient `Link copied.` badge
+  and an explicit error state; they no longer navigate away.
+- **Full-text search** uses `qms-cms-search-index@1`, is written by CMS and QMS
+  imports, debounces input and highlights matches safely.
+- **Footer and header.** Attribution is now **Qortal Migration Studio CMS** with
+  no `QDN name:` label; the `Qortal QDN publication` eyebrow is removed.
+- Desktop is 0.8.0-alpha.6 (rebuilt with the bundled CMS), CMS is
+  0.8.0-alpha.4, Publisher stays 0.8.0-alpha.2 and is byte-identical.
+- Detailed evidence:
+  [../RELEASE-0.8.0-ALPHA.md](../RELEASE-0.8.0-ALPHA.md).
+
+## 0.8.0 alpha.5 — previous
 
 Qortal Migration Studio **0.8.0 alpha.5** fixes the two blocking defects found in
 the first real graphical test of alpha.4 on MX Linux.

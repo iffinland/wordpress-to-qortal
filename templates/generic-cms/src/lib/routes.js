@@ -19,9 +19,15 @@ export function parseHashRoute(hash = '') {
   const parts = path.split('/').filter(Boolean).map(safeDecode);
 
   if (parts.length === 0) return { kind: 'home' };
-  if (parts[0] === 'posts' && parts[1]) return { kind: 'post', slug: parts[1] };
+  if (parts[0] === 'posts' && parts[1]) {
+    const q = query.get('q') || '';
+    return { kind: 'post', slug: parts[1], ...(q ? { q } : {}) };
+  }
   if (parts[0] === 'posts') return { kind: 'posts', page: positiveInteger(query.get('page')) };
-  if (parts[0] === 'pages' && parts[1]) return { kind: 'page', slug: parts[1] };
+  if (parts[0] === 'pages' && parts[1]) {
+    const q = query.get('q') || '';
+    return { kind: 'page', slug: parts[1], ...(q ? { q } : {}) };
+  }
   if (parts[0] === 'category' && parts[1]) return { kind: 'category', slug: parts[1], page: positiveInteger(query.get('page')) };
   if (parts[0] === 'tag' && parts[1]) return { kind: 'tag', slug: parts[1], page: positiveInteger(query.get('page')) };
   if (parts[0] === 'archive') {
@@ -89,7 +95,7 @@ export function galleryHref(slug = '') {
 
 export function routeKey(route) {
   if (!route) return 'none';
-  if (route.kind === 'post' || route.kind === 'page') return route.kind + ':' + route.slug;
+  if (route.kind === 'post' || route.kind === 'page') return route.kind + ':' + route.slug + (route.q ? ':' + route.q : '');
   if (route.kind === 'category' || route.kind === 'tag') return route.kind + ':' + route.slug + ':' + route.page;
   if (route.kind === 'archive') return 'archive:' + (route.year || '') + ':' + (route.month || '') + ':' + route.page;
   if (route.kind === 'search') return 'search:' + route.query;

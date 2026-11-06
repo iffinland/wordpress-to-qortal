@@ -6,13 +6,13 @@ This path needs **no Node.js, npm, Git, compiler or manual build**. Do not clone
 the repository and do not run npm.
 
 1. Download
-   [qortal-migration-studio_0.8.0-alpha.5_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.5/qortal-migration-studio_0.8.0-alpha.5_amd64.deb)
-   and [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.5/SHA256SUMS).
+   [qortal-migration-studio_0.8.0-alpha.6_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.6/qortal-migration-studio_0.8.0-alpha.6_amd64.deb)
+   and [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.6/SHA256SUMS).
 2. Verify and install:
 
    ~~~bash
-   sha256sum qortal-migration-studio_0.8.0-alpha.5_amd64.deb
-   sudo apt install ./qortal-migration-studio_0.8.0-alpha.5_amd64.deb
+   sha256sum qortal-migration-studio_0.8.0-alpha.6_amd64.deb
+   sudo apt install ./qortal-migration-studio_0.8.0-alpha.6_amd64.deb
    qortal-migration-studio
    ~~~
 

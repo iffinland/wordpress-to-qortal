@@ -11,3 +11,6 @@ corbettreport/dist/
 !scripts/release/
 !scripts/release/**
 npm-debug.log*
+
+# Durable completion-notification outbox (never commit reports or credentials)
+.notify-outbox/

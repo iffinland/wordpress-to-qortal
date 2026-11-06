@@ -10,7 +10,6 @@ export function HomePage(props: { dataset: CmsDataset }) {
   return (
     <div className="page">
       <section className="hero" aria-labelledby="home-title">
-        <p className="eyebrow">Qortal QDN publication</p>
         <h1 id="home-title">{dataset.site.title}</h1>
         {dataset.site.tagline ? <p className="hero__tagline">{dataset.site.tagline}</p> : null}
         <p className="hero__actions">

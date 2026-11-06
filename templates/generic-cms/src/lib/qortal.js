@@ -1,4 +1,5 @@
 import { evaluateOwnership, evaluateRevalidation, requireOwner } from './ownership.js';
+import { parseQortalLink } from './links.js';
 
 const DEFAULT_NODE = 'http://localhost:12391';
 const READ_TIMEOUT_MS = 15000;
@@ -586,9 +587,11 @@ export async function searchQdnResources(options = {}) {
  * may show the destination so it can be pasted manually.
  */
 export async function openQortalLink(qortalLink) {
+  const parsed = parseQortalLink(qortalLink);
+  if (!parsed) return { ok: false, message: 'This is not a valid qortal:// link.' };
   if (!hasQortalBridge()) return { ok: false, message: 'Open this link inside Qortal Hub.' };
   try {
-    await requestQortal({ action: 'OPEN_NEW_TAB', qortalLink }, 15000);
+    await requestQortal({ action: 'OPEN_NEW_TAB', qortalLink: parsed.raw }, 15000);
     return { ok: true, message: '' };
   } catch (error) {
     return { ok: false, message: error && error.message ? error.message : 'Qortal Hub could not open the link.' };

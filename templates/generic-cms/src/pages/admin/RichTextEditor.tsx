@@ -4,6 +4,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
+import { parseQortalLink } from '../../lib/links.js';
 
 export function RichTextEditor(props: {
   value: string;
@@ -14,7 +15,7 @@ export function RichTextEditor(props: {
     immediatelyRender: false,
     extensions: [
       StarterKit.configure({ heading: { levels: [2, 3] } }),
-      Link.configure({ openOnClick: false, autolink: true, protocols: ['http', 'https'], HTMLAttributes: { rel: 'noopener noreferrer' } }),
+      Link.configure({ openOnClick: false, autolink: true, protocols: ['http', 'https', 'qortal'], HTMLAttributes: { rel: 'noopener noreferrer' } }),
       Image.configure({ inline: false, allowBase64: false }),
       Placeholder.configure({ placeholder: 'Write the post…' })
     ],
@@ -32,15 +33,25 @@ export function RichTextEditor(props: {
 
   const setLink = () => {
     const previous = editor.getAttributes('link').href as string | undefined;
-    const href = window.prompt('Link URL (https:// or /internal-path)', previous || 'https://');
+    const href = window.prompt('Link URL (https://, qortal:// or #/internal-path)', previous || 'https://');
     if (href == null) return;
     if (href === '') { editor.chain().focus().extendMarkRange('link').unsetLink().run(); return; }
     try {
-      const parsed = new URL(href, window.location.origin);
+      const value = href.trim();
+      if (value.startsWith('#/')) {
+        editor.chain().focus().extendMarkRange('link').setLink({ href: value }).run();
+        return;
+      }
+      if (/^qortal:\/\//i.test(value)) {
+        if (!parseQortalLink(value)) throw new Error('Invalid qortal link');
+        editor.chain().focus().extendMarkRange('link').setLink({ href: value }).run();
+        return;
+      }
+      const parsed = new URL(value, window.location.origin);
       if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Unsupported protocol');
-      editor.chain().focus().extendMarkRange('link').setLink({ href }).run();
+      editor.chain().focus().extendMarkRange('link').setLink({ href: value }).run();
     } catch {
-      window.alert('Only http and https links are allowed.');
+      window.alert('Use an http(s) URL, a valid qortal:// link, or an internal #/ path.');
     }
   };
 

@@ -11,6 +11,7 @@ export function PageView(props: {
   loading: boolean;
   error: string;
   onRetry: () => void;
+  highlightTerms?: string[];
 }) {
   if (props.loading) {
     return (
@@ -49,7 +50,7 @@ export function PageView(props: {
       <p className="eyebrow">Page</p>
       <h1>{props.content.title || props.item.title}</h1>
       {props.content.modifiedAt ? <p className="article-meta">Updated <time dateTime={props.content.modifiedAt}>{formatDate(props.content.modifiedAt)}</time></p> : null}
-      <ContentHtml html={props.content.html} />
+      <ContentHtml html={props.content.html} highlightTerms={props.highlightTerms} />
     </article>
   );
 }
