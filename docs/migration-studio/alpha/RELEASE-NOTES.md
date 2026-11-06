@@ -2,7 +2,15 @@
 
 <!-- alpha-release-version: 0.8.0 -->
 
-## 0.8.0 alpha.6 — current
+## 0.8.0 alpha.7 — current
+
+Qortal Migration Studio **0.8.0 alpha.7** supersedes alpha.6 with one CMS fix: the
+pre-publication fee quote includes the search-index resource, so it correctly
+counts three signatures. Desktop 0.8.0-alpha.7 and CMS 0.8.0-alpha.5 are rebuilt;
+Publisher remains byte-identical 0.8.0-alpha.2. All alpha.6 publishing, link,
+search and notification behaviour is unchanged.
+
+## 0.8.0 alpha.6 — previous
 
 Qortal Migration Studio **0.8.0 alpha.6** fixes the live Generic CMS defect where a
 CMS-authored post was verified and published but never appeared publicly.

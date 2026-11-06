@@ -61,7 +61,7 @@ export function EditorPage(props: {
       setRevision(result.ok ? Number(result.index.revision) || 0 : 0);
       setLoadingRevision(false);
     });
-    quotePublication(2).then((quote) => { if (!cancelled) setFee(quote.label); }).catch(() => { if (!cancelled) setFee('Fee unavailable.'); });
+    quotePublication(3).then((quote) => { if (!cancelled) setFee(quote.label); }).catch(() => { if (!cancelled) setFee('Fee unavailable.'); });
     return () => { cancelled = true; };
   }, [props.name]);
 
