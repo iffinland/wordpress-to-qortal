@@ -1,22 +1,22 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-alpha.6",
+  "version": "0.8.0-alpha.7",
   "channel": "alpha",
-  "releaseTag": "v0.8.0-alpha.6",
+  "releaseTag": "v0.8.0-alpha.7",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
   "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-ALPHA.md",
   "changelog": {
-    "summary": "Fixes CMS-authored posts never appearing publicly: the editor published the native catalog entry with status 'draft', so categories/tags merged while every public list filtered the post out. The editor now uses an explicit draft/pending-approval/pending-confirmation/published/partial/failed/ambiguous state machine, publishes with status 'published', and reports a verified but search-index-pending post as partial instead of success. Also adds first-class qortal:// links, https copy-with-badge behaviour, full-text search with a versioned qms-cms-search-index@1 (CMS and imports), footer/header attribution fixes, and a durable completion-notification module."
+    "summary": "Fixes CMS-authored posts never appearing publicly: the editor published the native catalog entry with status 'draft', so categories/tags merged while every public list filtered the post out. The editor now uses an explicit draft/pending-approval/pending-confirmation/published/partial/failed/ambiguous state machine, publishes with status 'published', and reports a verified but search-index-pending post as partial instead of success. Also adds first-class qortal:// links, https copy-with-badge behaviour, full-text search with a versioned qms-cms-search-index@1 (CMS and imports), footer/header attribution fixes, and a durable completion-notification module. The CMS also corrects its pre-publication fee quote to include the search-index resource (three signatures, not two)."
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-alpha.6",
+      "version": "0.8.0-alpha.7",
       "channel": "alpha",
       "source": "desktop/package.json",
-      "changelog": "Wizard/plan/UX baseline from 0.8.0-alpha.5 plus the bundled CMS 0.8.0-alpha.4 fixes: CMS-authored posts publish publicly, qortal:// and https link behaviour, full-text search index and UI, footer attribution and header branding. Desktop sources are otherwise unchanged."
+      "changelog": "Rebuilt with the CMS 0.8.0-alpha.5 fee-quote correction on top of 0.8.0-alpha.6. Desktop sources are otherwise unchanged."
     },
     "publisher": {
       "version": "0.8.0-alpha.2",
@@ -25,10 +25,10 @@
       "changelog": "Unchanged in this release; the Publisher artifact is byte-identical to 0.8.0-alpha.2."
     },
     "cms": {
-      "version": "0.8.0-alpha.4",
+      "version": "0.8.0-alpha.5",
       "channel": "alpha",
       "source": "templates/generic-cms/package.json",
-      "changelog": "CMS 0.8.0-alpha.4: publish state machine and status fix (CMS posts now appear in Posts/Latest/detail/terms after verified publication); first-class qortal:// links accepted by the editor and sanitizer and opened through Hub OPEN_NEW_TAB; https links copy with a transient badge; live full-text search over a versioned qms-cms-search-index@1 with Unicode and phrase support; 'Qortal Migration Studio CMS' footer attribution without QDN-name labels; hardcoded 'Qortal QDN publication' eyebrow removed."
+      "changelog": "CMS 0.8.0-alpha.4: publish state machine and status fix (CMS posts now appear in Posts/Latest/detail/terms after verified publication); first-class qortal:// links accepted by the editor and sanitizer and opened through Hub OPEN_NEW_TAB; https links copy with a transient badge; live full-text search over a versioned qms-cms-search-index@1 with Unicode and phrase support; 'Qortal Migration Studio CMS' footer attribution without QDN-name labels; hardcoded 'Qortal QDN publication' eyebrow removed. Corrects the pre-publication fee quote to three resources (content, native catalog index, search index)."
     }
   },
   "versionMarkers": [

@@ -1,8 +1,17 @@
-# Known issues and limitations — 0.8.0 alpha.6
+# Known issues and limitations — 0.8.0 alpha.7
 
 These are release-gate facts, not a substitute for testing your own site. The
-0.8.0-alpha.6 release is published as a prerelease with all three artifacts.
+0.8.0-alpha.7 release is published as a prerelease with all three artifacts.
 Downloading an artifact is not deployment or live validation.
+
+## New in 0.8.0-alpha.7
+
+1. **Fee-quote correction only.** The CMS quote now counts content, native
+   catalog index and search index (three signatures). Hub still shows the final
+   fee before signing. Desktop 0.8.0-alpha.7 and CMS 0.8.0-alpha.5 are rebuilt;
+   Publisher is byte-identical 0.8.0-alpha.2.
+2. **No new live validation.** The alpha.6 publishing/search limitations below
+   still apply.
 
 ## New in 0.8.0-alpha.6
 

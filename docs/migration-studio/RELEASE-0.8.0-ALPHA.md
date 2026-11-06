@@ -1,8 +1,26 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-alpha.6 -->
+<!-- qms-release-version: 0.8.0-alpha.7 -->
 
-## 0.8.0 alpha.6 — current
+## 0.8.0 alpha.7 — current
+
+This unsigned alpha prerelease supersedes `v0.8.0-alpha.6`. It contains one CMS
+correction: the pre-publication fee quote now counts three resources (content,
+native catalog index and search index) instead of two. Hub has always shown the
+final fee before signing; this makes the QMS label accurate.
+
+Desktop is 0.8.0-alpha.7 (rebuilt with the corrected CMS), CMS is
+0.8.0-alpha.5, and Publisher stays 0.8.0-alpha.2 with byte-identical bytes. All
+publishing, link, search, attribution and notification behaviour from alpha.6 is
+unchanged.
+
+| Component | Version | Artifact |
+| --- | --- | --- |
+| Desktop (Linux amd64) | 0.8.0-alpha.7 | `qortal-migration-studio_0.8.0-alpha.7_amd64.deb` |
+| Migration Publisher (Q-App) | 0.8.0-alpha.2 | `qortal-migration-publisher-v0.8.0-alpha.2.zip` |
+| Generic CMS (Q-App) | 0.8.0-alpha.5 | `qortal-migration-generic-cms-v0.8.0-alpha.5.zip` |
+
+## 0.8.0 alpha.6 — previous
 
 This is an unsigned alpha prerelease. It supersedes `v0.8.0-alpha.5` and fixes
 the live Generic CMS defect where a CMS-authored post was published but never
