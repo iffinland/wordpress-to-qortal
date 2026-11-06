@@ -229,6 +229,23 @@ settings and warns explicitly: do not overwrite a customized CMS with the
 generic ZIP. Republish template files only, preserving site configuration and
 custom assets.
 
+## Current pending publication (2026-11-06)
+
+- Resource: `DOCUMENT/developer iffi/qms-update-registry`
+- Remote status: HTTP 200, sequence 1 already published (existing SHA-256
+  `6a185d9d872bdf81cc56bc7a40238ceebc8e6f148dc407d5a3e8089c9e664db7`).
+- Next document: sequence 2, generated from release `v0.8.0-alpha.6`.
+- Components: desktop 0.8.0-alpha.6, CMS 0.8.0-alpha.4, Publisher
+  0.8.0-alpha.2 (unchanged; the registry keeps its original verified URL).
+- Handoff ZIP: `release/qms-update-registry-handoff.zip` (not committed),
+  2,582 bytes, SHA-256
+  `86d1989d54ecde2ec5c3d8ae3bfafba3ad3ee67d0e6af64a19edd1b502125a18`.
+- Payload: `release/registry-handoff/payload/document/qms-update-registry.json`,
+  SHA-256 `53c83c9d52aa4d9be0cb3663959b2e7e6d413a9de25cf20053f20c396c20bdf9`.
+- One DOCUMENT resource; estimated fee 0.01 QORT at the read-only node unit fee.
+- Status: **awaiting owner approval in Qortal Hub**. Nothing was signed or
+  published by the agent.
+
 ## Failure handling
 
 | Failure | Behavior |

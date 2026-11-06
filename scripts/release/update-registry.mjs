@@ -163,11 +163,13 @@ export function buildRegistryDocument({ release, manifest, artifacts, current = 
         throw new Error('Refusing to downgrade component ' + id + ' from ' + previous.version + ' to ' + version + '.');
       }
       if (order === 0) {
+        // An unchanged component keeps its very first verified URL. A later
+        // release may re-upload the identical bytes under a newer tag, but the
+        // registry must not rewrite a published record merely to move the URL.
         const same = previous.artifacts.length === 1
           && previous.artifacts[0].name === nextArtifact.name
           && previous.artifacts[0].bytes === nextArtifact.bytes
-          && previous.artifacts[0].sha256 === nextArtifact.sha256
-          && previous.artifacts[0].url === nextArtifact.url;
+          && previous.artifacts[0].sha256 === nextArtifact.sha256;
         if (!same) {
           throw new Error('Component ' + id + ' changed without a version bump: ' + version + '. Bump its component version before releasing.');
         }
