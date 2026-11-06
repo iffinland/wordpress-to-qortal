@@ -1,8 +1,37 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-alpha.8 -->
+<!-- qms-release-version: 0.8.0-alpha.9 -->
 
-## 0.8.0 alpha.8 — current
+## 0.8.0 alpha.9 — current
+
+This unsigned alpha prerelease supersedes `v0.8.0-alpha.8`. It corrects two
+defects found while verifying alpha.8.
+
+1. **Fee quote.** Both editing paths write three resources (content, native
+   index or edit overlay, search index), but alpha.8 quoted four. The label now
+   matches the actual signatures. Hub still shows the final fee before signing.
+2. **Accept upstream search cleanup.** Removing a local edit removed the overlay
+   entry but left the local search entry, so search could keep the old local
+   title. Accepting upstream now also removes that CMS search entry and verifies
+   the write.
+3. **Deep links** to published CMS items (`#/admin/editor/<id>`) open the item
+   again.
+
+Everything else from 0.8.0-alpha.8 is unchanged: complete-title slug generation
+with Estonian/Unicode transliteration, published-slug locking with aliases,
+conflict-aware editing of WordPress-imported posts, gallery caption/alt/order
+editing, draft/preview/cancel states and unsaved-change guards.
+
+Desktop is 0.8.0-alpha.9 (rebuilt with CMS 0.8.0-alpha.7), CMS is
+0.8.0-alpha.7, and Publisher stays 0.8.0-alpha.2 with byte-identical bytes.
+
+| Component | Version | Artifact |
+| --- | --- | --- |
+| Desktop (Linux amd64) | 0.8.0-alpha.9 | `qortal-migration-studio_0.8.0-alpha.9_amd64.deb` |
+| Migration Publisher (Q-App) | 0.8.0-alpha.2 | `qortal-migration-publisher-v0.8.0-alpha.2.zip` |
+| Generic CMS (Q-App) | 0.8.0-alpha.7 | `qortal-migration-generic-cms-v0.8.0-alpha.7.zip` |
+
+## 0.8.0 alpha.8 — previous
 
 This unsigned alpha prerelease supersedes `v0.8.0-alpha.7`. It makes the Generic
 CMS a real editor for every catalog item and fixes the live slug defect that

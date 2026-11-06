@@ -1,22 +1,22 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-alpha.8",
+  "version": "0.8.0-alpha.9",
   "channel": "alpha",
-  "releaseTag": "v0.8.0-alpha.8",
+  "releaseTag": "v0.8.0-alpha.9",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
   "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-ALPHA.md",
   "changelog": {
-    "summary": "Universal owner editing for the Generic CMS, including WordPress-imported posts. Fixes the live slug defect where typing a title produced the first keystroke as the slug ('t' for 'Teine test post'): auto-generation now follows the complete title, stops at the first manual edit, offers explicit regeneration, transliterates Estonian/Unicode letters deterministically, and prevents duplicates across imported and CMS-authored content. Published slugs are locked; changing one is an explicit advanced action that preserves the old URL as an alias and keeps the old QDN resource. Imported WordPress posts are edited through a versioned conflict-aware qms-cms-edit-overlay@1 overlay that never modifies the imported resources and survives incremental sync. Adds gallery caption/alt/order editing, full draft/preview/cancel states and an unsaved-change guard."
+    "summary": "Corrects the CMS publication fee quote to the three resources both editing paths actually write (content, native index/edit overlay, search index) and removes the stale local search entry when an owner accepts upstream WordPress content. Also opens deep links to published CMS items. Universal owner editing for the Generic CMS, including WordPress-imported posts. Fixes the live slug defect where typing a title produced the first keystroke as the slug ('t' for 'Teine test post'): auto-generation now follows the complete title, stops at the first manual edit, offers explicit regeneration, transliterates Estonian/Unicode letters deterministically, and prevents duplicates across imported and CMS-authored content. Published slugs are locked; changing one is an explicit advanced action that preserves the old URL as an alias and keeps the old QDN resource. Imported WordPress posts are edited through a versioned conflict-aware qms-cms-edit-overlay@1 overlay that never modifies the imported resources and survives incremental sync. Adds gallery caption/alt/order editing, full draft/preview/cancel states and an unsaved-change guard."
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-alpha.8",
+      "version": "0.8.0-alpha.9",
       "channel": "alpha",
       "source": "desktop/package.json",
-      "changelog": "Rebuilt with CMS 0.8.0-alpha.6. Desktop sources are otherwise unchanged; the desktop artifact carries the new CMS template and the new release identity."
+      "changelog": "Rebuilt with CMS 0.8.0-alpha.7. Desktop sources are otherwise unchanged; the desktop artifact carries the new CMS template and the new release identity."
     },
     "publisher": {
       "version": "0.8.0-alpha.2",
@@ -25,10 +25,10 @@
       "changelog": "Unchanged in this release; the Publisher artifact is byte-identical to 0.8.0-alpha.2."
     },
     "cms": {
-      "version": "0.8.0-alpha.6",
+      "version": "0.8.0-alpha.7",
       "channel": "alpha",
       "source": "templates/generic-cms/package.json",
-      "changelog": "CMS 0.8.0-alpha.6: fixes first-keystroke slug generation ('t' for 'Teine test post') with a pure auto-slug reducer, full-title updates, manual-edit stop, Regenerate slug, Unicode/Estonian transliteration, deterministic duplicate suffixes and cross-source collision checks. Adds owner editing for imported WordPress posts through a versioned conflict-aware qms-cms-edit-overlay@1 overlay (keep-local/accept-upstream; imported resources never modified), published-slug advanced change with aliases and resource preservation, slug-health repair reporting, gallery caption/alt/order/membership editing, unsaved-change guards and clearer draft/pending/published/partial/ambiguous states. See docs/migration-studio/CMS-EDITING-AND-SLUGS.md."
+      "changelog": "CMS 0.8.0-alpha.7: fee quote corrected to three resources for both publication paths; accepting upstream now removes the stale local search entry; deep links to published CMS items open again. CMS 0.8.0-alpha.6: fixes first-keystroke slug generation ('t' for 'Teine test post') with a pure auto-slug reducer, full-title updates, manual-edit stop, Regenerate slug, Unicode/Estonian transliteration, deterministic duplicate suffixes and cross-source collision checks. Adds owner editing for imported WordPress posts through a versioned conflict-aware qms-cms-edit-overlay@1 overlay (keep-local/accept-upstream; imported resources never modified), published-slug advanced change with aliases and resource preservation, slug-health repair reporting, gallery caption/alt/order/membership editing, unsaved-change guards and clearer draft/pending/published/partial/ambiguous states. See docs/migration-studio/CMS-EDITING-AND-SLUGS.md."
     }
   },
   "versionMarkers": [

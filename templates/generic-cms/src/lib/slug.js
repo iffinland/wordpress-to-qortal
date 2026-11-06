@@ -42,8 +42,7 @@ const TRANSLITERATION = Object.freeze({
   'Ħ': 'h',
   'ŧ': 't',
   'Ŧ': 't',
-  'ĸ': 'k',
-  'æ': 'ae'
+  'ĸ': 'k'
 });
 
 export function transliterate(value) {

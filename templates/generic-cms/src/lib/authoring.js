@@ -369,6 +369,7 @@ export async function resolveOverlayConflict(options) {
   if (Number(overlay.revision) > Number(baseRevision || 0)) {
     return { ok: false, state: 'conflict', message: 'Local edits changed on another device. Reload before resolving.' };
   }
+  const removedEntry = findOverlayEntry(overlay, sourceItemId);
   let next;
   if (resolution === 'accept-upstream') {
     next = removeOverlayEntry(overlay, sourceItemId, { baseRevision, siteId, now });
@@ -392,7 +393,41 @@ export async function resolveOverlayConflict(options) {
     description: 'Owner edits of imported WordPress content for ' + name + '.',
     storage
   });
-  return { ...result, overlay: next.overlay };
+  if (!result.ok) return { ...result, overlay: next.overlay };
+
+  // Accepting upstream also removes the stale local search entry. Otherwise
+  // the CMS search document would keep showing the removed local title because
+  // the CMS entry wins over the imported entry for the same item.
+  if (resolution === 'accept-upstream') {
+    const remoteSearchRaw = await readRemoteJson('DOCUMENT', name, SEARCH_INDEX_IDENTIFIER);
+    const remoteSearch = remoteSearchRaw ? readSearchIndex(remoteSearchRaw) : { ok: true, index: emptySearchIndex(siteId), errors: [] };
+    if (!remoteSearch.ok) {
+      return {
+        ...result,
+        overlay: next.overlay,
+        searchPending: true,
+        message: 'The local edit was removed, but the CMS search index is invalid and was not changed. Rebuild or republish search.'
+      };
+    }
+    const cleaned = removeSearchEntry(remoteSearch.index, { id: sourceItemId }, { now });
+    const searchResult = await publishJsonResource({
+      identity, name, identifier: SEARCH_INDEX_IDENTIFIER, document: cleaned.index,
+      title: 'Search index revision ' + cleaned.index.revision,
+      description: 'Search index cleanup after accepting upstream content on ' + name + '.',
+      storage
+    });
+    if (!searchResult.ok) {
+      return {
+        ...result,
+        overlay: next.overlay,
+        searchResult,
+        searchPending: true,
+        message: 'The local edit was removed, but the search-index cleanup was not confirmed: ' + (searchResult.message || 'unknown error')
+      };
+    }
+    return { ...result, overlay: next.overlay, searchResult, removedEntry };
+  }
+  return { ...result, overlay: next.overlay, removedEntry };
 }
 
 export { serialiseJsonDocument };
