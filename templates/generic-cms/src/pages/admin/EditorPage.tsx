@@ -125,6 +125,7 @@ export function EditorPage(props: {
   const [conflicts, setConflicts] = useState<Record<string, { open: boolean; upstream?: LoadedContent; local?: LoadedContent }>>({});
   const [leavePrompt, setLeavePrompt] = useState(false);
   const savedRef = useRef<string>('');
+  const openedInitialRef = useRef(false);
 
   useUnsavedGuard(dirty);
 
@@ -143,7 +144,9 @@ export function EditorPage(props: {
       }
       setLoading(false);
     }).catch(() => setLoading(false));
-    quotePublication(4).then((quote) => { if (!cancelled) setFee(quote.label); }).catch(() => { if (!cancelled) setFee('Fee unavailable.'); });
+    // Both publication paths write exactly three resources: content, the
+    // native index or edit overlay, and the search index.
+    quotePublication(3).then((quote) => { if (!cancelled) setFee(quote.label); }).catch(() => { if (!cancelled) setFee('Fee unavailable.'); });
     return () => { cancelled = true; };
   }, [props.name]);
 
@@ -225,6 +228,17 @@ export function EditorPage(props: {
       setState('failed');
     }
   };
+
+  // Deep link support: #/admin/editor/<id> opens a published CMS item once.
+  useEffect(() => {
+    if (openedInitialRef.current || loading || !props.initialId) return;
+    const item = nativePosts.find((entry) => entry.id === props.initialId);
+    if (!item) return;
+    openedInitialRef.current = true;
+    editPublished(item.id);
+    // editPublished is a stable operation for this render; the ref prevents loops.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, props.initialId, nativePosts]);
 
   /**
    * Open an imported WordPress item for editing. The imported resource is

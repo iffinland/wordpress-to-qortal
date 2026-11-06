@@ -1,8 +1,23 @@
-# Known issues and limitations — 0.8.0 alpha.8
+# Known issues and limitations — 0.8.0 alpha.9
 
 These are release-gate facts, not a substitute for testing your own site. The
-0.8.0-alpha.8 release is published as a prerelease with all three artifacts.
+0.8.0-alpha.9 release is published as a prerelease with all three artifacts.
 Downloading an artifact is not deployment or live validation.
+
+## New in 0.8.0-alpha.9
+
+1. **Fee quote corrected.** Both editing paths write three resources; alpha.8
+   displayed a four-resource quote. Hub still shows the final fee before
+   signing.
+2. **Accept upstream now cleans the search index.** Removing a local edit also
+   removes the CMS search entry for that imported item and verifies the write.
+   If the cleanup write fails, the editor reports search pending rather than
+   full success.
+3. **Deep links restored.** `#/admin/editor/<id>` opens the published CMS item
+   again.
+4. **No live QDN write or signing in this release run.** The 0.8.0-alpha.8
+   limitations below still apply, including the need for a supervised first
+   overlay edit and CMS redeploy.
 
 ## New in 0.8.0-alpha.8
 

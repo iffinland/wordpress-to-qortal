@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { publishNativePostDraft, publishOverlayDraft } from '../src/lib/authoring.js';
 import { publicationStateForResult } from '../src/lib/drafts.js';
+import { emptySearchIndex, removeSearchEntry, upsertSearchEntry } from '../src/lib/search.js';
+import { quotePublication } from '../src/lib/publish.js';
 import { ownerIdentity } from './support/fixtures';
 
 afterEach(() => { vi.unstubAllGlobals(); });
@@ -109,6 +111,25 @@ describe('publication safety states', () => {
     expect(result.ok).toBe(false);
     expect(result.state).toBe('source-conflict');
     expect(result.message).toMatch(/Keep my edits or Accept upstream/);
+  });
+
+  it('quotes exactly the three resources both publication paths write', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, text: async () => '1000000', json: async () => 1000000 })));
+    const quote = await quotePublication(3);
+    expect(quote.resources).toBe(3);
+    expect(quote.total).toBe(3000000);
+    expect(quote.label).toContain('3 resource(s)');
+    expect(quote.label).toContain('0.03000000 QORT');
+  });
+
+  it('removes the local search entry when upstream content is accepted', () => {
+    let index: any = emptySearchIndex('site-fixture');
+    index = upsertSearchEntry(index, {
+      id: 'wp-42', type: 'post', slug: 'local-edit', title: 'Local edit', excerpt: '', text: '', updated_at: '2026-01-01T00:00:00.000Z', origin: 'cms'
+    }).index;
+    expect(index.entries).toHaveLength(1);
+    const cleaned = removeSearchEntry(index, { id: 'wp-42' }).index;
+    expect(cleaned.entries).toHaveLength(0);
   });
 
   it('maps verified, pending and ambiguous outcomes to distinct UI states', () => {
