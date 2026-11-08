@@ -149,6 +149,45 @@ describe('desktop publishing handoff flow', () => {
     expect(screen.getByTestId('publishing-view')).toBeInTheDocument();
   });
 
+  it('packages an existing handoff without regenerating resources (recovery path)', async () => {
+    const api = mockApi();
+    api.plans.list = vi.fn(async () => [{ planId: 'plan_abcdefgh', status: 'ready', batchId: 'batch', selectedCount: 1, conflictCount: 0, createdAt: '2026-11-03T10:00:00.000Z' }]);
+    api.plans.get = vi.fn(async () => ({
+      plan: plan(),
+      record: { planId: 'plan_abcdefgh', status: 'ready', batchId: 'batch', selectedCount: 1, conflictCount: 0, createdAt: '2026-11-03T10:00:00.000Z' },
+      planFile: '/tmp/plan.json'
+    }));
+    api.publication.list = vi.fn(async () => [handoffSummary]);
+    api.publication.get = vi.fn(async () => ({
+      handoff: { ...handoffSummary, projectId: project().id, siteId: project().siteId!, resources: [resource] },
+      resources: [resource],
+      absolutePath: '/data/projects/prj_demo/publication/handoffs/hof_abcdefgh12345678',
+      packageValid: true,
+      validation: { filesVerified: 1, summary: {} }
+    }));
+    api.publication.exportBundle = vi.fn(async () => ({
+      handoffId: handoffSummary.handoffId,
+      absolutePath: '/data/exports/hof_abcdefgh12345678-publisher.zip',
+      filename: 'hof_abcdefgh12345678-publisher.zip',
+      bytes: 4096,
+      sha256: 'sha256:' + 'b'.repeat(64),
+      resources: 1
+    }));
+    window.qms = api;
+
+    const user = userEvent.setup();
+    render(<Publishing projectId="prj_abcdefgh" onBack={vi.fn()} />);
+    const button = await screen.findByTestId('package-existing-handoff');
+    await waitFor(() => expect(button).not.toBeDisabled());
+    await user.click(button);
+
+    expect(await screen.findByText(/Publisher package exported/)).toBeInTheDocument();
+    expect(api.publication.exportBundle).toHaveBeenCalledWith('prj_abcdefgh', handoffSummary.handoffId);
+    // Recovery must never regenerate the handoff or create new identities.
+    expect(api.publication.prepare).not.toHaveBeenCalled();
+    expect(await screen.findByText(/Packaged from the existing handoff without regenerating/)).toBeInTheDocument();
+  });
+
   it('never renders wallet-secret fields or claims handoff_ready is published', async () => {
     render(<Publishing projectId="prj_abcdefgh" onBack={vi.fn()} />);
     expect(await screen.findByText('handoff ready')).toBeInTheDocument();
