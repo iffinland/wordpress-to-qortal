@@ -253,3 +253,18 @@ commit plus the published SHA-256 values identify the shipped bytes.
 
 Before reporting a release, confirm instead that the delta between the build commit and current main
 touches no shipped code (docs, README and release tooling only).
+
+## Packaged bounded-scan acceptance (blocking gate)
+
+BUG-003 showed that a GUI Quick scan could be executed as a full inventory. The
+release therefore requires the packaged Electron acceptance suite:
+
+```
+npm run release:packaged-bounded-scan   # writes release/packaged-bounded-scan-e2e.json
+npm run release:verify-packaged-scan    # blocking; release:prepare runs it too
+```
+
+The gate fails unless the evidence records `status: pass` with the three stages
+`boundedScan`, `pause` and `resume`, exactly one content page, a request budget
+under 12, a paused operation and no re-fetch on resume. An OOM kill or a missing
+evidence file is a failure, never a pass.
