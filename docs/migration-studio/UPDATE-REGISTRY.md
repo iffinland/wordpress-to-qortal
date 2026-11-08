@@ -229,27 +229,29 @@ settings and warns explicitly: do not overwrite a customized CMS with the
 generic ZIP. Republish template files only, preserving site configuration and
 custom assets.
 
-## Current pending publication (2026-11-08, alpha.11)
+## Current pending publication (2026-11-08, alpha.12)
 
 - Resource: `DOCUMENT/developer iffi/qms-update-registry`
-- Published baseline: sequence 3 from release `v0.8.0-alpha.10` (SHA-256
-  `e10bf453aa773d48b3e8dd032aaa45a0cd3e0e23788a4be11b87640a0edbdc4d`).
-- Next document: **sequence 4**, generated from release `v0.8.0-alpha.11`.
-- Components: desktop 0.8.0-alpha.11, CMS 0.8.0-alpha.8, Publisher
+- Published baseline: sequence 4 from release `v0.8.0-alpha.11` (SHA-256
+  `45aa9e8e25068cdd2fb3e77cc82f3782aa89751508c2286a7433eb83157f9f84`).
+- Next document: **sequence 5**, generated from release `v0.8.0-alpha.12`.
+- Components: desktop 0.8.0-alpha.12, CMS 0.8.0-alpha.8, Publisher
   0.8.0-alpha.2 (unchanged; the registry keeps its original verified URL).
 - Handoff ZIP: `release/qms-update-registry-handoff.zip` (not committed),
-  2,855 bytes, SHA-256
-  `9fadb10b624da8597d60409b8656d3cbd2f82af4dfac1d21e8ee393d8fccf03a`.
-- Payload: `release/qms-update-registry.json`, 5,061 bytes, SHA-256
-  `45aa9e8e25068cdd2fb3e77cc82f3782aa89751508c2286a7433eb83157f9f84`.
+  3,029 bytes, SHA-256
+  `7e0a64c6f760d7d918fe47e3707c54a8a46f61a6c6ba3220989e6b8813a5b4d6`.
+- Payload: `release/qms-update-registry.json`, 5,442 bytes, SHA-256
+  `9567571d8cfd158717947a13c44bed6734bea073409fec0ad8ca5c8c7a807a5f`.
 - One DOCUMENT resource (`DOCUMENT/developer iffi/qms-update-registry`);
   estimated fee 0.01 QORT at the read-only node unit fee.
 - Validated with the released Publisher handoff validator (1 manifest resource).
-- Public artifact download verification: the .deb, Publisher ZIP and CMS ZIP
-  were downloaded without authentication and matched the recorded size and
-  SHA-256. GitHub's release edge returned transient HTTP 504 for some direct
-  paths during this run, so the registry was generated with
-  `--skip-public-check` after the independent full-download verification.
+- alpha.12 is the owner-diagnostics follow-up: adds "Package existing handoff
+  (.zip)" for complete handoff directories without a ZIP and reproduces the
+  29-resource handoff shape in the packaged app.
+- Public artifact download verification: GitHub's release edge again returned
+  transient HTTP 504 for some direct paths; the assets were independently
+  downloaded without authentication (HTTP 200, exact size and SHA-256) and the
+  registry was generated with `--skip-public-check`.
 - Status: **awaiting owner approval in Qortal Hub**. Nothing was signed or
   published by the agent.
 
