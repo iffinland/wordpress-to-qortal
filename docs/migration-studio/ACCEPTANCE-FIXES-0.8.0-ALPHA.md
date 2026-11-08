@@ -1,4 +1,4 @@
-# Desktop acceptance fixes (0.8.0-alpha.11)
+# Desktop acceptance fixes (0.8.0-alpha.11 / alpha.12)
 
 This release follows the first real MX Linux acceptance test of the installed
 `.deb`. It fixes the two blockers found there (a persisted-value error on an
@@ -37,6 +37,35 @@ What changed:
 
 If this happens again, export diagnostics from History & diagnostics; the
 renderer error entry is included.
+
+## ZIP export behaviour and recovery (BUG-002 follow-up)
+
+"Generate handoff package" is **not** the ZIP step. It calls
+`publication.prepare`, which writes the handoff directory only:
+`<workspace>/projects/<projectId>/publication/handoffs/<handoffId>/` with
+`handoff.json`, `README.txt` and one payload file per manifest resource. There
+is deliberately **no ZIP inside the handoff directory**.
+
+Export is a separate explicit action ("Export Publisher package (.zip)") that
+calls `publication.exportBundle`. It re-reads and re-hashes every payload,
+builds the ZIP in the engine child process and writes it to
+`<workspace>/exports/<handoffId>-publisher.zip`. It returns only small metadata
+(handoff id, path, filename, byte count, SHA-256, resource count); no large
+buffer or path object crosses IPC. The handoff directory is never modified.
+
+The owner's diagnostic (29 payloads, `handoff.json`, `README.txt`, no ZIP in
+the handoff directory) is therefore the expected state after
+"Generate handoff package". The blanking happened after preparation succeeded,
+when the renderer rendered the 29-row resource table.
+
+**Recovery for existing users:** a new **Package existing handoff (.zip)**
+action in Publishing packages the selected handoff directory without calling
+`prepare`. It does not regenerate payloads, reserve identities or duplicate
+resources; it only produces the missing export ZIP. Re-exporting is
+deterministic and produces the same ZIP bytes. The packaged-Electron test now
+covers this exact path: generate a 29-resource handoff (~8.7 MiB media), verify
+all payload hashes in the directory, export the ZIP, delete the ZIP, restart,
+then package the existing handoff and compare the ZIP SHA-256.
 
 ## "persisted value type is not allowed." when reopening a project (BUG-001)
 
@@ -155,7 +184,7 @@ warning details.
   (0.8.0-alpha.11) verified 10/10 resources, passed the released Publisher
   handoff validator, and reproduced the identical ZIP SHA-256 after restart
   (no renderer exceptions).
-- Release: `qortal-migration-studio_0.8.0-alpha.11_amd64.deb`,
-  108,520,072 bytes, SHA-256
-  `29b2a1e45c16c3a040803de4449c71a06062d62c7d0c998d0b57c6ac42e95b9e`;
-  reproducible from a clean `git archive` build.
+- Release: desktop 0.8.0-alpha.12. alpha.11 first fixed the two blockers; the
+  alpha.12 follow-up adds the existing-handoff packaging recovery path and a
+  29-resource acceptance run matching the owner's diagnostics. Both releases
+  were built reproducibly from a clean `git archive`.

@@ -219,8 +219,16 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
     }
   }
 
-  async function exportPublisherPackage() {
-    const id = prepared?.handoffId ?? selectedHandoffId;
+  /**
+   * Package an already-prepared handoff directory into the Publisher ZIP.
+   *
+   * This is deliberately separate from "Generate handoff package": prepare
+   * writes only the handoff directory, and export writes the ZIP under
+   * <workspace>/exports/. Export never regenerates resources, so it is the
+   * safe recovery path for a handoff directory left behind by an older build
+   * (or by a renderer crash after preparation completed).
+   */
+  async function exportBundleFor(id: string) {
     if (!id) return;
     setLoading(true);
     setError(null);
@@ -229,11 +237,17 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
       const result = await api().publication.exportBundle(projectId, id);
       setBundle(result);
       setMessage('Publisher package exported. In Qortal Hub open the Migration Publisher Q-App and select this .zip file.');
+      return result;
     } catch (exportError) {
       setError(exportError);
+      return null;
     } finally {
       setLoading(false);
     }
+  }
+
+  async function exportPublisherPackage() {
+    await exportBundleFor(prepared?.handoffId ?? selectedHandoffId);
   }
 
   async function openHandoffFolder() {
@@ -533,6 +547,15 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
           <button className="ghost" type="button" disabled={!selectedHandoffId || loading} onClick={() => void verify()}>
             Run independent QDN verification
           </button>
+          <button
+            className="primary"
+            type="button"
+            data-testid="package-existing-handoff"
+            disabled={!selectedHandoffId || loading}
+            onClick={() => void exportBundleFor(selectedHandoffId)}
+          >
+            {loading ? 'Packaging…' : 'Package existing handoff (.zip)'}
+          </button>
           <button className="ghost" type="button" disabled={!handoff} onClick={() => void openHandoffFolder()}>
             Open selected handoff folder
           </button>
@@ -546,6 +569,13 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
           </button>
         </div>
 
+        {bundle && !prepared && (
+          <Alert tone="good" title="Publisher package ready">
+            <p><code>{bundle.absolutePath}</code></p>
+            <p className="small">{formatBytes(bundle.bytes)} · SHA-256 <code>{bundle.sha256}</code> · {bundle.resources} resources</p>
+            <p className="small muted">Packaged from the existing handoff without regenerating or duplicating resources.</p>
+          </Alert>
+        )}
         {handoff && (
           <div className="stack">
             <p className="muted">

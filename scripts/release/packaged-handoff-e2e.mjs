@@ -12,7 +12,7 @@
  * display changes). CDP is bound to 127.0.0.1 only for the duration of the run.
  */
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -52,7 +52,13 @@ async function seedProject() {
   await rm(dataHome, { recursive: true, force: true });
   await mkdir(dataHome, { recursive: true });
   const media = await startMediaServer({});
-  const image = media.url + '/media/known/alpha.jpg?bytes=2048';
+  // Match the owner's real shape: 19 media resources totalling ~8.8 MiB in one
+  // handoff (1 content + 8 index + 1 manifest + 19 media = 29 resources).
+  const images = Array.from({ length: 19 }, (_, index) => {
+    const bytes = 478000 + index * 1000;
+    return { url: media.url + '/media/known/alpha.jpg?bytes=' + bytes + '&i=' + index, bytes };
+  });
+  const imageHtml = images.map((entry, index) => '<img src="' + entry.url + '" alt="Acceptance image ' + index + '">').join('');
   const data = {
     site: { name: 'Acceptance Fixture', description: 'Packaged app acceptance fixture', namespaces: ['wp/v2'] },
     posts: [
@@ -60,7 +66,7 @@ async function seedProject() {
         id: 101,
         slug: 'acceptance-post',
         title: 'Acceptance post',
-        content: '<p>Packaged handoff acceptance body.</p><img src="' + image + '" alt="Alpha">',
+        content: '<p>Packaged handoff acceptance body.</p>' + imageHtml,
         excerpt: '<p>Acceptance excerpt</p>',
         date: '2026-10-01T10:00:00',
         date_gmt: '2026-10-01T10:00:00',
@@ -72,22 +78,6 @@ async function seedProject() {
         categories: [],
         tags: [],
         format: 'standard'
-      },
-      {
-        id: 102,
-        slug: 'second-post',
-        title: 'Second post',
-        content: '<p>Second body</p>',
-        excerpt: '',
-        date: '2026-09-01T10:00:00',
-        date_gmt: '2026-09-01T10:00:00',
-        modified: '2026-09-02T10:00:00',
-        modified_gmt: '2026-09-02T10:00:00',
-        status: 'publish',
-        author: 7,
-        featured_media: 0,
-        categories: [],
-        tags: []
       }
     ],
     pages: [],
@@ -105,7 +95,7 @@ async function seedProject() {
       target: { qdnName: 'AcceptanceName', siteName: 'AstuAeda acceptance' },
       settings: {
         disk: { reserveBytes: 0, maxBytesPerRun: 0 },
-        media: { allowLoopback: true, allowExternalMedia: false, maxRetries: 0, retryDelayMs: 0 }
+        media: { allowLoopback: true, allowExternalMedia: true, maxRetries: 0, retryDelayMs: 0 }
       }
     });
     handle = await engine.projects.open(project.id);
@@ -123,7 +113,7 @@ async function seedProject() {
       selectedCount: plan.plan.stats.selected,
       mediaCount: plan.plan.mediaSummary.count,
       mediaDownloadStatus: download.status,
-      verifiedMedia: download.counts?.verified ?? null,
+      payloadBytes: plan.plan.media.reduce((total, entry) => total + (entry.bytes || 0), 0),
       siteId: project.siteId
     };
   } finally {
@@ -288,6 +278,7 @@ async function verifyZip(zipPath) {
   const manifest = JSON.parse(Buffer.from(manifestEntry).toString('utf8'));
   if (!Array.isArray(manifest.resources) || manifest.resources.length === 0) throw new Error('manifest has no resources');
   let verified = 0;
+  let payloadBytes = 0;
   for (const resource of manifest.resources) {
     const payload = entries[resource.relativePath];
     if (!payload) throw new Error('missing payload ' + resource.relativePath);
@@ -295,6 +286,7 @@ async function verifyZip(zipPath) {
     if (bytes.length !== resource.bytes) throw new Error('byte mismatch for ' + resource.relativePath);
     const expected = String(resource.sha256 ?? '').replace(/^sha256:/, '');
     if (sha256(bytes) !== expected) throw new Error('sha256 mismatch for ' + resource.relativePath);
+    payloadBytes += bytes.length;
     verified += 1;
   }
   // Run the released Migration Publisher (0.8.0-alpha.2) validation code on the
@@ -310,13 +302,15 @@ async function verifyZip(zipPath) {
     zipSha256: sha256(buffer),
     resources: manifest.resources.length,
     verified,
+    payloadBytes,
+    mediaResources: manifest.resources.filter((resource) => resource.kind === 'media').length,
     service: manifest.resources.find((resource) => resource.kind === 'site')?.service ?? null,
     target: manifest.target?.qdnName ?? null,
     handoffId: manifest.handoffId
   };
 }
 
-async function runUi(cdp, projectId) {
+async function openPublishing(cdp, projectId) {
   await waitFor(cdp, "document.querySelector('[data-testid=app-shell]') !== null", 'app shell', 120000);
   await waitFor(cdp, "!!document.querySelector('[data-testid=\"project-" + projectId + "\"]')", 'project card');
   const opened = await cdp.evaluate("(() => { const card = document.querySelector('[data-testid=\"project-" + projectId + "\"]'); const button = [...card.querySelectorAll('button')].find((entry) => entry.textContent.trim() === 'Open'); if (!button) return false; button.click(); return true; })()");
@@ -325,17 +319,46 @@ async function runUi(cdp, projectId) {
   // entry is the same navigation a real user takes.
   await waitFor(cdp, clickButton('Publishing'), 'Publishing navigation');
   await waitFor(cdp, "document.querySelector('[data-testid=publishing-view]') !== null", 'publishing view');
+}
+
+function assertNotBlank(state) {
+  if (!state.shell || state.error) throw new Error('renderer showed a recovery screen or lost the app shell');
+}
+
+async function generateHandoff(cdp) {
   await waitFor(cdp, "document.body.innerText.includes('resources selected')", 'plan selection');
   await waitFor(cdp, "!![...document.querySelectorAll('button')].find((entry) => entry.textContent.trim() === 'Generate handoff package' && !entry.disabled)", 'generate button enabled');
   const clicked = await cdp.evaluate(clickButton('Generate handoff package'));
   if (!clicked) throw new Error('Generate handoff package button not clickable');
-  await waitFor(cdp, "document.body.innerText.includes('Handoff ready') || document.body.innerText.includes('Portable handoff is ready') || document.body.innerText.includes('Handoff package created')", 'handoff ready', 180000);
-  const blank = await cdp.evaluate("document.querySelector('[data-testid=renderer-error-screen]') !== null || document.querySelector('[data-testid=app-shell]') === null");
-  if (blank) throw new Error('renderer showed a recovery screen or lost the app shell');
+  // 29 rows including 19 media resources: the exact shape that blanked the
+  // renderer when status was missing.
+  await waitFor(cdp, "document.body.innerText.includes('Handoff ready') || document.body.innerText.includes('Portable handoff is ready') || document.body.innerText.includes('Handoff package created')", 'handoff ready', 240000);
+  const state = await cdp.evaluate("({ text: document.body.innerText, shell: !!document.querySelector('[data-testid=app-shell]'), error: document.querySelector('[data-testid=renderer-error-screen]') !== null, rows: document.querySelectorAll('tbody tr').length })");
+  assertNotBlank(state);
+  return state;
+}
+
+async function exportPrepared(cdp) {
   await waitFor(cdp, "!![...document.querySelectorAll('button')].find((entry) => entry.textContent.trim() === 'Export Publisher package (.zip)' && !entry.disabled)", 'export button');
   await cdp.evaluate(clickButton('Export Publisher package (.zip)'));
-  await waitFor(cdp, "document.body.innerText.includes('Publisher package exported')", 'export confirmation', 120000);
+  await waitFor(cdp, "document.body.innerText.includes('Publisher package exported')", 'export confirmation', 180000);
   const state = await cdp.evaluate("({ text: document.body.innerText, shell: !!document.querySelector('[data-testid=app-shell]'), error: document.querySelector('[data-testid=renderer-error-screen]') !== null })");
+  assertNotBlank(state);
+  return state;
+}
+
+/**
+ * Recovery path for an existing handoff directory without a ZIP: select the
+ * handoff and click "Package existing handoff (.zip)". This calls exportBundle
+ * only; it must not call publication.prepare or duplicate resources.
+ */
+async function packageExisting(cdp) {
+  await waitFor(cdp, "!!document.querySelector('[data-testid=package-existing-handoff]:not([disabled])')", 'package-existing button', 120000);
+  const clicked = await cdp.evaluate("(() => { const button = document.querySelector('[data-testid=package-existing-handoff]'); if (!button || button.disabled) return false; button.click(); return true; })()");
+  if (!clicked) throw new Error('package-existing button not clickable');
+  await waitFor(cdp, "document.body.innerText.includes('Publisher package exported')", 'package-existing confirmation', 180000);
+  const state = await cdp.evaluate("({ text: document.body.innerText, shell: !!document.querySelector('[data-testid=app-shell]'), error: document.querySelector('[data-testid=renderer-error-screen]') !== null })");
+  assertNotBlank(state);
   return state;
 }
 
@@ -353,6 +376,44 @@ async function stopApp(child) {
   });
 }
 
+async function handoffSnapshot(projectId) {
+  const root = path.join(dataRoot, 'projects', projectId, 'publication', 'handoffs');
+  const entries = await readdir(root, { withFileTypes: true }).catch(() => []);
+  const dirs = entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+  if (dirs.length !== 1) throw new Error('expected exactly one handoff directory, found ' + dirs.length);
+  const dir = path.join(root, dirs[0]);
+  const manifest = JSON.parse(await readFile(path.join(dir, 'handoff.json'), 'utf8'));
+  let verified = 0;
+  let payloadBytes = 0;
+  for (const resource of manifest.resources) {
+    const bytes = await readFile(path.join(dir, resource.relativePath));
+    const expected = String(resource.sha256 ?? '').replace(/^sha256:/, '');
+    if (bytes.length !== resource.bytes) throw new Error('handoff byte mismatch: ' + resource.relativePath);
+    if (sha256(bytes) !== expected) throw new Error('handoff hash mismatch: ' + resource.relativePath);
+    payloadBytes += bytes.length;
+    verified += 1;
+  }
+  const zips = [];
+  const walk = async (current) => {
+    for (const entry of await readdir(current, { withFileTypes: true })) {
+      const absolute = path.join(current, entry.name);
+      if (entry.isDirectory()) await walk(absolute);
+      else if (entry.name.endsWith('.zip')) zips.push(absolute);
+    }
+  };
+  await walk(dir);
+  return {
+    handoffDir: dir,
+    handoffId: manifest.handoffId,
+    schema: manifest.schema,
+    resources: manifest.resources.length,
+    verified,
+    payloadBytes,
+    zipFilesInsideHandoffDir: zips.length,
+    readmePresent: (await readdir(dir)).includes('README.txt')
+  };
+}
+
 async function main() {
   const evidence = { schema: 'qms-packaged-handoff-e2e@1', startedAt: new Date().toISOString(), stages: {} };
   await mkdir(work, { recursive: true });
@@ -364,10 +425,26 @@ async function main() {
   let cdp = null;
   try {
     cdp = await connectCdp();
-    evidence.stages.firstRun = await runUi(cdp, evidence.stages.seed.projectId);
+    await openPublishing(cdp, evidence.stages.seed.projectId);
+    evidence.stages.firstRun = await generateHandoff(cdp);
+    evidence.stages.handoffDir = await handoffSnapshot(evidence.stages.seed.projectId);
+    if (evidence.stages.handoffDir.resources !== 29) {
+      throw new Error('expected 29 handoff resources, found ' + evidence.stages.handoffDir.resources);
+    }
+    if (evidence.stages.handoffDir.zipFilesInsideHandoffDir !== 0) {
+      throw new Error('handoff directory unexpectedly contains a ZIP');
+    }
+    await exportPrepared(cdp);
     const firstZip = await newestZip(dataRoot);
     if (!firstZip) throw new Error('no exported ZIP found after export');
     evidence.stages.firstZip = { path: firstZip, ...(await verifyZip(firstZip)) };
+    if (evidence.stages.firstZip.resources !== 29) throw new Error('exported ZIP does not contain 29 resources');
+    if (evidence.stages.firstZip.payloadBytes < 8.5 * 1024 * 1024) throw new Error('exported payload bytes are implausibly small');
+
+    // Simulate the owner's state: the handoff directory is complete but the
+    // ZIP is gone. A restart must package it without regenerating anything.
+    await rm(path.join(dataRoot, 'exports'), { recursive: true, force: true });
+    evidence.stages.recovery = { zipRemoved: true, handoffDirKept: true };
 
     await stopApp(child);
     cdp.close();
@@ -375,27 +452,21 @@ async function main() {
 
     child = spawn('unshare', ['-rmpf', 'bash', sessionScript], { detached: true, stdio: 'ignore', env });
     cdp = await connectCdp();
-    evidence.stages.restart = await runUi(cdp, evidence.stages.seed.projectId);
-    const zips = [];
-    const walk = async (dir) => {
-      for (const entry of await readdir(dir, { withFileTypes: true })) {
-        const absolute = path.join(dir, entry.name);
-        if (entry.isDirectory()) await walk(absolute);
-        else if (entry.name.endsWith('.zip')) zips.push(absolute);
-      }
-    };
-    await walk(dataRoot);
-    const sorted = await Promise.all(zips.map(async (file) => ({ file, mtime: (await stat(file)).mtimeMs })));
-    sorted.sort((left, right) => right.mtime - left.mtime);
-    if (sorted.length === 0) throw new Error('restart export did not produce a ZIP');
+    await openPublishing(cdp, evidence.stages.seed.projectId);
+    evidence.stages.restart = await packageExisting(cdp);
+    const recreated = await newestZip(dataRoot);
+    if (!recreated) throw new Error('package-existing did not produce a ZIP');
+    const after = await handoffSnapshot(evidence.stages.seed.projectId);
     evidence.stages.restartZip = {
-      path: sorted[0].file,
-      // Export names are deterministic, so a safe re-export may overwrite the
-      // same file instead of duplicating resources.
-      exportFiles: sorted.length,
-      reExported: true,
-      ...(await verifyZip(sorted[0].file))
+      path: recreated,
+      handoffDirsAfterRecovery: 1,
+      handoffIdUnchanged: after.handoffId === evidence.stages.handoffDir.handoffId,
+      ...(await verifyZip(recreated))
     };
+    if (!evidence.stages.restartZip.handoffIdUnchanged) throw new Error('recovery changed the handoff identity');
+    if (evidence.stages.restartZip.zipSha256 !== evidence.stages.firstZip.zipSha256) {
+      throw new Error('recovery produced different ZIP bytes');
+    }
     evidence.status = 'pass';
   } catch (error) {
     evidence.status = 'fail';
