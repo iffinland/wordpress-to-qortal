@@ -1,9 +1,9 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-alpha.13",
-  "channel": "alpha",
-  "releaseTag": "v0.8.0-alpha.13",
+  "version": "0.8.0-rc.1",
+  "channel": "rc",
+  "releaseTag": "v0.8.0-rc.1",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
@@ -13,8 +13,8 @@
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-alpha.13",
-      "channel": "alpha",
+      "version": "0.8.0-rc.1",
+      "channel": "rc",
       "source": "desktop/package.json",
       "changelog": "Desktop 0.8.0-alpha.13: bounded source scans. Quick scan is the recommended default and fetches one bounded content page plus referenced taxonomy/media dependencies only; Full site inventory requires an explicit acknowledgement and shows its worst-case page count. Continue cannot start an unbounded crawl. Pause and Cancel are separate controls during a run; Resume is offered for interrupted checkpoints. Progress reports real counters and distinguishes scan scope from total available source content. Also fixes stale running checkpoints being offered for resume after restart. Rebuilt with CMS 0.8.0-alpha.8 and Publisher 0.8.0-alpha.2."
     },

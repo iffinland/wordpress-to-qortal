@@ -1,6 +1,6 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-alpha.13 -->
+<!-- qms-release-version: 0.8.0-rc.1 -->
 
 ## 0.8.0 alpha.13 — current
 
