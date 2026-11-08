@@ -74,6 +74,38 @@ describe('IPC validation', () => {
     expect(() => validateIpcPayload(IPC.mediaDownload, { projectId: 'prj_abcd', planId: '../../etc' })).toThrow(/planId/);
   });
 
+  it('preserves the explicit scan mode and bounded selection on source.discover (BUG-004 regression)', () => {
+    // The renderer sends mode/selection, the main-process handler forwards them,
+    // and the engine refuses a missing mode (SOURCE_SCAN_MODE_REQUIRED). The IPC
+    // allowlist used to drop both fields, so every Quick scan and Full inventory
+    // failed instantly with no content request and no indexed post.
+    const result = validateIpcPayload(IPC.sourceDiscover, {
+      projectId: 'prj_abcd',
+      adapterId: 'wordpress',
+      contentTypes: ['post'],
+      perPage: 3,
+      mode: 'quick',
+      selection: { perPage: 3, maxPages: 1, maxItems: 3 },
+      includeTerms: true,
+      includeAssets: true
+    });
+    expect(result).toMatchObject({
+      projectId: 'prj_abcd',
+      adapterId: 'wordpress',
+      contentTypes: ['post'],
+      perPage: 3,
+      mode: 'quick',
+      selection: { perPage: 3, maxPages: 1, maxItems: 3 },
+      includeTerms: true,
+      includeAssets: true
+    });
+    // An absent mode must stay absent so the engine fails closed; an unknown mode
+    // must be rejected at the boundary instead of reaching the engine.
+    expect(validateIpcPayload(IPC.sourceDiscover, { projectId: 'prj_abcd' }).mode).toBeUndefined();
+    expect(() => validateIpcPayload(IPC.sourceDiscover, { projectId: 'prj_abcd', mode: 'forever' })).toThrow(/mode/);
+    expect(() => validateIpcPayload(IPC.sourceDiscover, { projectId: 'prj_abcd', mode: 'quick', selection: { maxItems: 0 } })).toThrow(/selection\.maxItems/);
+  });
+
   it('bounds publication handoff, selection, receipt and node URL inputs', () => {
     expect(validateIpcPayload(IPC.publicationPrepare, {
       projectId: 'prj_abcd',

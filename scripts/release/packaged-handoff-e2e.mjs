@@ -22,6 +22,8 @@ import { fixedDiskProbe } from '../../lib/engine/disk.js';
 import { GIB } from '../../lib/engine/config.js';
 import { startWordpressFixtureServer } from '../../test-support/wordpress/fixtureServer.js';
 import { startMediaServer } from '../../test-support/media/server.js';
+import { startQdnServer } from '../../test-support/phase5/qdnServer.js';
+import { createReceipt } from '../../lib/engine/publication/receipts.js';
 import { buildFolderMapFromZip, validateHandoffPackage } from '../../viewer/src/publisher/handoff.ts';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -47,6 +49,8 @@ function sha256(buffer) {
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+const stage = (label, extra) => process.stderr.write('[stage] ' + label + (extra ? ' ' + JSON.stringify(extra) : '') + '\n');
 
 async function seedProject() {
   await rm(dataHome, { recursive: true, force: true });
@@ -99,7 +103,8 @@ async function seedProject() {
       }
     });
     handle = await engine.projects.open(project.id);
-    const discovered = await handle.source.discover({ perPage: 100 });
+    // The engine requires an explicit scan mode (BUG-003 fail-closed guard).
+    const discovered = await handle.source.discover({ mode: 'full', perPage: 100 });
     if (discovered.status !== 'completed') throw new Error('fixture discovery failed');
     const planResult = await handle.planning.create({ batchSize: 1, estimateMedia: true, persist: true });
     if (planResult.status !== 'completed') throw new Error('fixture plan failed: ' + JSON.stringify(planResult.plan?.errors ?? planResult.error));
@@ -125,47 +130,30 @@ async function seedProject() {
 }
 
 async function writeSessionScript() {
-  const lines = [
-    '#!/bin/bash',
-    'set -e',
-    'R="$ROOTFS"',
-    'APP_DIR="$APP_DIR"',
-    'DATA_HOME="$DATA_HOME"',
-    'mkdir -p "$DATA_HOME"',
-    'mount -t proc proc "$R/proc" 2>/dev/null || true',
-    'mount -t tmpfs -o mode=755 tmpfs "$R/dev" 2>/dev/null || true',
-    'for d in null zero full random urandom tty ptmx; do',
-    '  [ -e "$R/dev/$d" ] || touch "$R/dev/$d"',
-    '  chmod 666 "$R/dev/$d" 2>/dev/null || true',
-    '  mount --bind "/dev/$d" "$R/dev/$d" 2>/dev/null || true',
-    'done',
-    'mkdir -p "$R/dev/pts" "$R/dev/shm" "$R/opt/qms-e2e/app" "$R/mnt/datahome" "$R/home/qms/.config" "$R/tmp/.X11-unix"',
-    'mount -t tmpfs -o mode=1777 tmpfs "$R/dev/shm" 2>/dev/null || true',
-    'mount -t devpts devpts "$R/dev/pts" 2>/dev/null || true',
-    'mount --bind "$APP_DIR" "$R/opt/qms-e2e/app"',
-    'mount --bind "$DATA_HOME" "$R/mnt/datahome"',
-    'export QMS_CDP_PORT=' + CDP_PORT,
-    'rm -f "$R/tmp/.X99-lock" "$R/tmp/.X11-unix/X99" "$R/tmp/app.log" "$R/tmp/xvfb.log"',
-    'rm -rf "$R/home/qms/.config"',
-    'mkdir -p "$R/home/qms/.config"',
-    '/usr/sbin/chroot "$R" /bin/bash -c \'',
-    'set -e',
-    'export HOME=/home/qms',
-    'export XDG_DATA_HOME=/mnt/datahome',
-    'export XDG_CONFIG_HOME=/home/qms/.config',
-    'export DISPLAY=:99',
-    'export ELECTRON_DISABLE_SECURITY_WARNINGS=1',
-    'Xvfb :99 -screen 0 1366x900x24 -nolisten tcp -ac >/tmp/xvfb.log 2>&1 &',
-    'XVFB=$!',
-    'for i in $(seq 1 60); do [ -S /tmp/.X11-unix/X99 ] && break; sleep 0.2; done',
-    '[ -S /tmp/.X11-unix/X99 ] || { echo XVFB_FAILED; cat /tmp/xvfb.log; exit 1; }',
-    'exec /opt/qms-e2e/app/qortal-migration-studio --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=$QMS_CDP_PORT --remote-allow-origins=*',
-    "\'"
-  ];
-  await writeFile(sessionScript, lines.join('\n') + '\n', { mode: 0o755 });
-}
-
-class Cdp {
+  const script = `#!/bin/bash
+set -e
+R=${JSON.stringify(rootfs)}
+APP=${JSON.stringify(appDir)}
+W=${JSON.stringify(work)}
+mkdir -p "$W/home" "$W/datahome" "$W/config" "$W/run"
+chmod 700 "$W/run"
+rm -rf "$W/config"; mkdir -p "$W/config"
+rm -f "$R/tmp/.X98-lock" "$R/tmp/.X11-unix/X98"
+setsid unshare -rmpf bash -c '
+  R="'"$R"'"
+  mkdir -p "$R/tmp/.X11-unix" "$R/var/lib/xkb"
+  mount -t tmpfs -o mode=755 tmpfs "$R/dev" 2>/dev/null || true
+  exec /usr/sbin/chroot "$R" /usr/bin/Xvfb :98 -screen 0 1366x900x24 -listen tcp -ac
+' >"$W/xvfb.log" 2>&1 &
+for i in $(seq 1 80); do (exec 3<>/dev/tcp/127.0.0.1/6098) 2>/dev/null && { exec 3>&-; break; }; sleep 0.25; done
+if ! (exec 3<>/dev/tcp/127.0.0.1/6098) 2>/dev/null; then echo XVFB_FAILED; cat "$W/xvfb.log"; exit 1; fi
+export HOME="$W/home" XDG_DATA_HOME="$W/datahome" XDG_CONFIG_HOME="$W/config" XDG_RUNTIME_DIR="$W/run"
+export DISPLAY=127.0.0.1:98
+LIBS="$R/usr/lib/x86_64-linux-gnu:$R/lib/x86_64-linux-gnu"
+exec env LD_LIBRARY_PATH="$LIBS:$APP" "$APP/qortal-migration-studio" --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=${CDP_PORT} --remote-allow-origins=* >"$W/app.log" 2>&1
+`;
+  await writeFile(sessionScript, script, { mode: 0o755 });
+}class Cdp {
   constructor(url) {
     this.ws = new WebSocket(url);
     this.nextId = 1;
@@ -312,15 +300,13 @@ async function verifyZip(zipPath) {
 
 async function openPublishing(cdp, projectId) {
   await waitFor(cdp, "document.querySelector('[data-testid=app-shell]') !== null", 'app shell', 120000);
-  await waitFor(cdp, "!!document.querySelector('[data-testid=\"project-" + projectId + "\"]')", 'project card');
-  const opened = await cdp.evaluate("(() => { const card = document.querySelector('[data-testid=\"project-" + projectId + "\"]'); const button = [...card.querySelectorAll('button')].find((entry) => entry.textContent.trim() === 'Open'); if (!button) return false; button.click(); return true; })()");
+  const cardSelector = '[data-testid="project-' + projectId + '"]';
+  await waitFor(cdp, '!!document.querySelector(' + JSON.stringify(cardSelector) + ')', 'project card');
+  const opened = await cdp.evaluate('(() => { const card = document.querySelector(' + JSON.stringify(cardSelector) + '); if (!card) return false; const button = [...card.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Open"); if (!button) return false; button.click(); return true; })()');
   if (!opened) throw new Error('Open button missing');
-  // A project without a completed wizard opens in setup; the header Publishing
-  // entry is the same navigation a real user takes.
   await waitFor(cdp, clickButton('Publishing'), 'Publishing navigation');
   await waitFor(cdp, "document.querySelector('[data-testid=publishing-view]') !== null", 'publishing view');
 }
-
 function assertNotBlank(state) {
   if (!state.shell || state.error) throw new Error('renderer showed a recovery screen or lost the app shell');
 }
@@ -414,18 +400,125 @@ async function handoffSnapshot(projectId) {
   };
 }
 
+/**
+ * H (second half): import a Publisher receipt through the packaged UI and prove
+ * that only independent exact read-back promotes every resource. The receipt is
+ * synthetic; the QDN node is the read-only fixture. No signing, no QDN write and
+ * no wallet interaction occurs.
+ */
+async function importReceiptAndVerify(cdp, projectId, handoffDir, manifest) {
+  const receipt = createReceipt({
+    handoff: manifest,
+    receiptId: 'rcp_pkgaccept0001',
+    publisher: {
+      accountAddress: 'QipPqwJeLtx89dXcSkY7vimMUNT8Gy5k2E',
+      name: manifest.target.qdnName,
+      appVersion: '0.8.0-rc.1'
+    },
+    results: manifest.resources.map((resource) => ({
+      resourceId: resource.id,
+      service: resource.service,
+      name: resource.name,
+      identifier: resource.identifier,
+      status: 'submitted',
+      reason: null,
+      txSignature: 'simulated-' + resource.id,
+      submittedAt: new Date().toISOString(),
+      confirmedAt: null,
+      verification: null
+    })),
+    createdAt: new Date().toISOString(),
+    appVersion: '0.8.0-rc.1'
+  });
+
+  const qdn = await startQdnServer();
+  try {
+    for (const resource of manifest.resources) {
+      const bytes = await readFile(path.join(handoffDir, resource.relativePath));
+      qdn.set({
+        service: resource.service,
+        name: resource.name,
+        identifier: resource.identifier,
+        bytes,
+        contentType: resource.contentType ?? 'application/octet-stream',
+        status: 'READY'
+      });
+    }
+
+    await waitFor(cdp, '!!document.querySelector(\'textarea[aria-label="Receipt JSON"]\')', 'receipt textarea', 60000);
+    const filled = await cdp.evaluate(`(() => {
+      const area = document.querySelector('textarea[aria-label="Receipt JSON"]');
+      if (!area) return false;
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+      setter.call(area, ${JSON.stringify(JSON.stringify(receipt))});
+      area.dispatchEvent(new Event('input', { bubbles: true }));
+      area.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    })()`);
+    if (!filled) throw new Error('could not fill the receipt textarea');
+    await waitFor(cdp, "!![...document.querySelectorAll('button')].find((entry) => entry.textContent.trim() === 'Import receipt' && !entry.disabled)", 'import receipt enabled', 30000);
+    await cdp.evaluate(clickButton('Import receipt'));
+    await waitFor(cdp, "document.body.innerText.includes('Receipt imported as Publisher-reported evidence')", 'receipt imported', 120000);
+    const beforeVerify = await cdp.evaluate('document.body.innerText');
+    if (/Exact read-back completed for every resource/.test(beforeVerify)) {
+      throw new Error('receipt import alone claimed exact read-back');
+    }
+
+    const nodeSet = await cdp.evaluate(`(() => {
+      const label = [...document.querySelectorAll('label')].find((node) => (node.innerText || '').includes('Qortal node for read-only verification'));
+      const input = label ? label.querySelector('input') : null;
+      if (!input) return false;
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+      setter.call(input, ${JSON.stringify(qdn.url)});
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+      return true;
+    })()`);
+    if (!nodeSet) throw new Error('could not set the verification node URL');
+    await waitFor(cdp, "!![...document.querySelectorAll('button')].find((entry) => entry.textContent.trim() === 'Run independent QDN verification' && !entry.disabled)", 'verify button', 30000);
+    await cdp.evaluate(clickButton('Run independent QDN verification'));
+    await waitFor(cdp, "document.body.innerText.includes('Exact read-back completed for every resource')", 'exact read-back', 240000);
+    const summary = await cdp.evaluate(`(() => {
+      const text = document.body.innerText;
+      const rows = [...document.querySelectorAll('tbody tr')];
+      return {
+        remoteVerifiedRows: rows.filter((row) => /remote verified/i.test(row.innerText)).length,
+        totalRows: rows.length,
+        text: text.slice(0, 1200)
+      };
+    })()`);
+    if (summary.remoteVerifiedRows < manifest.resources.length) {
+      throw new Error('only ' + summary.remoteVerifiedRows + ' of ' + manifest.resources.length + ' resources show remote verified');
+    }
+    return {
+      receiptId: receipt.receiptId,
+      resources: manifest.resources.length,
+      nodeUrl: qdn.url,
+      importClaimedVerification: false,
+      remoteVerifiedRows: summary.remoteVerifiedRows,
+      verifiedMessage: 'Exact read-back completed for every resource',
+      uiText: summary.text
+    };
+  } finally {
+    await qdn.close().catch(() => {});
+  }
+}
 async function main() {
   const evidence = { schema: 'qms-packaged-handoff-e2e@1', startedAt: new Date().toISOString(), stages: {} };
   await mkdir(work, { recursive: true });
   evidence.stages.seed = await seedProject();
+  stage('seed ready', { projectId: evidence.stages.seed.projectId });
   await writeSessionScript();
 
   const env = { ...process.env, ROOTFS: rootfs, APP_DIR: appDir, DATA_HOME: dataHome, CDP_PORT: String(CDP_PORT) };
-  let child = spawn('unshare', ['-rmpf', 'bash', sessionScript], { detached: true, stdio: 'ignore', env });
+  stage('launching app');
+  let child = spawn('bash', [sessionScript], { detached: true, stdio: 'ignore', env });
   let cdp = null;
   try {
     cdp = await connectCdp();
+    stage('cdp connected');
     await openPublishing(cdp, evidence.stages.seed.projectId);
+    stage('publishing view open');
     evidence.stages.firstRun = await generateHandoff(cdp);
     evidence.stages.handoffDir = await handoffSnapshot(evidence.stages.seed.projectId);
     if (evidence.stages.handoffDir.resources !== 29) {
@@ -435,6 +528,7 @@ async function main() {
       throw new Error('handoff directory unexpectedly contains a ZIP');
     }
     await exportPrepared(cdp);
+    stage('zip exported');
     const firstZip = await newestZip(dataRoot);
     if (!firstZip) throw new Error('no exported ZIP found after export');
     evidence.stages.firstZip = { path: firstZip, ...(await verifyZip(firstZip)) };
@@ -450,8 +544,10 @@ async function main() {
     cdp.close();
     cdp = null;
 
-    child = spawn('unshare', ['-rmpf', 'bash', sessionScript], { detached: true, stdio: 'ignore', env });
+    stage('restarting app');
+    child = spawn('bash', [sessionScript], { detached: true, stdio: 'ignore', env });
     cdp = await connectCdp();
+    stage('restart cdp connected');
     await openPublishing(cdp, evidence.stages.seed.projectId);
     evidence.stages.restart = await packageExisting(cdp);
     const recreated = await newestZip(dataRoot);
@@ -467,6 +563,10 @@ async function main() {
     if (evidence.stages.restartZip.zipSha256 !== evidence.stages.firstZip.zipSha256) {
       throw new Error('recovery produced different ZIP bytes');
     }
+    const handoffDir = path.join(dataRoot, 'projects', evidence.stages.seed.projectId, 'publication', 'handoffs', (await readdir(path.join(dataRoot, 'projects', evidence.stages.seed.projectId, 'publication', 'handoffs')))[0]);
+    const manifest = JSON.parse(await readFile(path.join(handoffDir, 'handoff.json'), 'utf8'));
+    evidence.stages.receiptVerify = await importReceiptAndVerify(cdp, evidence.stages.seed.projectId, handoffDir, manifest);
+    stage('receipt and read-back verified');
     evidence.status = 'pass';
   } catch (error) {
     evidence.status = 'fail';
@@ -475,8 +575,8 @@ async function main() {
   } finally {
     if (cdp) cdp.close();
     if (child) await stopApp(child);
-    await copyFile(path.join(rootfs, 'tmp/app.log'), path.join(work, 'app.log')).catch(() => {});
-    await copyFile(path.join(rootfs, 'tmp/xvfb.log'), path.join(work, 'xvfb.log')).catch(() => {});
+    await copyFile(path.join(work, 'app.log'), path.join(work, 'app-log-tail.log')).catch(() => {});
+    await copyFile(path.join(work, 'xvfb.log'), path.join(work, 'xvfb-log-tail.log')).catch(() => {});
     evidence.finishedAt = new Date().toISOString();
     await writeFile(outFile, JSON.stringify(evidence, null, 2) + '\n');
   }

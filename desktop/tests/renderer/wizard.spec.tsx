@@ -357,5 +357,24 @@ describe('setup wizard', () => {
     await waitFor(() => expect(api.runs.pause).toHaveBeenCalledWith('prj_abcdefgh', 'run_active_scan'));
     act(() => { resolveDiscover?.({ status: 'paused' }); });
   });
+
+  it('shows a failed scan next to the scan controls, not only above the wizard (BUG-004 regression)', async () => {
+    const user = userEvent.setup();
+    const api = mockApi();
+    const failure = Object.assign(
+      new Error('An explicit scan mode is required: "quick" for a bounded selection or "full" for a complete inventory.'),
+      { code: 'SOURCE_SCAN_MODE_REQUIRED' }
+    );
+    (api.sources.discover as ReturnType<typeof vi.fn>).mockRejectedValue(failure);
+    window.qms = api;
+    render(<Wizard project={scanProject()} adapters={[adapter()]} settings={settings()} onClose={vi.fn(async () => {})} onComplete={vi.fn(async () => {})} />);
+    await user.click(screen.getByRole('button', { name: 'Run quick scan' }));
+    const panel = await screen.findByTestId('scan-error');
+    expect(panel.textContent).toContain('SOURCE_SCAN_MODE_REQUIRED');
+    // The failure must be visible where the owner clicked, inside the source-scan
+    // card, because the wizard-level alert renders above a long step 4.
+    const scanCard = screen.getByTestId('source-scan');
+    expect(scanCard.contains(panel)).toBe(true);
+  });
 });
 

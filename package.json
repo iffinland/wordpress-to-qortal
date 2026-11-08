@@ -85,6 +85,7 @@
     "release:registry:verify": "node scripts/release/update-registry.mjs --verify-published",
     "release:packaged-e2e": "node scripts/release/packaged-handoff-e2e.mjs",
     "release:packaged-bounded-scan": "node scripts/release/packaged-bounded-scan-e2e.mjs",
+    "release:packaged-functional": "node scripts/release/packaged-functional-acceptance.mjs",
     "test:update": "node --test test/update/*.test.js",
     "test:notify": "node --test test/notify/*.test.js",
     "notify:completion": "node scripts/notify/telegram-notify.mjs",
@@ -95,7 +96,8 @@
     "desktop:deb": "node scripts/release/build-deb.mjs",
     "release:readme-links": "node scripts/release/verify-readme-links.mjs",
     "release:readme-sync": "node scripts/release/sync-readme-links.mjs",
-    "release:verify-packaged-scan": "node scripts/release/verify-packaged-scan-evidence.mjs"
+    "release:verify-packaged-scan": "node scripts/release/verify-packaged-scan-evidence.mjs",
+    "release:verify-functional": "node scripts/release/verify-functional-acceptance-evidence.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

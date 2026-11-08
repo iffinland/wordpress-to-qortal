@@ -64,6 +64,10 @@ run('enforce three-artifact release gate', process.execPath, ['scripts/release/t
 // BUG-003: a release must not ship while a three-post Quick scan can silently
 // become a full inventory. The packaged acceptance run is a blocking gate.
 run('enforce packaged bounded-scan acceptance evidence', 'npm', ['run', 'release:verify-packaged-scan']);
+// BUG-004: the scan mode and bounded selection were dropped by the IPC
+// allowlist. A release must also prove the whole essential workflow through the
+// packaged app, including receipt import and exact read-back (H).
+run('enforce packaged functional acceptance evidence', 'npm', ['run', 'release:verify-functional']);
 run('generate CycloneDX SBOM', 'npm', ['run', 'release:sbom']);
 run('generate build provenance', 'npm', ['run', 'release:provenance']);
 run('verify release state and checksums', 'npm', ['run', 'release:verify']);

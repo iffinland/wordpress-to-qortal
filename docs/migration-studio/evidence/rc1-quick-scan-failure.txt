@@ -1,0 +1,35 @@
+RC 0.8.0-rc.1 — packaged Quick Scan reproduction (BUG-004)
+================================================================
+
+Build: 0.8.0-rc.1 (private candidate)
+App:   desktop/release/linux-unpacked from commit d9bdbe0
+Action: existing project "Functional A quick", step 4 (Import preferences),
+        Quick scan selected, "Index up to" = 3, click "Run quick scan".
+
+UI text captured from the live renderer over CDP immediately after the click
+(the card and controls are far below this text; both alerts render above the
+stepper):
+
+  Error
+  An explicit scan mode is required: "quick" for a bounded selection or
+  "full" for a complete inventory.
+
+  Check this step
+  Source scan failed: An explicit scan mode is required: "quick" for a
+  bounded selection or "full" for a complete inventory.
+
+  Import preferences
+  ...
+
+Recorded state under the project root:
+
+  artifacts/            exists and is EMPTY
+  artifacts/source/     does not exist
+  state/snapshot.json   state.runs = {} (no source.discover run was created)
+
+Fixture request evidence: the engine mode guard runs before adapter.createSession
+and before any WordPress request (lib/engine/source.js:345-366), so a missing
+mode issues zero HTTP requests. The empty artifacts directory is consistent
+with that: no batch id, no index, no run checkpoint was written.
+
+Screenshot: evidence/rc1-quick-scan-failure.png

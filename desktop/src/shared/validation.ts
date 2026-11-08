@@ -98,6 +98,37 @@ function stringArray(value: unknown, label: string, maxItems = 50): string[] | u
   return value.map((entry, index) => text(entry, label + '[' + index + ']', { max: 200 }) as string);
 }
 
+function integerArray(value: unknown, label: string, { min = 0, max = Number.MAX_SAFE_INTEGER, maxItems = 500 } = {}): number[] {
+  if (!Array.isArray(value)) fail(label + ' must be an array.');
+  if (value.length > maxItems) fail(label + ' has too many entries.');
+  return value.map((entry, index) => integer(entry, label + '[' + index + ']', { min, max }) as number);
+}
+
+function optionalBool(value: unknown, label: string): boolean | undefined {
+  if (value === undefined || value === null) return undefined;
+  return bool(value, label, false);
+}
+
+/**
+ * Sanitize the bounded quick-scan selection. The engine accepts these members
+ * (include/postIds/ids, slug/slugs, perPage, maxPages, maxItems, contentTypes)
+ * and must receive them unchanged; dropping them turns a three-post quick scan
+ * into a default 100-item window.
+ */
+function sanitizeDiscoverySelection(input: unknown): Dict {
+  const selection = object(input, 'selection', { optional: true });
+  const out: Dict = {};
+  const include = selection.include ?? selection.postIds ?? selection.ids;
+  if (include !== undefined) out.include = integerArray(include, 'selection.include', { min: 1, max: 1_000_000, maxItems: 500 });
+  if (selection.slug !== undefined) out.slug = stringArray(selection.slug, 'selection.slug', 500);
+  if (selection.slugs !== undefined) out.slugs = stringArray(selection.slugs, 'selection.slugs', 500);
+  for (const [key, min, max] of [['perPage', 1, 100], ['maxPages', 1, 20], ['maxItems', 1, 1_000_000]] as Array<[string, number, number]>) {
+    if (selection[key] !== undefined) out[key] = integer(selection[key], 'selection.' + key, { min, max });
+  }
+  if (selection.contentTypes !== undefined) out.contentTypes = stringArray(selection.contentTypes, 'selection.contentTypes', 20);
+  return out;
+}
+
 function projectId(params: Dict): string {
   return text(params.projectId, 'projectId', { pattern: PROJECT_ID }) as string;
 }
@@ -447,7 +478,14 @@ export function validateIpcPayload(channel: string, payload: unknown): Dict {
         remember: bool(params.remember, 'remember', false)
       };
 
-    case IPC.sourceDiscover:
+    case IPC.sourceDiscover: {
+      // An explicit mode is required by the engine (SOURCE_SCAN_MODE_REQUIRED).
+      // Never default it here: a missing mode must stay missing so the engine
+      // fails closed, and a bounded quick scan must keep its selection.
+      const mode = text(params.mode, 'mode', { optional: true, max: 10 });
+      if (mode !== undefined && !['quick', 'full'].includes(mode)) fail('mode must be "quick" or "full".');
+      const includeTerms = optionalBool(params.includeTerms, 'includeTerms');
+      const includeAssets = optionalBool(params.includeAssets, 'includeAssets');
       return {
         projectId: projectId(params),
         adapterId: text(params.adapterId, 'adapterId', { optional: true, max: 32 }),
@@ -456,8 +494,16 @@ export function validateIpcPayload(channel: string, payload: unknown): Dict {
         contentTypes: stringArray(params.contentTypes, 'contentTypes'),
         query: params.query ? sanitizePersisted(params.query) : {},
         perPage: integer(params.perPage, 'perPage', { min: 1, max: 100, optional: true }),
-        maxItems: integer(params.maxItems, 'maxItems', { min: 1, max: 1000000, optional: true })
+        maxItems: integer(params.maxItems, 'maxItems', { min: 1, max: 1000000, optional: true }),
+        ...(mode !== undefined ? { mode } : {}),
+        selection: sanitizeDiscoverySelection(params.selection),
+        ...(includeTerms !== undefined ? { includeTerms } : {}),
+        ...(includeAssets !== undefined ? { includeAssets } : {}),
+        ...(params.progressEvery !== undefined
+          ? { progressEvery: integer(params.progressEvery, 'progressEvery', { min: 1, max: 10000, optional: true }) }
+          : {})
       };
+    }
 
     case IPC.identityValidateTarget:
       return { target: sanitizeTarget(params.target) };

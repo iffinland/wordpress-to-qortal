@@ -213,6 +213,10 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
   const [scan, setScan] = useState<DiscoveryInfo | null>(discoveryFromWizard(preferences));
   const [scanning, setScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState('');
+  // The wizard-level stepError renders above the stepper. Step 4 is long, so a
+  // scan failure used to be invisible while the owner looked at the controls
+  // that had just failed. Keep a scan-specific error next to those controls.
+  const [scanError, setScanError] = useState('');
   const [scanMode, setScanMode] = useState<'quick' | 'full'>('quick');
   const [quickScanLimit, setQuickScanLimit] = useState(100);
   const [fullScanAcknowledged, setFullScanAcknowledged] = useState(false);
@@ -523,9 +527,21 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
     return Math.ceil((posts + pages) / 100) + Math.ceil((categories + tags) / 100) + Math.ceil(media / 100);
   }
 
+  function describeScanError(error: unknown): string {
+    const code = (error as { code?: string } | null)?.code;
+    const message = error instanceof Error
+      ? error.message
+      : typeof error === 'string' && error.trim() !== ''
+        ? error
+        : 'unknown error';
+    return (code ? code + ': ' : '') + message;
+  }
+
   async function runScan(mode: 'quick' | 'full' = scanMode, { continueAfter = false } = {}): Promise<DiscoveryInfo | null> {
     if (mode === 'full' && !fullScanAcknowledged) {
-      setStepError('Full site inventory is a long, explicit operation. Tick the confirmation before starting it.');
+      const message = 'Full site inventory is a long, explicit operation. Tick the confirmation before starting it.';
+      setStepError(message);
+      setScanError(message);
       return null;
     }
     const limit = Math.max(1, Math.min(100, Number(quickScanLimit) || 100));
@@ -538,6 +554,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       : 'Full inventory: this can take a long time. Pause and cancel remain available.');
     setError(null);
     setStepError('');
+    setScanError('');
     const stopTracking = startScanTracking();
     try {
       const result = await api().sources.discover(project.id, {
@@ -554,12 +571,14 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       if (result.status === 'paused') {
         setScanState('paused');
         setScanProgress('Scan paused at the last durable checkpoint. Resume it from here or from Recovery.');
-        setStepError('The scan is paused. Press Resume interrupted scan to continue from the checkpoint.');
+        setStepError('');
+        setScanError('');
         return null;
       }
       if (result.status === 'cancelled') {
         setScanState('cancelled');
         setScanProgress('Scan cancelled. The project and every completed asset are preserved.');
+        setScanError('');
         return null;
       }
       if (result.status !== 'completed') {
@@ -568,21 +587,25 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
         const code = typeof failure.code === 'string' ? failure.code : 'SOURCE_SCAN_FAILED';
         setScanState('failed');
         setStepError('Source scan failed (' + code + '): ' + message);
+        setScanError('Source scan failed (' + code + '): ' + message);
         return null;
       }
       const info = discoveryInfoFrom(result);
       setScan(info);
       setScanState('completed');
+      setScanError('');
       setScanProgress(mode === 'quick' ? 'Quick scan complete within its request budget.' : 'Full inventory complete.');
       await persist(step, completed, info);
       if (continueAfter) {
         await next();
       }
       return info;
-    } catch (scanError) {
+    } catch (caught) {
       setScanState('failed');
-      setError(scanError);
-      setStepError('Source scan failed: ' + (scanError instanceof Error ? scanError.message : 'unknown error'));
+      setError(caught);
+      const detail = 'Source scan failed: ' + describeScanError(caught);
+      setStepError(detail);
+      setScanError(detail);
       return null;
     } finally {
       stopTracking();
@@ -598,6 +621,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
     setScanRunId(null);
     setScanProgress('Resuming from the durable checkpoint…');
     setStepError('');
+    setScanError('');
     const stopTracking = startScanTracking();
     try {
       const resumed = await api().recovery.resume(project.id, { runId: interruptedScan.runId });
@@ -609,21 +633,26 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       }
       if (result.status !== 'completed') {
         const failure = result.error && typeof result.error === 'object' ? result.error as Record<string, unknown> : {};
+        const detail = 'Resume did not complete (' + String(failure.code ?? 'RECOVERY_NOT_RESUMABLE') + '): ' + String(failure.message ?? 'unknown error');
         setScanState('failed');
-        setStepError('Resume did not complete (' + String(failure.code ?? 'RECOVERY_NOT_RESUMABLE') + '): ' + String(failure.message ?? 'unknown error'));
+        setStepError(detail);
+        setScanError(detail);
         return null;
       }
       const info = discoveryInfoFrom(result);
       setScan(info);
       setScanState('completed');
       setInterruptedScan(null);
+      setScanError('');
       setScanProgress('Interrupted scan resumed from the checkpoint and completed.');
       await persist(step, completed, info);
       return info;
-    } catch (resumeError) {
+    } catch (caught) {
       setScanState('failed');
-      setError(resumeError);
-      setStepError('Resume failed: ' + (resumeError instanceof Error ? resumeError.message : 'unknown error'));
+      setError(caught);
+      const detail = 'Resume failed: ' + describeScanError(caught);
+      setStepError(detail);
+      setScanError(detail);
       return null;
     } finally {
       stopTracking();
@@ -638,7 +667,9 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       await api().runs.pause(project.id, scanRunId);
       setScanProgress('Pause requested. Finalizing the current safe boundary…');
     } catch (pauseError) {
-      setStepError('Pause failed: ' + (pauseError instanceof Error ? pauseError.message : 'unknown error'));
+      const detail = 'Pause failed: ' + describeScanError(pauseError);
+      setStepError(detail);
+      setScanError(detail);
     }
   }
 
@@ -648,7 +679,9 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       await api().runs.cancel(project.id, scanRunId);
       setScanProgress('Cancel requested. The project, checkpoints and verified assets are preserved.');
     } catch (cancelError) {
-      setStepError('Cancel failed: ' + (cancelError instanceof Error ? cancelError.message : 'unknown error'));
+      const detail = 'Cancel failed: ' + describeScanError(cancelError);
+      setStepError(detail);
+      setScanError(detail);
     }
   }
 
@@ -1234,6 +1267,13 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
               {scanTelemetry && (
                 <div className="small" data-testid="scan-telemetry">
                   Phase {scanTelemetry.phase} · mode {scanTelemetry.mode ?? scanMode} · {scanTelemetry.postsScanned ?? 0}/{scanTelemetry.requested ?? '?'} item(s) · API pages {scanTelemetry.pages ?? '—'} · media deps {scanTelemetry.mediaDependencies ?? 0} · terms {scanTelemetry.termsReferenced ?? 0} · {scanTelemetry.bytesTransferred !== null ? formatBytes(scanTelemetry.bytesTransferred) : 'bytes —'}
+                </div>
+              )}
+              {scanError && !scanning && (
+                <div data-testid="scan-error">
+                  <Alert tone="bad" title="Source scan did not complete">
+                    <span data-testid="scan-error-text">{scanError}</span>
+                  </Alert>
                 </div>
               )}
               {scanning && <p className="small">{scanProgress || 'Scanning the source…'}</p>}

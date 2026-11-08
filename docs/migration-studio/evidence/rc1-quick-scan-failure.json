@@ -1,0 +1,62 @@
+{
+  "schema": "qms-bug004-reproduction@1",
+  "build": {
+    "version": "0.8.0-rc.1",
+    "sourceCommit": "d9bdbe0d06d048d2dea5681a35cd1b89b684a2af",
+    "appDir": "desktop/release/linux-unpacked",
+    "installArtifactSha256": "e35ae84545f3b7a118df2f7bf153755fb86d7749b8aebdb3f1faa03f79fb5115"
+  },
+  "scenario": {
+    "projectName": "Functional A quick",
+    "step": 4,
+    "scanMode": "quick",
+    "indexUpTo": 3,
+    "control": "Run quick scan (direct button)"
+  },
+  "ui": {
+    "failureVisibleAboveStepper": true,
+    "failureVisibleInsideSourceScanCard": false,
+    "alerts": [
+      "An explicit scan mode is required: \"quick\" for a bounded selection or \"full\" for a complete inventory.",
+      "Source scan failed: An explicit scan mode is required: \"quick\" for a bounded selection or \"full\" for a complete inventory."
+    ]
+  },
+  "ipc": {
+    "channel": "qms:source:discover",
+    "rendererSent": {
+      "mode": "quick",
+      "perPage": 3,
+      "selection": {
+        "perPage": 3,
+        "maxPages": 1,
+        "maxItems": 3
+      }
+    },
+    "afterValidateIpcPayload": {
+      "mode": null,
+      "selection": null,
+      "includeTerms": null,
+      "includeAssets": null
+    },
+    "error": {
+      "code": "SOURCE_SCAN_MODE_REQUIRED",
+      "message": "An explicit scan mode is required: \"quick\" for a bounded selection or \"full\" for a complete inventory."
+    }
+  },
+  "engine": {
+    "operation": "source.discover",
+    "outcome": "threw before runs.start and before session creation",
+    "guard": "lib/engine/source.js:345-366"
+  },
+  "recordedState": {
+    "artifactsDirectoryEmpty": true,
+    "artifactsSourceDirectoryExists": false,
+    "runs": {},
+    "latest": null
+  },
+  "fixtureRequests": 0,
+  "evidence": {
+    "screenshot": "evidence/rc1-quick-scan-failure.png",
+    "text": "evidence/rc1-quick-scan-failure.txt"
+  }
+}

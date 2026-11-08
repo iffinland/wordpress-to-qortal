@@ -268,3 +268,42 @@ The gate fails unless the evidence records `status: pass` with the three stages
 `boundedScan`, `pause` and `resume`, exactly one content page, a request budget
 under 12, a paused operation and no re-fetch on resume. An OOM kill or a missing
 evidence file is a failure, never a pass.
+
+## Packaged functional acceptance (blocking gate)
+
+BUG-004 showed that every Quick scan and Full inventory could fail at the IPC
+boundary even though the renderer, handlers and engine were individually
+correct. Renderer unit tests mock the preload bridge, so this class of defect is
+only visible in the packaged app. The release therefore also requires the
+packaged functional acceptance evidence:
+
+```
+npm run release:packaged-functional -- \
+  --app=desktop/release/linux-unpacked \
+  --rootfs=<rootfs> \
+  --work=/tmp/qms-packaged-functional \
+  --out=release/packaged-functional-acceptance.json
+npm run release:packaged-e2e -- \
+  --app=desktop/release/linux-unpacked \
+  --rootfs=<rootfs> \
+  --work=/tmp/qms-packaged-handoff \
+  --out=release/packaged-handoff-e2e.json
+npm run release:verify-functional   # blocking; release:prepare runs it too
+```
+
+The first evidence file must record `status: pass` for controls A–G:
+
+- A direct Run quick scan indexes exactly three posts with referenced terms/media;
+- B Confirm quick scan and continue produces a ready three-item plan;
+- C explicit Full inventory completes on a small fixture;
+- D Pause → Resume completes without duplicate index keys;
+- E Cancel stops the run and preserves the project;
+- F an interrupted Full checkpoint does not block an independent Quick scan;
+- G connection failure, invalid source, API timeout and engine failure are visible
+  next to the controls that failed.
+
+The second evidence file must record `status: pass` for the handoff flow and a
+`receiptVerify` stage with every resource `remote_verified` only after independent
+read-back. Receipt import alone is never accepted as proof. Missing evidence, a
+failed control, a missing receipt stage, or a pass produced by skipping a stage
+blocks the release.
