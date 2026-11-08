@@ -1754,3 +1754,117 @@ mark.qms-search-hit {
   font-size: 0.85em;
 }
 
+/* Featured image editor and picker */
+.cms-build-version {
+  font-variant-numeric: tabular-nums;
+}
+
+.slug-warning {
+  margin: 0.35rem 0 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--qms-warning);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--qms-warning) 12%, transparent);
+  color: var(--qms-text);
+}
+
+.featured-editor {
+  margin: 1rem 0;
+  padding: 0.9rem;
+  border: 1px solid var(--qms-border);
+  border-radius: 10px;
+}
+
+.featured-editor__row {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.featured-editor__preview {
+  width: 180px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--qms-border);
+  background: var(--qms-surface-alt);
+}
+
+.featured-editor__preview--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--qms-muted);
+  font-size: 0.85rem;
+}
+
+.featured-editor__body {
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+.featured-editor__source {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.featured-picker {
+  position: fixed;
+  inset: 5vh 5vw;
+  z-index: 50;
+  overflow: auto;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--qms-border);
+  background: var(--qms-surface);
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.45);
+}
+
+.featured-picker__help {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: var(--qms-surface-alt);
+}
+
+.featured-picker__preview {
+  margin: 0 0 0.75rem;
+  max-width: 320px;
+}
+
+.featured-picker__preview img,
+.featured-picker__auto img {
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: 8px;
+  border: 1px solid var(--qms-border);
+}
+
+.featured-picker__source {
+  font-weight: 600;
+}
+
+.featured-picker__file {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+}
+
+.featured-picker__file input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.search-result__image {
+  float: left;
+  width: 96px;
+  height: 72px;
+  object-fit: cover;
+  margin: 0 0.75rem 0.5rem 0;
+  border-radius: 6px;
+  border: 1px solid var(--qms-border);
+}

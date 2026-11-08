@@ -45,6 +45,7 @@
     "cms-template:build": "npm --prefix templates/generic-cms run build",
     "cms-template:package": "npm --prefix templates/generic-cms run build -- --zip",
     "cms:generic-qapp": "npm run cms-template:package",
+    "cms:slug-audit": "node scripts/release/cms-slug-audit-live.mjs",
     "check": "npm run test:all && npm run migration:build && npm run cms:build && npm run cms-template:build",
     "check:phase6": "npm run test:phase6 && npm run cms-template:test && npm run cms-template:build",
     "check:phase7": "npm run test:phase7 && npm --prefix desktop run typecheck && npm --prefix desktop test",

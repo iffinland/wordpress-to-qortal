@@ -122,6 +122,15 @@ describe('publication safety states', () => {
     expect(quote.label).toContain('0.03000000 QORT');
   });
 
+  it('quotes a fourth resource when a new local featured image joins the plan', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, status: 200, text: async () => '1000000', json: async () => 1000000 })));
+    const quote = await quotePublication(4);
+    expect(quote.resources).toBe(4);
+    expect(quote.total).toBe(4000000);
+    expect(quote.label).toContain('4 resource(s)');
+    expect(quote.label).toContain('0.04000000 QORT');
+  });
+
   it('removes the local search entry when upstream content is accepted', () => {
     let index: any = emptySearchIndex('site-fixture');
     index = upsertSearchEntry(index, {

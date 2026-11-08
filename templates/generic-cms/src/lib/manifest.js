@@ -234,6 +234,9 @@ function normalizeIndexEntry(entry, kind, manifest) {
       publishedAt: isoTime(entry.published_at) || isoTime(entry.date),
       contentRef,
       featuredImageRef: null,
+      featuredImageUrl: null,
+      featuredImageAlt: null,
+      featuredImageSource: null,
       contentHash: null,
       legacy: {
         sourceId,
@@ -260,6 +263,9 @@ function normalizeIndexEntry(entry, kind, manifest) {
     publishedAt: isoTime(entry.published_at) || isoTime(entry.publishedAt) || isoTime(entry.created_at),
     contentRef,
     featuredImageRef: copyRef(entry.featured_image, manifest.site.ownerName),
+    featuredImageUrl: stringValue(entry.featured_image_url) || null,
+    featuredImageAlt: stringValue(entry.featured_image_alt) || null,
+    featuredImageSource: stringValue(entry.featured_image_source) || null,
     contentHash: stringValue(entry.content_hash) || stringValue(entry.contentHash) || null,
     legacy: null
   };
@@ -297,6 +303,7 @@ export function normalizeMediaPayload(payload) {
     }).filter((entry) => entry.url || entry.qdn);
   }
   if (payload && typeof payload === 'object') {
+    if (Array.isArray(payload.entries)) return normalizeMediaPayload(payload.entries);
     const entries = payload.entries && typeof payload.entries === 'object' ? payload.entries : payload;
     return Object.entries(entries).map(([url, value]) => {
       if (!value || typeof value !== 'object') return null;
@@ -551,13 +558,23 @@ export function normalizeContentPayload(payload, item) {
   const authorName = stringValue(authors[0] && authors[0].name)
     || stringValue(payload.author && payload.author.name)
     || stringValue(payload.public_author);
-  const media = Array.isArray(payload.media) ? payload.media.map((entry) => {
+  const normalizeMedia = (entry) => {
     if (!entry || typeof entry !== 'object') return null;
     const url = stringValue(entry.url) || stringValue(entry.resolved_url) || stringValue(entry.source_url);
-    const qdn = copyRef(entry.qdn);
+    const qdn = copyRef(entry.qdn) || copyRef(entry.service && entry.identifier ? entry : null);
     if (!url && !qdn) return null;
     return { url, qdn, role: stringValue(entry.role) || undefined, alt: entry.alt == null ? null : String(entry.alt) };
-  }).filter(Boolean) : [];
+  };
+  const mediaObject = payload.media && !Array.isArray(payload.media) && typeof payload.media === 'object' ? payload.media : null;
+  const media = (Array.isArray(payload.media)
+    ? payload.media
+    : mediaObject
+      ? [mediaObject.featured, ...(Array.isArray(mediaObject.images) ? mediaObject.images : [])]
+      : []).map(normalizeMedia).filter(Boolean);
+  const featuredEntry = mediaObject && mediaObject.featured ? normalizeMedia(mediaObject.featured) : null;
+  const featuredImageRef = featuredEntry && featuredEntry.qdn ? featuredEntry.qdn : item.featuredImageRef || null;
+  const featuredImageUrl = featuredEntry && featuredEntry.url ? featuredEntry.url : item.featuredImageUrl || null;
+  const featuredImageAlt = featuredEntry && featuredEntry.alt != null ? featuredEntry.alt : item.featuredImageAlt || null;
 
   return {
     item,
@@ -569,6 +586,10 @@ export function normalizeContentPayload(payload, item) {
     publishedAt: isoTime(payload.dates && payload.dates.published_at) || item.publishedAt,
     modifiedAt: isoTime(payload.dates && payload.dates.modified_at) || item.updatedAt,
     media,
+    featuredImageRef,
+    featuredImageUrl,
+    featuredImageAlt,
+    featuredImageSource: item.featuredImageSource || (featuredImageRef || featuredImageUrl ? 'published' : null),
     source: isQms ? 'qms-qdn' : 'legacy'
   };
 }

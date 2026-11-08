@@ -2,7 +2,7 @@ import { ContentHtml } from '../components/ContentHtml';
 import { StateNotice } from '../components/StateNotice';
 import { NotFoundPage } from './NotFoundPage';
 import { categoryHref, tagHref } from '../lib/routes.js';
-import { createQdnResourceUrl } from '../lib/qortal.js';
+import { featuredImageUrlForItem } from '../lib/featuredImage.js';
 import { formatDate } from '../lib/text.js';
 import type { CmsContentItem, CmsDataset, CmsTerm, LoadedContent } from '../types';
 
@@ -63,9 +63,7 @@ export function PostPage(props: {
   const item = props.item;
   const content = props.content;
   const terms = taxonomyLinks(props.dataset, item);
-  const image = item.featuredImageRef
-    ? createQdnResourceUrl(item.featuredImageRef.service, item.featuredImageRef.name || props.dataset.site.ownerName, item.featuredImageRef.identifier)
-    : '';
+  const image = featuredImageUrlForItem(item, props.dataset);
 
   return (
     <article className="page page--article">

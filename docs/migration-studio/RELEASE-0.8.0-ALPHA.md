@@ -1,8 +1,58 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-alpha.9 -->
+<!-- qms-release-version: 0.8.0-alpha.10 -->
 
-## 0.8.0 alpha.9 — current
+## 0.8.0 alpha.10 — current
+
+This unsigned alpha prerelease supersedes v0.8.0-alpha.9. It adds optional
+featured images to the Generic CMS editor and hardens the slug fix so a stale
+deployment cannot silently reproduce the one-character slug.
+
+### Featured images
+
+Every CMS-authored and WordPress-imported post/page now has an optional
+featured-image field: select an existing QDN image, upload a local image,
+preview it, replace it or remove it, and see exactly which image will be used
+before publishing. Resolution is deterministic: explicit selection, then a
+preserved WordPress featured image, then the first suitable image in the post
+body, then none. Tracking pixels, spacer pixels, icons, SVG placeholders,
+video thumbnails, data:/blob: URLs and broken references are skipped. The
+chosen image is persisted in the native index, the qms-qdn-content@1
+media.featured document and the WordPress edit overlay; identical bytes are
+reused from QDN; a new local image joins the owner-guarded fee, collision and
+read-back plan (four resources). The image renders on home cards, post lists,
+post detail and search results. Imported WordPress resources are never
+modified.
+
+### Slug robustness and stale deployments
+
+The live WEBSITE developer iffi served assets/index-boCGirRd.js with build
+marker 0.8.0-alpha.5, which still contained the old one-time latch
+slug: o.slug || dt(value). The current build produced
+assets/index-DO0Igp7n.js at 0.8.0-alpha.7 baseline. The live native index
+therefore contained one published item with slug t (Teine postitus) created by
+the stale bundle; none of the five imported posts had a truncated slug.
+
+This release makes the state visible and prevents a repeat in the new build:
+the Admin toolbar and footer show the template version, and Admin states that
+an older version means a stale Q-App/WEBSITE bundle. Save draft and Publish
+refuse an untouched one-character automatic slug derived from a longer title,
+while legitimate short titles, manually chosen slugs and locked published
+slugs remain valid. Existing published slugs are never renamed automatically.
+
+Also fixed: the media-map normalizer treated an array under entries as an
+object, producing the URL "0" for catalog media.
+
+Desktop is 0.8.0-alpha.10 (rebuilt with CMS 0.8.0-alpha.8), CMS is
+0.8.0-alpha.8, and Publisher stays 0.8.0-alpha.2 with byte-identical bytes.
+
+| Component | Version | Artifact |
+| --- | --- | --- |
+| Desktop (Linux amd64) | 0.8.0-alpha.10 | qortal-migration-studio_0.8.0-alpha.10_amd64.deb |
+| Migration Publisher (Q-App) | 0.8.0-alpha.2 | qortal-migration-publisher-v0.8.0-alpha.2.zip |
+| Generic CMS (Q-App) | 0.8.0-alpha.8 | qortal-migration-generic-cms-v0.8.0-alpha.8.zip |
+
+## 0.8.0 alpha.9 — previous
 
 This unsigned alpha prerelease supersedes `v0.8.0-alpha.8`. It corrects two
 defects found while verifying alpha.8.
@@ -275,8 +325,8 @@ See `docs/migration-studio/UPDATE-REGISTRY.md`.
 ### Desktop (Debian 12/13, MX Linux 23)
 
 ```bash
-sha256sum qortal-migration-studio_0.8.0-alpha.6_amd64.deb
-sudo apt install ./qortal-migration-studio_0.8.0-alpha.6_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-alpha.10_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-alpha.10_amd64.deb
 ```
 
 Verify the hash against the release assets. The package is unsigned.
@@ -289,11 +339,13 @@ publishing it to QDN. The Publisher artifact is unchanged in this release.
 
 ### Generic CMS
 
-Download `qortal-migration-generic-cms-v0.8.0-alpha.4.zip`, verify its SHA-256,
+Download `qortal-migration-generic-cms-v0.8.0-alpha.8.zip`, verify its SHA-256,
 and republish the APP or WEBSITE under the site's existing Qortal name. Preserve
 `qms-cms-config.json` and any custom assets; do not overwrite a customized CMS
-with the generic ZIP. After deployment, open the site in Qortal Hub and use
-**Connect owner account** if Admin is still not shown.
+with the generic ZIP. The site must show `Template v0.8.0-alpha.8` in the footer
+and Admin; if it shows an older version, the deployed bundle is stale. After
+deployment, open the site in Qortal Hub and use **Connect owner account** if
+Admin is still not shown.
 
 ## Known limitations
 

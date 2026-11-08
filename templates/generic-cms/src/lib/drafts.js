@@ -105,6 +105,15 @@ export function createDraft(overrides = {}, now = Date.now()) {
     sourceRef: overrides.sourceRef || null,
     baseSourceHash: overrides.baseSourceHash || null,
     baseSourceModifiedAt: overrides.baseSourceModifiedAt || null,
+    // Featured image: explicit selection, preserved WordPress image, automatic
+    // first body image, or an explicit no-image decision.
+    featuredImage: overrides.featuredImage || null,
+    featuredImageUrl: overrides.featuredImageUrl || '',
+    featuredImageAlt: overrides.featuredImageAlt || '',
+    featuredImageManual: overrides.featuredImageManual === true,
+    featuredImageOrigin: overrides.featuredImageOrigin || null,
+    featuredImageSuppressed: overrides.featuredImageSuppressed === true,
+    featuredImagePending: overrides.featuredImagePending || null,
     savedSnapshot: overrides.savedSnapshot || null
   };
 }

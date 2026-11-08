@@ -21,6 +21,7 @@
  */
 
 import { mergeAliases, slugify } from './slug.js';
+import { featuredImageEntryFields, normalizeFeaturedImage } from './featuredImage.js';
 
 export const OVERLAY_SCHEMA = 'qms-cms-edit-overlay@1';
 export const OVERLAY_VERSION = 1;
@@ -114,6 +115,7 @@ export function createOverlayEntry(options = {}) {
     author: String(draft.author || content.author || item.author || ''),
     content: options.contentRef || null,
     content_hash: options.contentHash || null,
+    ...featuredImageEntryFields(options.featuredImage || null),
     base_source_hash: String(options.baseSourceHash || ''),
     base_source_modified_at: item.updatedAt || content.modifiedAt || null,
     source_modified_at: content.modifiedAt || item.updatedAt || null,
@@ -238,6 +240,10 @@ export function mergeOverlayCatalog(dataset, overlay) {
       contentRef: entry.content || target[index].contentRef,
       sourceContentRef: target[index].contentRef || null,
       contentHash: entry.content_hash || target[index].contentHash,
+      featuredImageRef: entry.featured_image !== undefined ? normalizeFeaturedImage(entry.featured_image) : target[index].featuredImageRef,
+      featuredImageUrl: entry.featured_image_url !== undefined ? entry.featured_image_url : target[index].featuredImageUrl,
+      featuredImageAlt: entry.featured_image_alt !== undefined ? entry.featured_image_alt : target[index].featuredImageAlt,
+      featuredImageSource: entry.featured_image_source !== undefined ? entry.featured_image_source : target[index].featuredImageSource,
       updatedAt: entry.edited_at || target[index].updatedAt,
       originalSlug: target[index].slug,
       slug: String(entry.slug || target[index].slug),

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CmsContentItem, CmsDataset, Gallery, LoadedContent, ViewerIdentity } from '../../types';
 import { RichTextEditor } from './RichTextEditor';
 import { MediaPicker, type InsertedMedia } from './MediaPicker';
+import { FeaturedImagePicker, type FeaturedImageChoice } from './FeaturedImagePicker';
 import { StateNotice } from '../../components/StateNotice';
 import {
   PUBLICATION_STATE_LABELS,
@@ -14,22 +15,32 @@ import {
   writeDrafts
 } from '../../lib/drafts.js';
 import { loadNativeIndex, loadOverlay, publishNativePostDraft, publishOverlayDraft, resolveOverlayConflict } from '../../lib/authoring.js';
-import { quotePublication } from '../../lib/publish.js';
+import { publishMediaFile, quotePublication } from '../../lib/publish.js';
 import { slugAvailable } from '../../lib/nativeCatalog.js';
 import {
   finalizeSlug,
   findSlugAnomalies,
   mergeAliases,
+  prematureAutoSlugProblem,
   slugify,
   slugProblem,
   slugSetFromItems
 } from '../../lib/slug.js';
+import {
+  FEATURED_IMAGE_HELP,
+  autoFeaturedImage,
+  normalizeFeaturedImage,
+  resolveFeaturedImage
+} from '../../lib/featuredImage.js';
+import { templateVersion } from '../../config/cmsConfig';
 import { createSlugState, reduceSlugState } from '../../lib/slugField.js';
 import { findOverlayEntry, overlayContentIdentifier, sourceFingerprint } from '../../lib/overlay.js';
-import { sha256Hex } from '../../lib/qortal.js';
+import { createQdnResourceUrl, sha256Hex } from '../../lib/qortal.js';
 import { stripHtml } from '../../lib/text.js';
 import { sanitizeHtml } from '../../lib/sanitize.js';
 import { useUnsavedGuard } from '../../hooks/useUnsavedGuard';
+
+type QdnRefLike = { service: string; name?: string; identifier: string };
 
 function termNames(dataset: CmsDataset | null, ids: string[] | undefined, kind: 'categories' | 'tags') {
   if (!dataset) return '';
@@ -78,7 +89,13 @@ function draftFromItem(item: CmsContentItem, content: LoadedContent, revision: n
     slugLocked: true,
     originalSlug: item.slug,
     slugAliases: item.slugAliases || [],
-    sourceKind: 'cms-native'
+    sourceKind: 'cms-native',
+    featuredImage: item.featuredImageRef || null,
+    featuredImageUrl: item.featuredImageUrl || '',
+    featuredImageAlt: item.featuredImageAlt || '',
+    featuredImageManual: Boolean(item.featuredImageRef) && item.featuredImageSource !== 'body',
+    featuredImageOrigin: item.featuredImageSource || (item.featuredImageRef ? 'published' : null),
+    featuredImageSuppressed: false
   });
 }
 
@@ -114,6 +131,8 @@ export function EditorPage(props: {
   const [overlayRevision, setOverlayRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showMedia, setShowMedia] = useState(false);
+  const [showFeaturedPicker, setShowFeaturedPicker] = useState(false);
+  const [featuredFile, setFeaturedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [fee, setFee] = useState('Checking node fee...');
@@ -144,11 +163,19 @@ export function EditorPage(props: {
       }
       setLoading(false);
     }).catch(() => setLoading(false));
-    // Both publication paths write exactly three resources: content, the
-    // native index or edit overlay, and the search index.
-    quotePublication(3).then((quote) => { if (!cancelled) setFee(quote.label); }).catch(() => { if (!cancelled) setFee('Fee unavailable.'); });
     return () => { cancelled = true; };
   }, [props.name]);
+
+  // Both publication paths write exactly three resources: content, the native
+  // index or edit overlay, and the search index. A new local featured image is
+  // a fourth resource in the same authorized plan.
+  useEffect(() => {
+    let cancelled = false;
+    quotePublication(featuredFile ? 4 : 3)
+      .then((quote) => { if (!cancelled) setFee(quote.label); })
+      .catch(() => { if (!cancelled) setFee('Fee unavailable.'); });
+    return () => { cancelled = true; };
+  }, [featuredFile]);
 
   // Detect changed WordPress sources for every local edit. This is a read-only
   // comparison; it never publishes and never renames anything.
@@ -188,7 +215,10 @@ export function EditorPage(props: {
 
   const savedSnapshot = (value: any) => JSON.stringify({
     title: value.title, slug: value.slug, html: value.html, excerpt: value.excerpt,
-    categoriesText: value.categoriesText, tagsText: value.tagsText, author: value.author, type: value.type
+    categoriesText: value.categoriesText, tagsText: value.tagsText, author: value.author, type: value.type,
+    featuredImage: value.featuredImage || null, featuredImageUrl: value.featuredImageUrl || '',
+    featuredImageAlt: value.featuredImageAlt || '', featuredImageOrigin: value.featuredImageOrigin || null,
+    featuredImageSuppressed: value.featuredImageSuppressed === true
   });
 
   const openDraftState = (next: any) => {
@@ -199,6 +229,8 @@ export function EditorPage(props: {
     setPreview(false);
     setAdvancedSlug(false);
     setSlugConfirmChecked(false);
+    setShowFeaturedPicker(false);
+    setFeaturedFile(null);
     setDraft(next);
   };
 
@@ -283,7 +315,15 @@ export function EditorPage(props: {
         sourceSlug,
         sourceRef,
         baseSourceHash,
-        baseSourceModifiedAt: upstream.modifiedAt || item.updatedAt || null
+        baseSourceModifiedAt: upstream.modifiedAt || item.updatedAt || null,
+        // Preserve an explicit WordPress featured image until the owner
+        // selects, replaces or removes it.
+        featuredImage: item.featuredImageRef || null,
+        featuredImageUrl: item.featuredImageUrl || '',
+        featuredImageAlt: item.featuredImageAlt || '',
+        featuredImageManual: Boolean(item.featuredImageRef),
+        featuredImageOrigin: item.featuredImageRef ? 'wordpress' : (item.featuredImageSource || null),
+        featuredImageSuppressed: false
       });
       next.sourceTitle = upstream.title || item.title;
       next.sourceHtml = upstream.html || '';
@@ -350,7 +390,104 @@ export function EditorPage(props: {
     setShowMedia(false);
   };
 
+  const mediaUrl = (service: string, name: string, identifier: string) => createQdnResourceUrl(service, name || props.name, identifier);
+  const asChoice = (view: any, fallbackSource = 'none'): FeaturedImageChoice => {
+    if (!view) return { ref: null, url: '', alt: '', source: fallbackSource };
+    const ref = normalizeFeaturedImage(view.ref);
+    return {
+      ref,
+      url: view.url || (ref ? mediaUrl(ref.service, ref.name || props.name, ref.identifier) : ''),
+      alt: view.alt || (ref && ref.alt) || '',
+      source: view.source || fallbackSource
+    };
+  };
+  const featuredChoice = useMemo(() => {
+    if (featuredFile) {
+      return {
+        ref: null,
+        url: URL.createObjectURL(featuredFile),
+        alt: featuredFile.name.replace(/\.[^.]+$/, ''),
+        source: 'local-file'
+      } as FeaturedImageChoice;
+    }
+    return asChoice(draft ? resolveFeaturedImage(draft, props.dataset, { name: props.name, createUrl: mediaUrl }) : null);
+  }, [draft, props.dataset, props.name, featuredFile]);
+  const automaticChoice = useMemo(
+    () => asChoice(draft ? autoFeaturedImage(draft.html, props.dataset, { name: props.name, createUrl: mediaUrl }) : null, 'body'),
+    [draft, props.dataset, props.name]
+  );
+
+  const selectFeaturedRef = (ref: QdnRefLike) => {
+    setFeaturedFile(null);
+    persist({
+      ...draft,
+      featuredImage: normalizeFeaturedImage(ref),
+      featuredImageUrl: '',
+      featuredImageAlt: draft.featuredImageAlt || '',
+      featuredImageManual: true,
+      featuredImageOrigin: 'explicit',
+      featuredImageSuppressed: false,
+      featuredImagePending: null
+    });
+    setShowFeaturedPicker(false);
+  };
+
+  const selectFeaturedFile = (file: File) => {
+    setFeaturedFile(file);
+    persist({
+      ...draft,
+      featuredImage: null,
+      featuredImageUrl: '',
+      featuredImageAlt: draft.featuredImageAlt || file.name.replace(/\.[^.]+$/, ''),
+      featuredImageManual: true,
+      featuredImageOrigin: 'local-file',
+      featuredImageSuppressed: false,
+      featuredImagePending: { name: file.name, size: file.size, type: file.type }
+    });
+  };
+
+  const useAutomaticFeatured = () => {
+    setFeaturedFile(null);
+    persist({
+      ...draft,
+      featuredImage: null,
+      featuredImageUrl: '',
+      featuredImageAlt: '',
+      featuredImageManual: false,
+      featuredImageOrigin: 'body',
+      featuredImageSuppressed: false,
+      featuredImagePending: null
+    });
+    setShowFeaturedPicker(false);
+  };
+
+  const publishWithoutFeatured = () => {
+    setFeaturedFile(null);
+    persist({
+      ...draft,
+      featuredImage: null,
+      featuredImageUrl: '',
+      featuredImageAlt: '',
+      featuredImageManual: false,
+      featuredImageOrigin: null,
+      featuredImageSuppressed: true,
+      featuredImagePending: null
+    });
+    setShowFeaturedPicker(false);
+  };
+
   const saveLocalDraft = () => {
+    const truncated = prematureAutoSlugProblem({
+      title: draft.title,
+      slug: draft.slug,
+      touched: draft.slugTouched,
+      locked: draft.slugLocked
+    });
+    if (truncated) {
+      setState('failed');
+      setMessage(truncated);
+      return;
+    }
     const next = { ...draft, publicationState: draft.remoteId ? 'modified-unpublished' : 'draft', publicationMessage: '' };
     persist(next);
     savedRef.current = savedSnapshot(next);
@@ -362,6 +499,13 @@ export function EditorPage(props: {
   const requestPublish = () => {
     if (!draft.title.trim()) { setState('failed'); setMessage('A title is required.'); return; }
     const finalSlug = finalizeSlug(draft.slug || slugify(draft.title));
+    const truncated = prematureAutoSlugProblem({
+      title: draft.title,
+      slug: finalSlug,
+      touched: draft.slugTouched,
+      locked: draft.slugLocked
+    });
+    if (truncated) { setState('failed'); setMessage(truncated); return; }
     const problem = slugProblem(finalSlug);
     if (problem) { setState('failed'); setMessage(problem); return; }
     const available = slugAvailable(props.dataset, finalSlug, { exceptIds: [draft.remoteId, draft.sourceItemId].filter(Boolean) });
@@ -403,22 +547,65 @@ export function EditorPage(props: {
     const finalSlug = finalizeSlug(draft.slug || draft.title);
     persist({ ...draft, slug: finalSlug, publishTimestamp: timestamp });
     const author = (props.dataset && props.dataset.site.publicAuthor) || props.identity.name;
+
+    // A local featured image is published first, through the same owner-guarded
+    // media plan (fee, collision check and byte-exact read-back). The post is
+    // only published after the image is confirmed or safely reused.
+    let featuredResolved = resolveFeaturedImage(draft, props.dataset, { name: props.name, createUrl: mediaUrl });
+    if (featuredFile) {
+      setMessage('Publishing the featured image and waiting for Qortal Hub approval...');
+      const mediaResult = await publishMediaFile({
+        identity: props.identity,
+        name: props.name,
+        file: featuredFile,
+        title: draft.title,
+        description: 'Featured image for ' + draft.title + ' on ' + props.name + '.',
+        storage: localStorage as any
+      });
+      if (!mediaResult.ok || !mediaResult.ref) {
+        setState('failed');
+        setMessage('The featured image was not published: ' + (mediaResult.message || 'unknown error') + ' The post was not published.');
+        return;
+      }
+      const uploaded = normalizeFeaturedImage(mediaResult.ref);
+      featuredResolved = {
+        ref: uploaded,
+        url: uploaded ? mediaUrl(uploaded.service, uploaded.name || props.name, uploaded.identifier) : '',
+        alt: draft.featuredImageAlt || featuredFile.name.replace(/\.[^.]+$/, ''),
+        source: 'explicit'
+      };
+      setFeaturedFile(null);
+      persist({
+        ...draft,
+        featuredImage: uploaded,
+        featuredImageOrigin: 'explicit',
+        featuredImageManual: true,
+        featuredImageSuppressed: false,
+        featuredImagePending: null
+      });
+      setMessage('Featured image published and verified. Publishing the post now...');
+    }
+
+    const publicationDraft = {
+      ...draft,
+      html,
+      slug: finalSlug,
+      status: 'published',
+      categories,
+      tags,
+      categoryIds: categories.map((term) => term.id),
+      tagIds: tags.map((term) => term.id),
+      publishTimestamp: timestamp,
+      featuredImageResolved: featuredResolved
+    };
     const result: any = draft.sourceKind === 'wordpress-overlay'
       ? await publishOverlayDraft({
           identity: props.identity,
           name: props.name,
           siteId: props.siteId,
           draft: {
-            ...draft,
-            html,
-            slug: finalSlug,
-            status: 'published',
-            categories,
-            tags,
-            categoryIds: categories.map((term) => term.id),
-            tagIds: tags.map((term) => term.id),
-            slugAliases: mergeAliases(draft.slugAliases, draft.originalSlug || draft.sourceSlug, finalSlug),
-            publishTimestamp: timestamp
+            ...publicationDraft,
+            slugAliases: mergeAliases(draft.slugAliases, draft.originalSlug || draft.sourceSlug, finalSlug)
           },
           baseRevision: overlayRevision,
           storage: localStorage,
@@ -430,16 +617,8 @@ export function EditorPage(props: {
           name: props.name,
           siteId: props.siteId,
           draft: {
-            ...draft,
-            html,
-            slug: finalSlug,
-            status: 'published',
-            categories,
-            tags,
-            categoryIds: categories.map((term) => term.id),
-            tagIds: tags.map((term) => term.id),
-            slugAliases: mergeAliases(draft.slugAliases, draft.originalSlug, finalSlug),
-            publishTimestamp: timestamp
+            ...publicationDraft,
+            slugAliases: mergeAliases(draft.slugAliases, draft.originalSlug, finalSlug)
           },
           baseRevision: revision,
           storage: localStorage,
@@ -464,7 +643,14 @@ export function EditorPage(props: {
         slugChangeConfirmed: false,
         originalSlug: finalSlug,
         slugAliases: result.slugAliases || [],
-        conflictResolved: false
+        conflictResolved: false,
+        featuredImage: featuredResolved.ref || null,
+        featuredImageUrl: featuredResolved.ref ? '' : (featuredResolved.url || ''),
+        featuredImageAlt: featuredResolved.alt || '',
+        featuredImageOrigin: featuredResolved.source || null,
+        featuredImageManual: featuredResolved.source === 'explicit',
+        featuredImageSuppressed: featuredResolved.source === 'none',
+        featuredImagePending: null
       };
       persist(published);
       savedRef.current = savedSnapshot(published);
@@ -534,6 +720,14 @@ export function EditorPage(props: {
 
   const publishedSlug = draft ? (draft.originalSlug || '') : '';
   const slugChanged = Boolean(publishedSlug && draft && finalizeSlug(draft.slug) !== publishedSlug);
+  const autoSlugWarning = draft && !draft.slugLocked
+    ? prematureAutoSlugProblem({
+        title: draft.title,
+        slug: draft.slug,
+        touched: draft.slugTouched,
+        locked: draft.slugLocked
+      })
+    : '';
   const importedConflict = draft && draft.sourceKind === 'wordpress-overlay' ? conflicts[String(draft.sourceItemId)] : null;
   const sourceKindLabel = draft
     ? draft.sourceKind === 'wordpress-overlay'
@@ -555,7 +749,11 @@ export function EditorPage(props: {
         <button type="button" className="button" onClick={() => startNew('post')}>New post</button>
         <button type="button" className="button button--ghost" onClick={() => startNew('page')}>New page</button>
         <span className="muted">CMS revision: {revision} · Edit overlay revision: {overlayRevision}</span>
+        <span className="muted cms-build-version" role="status">Template v{templateVersion}</span>
       </div>
+      <p className="muted cms-build-note">
+        Template v{templateVersion}. If this version is older than the release you deployed, the site is still serving a stale Q-App or WEBSITE bundle; republish the verified CMS ZIP before relying on slug or featured-image behaviour.
+      </p>
 
       {!draft ? (
         <>
@@ -692,6 +890,12 @@ export function EditorPage(props: {
               {' '}
               {draft.slug ? <span>Final slug: <code>{finalizeSlug(draft.slug)}</code></span> : null}
             </p>
+            {autoSlugWarning ? (
+              <p className="slug-warning" role="alert">
+                {autoSlugWarning}{' '}
+                <button type="button" className="button button--ghost" onClick={regenerateSlug}>Regenerate slug now</button>
+              </p>
+            ) : null}
             <div className="admin-toolbar">
               <button type="button" className="button button--ghost" onClick={regenerateSlug} disabled={draft.slugLocked}>Regenerate slug</button>
               {draft.slug && !draft.slugLocked ? (
@@ -745,6 +949,43 @@ export function EditorPage(props: {
               </label>
             ) : null}
           </div>
+
+          <section className="featured-editor" aria-labelledby="featured-editor-title">
+            <h3 id="featured-editor-title">Featured image</h3>
+            <p className="muted">{FEATURED_IMAGE_HELP}</p>
+            <div className="featured-editor__row">
+              {featuredChoice.url ? (
+                <img className="featured-editor__preview" src={featuredChoice.url} alt={featuredChoice.alt || 'Featured image preview'} />
+              ) : (
+                <div className="featured-editor__preview featured-editor__preview--empty" aria-hidden="true">No image</div>
+              )}
+              <div className="featured-editor__body">
+                <p className="featured-editor__source" role="status">
+                  {featuredChoice.source === 'explicit' ? 'Selected by you' : null}
+                  {featuredChoice.source === 'wordpress' ? 'Preserved WordPress featured image' : null}
+                  {featuredChoice.source === 'body' ? 'Automatic: first suitable image in the post body' : null}
+                  {featuredChoice.source === 'published' ? 'Published featured image' : null}
+                  {featuredChoice.source === 'local-file' ? 'New local image, published when you confirm' : null}
+                  {featuredChoice.source === 'none' ? 'No featured image will be published' : null}
+                  {draft.featuredImagePending && !featuredFile ? ' · re-select ' + draft.featuredImagePending.name : ''}
+                </p>
+                <div className="admin-toolbar">
+                  <button type="button" className="button" onClick={() => setShowFeaturedPicker(true)}>
+                    {featuredChoice.url ? 'Replace featured image' : 'Choose featured image'}
+                  </button>
+                  {automaticChoice.url ? (
+                    <button type="button" className="button button--ghost" onClick={useAutomaticFeatured} disabled={featuredChoice.source === 'body'}>
+                      Use automatic image
+                    </button>
+                  ) : null}
+                  <button type="button" className="button button--ghost" onClick={publishWithoutFeatured} disabled={!featuredChoice.url && featuredChoice.source === 'none'}>
+                    Remove featured image
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {draft.remoteId && draft.sourceKind !== 'wordpress-overlay' ? <p className="muted">Editing a published CMS post. Its QDN identity is stable; a title edit does not change the slug.</p> : null}
           {draft.sourceKind === 'wordpress-overlay' ? (
             <p className="muted">
@@ -757,6 +998,23 @@ export function EditorPage(props: {
           <RichTextEditor value={draft.html} onChange={(html) => persist({ ...draft, html })} onInsertMedia={() => setShowMedia(true)} />
         </>
       )}
+
+      {showFeaturedPicker && draft ? (
+        <FeaturedImagePicker
+          identity={props.identity}
+          name={props.name}
+          datasetMedia={props.dataset ? props.dataset.media : []}
+          galleries={props.galleries}
+          current={featuredChoice}
+          automatic={automaticChoice.url ? automaticChoice : null}
+          pendingFile={featuredFile}
+          onSelectRef={selectFeaturedRef}
+          onSelectFile={selectFeaturedFile}
+          onUseAutomatic={useAutomaticFeatured}
+          onPublishWithout={publishWithoutFeatured}
+          onClose={() => setShowFeaturedPicker(false)}
+        />
+      ) : null}
 
       {showMedia && draft ? (
         <MediaPicker
@@ -778,6 +1036,7 @@ export function EditorPage(props: {
           <p className="muted">Slug: /{finalizeSlug(draft.slug)} · Preview only, not published.</p>
           <article className="post-body">
             <h1>{draft.title}</h1>
+            {featuredChoice.url ? <img className="article-image" src={featuredChoice.url} alt={featuredChoice.alt || draft.title} /> : null}
             {draft.excerpt ? <p className="post-card__excerpt">{draft.excerpt}</p> : null}
             <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(draft.html) }} />
           </article>
@@ -804,6 +1063,7 @@ export function EditorPage(props: {
             <div><dt>Final slug</dt><dd><code>{finalizeSlug(draft.slug)}</code></dd></div>
             <div><dt>Content</dt><dd>DOCUMENT / {props.name} / {draft.contentIdentifier || 'stable slug identifier'}</dd></div>
             <div><dt>Index</dt><dd>{draft.sourceKind === 'wordpress-overlay' ? 'DOCUMENT / ' + props.name + ' / qms-cms-edit-overlay (revision ' + (overlayRevision + 1) + ')' : 'DOCUMENT / ' + props.name + ' / qms-cms-native-index (revision ' + (revision + 1) + ')'}</dd></div>
+            <div><dt>Featured image</dt><dd>{featuredFile ? 'New local image / ' + featuredFile.name : featuredChoice.url ? (featuredChoice.ref ? 'QDN IMAGE / ' + (featuredChoice.ref.name || props.name) + ' / ' + featuredChoice.ref.identifier : featuredChoice.url) : 'None'}{featuredFile ? ' (fee includes one image resource)' : ''}</dd></div>
             <div><dt>Fee</dt><dd>{fee}</dd></div>
             <div><dt>Signer</dt><dd>{props.identity.address}</dd></div>
             {slugChanged ? <div><dt>Slug change</dt><dd>Old slug /{publishedSlug} becomes an alias; old content resource is kept.</dd></div> : null}

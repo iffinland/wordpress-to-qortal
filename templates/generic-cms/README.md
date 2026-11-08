@@ -10,7 +10,7 @@ it does not publish anything to QDN. The CMS can be published as an **APP** or a
 ## Beginner path (no Node.js, npm, Git or compiler)
 
 1. Download
-   [qortal-migration-generic-cms-v0.8.0-alpha.5.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.7/qortal-migration-generic-cms-v0.8.0-alpha.5.zip)
+   [qortal-migration-generic-cms-v0.8.0-alpha.8.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/qortal-migration-generic-cms-v0.8.0-alpha.8.zip)
    and verify it against `SHA256SUMS`.
 2. Inspect the ZIP: `index.html` and `assets/` are at the root, with no
    parent folder.
@@ -20,7 +20,8 @@ it does not publish anything to QDN. The CMS can be published as an **APP** or a
    `qortal://WEBSITE/developer%20iffi/`.
 5. Open **Admin → Site settings** and publish the owner settings revision. This
    replaces the template placeholders with your title, tagline, footer and
-   colors.
+   colors. Confirm the footer shows `Template v0.8.0-alpha.8`; an older version
+   means the deployed bundle is stale.
 
 Downloading a ZIP is not deployment.
 
@@ -34,7 +35,9 @@ Downloading a ZIP is not deployment.
   branding colors) published as `qms-cms-site-settings@1`.
 - **Native blog editor** (TipTap) with local drafts, sanitized rich text,
   categories/tags, preview, media publishing and existing QDN media search.
-  First-class `qortal://` links are accepted and opened through Hub.
+  Optional featured images can be selected from existing QDN media, uploaded
+  from the device, previewed, replaced or removed; the first suitable body
+  image is used automatically when none is chosen. First-class `qortal://` links are accepted and opened through Hub.
 - **Verified publication state machine** (draft → pending-approval →
   pending-confirmation → published/partial/failed/ambiguous). A post appears in
   Posts, Latest posts, term pages and detail routes only after exact read-back.

@@ -63,6 +63,42 @@ Regression tests: `tests/slug.test.ts` and `tests/editor.test.tsx` cover
 character-by-character typing, pasted titles, Estonian titles, manual edits,
 duplicates, the published lock and the advanced change flow.
 
+
+## 2a. Stale deployment check (why the live site still showed t)
+
+The root-cause fix above is only effective when the deployed CMS bundle
+actually contains it. A live-site audit on 2026-11-08 found a mixed state:
+
+| Signal | Live WEBSITE developer iffi | Current release build |
+| --- | --- | --- |
+| Script asset | assets/index-boCGirRd.js | assets/index-DO0Igp7n.js (0.8.0-alpha.7 baseline) |
+| Build marker | 0.8.0-alpha.5 | 0.8.0-alpha.7 baseline |
+| Slug reducer | absent | src/lib/slugField.js |
+| Old handler present | yes: slug: o.slug || dt(Q.target.value) | no |
+| Imported WP editing | remain read-only | full edit overlay |
+
+The live bundle contains the exact one-time latch, so the behaviour was not a
+display-only issue: the first keystroke was stored in the draft and then
+published as the native-index slug and content identifier. The live catalog
+contained one such published item (t for Teine postitus), while none of the
+five imported posts had a truncated slug.
+
+Three robustness changes make a wrong deployment visible and harmless in the new
+build:
+
+1. The Admin toolbar and footer show the exact template version. Admin also
+   states that an older version means a stale Q-App/WEBSITE bundle.
+2. Save draft and Publish refuse an untouched one-character automatic slug
+   derived from a longer title. The editor shows the historical truncation
+   warning and a Regenerate slug action in place.
+3. Published slugs remain locked, so an existing t item can still be edited
+   without its identity changing silently; fixing it requires the explicit
+   advanced slug action (alias + preserved old resource).
+
+Troubleshooting: if the live site does not show the current template version,
+the deployed bundle is stale. Republish the verified Generic CMS ZIP (APP or
+WEBSITE) under the existing Qortal name; do not change qms-cms-config.json.
+
 ## 3. Slug rules
 
 - Generated from the complete title: `Teine test post` -> `teine-test-post`.
@@ -188,3 +224,67 @@ The report is detection-only. Drafts can be opened and regenerated. Published
 items require the advanced slug workflow. Nothing is renamed automatically and
 publication history is not rewritten. Imported items are repaired through an
 overlay, so the imported resource and its metadata stay intact.
+
+Run the audit any time with `npm run cms:slug-audit` (read-only; it never
+authenticates, signs or writes). It reads the live manifest, imported indexes,
+native index and edit overlay and prints counts plus findings.
+
+Live audit (2026-11-08, read-only, DOCUMENT / developer iffi): 5 imported
+posts, 0 with one-character or truncated slugs; 2 CMS-authored native posts,
+1 with the historical t slug. The affected item is Teine postitus (/t),
+published by the stale 0.8.0-alpha.5 bundle. It is reported, not renamed. The
+other native post (/testpostitamine) is unaffected.
+
+## 7. Featured images
+
+The post/page editor has an optional featured-image field. It supports:
+
+- choosing an existing QDN image from the catalog, a gallery, or a QDN search;
+- uploading a local image, previewed before publication;
+- replacing or removing the current choice;
+- seeing exactly which image will be used before publishing.
+
+The exact helper text shown in the editor is:
+
+> Featured image is optional. If you don’t choose one, the first suitable image
+> in your post will be used automatically. If your post has no images, it will
+> be published without a featured image.
+
+### Resolution order
+
+1. An explicit owner selection.
+2. A preserved WordPress featured image (until the owner selects, replaces or
+   removes it).
+3. The first suitable image in the post body.
+4. No featured image.
+
+Automatic selection is deterministic: images are considered in document order
+and the same body always selects the same image. Tracking pixels, spacer/blank
+pixels, icons, SVG placeholders, video thumbnails, data:/blob: URLs and broken
+or non-resolvable references are skipped. A body image that resolves to a known
+QDN media reference is stored as a QDN reference; an external body image is
+stored as an external URL fallback.
+
+### Publication and metadata
+
+- The native index entry carries featured_image, featured_image_url,
+  featured_image_alt and featured_image_source.
+- The qms-qdn-content@1 payload carries the same image under media.featured
+  with role "featured".
+- WordPress-imported edits carry the fields in the versioned edit-overlay
+  entry; imported resources are never modified.
+- A local image is published first through the owner-guarded media plan
+  (content-addressed identifier, collision check, fee and exact read-back),
+  then the post is published. The confirmation dialog quotes four resources
+  when a new image joins the three document writes.
+- An already published image with identical bytes is reused instead of
+  re-uploaded.
+
+The rendered image is used on home cards, post lists, the post detail page and
+search results. Posts with no featured image render normally without one.
+
+### WordPress compatibility
+
+An imported explicit WordPress featured image is preserved. If the imported
+item has no featured image, the first suitable body image is used. Imported
+resources and their original metadata are never rewritten.

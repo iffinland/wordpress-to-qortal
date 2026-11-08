@@ -4,6 +4,7 @@ import {
   findSlugAnomalies,
   isValidSlug,
   mergeAliases,
+  prematureAutoSlugProblem,
   resolveBySlug,
   sanitizeSlugTyping,
   slugAvailability,
@@ -155,6 +156,26 @@ describe('repair detection for prematurely generated one-character slugs', () =>
   it('does not flag genuinely short titles', () => {
     expect(findSlugAnomalies({ drafts: [{ id: 'x', title: 'Q', slug: 'q' }] })).toEqual([]);
     expect(findSlugAnomalies({ drafts: [{ id: 'x', title: 'Teine', slug: 'teine-test' }] })).toEqual([]);
+  });
+});
+
+describe('save and publish guard for truncated automatic slugs', () => {
+  it('blocks the historical one-character latch for a longer untouched title', () => {
+    const message = prematureAutoSlugProblem({ title: 'Teine test post', slug: 't', touched: false, locked: false });
+    expect(message).toMatch(/only one character/);
+    expect(message).toMatch(/first-keystroke/);
+    expect(prematureAutoSlugProblem({ title: 'Teine postitus', slug: 't' })).toMatch(/only one character/);
+  });
+
+  it('allows a legitimate short title, a manual slug and a published locked slug', () => {
+    expect(prematureAutoSlugProblem({ title: 'Q', slug: 'q', touched: false, locked: false })).toBe('');
+    expect(prematureAutoSlugProblem({ title: 'Q!', slug: 'q', touched: false, locked: false })).toBe('');
+    expect(prematureAutoSlugProblem({ title: 'Teine test post', slug: 't', touched: true, locked: false })).toBe('');
+    expect(prematureAutoSlugProblem({ title: 'Teine test post', slug: 't', touched: true, locked: true })).toBe('');
+  });
+
+  it('does not block a complete automatic slug', () => {
+    expect(prematureAutoSlugProblem({ title: 'Teine test post', slug: 'teine-test-post', touched: false, locked: false })).toBe('');
   });
 });
 

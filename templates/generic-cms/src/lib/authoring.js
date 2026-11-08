@@ -49,6 +49,7 @@ import {
 } from './overlay.js';
 import { assertSlugChangeAllowed } from './slugField.js';
 import { mergeAliases, slugify } from './slug.js';
+import { featuredMediaEntry, resolveFeaturedImage } from './featuredImage.js';
 
 export async function loadPublishedSettings(name) {
   const payload = await fetchPublishedSettings(name);
@@ -105,9 +106,19 @@ export async function publishNativePostDraft({ identity, name, siteId, draft, ba
     ? nativeContentIdentifier(siteId, nextSlug)
     : (draft.contentIdentifier || nativeContentIdentifier(siteId, nextSlug));
   const now = Number(timestamp) || Date.now();
-  const htmlBytes = new TextEncoder().encode(draft.html || '');
+  const featured = draft.featuredImageResolved || resolveFeaturedImage(draft, null, { name });
+  const mediaDocument = {
+    featured: featuredMediaEntry(featured, name),
+    images: Array.isArray(draft.media) ? draft.media : [],
+    audio: [],
+    video: [],
+    documents: [],
+    embeds: [],
+    attachments: []
+  };
+  const htmlBytes = new TextEncoder().encode(JSON.stringify({ html: draft.html || '', featured: featured.ref || featured.url || null }));
   const contentHash = 'sha256:' + await sha256Hex(htmlBytes);
-  const payload = buildNativeContentPayload({ ...draft, author: author || draft.author }, { contentIdentifier, qdnName: name, contentHash, now });
+  const payload = buildNativeContentPayload({ ...draft, author: author || draft.author, featuredImageResolved: featured, mediaDocument }, { contentIdentifier, qdnName: name, contentHash, now });
   const contentResult = await publishJsonResource({
     identity, name, identifier: contentIdentifier, document: payload,
     title: draft.title,
@@ -115,7 +126,7 @@ export async function publishNativePostDraft({ identity, name, siteId, draft, ba
     storage
   });
   if (!contentResult.ok) return { ...contentResult, stage: 'content' };
-  const built = nativeEntryFromDraft({ ...draft, slug: nextSlug, slugAliases }, { siteId, qdnName: name, contentIdentifier, contentHash, now });
+  const built = nativeEntryFromDraft({ ...draft, slug: nextSlug, slugAliases, featuredImageResolved: featured }, { siteId, qdnName: name, contentIdentifier, contentHash, now });
   const updated = upsertNativeEntry(index, built.entry, {
     baseRevision, siteId, identity, now,
     categories: built.categories, tags: built.tags
@@ -263,10 +274,20 @@ export async function publishOverlayDraft(options) {
   }
   const now = Number(timestamp) || Date.now();
   const contentIdentifier = overlayContentIdentifier(siteId, draft.sourceItemId);
-  const htmlBytes = new TextEncoder().encode(draft.html || '');
+  const featured = draft.featuredImageResolved || resolveFeaturedImage(draft, null, { name });
+  const mediaDocument = {
+    featured: featuredMediaEntry(featured, name),
+    images: Array.isArray(draft.media) ? draft.media : [],
+    audio: [],
+    video: [],
+    documents: [],
+    embeds: [],
+    attachments: []
+  };
+  const htmlBytes = new TextEncoder().encode(JSON.stringify({ html: draft.html || '', featured: featured.ref || featured.url || null }));
   const contentHash = 'sha256:' + await sha256Hex(htmlBytes);
   const payload = buildNativeContentPayload(
-    { ...draft, slug: nextSlug, author: author || draft.author },
+    { ...draft, slug: nextSlug, author: author || draft.author, featuredImageResolved: featured, mediaDocument },
     { contentIdentifier, qdnName: name, contentHash, now }
   );
   // Provenance: same qms-qdn-content@1 schema, explicit WordPress source mapping.
@@ -301,6 +322,7 @@ export async function publishOverlayDraft(options) {
     draft: { ...draft, slug: nextSlug, slugAliases: mergeAliases(draft.slugAliases, previousSlug, nextSlug) },
     contentRef: { service: 'DOCUMENT', name, identifier: contentIdentifier },
     contentHash,
+    featuredImage: featured,
     baseSourceHash: draft.baseSourceHash || '',
     identity,
     now

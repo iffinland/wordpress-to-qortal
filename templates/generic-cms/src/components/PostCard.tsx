@@ -1,22 +1,19 @@
 import { pageHref, postHref } from '../lib/routes.js';
 import { formatDate } from '../lib/text.js';
 import type { CmsContentItem } from '../types';
-import { createQdnResourceUrl } from '../lib/qortal.js';
+import { featuredImageUrlForItem } from '../lib/featuredImage.js';
 import type { CmsDataset } from '../types';
 
 export function PostCard(props: { item: CmsContentItem; dataset: CmsDataset; headingLevel?: 2 | 3 }) {
   const item = props.item;
   const Heading = props.headingLevel === 3 ? 'h3' : 'h2';
   const href = item.type === 'page' ? pageHref(item.slug) : postHref(item.slug);
-  const featured = item.featuredImageRef;
-  const imageUrl = featured
-    ? createQdnResourceUrl(featured.service, featured.name || props.dataset.site.ownerName, featured.identifier)
-    : '';
+  const imageUrl = featuredImageUrlForItem(item, props.dataset);
   return (
     <article className="post-card">
       {imageUrl ? (
         <a className="post-card__media" href={href} tabIndex={-1} aria-hidden="true">
-          <img src={imageUrl} alt="" loading="lazy" decoding="async" />
+          <img src={imageUrl} alt={item.featuredImageAlt || ''} loading="lazy" decoding="async" />
         </a>
       ) : null}
       <div className="post-card__body">

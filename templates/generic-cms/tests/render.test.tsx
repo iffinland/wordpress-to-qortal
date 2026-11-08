@@ -93,6 +93,21 @@ describe('generic CMS routes render from the fixture manifest', () => {
     expect(html).toContain('href="#/tag/introduction"');
   });
 
+  it('renders the same featured image on home cards, lists, detail and search', () => {
+    const home = render(<HomePage dataset={dataset} />, { kind: 'home' });
+    const posts = render(<PostsPage dataset={dataset} page={1} />, { kind: 'posts', page: 1 });
+    const detail = render(
+      <PostPage dataset={dataset} item={dataset.posts.find((item) => item.slug === 'hello-qortal') || null} content={helloContent} loading={false} error="" onRetry={() => undefined} previous={null} next={null} />,
+      { kind: 'post', slug: 'hello-qortal' }
+    );
+    const search = render(<SearchPage dataset={dataset} query="hello" />, { kind: 'search', query: 'hello' });
+    for (const html of [home, posts, detail, search]) {
+      expect(html).toContain('/arbitrary/IMAGE/QortalDemo/qms-fixture-image-hero');
+    }
+    expect(detail).toContain('class="article-image"');
+    expect(search).toContain('class="search-result__image"');
+  });
+
   it('sanitizes malicious post content before rendering', () => {
     const item = dataset.posts.find((entry) => entry.slug === 'hello-qortal');
     const content = { ...helloContent, html: '<p>Safe body</p><script>alert(1)</script><img src="x" onerror="alert(2)"><a href="javascript:alert(3)">bad</a>' };

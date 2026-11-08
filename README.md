@@ -6,22 +6,22 @@ normalizes the content, downloads and de-duplicates supported media, prepares
 deterministic QDN batches, hands them to a separate Qortal Hub publishing app,
 and verifies the resulting QDN resources byte-for-byte.
 
-## Download Qortal Migration Studio 0.8.0 alpha.9
+## Download Qortal Migration Studio 0.8.0 alpha.10
 
 The release ships three files. Most people need the desktop application; the
 two Q-App ZIPs are for publishing and for the public website runtime.
 
 | What you need | Download | What it does |
 | --- | --- | --- |
-| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0-alpha.9_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.9/qortal-migration-studio_0.8.0-alpha.9_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
-| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-alpha.2.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.9/qortal-migration-publisher-v0.8.0-alpha.2.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
-| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.8.0-alpha.7.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.9/qortal-migration-generic-cms-v0.8.0-alpha.7.zip) | The neutral website/APP Q-App that renders a published QDN catalog and now supports owner editing of imported and CMS-authored content. It is the site runtime, not the migration tool. |
+| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0-alpha.10_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/qortal-migration-studio_0.8.0-alpha.10_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
+| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-alpha.2.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/qortal-migration-publisher-v0.8.0-alpha.2.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
+| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.8.0-alpha.8.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/qortal-migration-generic-cms-v0.8.0-alpha.8.zip) | The neutral website/APP Q-App that renders a published QDN catalog and now supports owner editing of imported and CMS-authored content. It is the site runtime, not the migration tool. |
 
-Also download [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.9/SHA256SUMS),
-[sbom.cdx.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.9/sbom.cdx.json)
-and [provenance.intoto.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.9/provenance.intoto.json)
+Also download [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/SHA256SUMS),
+[sbom.cdx.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/sbom.cdx.json)
+and [provenance.intoto.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/provenance.intoto.json)
 to verify the files. Release page:
-<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-alpha.9>.
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-alpha.10>.
 The Publisher artifact is unchanged from 0.8.0-alpha.2 and is re-uploaded under
 this tag; it is verified byte-identical to the original asset.
 
@@ -59,18 +59,20 @@ migrate, or by the Qortal project.
 
 ## Alpha status
 
-Version **0.8.0 alpha.9** is the latest published alpha. It makes the Generic
-CMS a real editor for every catalog item and fixes the live slug defect that
-produced one-character slugs: typing `Teine test post` stored `t` because the
-first keystroke latched the slug. Auto-generation now follows the complete
-title, stops at the first manual edit, offers explicit regeneration,
-transliterates Estonian and other Unicode letters consistently, detects
-duplicates across imported and CMS-authored content, and locks published slugs
-behind an explicit advanced change that preserves old URLs as aliases. Imported
-WordPress posts can now be edited through a versioned, conflict-aware overlay
-that never modifies the imported resources and survives incremental sync.
-Gallery captions/alt text/order, site footer editing and unsaved-change guards
-are included. See
+Version **0.8.0 alpha.10** is the latest published alpha. It adds optional
+featured images to the Generic CMS editor (choose an existing QDN image,
+upload a local image, preview, replace or remove it, and see the exact image
+that will be published; an explicit choice wins over a preserved WordPress
+featured image, then the first suitable body image, then none). It also makes
+the slug fix observable and deploy-safe: Admin shows the template version and
+warns about stale bundles, and Save draft/Publish refuse an untouched
+one-character automatic slug from a longer title. The earlier complete-title
+slug generation, manual-edit stop, regeneration, Unicode transliteration,
+duplicate detection, published-slug locking and WordPress edit overlay remain.
+Featured images persist in the native index, qms-qdn-content@1 media.featured
+and the edit overlay and render on cards, lists, detail and search. Gallery
+captions/alt text/order, site footer editing and unsaved-change guards are
+included. See
 [docs/migration-studio/CMS-EDITING-AND-SLUGS.md](docs/migration-studio/CMS-EDITING-AND-SLUGS.md).
 The CMS also gains first-class `qortal://` links,
 copy-with-badge behaviour for `https://` links, live full-text search over a
@@ -129,14 +131,14 @@ or any development tools.
 ## Download, install and launch
 
 1. Download
-   [qortal-migration-studio_0.8.0-alpha.9_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.9/qortal-migration-studio_0.8.0-alpha.9_amd64.deb)
+   [qortal-migration-studio_0.8.0-alpha.10_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/qortal-migration-studio_0.8.0-alpha.10_amd64.deb)
    and the release assets `SHA256SUMS`, `sbom.cdx.json` and
    `provenance.intoto.json`.
 2. Verify the checksum (see [Security](#security-and-checksums)).
 3. Install and launch:
 
 ```bash
-sudo apt install ./qortal-migration-studio_0.8.0-alpha.9_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-alpha.10_amd64.deb
 qortal-migration-studio
 ```
 
@@ -347,9 +349,9 @@ signing key in the release environment, so `apt` cannot verify a signature.
 Verify the published hash before installing:
 
 ```bash
-sha256sum qortal-migration-studio_0.8.0-alpha.9_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-alpha.10_amd64.deb
 # Compare the output with this artifact's line in SHA256SUMS
-# from the v0.8.0-alpha.9 release page.
+# from the v0.8.0-alpha.10 release page.
 sha256sum -c SHA256SUMS
 ```
 
