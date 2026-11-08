@@ -178,4 +178,14 @@ if (failed) {
   console.error('public download verification FAILED; see release/public-verification.json');
   process.exit(1);
 }
+// Mandatory: the repository homepage must advertise this release, not an older alpha.
+const readmeGate = spawnSync(process.execPath, [path.join(REPO_ROOT, 'scripts/release/verify-readme-links.mjs')], {
+  stdio: 'inherit',
+  cwd: REPO_ROOT
+});
+if (readmeGate.status !== 0) {
+  console.error('README download links are outdated; update README.md to ' + tag + ' before announcing this release.');
+  process.exit(1);
+}
+
 console.log(JSON.stringify(report, null, 2));

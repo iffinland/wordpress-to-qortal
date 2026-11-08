@@ -227,3 +227,18 @@ approved checksum.
   a reviewed pull request with explicit owner authorization.
 - After a release, verify `git status` is clean in every worktree used and record the exact
   published commit SHA.
+
+## README download links (mandatory gate)
+
+The three prominent download links on the repository homepage (`README.md`) must always
+point at the newest published release and its exact assets. A release is not delivered while
+the homepage still advertises an older alpha.
+
+- `npm run release:readme-links` validates that the desktop `.deb`, Publisher ZIP and Generic
+  CMS ZIP links resolve to the newest non-draft release, that each asset exists and is
+  `uploaded`, and that the release's own `SHA256SUMS` lists the advertised component files.
+- `scripts/release/publish-release.mjs` runs the gate after public download verification and
+  fails the release when `README.md` is outdated.
+- When a component does not change, its ZIP keeps its own version in the filename while the
+  link tag follows the newest release (for example `v0.8.0-alpha.12/qortal-migration-generic-cms-v0.8.0-alpha.8.zip`).
+  Never mix a tag with an asset that does not exist in that tag.
