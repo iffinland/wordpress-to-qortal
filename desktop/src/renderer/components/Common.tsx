@@ -42,15 +42,20 @@ export function Field({ label, hint, error, children }: { label: string; hint?: 
 }
 
 export function ProgressBar({ completed, total, bytes }: { completed: number; total: number; bytes?: number }) {
-  const safeTotal = total > 0 ? total : 0;
-  const percent = safeTotal > 0 ? Math.min(100, Math.round((completed / safeTotal) * 100)) : 0;
+  const safeCompleted = Number.isFinite(completed) ? Math.max(0, completed) : 0;
+  const safeTotal = Number.isFinite(total) && total > 0 ? total : 0;
+  // Never invent a denominator. With no known total the bar is indeterminate
+  // and shows the real number completed instead of a fake percentage.
+  const percent = safeTotal > 0 ? Math.min(100, Math.round((safeCompleted / safeTotal) * 100)) : null;
   return (
     <div className="progress" aria-label="Operation progress">
-      <div className="progress-track"><div className="progress-fill" style={{ width: percent + '%' }} /></div>
+      <div className={'progress-track' + (percent === null ? ' indeterminate' : '')}>
+        <div className="progress-fill" style={percent === null ? undefined : { width: percent + '%' }} />
+      </div>
       <div className="progress-meta">
-        <span>{completed} / {safeTotal}</span>
+        <span>{safeCompleted} {percent === null ? 'completed (total not reported yet)' : '/ ' + safeTotal}</span>
         {bytes !== undefined && <span>{bytes} bytes downloaded</span>}
-        <span>{percent}%</span>
+        {percent !== null && <span>{percent}%</span>}
       </div>
     </div>
   );

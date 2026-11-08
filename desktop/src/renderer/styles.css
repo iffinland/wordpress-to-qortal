@@ -14,7 +14,9 @@
   --info: #60a5fa;
   --radius: 14px;
   font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
-  font-size: 15px;
+  /* Global text size setting: 90/100/115/130/150%. */
+  --qms-font-scale: 1;
+  font-size: calc(15px * var(--qms-font-scale));
   background: radial-gradient(circle at 20% 0%, #123044 0%, var(--bg) 45%);
   color: var(--text);
 }
@@ -58,6 +60,8 @@ ul { margin: 0.25rem 0; padding-left: 1.2rem; }
 .brand-mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 11px; background: linear-gradient(140deg, #0e2a3d, #0f766e); color: #a7f3d0; font-weight: 800; font-size: 1.1rem; border: 1px solid #1c5b5b; }
 .brand span { display: block; }
 .app-main { flex: 1; padding: 1.5rem; max-width: 1280px; width: 100%; margin: 0 auto; }
+.text-size-control { display: inline-flex; align-items: center; gap: 0.4rem; }
+.text-size-control select { width: auto; padding: 0.3rem 0.45rem; font-size: 0.85rem; }
 .app-footer { display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; padding: 0.7rem 1.5rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.78rem; }
 .splash { min-height: 100vh; display: grid; place-items: center; align-content: center; gap: 1rem; }
 .spinner { width: 38px; height: 38px; border: 3px solid #1e3a52; border-top-color: var(--accent); border-radius: 50%; animation: spin 900ms linear infinite; }
@@ -129,6 +133,8 @@ ul { margin: 0.25rem 0; padding-left: 1.2rem; }
 .progress { display: flex; flex-direction: column; gap: 0.3rem; }
 .progress-track { height: 9px; border-radius: 999px; background: #0a1824; border: 1px solid var(--border); overflow: hidden; }
 .progress-fill { height: 100%; background: linear-gradient(90deg, #0f766e, #2dd4bf); transition: width 200ms ease; }
+.progress-track.indeterminate .progress-fill { width: 30%; animation: progress-indeterminate 1.4s ease-in-out infinite; }
+@keyframes progress-indeterminate { 0% { margin-left: -30%; } 100% { margin-left: 100%; } }
 .progress-meta { display: flex; gap: 0.9rem; flex-wrap: wrap; color: var(--muted); font-size: 0.78rem; }
 .timeline { display: flex; flex-direction: column; gap: 0.2rem; max-height: 320px; overflow: auto; border: 1px solid var(--border); border-radius: 10px; padding: 0.45rem; background: #081521; }
 .timeline-row { display: grid; grid-template-columns: 88px 92px 170px 1fr; gap: 0.5rem; font-size: 0.76rem; padding: 0.18rem 0.2rem; border-bottom: 1px solid #10283b; }

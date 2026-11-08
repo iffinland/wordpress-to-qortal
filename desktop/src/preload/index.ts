@@ -22,7 +22,15 @@ const api = {
     settings: () => invoke(IPC.appSettings),
     setDataRoot: (path: string) => invoke(IPC.setDataRoot, { path }),
     openPath: (path: string) => invoke(IPC.openPath, { path }),
-    openUrl: (url: string) => invoke(IPC.openUrl, { url })
+    openUrl: (url: string) => invoke(IPC.openUrl, { url }),
+    reportError: (entry: { source?: string; message: string; stack?: string; componentStack?: string }) =>
+      invoke(IPC.appReportError, entry)
+  },
+  nodes: {
+    get: () => invoke(IPC.nodesGet),
+    set: (url: string, selected = true) => invoke(IPC.nodesSet, { url, selected }),
+    remove: (url: string) => invoke(IPC.nodesRemove, { url }),
+    test: (url: string) => invoke(IPC.nodesTest, { url })
   },
   projects: {
     list: (includeArchived = false) => invoke(IPC.projectList, { includeArchived }),

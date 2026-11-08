@@ -97,12 +97,56 @@ describe('desktop publishing handoff flow', () => {
     await user.click(screen.getByRole('button', { name: 'Import receipt' }));
     await waitFor(() => expect(window.qms.publication.importReceipt).toHaveBeenCalledWith('prj_abcdefgh', handoffSummary.handoffId, expect.any(Object)));
 
-    const nodeInput = screen.getByLabelText(/Qortal node URL/);
+    const nodeInput = screen.getByLabelText(/Qortal node for read-only verification/);
     await user.clear(nodeInput);
     await user.type(nodeInput, 'http://127.0.0.1:12391');
     await user.click(screen.getByRole('button', { name: 'Run independent QDN verification' }));
     expect(await screen.findByText(/Exact read-back completed for every resource/)).toBeInTheDocument();
     expect(window.qms.publication.verify).toHaveBeenCalled();
+  });
+
+  it('renders a prepared handoff whose resources carry state but no status (BUG-002 regression)', async () => {
+    const api = mockApi();
+    api.plans.list = vi.fn(async () => [{ planId: 'plan_abcdefgh', status: 'ready', batchId: 'batch', selectedCount: 1, conflictCount: 0, createdAt: '2026-11-03T10:00:00.000Z' }]);
+    api.plans.get = vi.fn(async () => ({
+      plan: plan(),
+      record: { planId: 'plan_abcdefgh', status: 'ready', batchId: 'batch', selectedCount: 1, conflictCount: 0, createdAt: '2026-11-03T10:00:00.000Z' },
+      planFile: '/tmp/plan.json'
+    }));
+    api.publication.list = vi.fn(async () => [handoffSummary]);
+    // This is the exact shape publication.prepare/get returns: handoff
+    // preparation state lives in "state"; there is no "status" key. The old
+    // table dereferenced resource.status and unmounted the whole renderer.
+    const engineResource = { ...resource, status: undefined, state: 'handoff_ready' } as unknown as typeof resource;
+    api.publication.prepare = vi.fn(async () => ({
+      handoffId: handoffSummary.handoffId,
+      publicationBatchId: handoffSummary.publicationBatchId,
+      planId: handoffSummary.planId,
+      status: 'handoff_ready',
+      handoffPath: handoffSummary.handoffPath,
+      absolutePath: '/data/projects/prj_demo/publication/handoffs/hof_abcdefgh12345678',
+      resources: [engineResource],
+      counts: { content: 1 },
+      estimate: handoffSummary.estimate,
+      packageValidated: true,
+      message: 'Portable handoff is ready.'
+    }));
+    api.publication.get = vi.fn(async () => ({
+      handoff: { ...handoffSummary, projectId: project().id, siteId: project().siteId!, resources: [engineResource] },
+      resources: [engineResource],
+      absolutePath: '/data/projects/prj_demo/publication/handoffs/hof_abcdefgh12345678',
+      packageValid: true,
+      validation: { filesVerified: 1, summary: {} }
+    }));
+    window.qms = api;
+
+    const user = userEvent.setup();
+    render(<Publishing projectId="prj_abcdefgh" onBack={vi.fn()} />);
+    await screen.findByText('1 of 1 resources selected');
+    await user.click(screen.getByRole('button', { name: 'Generate handoff package' }));
+    expect(await screen.findByText('Portable handoff is ready.')).toBeInTheDocument();
+    expect((await screen.findAllByText('handoff ready')).length).toBeGreaterThan(0);
+    expect(screen.getByTestId('publishing-view')).toBeInTheDocument();
   });
 
   it('never renders wallet-secret fields or claims handoff_ready is published', async () => {

@@ -5,6 +5,7 @@ import type { EngineHost } from './host.js';
 import type { DesktopUpdates } from './updates.js';
 import type { CredentialStore } from './credentials.js';
 import { sanitizeForDiagnostics } from './diagnostics.js';
+import type { NodeTestResult } from './nodes.js';
 import { realpath } from 'node:fs/promises';
 import { trustedRendererUrl } from './window.js';
 import path from 'node:path';
@@ -76,6 +77,11 @@ export interface IpcDependencies {
   dataRoot: () => string;
   updates: () => DesktopUpdates;
   setUpdateNode: (url: string) => Promise<unknown>;
+  reportRendererError: (entry: { source: string; message: string; stack?: string; componentStack?: string }) => Promise<unknown>;
+  nodes: () => { nodes: string[]; selected: string | null; defaultNode: string };
+  setNode: (url: string, selected: boolean) => Promise<{ nodes: string[]; selected: string | null; defaultNode: string }>;
+  removeNode: (url: string) => Promise<{ nodes: string[]; selected: string | null; defaultNode: string }>;
+  testNode: (url: string) => Promise<NodeTestResult>;
 }
 
 function errorPayload(error: unknown) {
@@ -101,6 +107,16 @@ export function registerIpc(deps: IpcDependencies): void {
   const handlers: Record<string, (params: Record<string, unknown>) => Promise<unknown>> = {
     [IPC.appInfo]: async () => deps.appInfo(),
     [IPC.appSettings]: async () => deps.getSettings(),
+    [IPC.appReportError]: async (params) => deps.reportRendererError({
+      source: String(params.source ?? 'renderer'),
+      message: String(params.message ?? 'Renderer failure'),
+      stack: params.stack === undefined ? undefined : String(params.stack),
+      componentStack: params.componentStack === undefined ? undefined : String(params.componentStack)
+    }),
+    [IPC.nodesGet]: async () => deps.nodes(),
+    [IPC.nodesSet]: async (params) => deps.setNode(String(params.url), params.selected !== false),
+    [IPC.nodesRemove]: async (params) => deps.removeNode(String(params.url)),
+    [IPC.nodesTest]: async (params) => deps.testNode(String(params.url)),
     [IPC.setDataRoot]: async (params) => deps.setDataRoot(String(params.path)),
 
     [IPC.openUrl]: async (params) => {

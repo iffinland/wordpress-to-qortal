@@ -41,7 +41,7 @@ describe('wizard completed-step migration', () => {
     expect(first.changed).toBe(true);
     expect(first.legacySteps).toBe(true);
     expect(first.wizard.completedSteps).toEqual(['source', 'connection', 'destination', 'preferences']);
-    expect(first.wizard.wizardVersion).toBe(2);
+    expect(first.wizard.wizardVersion).toBe(3);
     expect((first.wizard.preferences as Record<string, unknown>).before).toBe('2026-10-21T23:59:59.999Z');
     // No setting or selected value is dropped.
     expect((first.wizard.preferences as Record<string, unknown>).batchSize).toBe(5);
@@ -69,7 +69,7 @@ describe('wizard completed-step migration', () => {
       updatedAt: '2026-11-05T12:00:00.000Z'
     });
     expect(wizard.completedSteps).toEqual(['source', 'connection', 'destination', 'preferences']);
-    expect(wizard.wizardVersion).toBe(2);
+    expect(wizard.wizardVersion).toBe(3);
     expect((wizard.preferences as Record<string, unknown>).batchSize).toBe(5);
     expect((wizard.preferences as Record<string, unknown>).before).toBe('2026-10-21T23:59:59.999Z');
   });

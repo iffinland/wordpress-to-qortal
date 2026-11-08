@@ -8,6 +8,10 @@ export interface DesktopConfig {
   schema: 'qms-desktop-config@1';
   dataRoot: string;
   updateNodeUrl?: string;
+  /** Preferred Qortal/Qortium read-only nodes, user-editable. */
+  qortalNodes?: string[];
+  /** Currently selected node for publication verification. */
+  qortalNodeUrl?: string;
   updatedAt: string;
 }
 
@@ -66,10 +70,15 @@ export async function loadConfig(): Promise<DesktopConfig> {
       throw new Error('invalid config');
     }
     const resolved = path.resolve(parsed.dataRoot);
+    const nodes = Array.isArray(parsed.qortalNodes)
+      ? parsed.qortalNodes.filter((entry: unknown) => typeof entry === 'string' && /^https?:\/\//i.test(entry)).slice(0, 20)
+      : [];
     return {
       schema: 'qms-desktop-config@1',
       dataRoot: resolved,
       ...(typeof parsed.updateNodeUrl === 'string' && parsed.updateNodeUrl ? { updateNodeUrl: parsed.updateNodeUrl } : {}),
+      ...(nodes.length > 0 ? { qortalNodes: nodes } : {}),
+      ...(typeof parsed.qortalNodeUrl === 'string' && parsed.qortalNodeUrl ? { qortalNodeUrl: parsed.qortalNodeUrl } : {}),
       updatedAt: String(parsed.updatedAt ?? '')
     };
   } catch {
@@ -89,6 +98,8 @@ export function desktopSettings(config: DesktopConfig, keyring: { available: boo
   return {
     dataRoot: config.dataRoot,
     updateNodeUrl: config.updateNodeUrl ?? null,
+    qortalNodes: config.qortalNodes ?? [],
+    qortalNodeUrl: config.qortalNodeUrl ?? null,
     configFile: configFile(),
     keyring: { ...keyring, persistentCredentials: keyring.available },
     ...extra

@@ -6,6 +6,8 @@ import { defaultDataRoot, loadConfig, saveConfig, validateDataRoot, desktopSetti
 import { createMainWindow, installSessionPolicy, isTrustedNavigation } from './window.js';
 import { forwardEngineEvent, registerIpc } from './ipc.js';
 import { DesktopUpdates, validateUpdateNodeUrl } from './updates.js';
+import { recordRendererError } from './diagnostics.js';
+import { DEFAULT_NODE_URL, normalizeNodeUrl, testNodeConnectivity } from './nodes.js';
 
 const smokeTest = process.argv.includes('--qms-smoke-test') || process.env.QMS_SMOKE_TEST === '1';
 const devArg = process.argv.find((arg) => arg.startsWith('--dev-server='));
@@ -47,6 +49,41 @@ async function startHost(dataRoot: string): Promise<EngineHost> {
   await instance.start();
   await instance.request('engine.info', {}, 20_000);
   return instance;
+}
+
+function nodeSettings(): { nodes: string[]; selected: string | null; defaultNode: string } {
+  return {
+    nodes: currentConfig.qortalNodes ?? [],
+    selected: currentConfig.qortalNodeUrl ?? null,
+    defaultNode: DEFAULT_NODE_URL
+  };
+}
+
+async function saveNode(url: string, selected = true): Promise<{ nodes: string[]; selected: string | null; defaultNode: string }> {
+  const normalized = normalizeNodeUrl(url);
+  const nodes = [...new Set([...(currentConfig.qortalNodes ?? []), normalized])].slice(0, 20);
+  currentConfig = {
+    ...currentConfig,
+    qortalNodes: nodes,
+    ...(selected ? { qortalNodeUrl: normalized } : {}),
+    updatedAt: new Date().toISOString()
+  };
+  await saveConfig(currentConfig);
+  return nodeSettings();
+}
+
+async function removeNode(url: string): Promise<{ nodes: string[]; selected: string | null; defaultNode: string }> {
+  const normalized = normalizeNodeUrl(url);
+  const nodes = (currentConfig.qortalNodes ?? []).filter((entry) => entry !== normalized);
+  const selected = currentConfig.qortalNodeUrl === normalized ? null : currentConfig.qortalNodeUrl ?? null;
+  currentConfig = {
+    ...currentConfig,
+    qortalNodes: nodes,
+    ...(selected ? { qortalNodeUrl: selected } : { qortalNodeUrl: undefined }),
+    updatedAt: new Date().toISOString()
+  };
+  await saveConfig(currentConfig);
+  return nodeSettings();
 }
 
 async function changeDataRoot(candidate: string): Promise<Record<string, unknown>> {
@@ -102,6 +139,25 @@ if (!gotLock) {
       console.error('QMS_UPDATE_CHECK_FAILED ' + (error instanceof Error ? error.message : String(error)));
     });
     mainWindow.on('closed', () => { mainWindow = null; });
+    // A crashed renderer used to leave a dark, empty window with no visible
+    // error. Record the crash for diagnostics and reload once so the user can
+    // recover; guard against a crash loop.
+    let rendererReloads = 0;
+    mainWindow.webContents.on('render-process-gone', (_event, details) => {
+      void recordRendererError(currentConfig.dataRoot, {
+        source: 'render-process-gone',
+        message: 'Renderer process exited: reason=' + String(details.reason) + ' exitCode=' + String(details.exitCode),
+        stack: JSON.stringify(details)
+      });
+      if (!mainWindow) return;
+      rendererReloads += 1;
+      console.error('QMS_RENDERER_GONE ' + String(details.reason));
+      if (rendererReloads <= 3) {
+        setTimeout(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) mainWindow.reload();
+        }, 250);
+      }
+    });
     const unsubscribe = host.onEvent((event) => forwardEngineEvent(mainWindow, event));
     app.on('before-quit', () => unsubscribe());
 
@@ -124,7 +180,15 @@ if (!gotLock) {
         currentConfig = { ...currentConfig, updateNodeUrl: normalized, updatedAt: new Date().toISOString() };
         await saveConfig(currentConfig);
         return state;
-      }
+      },
+      reportRendererError: async (entry) => {
+        await recordRendererError(currentConfig.dataRoot, entry);
+        return { recorded: true };
+      },
+      nodes: nodeSettings,
+      setNode: saveNode,
+      removeNode,
+      testNode: (url: string) => testNodeConnectivity(url)
     });
 
     if (smokeTest) {

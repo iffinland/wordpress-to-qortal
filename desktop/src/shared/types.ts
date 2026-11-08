@@ -143,6 +143,24 @@ export interface DesktopSettings {
   arch: string;
   packaged: boolean;
   updateNodeUrl?: string | null;
+  qortalNodes?: string[];
+  qortalNodeUrl?: string | null;
+}
+
+export interface NodeSettings {
+  nodes: string[];
+  selected: string | null;
+  defaultNode: string;
+}
+
+export interface NodeTestResult {
+  ok: boolean;
+  url: string;
+  status: number | null;
+  latencyMs: number;
+  height: number | null;
+  message: string;
+  checkedAt: string;
 }
 
 export interface QmsEvent {
@@ -366,7 +384,10 @@ export interface PublicationResource {
   order: number;
   dependsOn: string[];
   sourceKey?: string | null;
-  status: string;
+  /** Publication state. Prepared-but-unpublished resources carry 'handoff_ready'. */
+  status?: string;
+  /** Handoff preparation state written by publication.prepare. */
+  state?: string | null;
   publisherReportedStatus?: string | null;
   reason?: string | null;
   txSignature?: string | null;
@@ -408,6 +429,7 @@ export interface PublicationPrepareResult {
   counts: Record<string, number>;
   estimate: Record<string, unknown>;
   packageValidated: boolean;
+  reused?: boolean;
   message: string;
 }
 
@@ -809,6 +831,13 @@ export interface QmsApi {
     setDataRoot(path: string): Promise<DesktopSettings>;
     openPath(path: string): Promise<Record<string, unknown>>;
     openUrl(url: string): Promise<Record<string, unknown>>;
+    reportError(entry: { source?: string; message: string; stack?: string; componentStack?: string }): Promise<Record<string, unknown>>;
+  };
+  nodes: {
+    get(): Promise<NodeSettings>;
+    set(url: string, selected?: boolean): Promise<NodeSettings>;
+    remove(url: string): Promise<NodeSettings>;
+    test(url: string): Promise<NodeTestResult>;
   };
   projects: {
     list(includeArchived?: boolean): Promise<ProjectSummary[]>;

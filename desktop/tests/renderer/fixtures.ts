@@ -193,7 +193,14 @@ export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
       settings: vi.fn(async () => settings()),
       setDataRoot: vi.fn(async () => settings()),
       openPath: vi.fn(async () => ({ opened: true, path: '/tmp' })),
-      openUrl: vi.fn(async () => ({ ok: true }))
+      openUrl: vi.fn(async () => ({ ok: true })),
+      reportError: vi.fn(async () => ({ recorded: true }))
+    },
+    nodes: {
+      get: vi.fn(async () => ({ nodes: ['http://127.0.0.1:24991'], selected: 'http://127.0.0.1:24991', defaultNode: 'http://127.0.0.1:12391' })),
+      set: vi.fn(async () => ({ nodes: ['http://127.0.0.1:24991'], selected: 'http://127.0.0.1:24991', defaultNode: 'http://127.0.0.1:12391' })),
+      remove: vi.fn(async () => ({ nodes: [], selected: null, defaultNode: 'http://127.0.0.1:12391' })),
+      test: vi.fn(async () => ({ ok: true, url: 'http://127.0.0.1:24991', status: 200, latencyMs: 4, height: 100, message: 'Node reachable at block 100.', checkedAt: '2026-11-08T00:00:00.000Z' }))
     },
     projects: {
       list: vi.fn(async () => [project()]),

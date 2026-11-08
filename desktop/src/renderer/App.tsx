@@ -11,6 +11,7 @@ import { Recovery } from './components/Recovery.js';
 import { ErrorText } from './components/Common.js';
 import { normalizeCompletedSteps } from '../shared/wizard.js';
 import { Updates } from './components/Updates.js';
+import { TEXT_SIZES, storeTextSize, type TextSize } from './textSize.js';
 
 type View = 'dashboard' | 'wizard' | 'progress' | 'history' | 'publishing' | 'sync' | 'recovery';
 
@@ -39,6 +40,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<unknown>(null);
   const [staleLock, setStaleLock] = useState<{ projectId: string; message: string } | null>(null);
+  const [textSize, setTextSize] = useState<TextSize>(() => {
+    const current = Number(document.documentElement.dataset.textSize);
+    return (TEXT_SIZES as readonly number[]).includes(current) ? current as TextSize : 100;
+  });
 
   async function refreshProjects() {
     const list = await api().projects.list(true);
@@ -219,6 +224,16 @@ export default function App() {
           </div>
         </div>
         <div className="row wrap gap">
+          <label className="text-size-control" title="Global interface text size">
+            <span className="small muted">Text size</span>
+            <select
+              aria-label="Interface text size"
+              value={textSize}
+              onChange={(event) => setTextSize(storeTextSize(Number(event.target.value) as TextSize))}
+            >
+              {TEXT_SIZES.map((size) => <option key={size} value={size}>{size}%</option>)}
+            </select>
+          </label>
           <Updates />
           {settings && <span className="pill">installed v{settings.appVersion}</span>}
           {info && <span className="pill">engine {info.version}</span>}
