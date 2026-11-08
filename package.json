@@ -92,7 +92,8 @@
     "test:desktop": "npm --prefix desktop test",
     "desktop:build": "npm --prefix desktop run build",
     "desktop:deb": "node scripts/release/build-deb.mjs",
-    "release:readme-links": "node scripts/release/verify-readme-links.mjs"
+    "release:readme-links": "node scripts/release/verify-readme-links.mjs",
+    "release:readme-sync": "node scripts/release/sync-readme-links.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

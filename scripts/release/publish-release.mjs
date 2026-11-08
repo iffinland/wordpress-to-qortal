@@ -178,6 +178,28 @@ if (failed) {
   console.error('public download verification FAILED; see release/public-verification.json');
   process.exit(1);
 }
+// Keep the repository homepage in lockstep with the release, then verify it remotely.
+const sync = spawnSync(process.execPath, [path.join(REPO_ROOT, 'scripts/release/sync-readme-links.mjs')], { stdio: 'inherit', cwd: REPO_ROOT });
+if (sync.status !== 0) {
+  console.error('README sync failed; refusing to announce ' + tag);
+  process.exit(1);
+}
+const committed = spawnSync('git', ['status', '--porcelain', '--', 'README.md'], { cwd: REPO_ROOT, encoding: 'utf8' });
+if (committed.stdout.trim() !== '') {
+  for (const command of [['add', 'README.md'], ['commit', '-m', 'docs(release): README downloads follow ' + tag], ['push']]) {
+    const step = spawnSync('git', command, { cwd: REPO_ROOT, stdio: 'inherit' });
+    if (step.status !== 0) {
+      console.error('could not publish README link update (' + command.join(' ') + ')');
+      process.exit(1);
+    }
+  }
+  const remote = spawnSync('git', ['show', 'origin/main:README.md'], { cwd: REPO_ROOT, encoding: 'utf8' });
+  if (remote.status !== 0 || !remote.stdout.includes('/releases/download/' + tag + '/')) {
+    console.error('remote README does not advertise ' + tag + ' yet; push or merge the README update first');
+    process.exit(1);
+  }
+}
+
 // Mandatory: the repository homepage must advertise this release, not an older alpha.
 const readmeGate = spawnSync(process.execPath, [path.join(REPO_ROOT, 'scripts/release/verify-readme-links.mjs')], {
   stdio: 'inherit',
