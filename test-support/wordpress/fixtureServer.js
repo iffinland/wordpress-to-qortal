@@ -204,6 +204,128 @@ export function createFixtureData() {
   };
 }
 
+export function createLargeFixtureData(options = {}) {
+  const postCount = options.posts ?? 36_000;
+  const mediaCount = options.media ?? 250_000;
+  const categoryCount = options.categories ?? 2_053;
+  const tagCount = options.tags ?? 50;
+  const oldDate = '2020-01-01T00:00:00';
+  const richDate = '2026-01-02T03:04:05';
+  const posts = [
+    {
+      id: 101,
+      slug: 'nasa-article-one',
+      title: 'NASA article one',
+      content: '<p>Article one</p><img class="wp-image-777" src="/wp-content/uploads/embed-777.jpg" alt="Embedded">',
+      excerpt: '<p>One</p>',
+      date: richDate,
+      date_gmt: richDate,
+      modified: richDate,
+      modified_gmt: richDate,
+      status: 'publish',
+      author: 7,
+      featured_media: 301,
+      categories: [1, 2],
+      tags: [10]
+    },
+    {
+      id: 102,
+      slug: 'nasa-article-two',
+      title: 'NASA article two',
+      content: '<p>Article two</p>',
+      excerpt: '<p>Two</p>',
+      date: '2026-01-01T03:04:05',
+      date_gmt: '2026-01-01T03:04:05',
+      modified: '2026-01-01T03:04:05',
+      modified_gmt: '2026-01-01T03:04:05',
+      status: 'publish',
+      author: 7,
+      featured_media: 303,
+      categories: [1],
+      tags: [11]
+    },
+    {
+      id: 103,
+      slug: 'nasa-article-three',
+      title: 'NASA article three',
+      content: '<p>Article three</p>',
+      excerpt: '<p>Three</p>',
+      date: '2025-12-31T03:04:05',
+      date_gmt: '2025-12-31T03:04:05',
+      modified: '2025-12-31T03:04:05',
+      modified_gmt: '2025-12-31T03:04:05',
+      status: 'publish',
+      author: 7,
+      featured_media: 0,
+      categories: [2],
+      tags: [10, 11]
+    }
+  ];
+  for (let id = 104; posts.length < postCount; id += 1) {
+    posts.push({
+      id,
+      slug: 'nasa-article-' + id,
+      title: 'NASA article ' + id,
+      content: '<p>Article ' + id + '</p>',
+      excerpt: '',
+      date: oldDate,
+      date_gmt: oldDate,
+      modified: oldDate,
+      modified_gmt: oldDate,
+      status: 'publish',
+      author: 7,
+      featured_media: 0,
+      categories: [1],
+      tags: []
+    });
+  }
+  const media = [
+    { id: 301, slug: 'featured-one', title: 'Featured one', date: oldDate, date_gmt: oldDate, modified: oldDate, modified_gmt: oldDate, status: 'inherit', media_type: 'image', mime_type: 'image/jpeg', source_url: '/wp-content/uploads/featured-one.jpg', alt_text: 'Featured one', caption: '', description: '', post: 0, width: 1200, height: 800 },
+    { id: 302, slug: 'attachment-one', title: 'Attachment one', date: oldDate, date_gmt: oldDate, modified: oldDate, modified_gmt: oldDate, status: 'inherit', media_type: 'file', mime_type: 'application/pdf', source_url: '/wp-content/uploads/attachment-one.pdf', alt_text: '', caption: '', description: '', post: 101, width: null, height: null },
+    { id: 303, slug: 'featured-two', title: 'Featured two', date: oldDate, date_gmt: oldDate, modified: oldDate, modified_gmt: oldDate, status: 'inherit', media_type: 'image', mime_type: 'image/jpeg', source_url: '/wp-content/uploads/featured-two.jpg', alt_text: 'Featured two', caption: '', description: '', post: 0, width: 1000, height: 600 },
+    { id: 777, slug: 'embedded-one', title: 'Embedded one', date: oldDate, date_gmt: oldDate, modified: oldDate, modified_gmt: oldDate, status: 'inherit', media_type: 'image', mime_type: 'image/jpeg', source_url: '/wp-content/uploads/embed-777.jpg', alt_text: 'Embedded', caption: '', description: '', post: 101, width: 800, height: 500 }
+  ];
+  for (let id = 10_000; media.length < mediaCount; id += 1) {
+    media.push({
+      id,
+      slug: 'media-' + id,
+      title: 'Media ' + id,
+      date: oldDate,
+      date_gmt: oldDate,
+      modified: oldDate,
+      modified_gmt: oldDate,
+      status: 'inherit',
+      media_type: 'image',
+      mime_type: 'image/jpeg',
+      source_url: '/wp-content/uploads/media-' + id + '.jpg',
+      alt_text: '',
+      caption: '',
+      description: '',
+      post: 0,
+      width: null,
+      height: null
+    });
+  }
+  const categories = [];
+  for (let id = 1; categories.length < categoryCount; id += 1) {
+    categories.push({ id, slug: 'category-' + id, name: 'Category ' + id, description: '', count: id <= 2 ? 3 : 1, parent: 0 });
+  }
+  const tags = [];
+  for (let id = 10; tags.length < tagCount; id += 1) {
+    tags.push({ id, slug: 'tag-' + id, name: 'Tag ' + id, description: '', count: id <= 11 ? 2 : 1, parent: 0 });
+  }
+  return {
+    site: { name: 'Large Fixture', description: 'NASA-scale synthetic fixture', namespaces: ['wp/v2'] },
+    posts,
+    pages: [],
+    categories,
+    tags,
+    media,
+    customTypes: {},
+    books: []
+  };
+}
+
 function normalizeDate(value) {
   return iso(String(value ?? '').replace(/Z$/, ''));
 }
@@ -316,6 +438,17 @@ function collection(items, query, { emptyMiddlePage = false, defaultOrderBy = 'd
   const order = query.get('order') === 'asc' ? 'asc' : 'desc';
   const orderBy = query.get('orderby') ?? defaultOrderBy;
   let filtered = [...items];
+
+  const include = query.get('include');
+  if (include) {
+    const allowed = new Set(include.split(',').map((value) => value.trim()));
+    filtered = filtered.filter((item) => allowed.has(String(item.id)));
+  }
+  const slugFilter = query.get('slug');
+  if (slugFilter) {
+    const allowed = new Set(slugFilter.split(',').map((value) => value.trim()));
+    filtered = filtered.filter((item) => allowed.has(String(item.slug)));
+  }
 
   const status = query.get('status');
   if (status) {

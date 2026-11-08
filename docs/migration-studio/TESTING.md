@@ -16,6 +16,7 @@ suites are deliberately separate runners.
 | Phase 5.2 deployment layout | `node --test test/phase5.2/deploy-script-layout.test.js` |
 | Phase 7 suite | `npm run test:phase7` |
 | Phase 8 suite | `npm run test:phase8` |
+| Bounded source scans (NASA-scale fixture, pause/resume, ledger reconciliation) | `node --test test/source/bounded-discovery.test.js` |
 | WordPress content policy | `node --test test/source/wordpress-content-policy.test.js` |
 | Corbett compatibility | `node --test test/source/corbett-compat.test.js test/phase6/corbett-regression.test.js` |
 | Builds | `npm run migration:build && npm run cms:build && npm run cms-template:build` |

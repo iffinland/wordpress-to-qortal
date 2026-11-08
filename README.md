@@ -302,6 +302,19 @@ See [templates/generic-cms/README.md](templates/generic-cms/README.md),
 [docs/migration-studio/CMS-SCHEMAS.md](docs/migration-studio/CMS-SCHEMAS.md)
 and [docs/migration-studio/PHASE-6-GENERIC-CMS.md](docs/migration-studio/PHASE-6-GENERIC-CMS.md).
 
+## Bounded source scans
+
+Source discovery defaults to **Quick scan — selected batch** in the desktop
+wizard. It fetches one bounded content page and only the taxonomy terms and
+media records those items reference; it never walks the whole media library or
+all history to prepare a small import. **Full site inventory** is an explicit,
+confirmed choice and remains resumable at page boundaries.
+
+Pause, resume and cancel are separate controls. Continue never starts an
+unbounded scan automatically: it shows the exact mode, item limit, filters and
+worst-case page count first. See
+[docs/migration-studio/BOUNDED-SOURCE-SCANS.md](docs/migration-studio/BOUNDED-SOURCE-SCANS.md).
+
 ## Incremental sync, recovery and cleanup
 
 - **Sync**: manual only. Choose **Check for updates**, review explicit delta

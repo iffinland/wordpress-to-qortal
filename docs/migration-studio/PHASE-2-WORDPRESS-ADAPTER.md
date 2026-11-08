@@ -13,6 +13,11 @@ This document describes what Phase 2 actually implements and what it does not.
 It is evidence-oriented: every capability below has a corresponding test file and
 command in section 12.
 
+> **Bounded scan update (2026-11-08):** discovery now has an explicit Quick
+> scan mode that fetches one bounded content window plus only referenced
+> taxonomy/media dependencies. Full inventory remains available as an explicit
+> choice. See [`BOUNDED-SOURCE-SCANS.md`](BOUNDED-SOURCE-SCANS.md).
+>
 > **Phase 3 update (2026-11-03):** planning, media download, disk limits and
 > persistent identity mappings now build on the Phase 2 discovery artifacts.
 > Phase 3 reads completed batches through `latest.json`/`index.jsonl` and keeps

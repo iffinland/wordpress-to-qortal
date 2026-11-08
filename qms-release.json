@@ -1,22 +1,22 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-alpha.12",
+  "version": "0.8.0-alpha.13",
   "channel": "alpha",
-  "releaseTag": "v0.8.0-alpha.12",
+  "releaseTag": "v0.8.0-alpha.13",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
   "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-ALPHA.md",
   "changelog": {
-    "summary": "Desktop acceptance follow-up after the owner's BUG-002 diagnostics. Confirms that 'Generate handoff package' writes only the handoff directory and that the Publisher ZIP is a separate export written under <workspace>/exports/, never inside the handoff directory. Adds a 'Package existing handoff (.zip)' recovery action for users who already have a complete handoff directory without a ZIP: it packages existing bytes without regenerating payloads or duplicating identities, deterministically. The packaged Electron test reproduces the owner's 29-resource / 19-media / ~8.7 MiB handoff, verifies every payload hash, exports the ZIP, removes it, restarts and re-packages it with an identical SHA-256. Also includes the alpha.11 fixes: persisted-value/project-save error with schema-v3 migration, blank-renderer root cause with an error boundary and redacted diagnostics, media dependency policy, honest progress and selection counts, simpler auth/advanced configuration, persisted 90-150% text size, configurable Qortal nodes with a read-only connectivity test, human-readable skipped content types, and the featured-image CMS work from 0.8.0-alpha.8."
+    "summary": "Bounded source discovery for very large WordPress sites. The wizard defaults to Quick scan: one bounded content page (max 100 items) plus only the taxonomy terms and media dependencies those items reference, never the whole media library or all history. Full site inventory is an explicit, acknowledged choice and remains resumable at term/asset/content page boundaries. Continue no longer starts a scan automatically; it shows the mode, item limit, filters and worst-case page count first. Adds separate Pause/Resume/Cancel, a single-flight guard, startup reconciliation of stale running checkpoints, real progress counters (mode, items scanned/requested, API pages, media dependencies, referenced terms, bytes) and a NASA-scale 36k-post/250k-media fixture proving a three-post scan stays within ten requests. See docs/migration-studio/BOUNDED-SOURCE-SCANS.md."
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-alpha.12",
+      "version": "0.8.0-alpha.13",
       "channel": "alpha",
       "source": "desktop/package.json",
-      "changelog": "Desktop 0.8.0-alpha.12: follows the owner's diagnostics for the blank window. Handoff generation and Publisher ZIP export are separate steps; the ZIP now has a dedicated 'Package existing handoff (.zip)' recovery action that packages an existing handoff directory without regenerating resources or duplicating identities. The packaged-Electron acceptance test reproduces the owner's 29-resource / ~8.7 MiB handoff, verifies every payload hash, exports the ZIP, deletes it, restarts and re-packages it byte-identically. Includes all alpha.11 fixes: legacy-project save error, error boundary and redacted renderer diagnostics, real handoff progress, honest progress bars, batch/selection explanations, auth/advanced guidance, 90-150% text size, configurable Qortal nodes, human-readable unsupported-content reporting, and the attachment dependency policy. Rebuilt with CMS 0.8.0-alpha.8."
+      "changelog": "Desktop 0.8.0-alpha.13: bounded source scans. Quick scan is the recommended default and fetches one bounded content page plus referenced taxonomy/media dependencies only; Full site inventory requires an explicit acknowledgement and shows its worst-case page count. Continue cannot start an unbounded crawl. Pause and Cancel are separate controls during a run; Resume is offered for interrupted checkpoints. Progress reports real counters and distinguishes scan scope from total available source content. Also fixes stale running checkpoints being offered for resume after restart. Rebuilt with CMS 0.8.0-alpha.8 and Publisher 0.8.0-alpha.2."
     },
     "publisher": {
       "version": "0.8.0-alpha.2",
