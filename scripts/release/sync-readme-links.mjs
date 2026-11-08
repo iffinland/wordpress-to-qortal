@@ -11,9 +11,9 @@ import path from 'node:path';
 const REPO = process.env.QMS_REPO || 'iffinland/wordpress-to-qortal';
 const README = path.join(process.cwd(), 'README.md');
 const PATTERNS = {
-  desktop: /^qortal-migration-studio_.+_amd64\.deb$/,
-  publisher: /^qortal-migration-publisher-.+\.zip$/,
-  cms: /^qortal-migration-generic-cms-.+\.zip$/
+  desktop: /qortal-migration-studio_[^/)]+_amd64\.deb/g,
+  publisher: /qortal-migration-publisher-[^/)]+\.zip/g,
+  cms: /qortal-migration-generic-cms-[^/)]+\.zip/g
 };
 
 const releases = JSON.parse(execFileSync('gh', ['api', 'repos/' + REPO + '/releases?per_page=30'], { encoding: 'utf8' }))
