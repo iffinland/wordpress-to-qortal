@@ -61,6 +61,9 @@ if (!args.has('--skip-repro')) {
 }
 
 run('enforce three-artifact release gate', process.execPath, ['scripts/release/three-artifact-gate.mjs', '--tag=' + tag]);
+// BUG-003: a release must not ship while a three-post Quick scan can silently
+// become a full inventory. The packaged acceptance run is a blocking gate.
+run('enforce packaged bounded-scan acceptance evidence', 'npm', ['run', 'release:verify-packaged-scan']);
 run('generate CycloneDX SBOM', 'npm', ['run', 'release:sbom']);
 run('generate build provenance', 'npm', ['run', 'release:provenance']);
 run('verify release state and checksums', 'npm', ['run', 'release:verify']);

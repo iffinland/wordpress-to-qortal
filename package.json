@@ -94,7 +94,8 @@
     "desktop:build": "npm --prefix desktop run build",
     "desktop:deb": "node scripts/release/build-deb.mjs",
     "release:readme-links": "node scripts/release/verify-readme-links.mjs",
-    "release:readme-sync": "node scripts/release/sync-readme-links.mjs"
+    "release:readme-sync": "node scripts/release/sync-readme-links.mjs",
+    "release:verify-packaged-scan": "node scripts/release/verify-packaged-scan-evidence.mjs"
   },
   "engines": {
     "node": ">=20.0.0"
