@@ -242,3 +242,14 @@ the homepage still advertises an older alpha.
 - When a component does not change, its ZIP keeps its own version in the filename while the
   link tag follows the newest release (for example `v0.8.0-alpha.12/qortal-migration-generic-cms-v0.8.0-alpha.8.zip`).
   Never mix a tag with an asset that does not exist in that tag.
+
+## Artifact provenance vs. main HEAD
+
+The three-artifact gate compares each artifact's recorded `sourceCommit` with the current `HEAD`.
+Artifacts are built from the release commit, so `npm run release:gate` legitimately fails after
+main advances (for example the automatic README link commit that runs during publish). That is not a
+defect: `provenance.intoto.json` inside the release records the exact build commit, and only that
+commit plus the published SHA-256 values identify the shipped bytes.
+
+Before reporting a release, confirm instead that the delta between the build commit and current main
+touches no shipped code (docs, README and release tooling only).
