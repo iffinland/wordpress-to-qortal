@@ -22,6 +22,7 @@ import { fixedDiskProbe } from '../../lib/engine/disk.js';
 import { GIB } from '../../lib/engine/config.js';
 import { startWordpressFixtureServer } from '../../test-support/wordpress/fixtureServer.js';
 import { startMediaServer } from '../../test-support/media/server.js';
+import { buildFolderMapFromZip, validateHandoffPackage } from '../../viewer/src/publisher/handoff.ts';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -296,7 +297,15 @@ async function verifyZip(zipPath) {
     if (sha256(bytes) !== expected) throw new Error('sha256 mismatch for ' + resource.relativePath);
     verified += 1;
   }
+  // Run the released Migration Publisher (0.8.0-alpha.2) validation code on the
+  // exported ZIP. This proves field/schema compatibility without a live QDN
+  // publish; the Publisher's own validator checks the manifest, hashes, bundle
+  // metadata and resource ordering.
+  const publisher = await validateHandoffPackage(await buildFolderMapFromZip(new File([buffer], 'handoff.zip')));
   return {
+    publisherCompatible: true,
+    publisherResources: publisher.manifest.resources.length,
+    publisherSummaryResources: publisher.summary.resources ?? null,
     zipBytes: buffer.length,
     zipSha256: sha256(buffer),
     resources: manifest.resources.length,
