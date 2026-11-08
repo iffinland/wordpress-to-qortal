@@ -12,7 +12,7 @@ async function prepareSite(t) {
     posts: [makePost(1), makePost(2)],
     settings: { extra: { website: { cms: 'generic-cms', tagline: 'A neutral migrated site', theme: { colors: { accent: '#ff8800' } } } } }
   });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const plan = await env.handle.planning.create({ batchSize: 3, estimateMedia: false });
   assert.equal(plan.status, 'completed');
   const selection = plan.plan.entries.filter((entry) => ['new', 'modified'].includes(entry.status)).map((entry) => entry.sourceKey);
@@ -59,7 +59,7 @@ test('the CMS can be hosted as WEBSITE under the same registered name', async (t
     posts: [makePost(1)],
     settings: { extra: { website: { cms: 'generic-cms', service: 'WEBSITE', tagline: 'Website service' } } }
   });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const plan = await env.handle.planning.create({ batchSize: 2, estimateMedia: false });
   const selection = plan.plan.entries.filter((entry) => entry.status === 'new').map((entry) => entry.sourceKey);
   const handoff = await env.handle.publication.prepare({ planId: plan.planId, selection });

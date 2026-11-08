@@ -89,6 +89,7 @@ test('the packaged-host JSON-RPC surface drives wizard discovery to a five-post 
     projectId: project.id,
     adapterId: 'wordpress',
     contentTypes: ['post', 'page'],
+    mode: 'full',
     perPage: 100
   });
   assert.equal(discovered.status, 'completed', getStderr());

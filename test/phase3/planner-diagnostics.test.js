@@ -4,7 +4,7 @@ import { createEngine } from '../../lib/engine/index.js';
 import { makePost, startPhase3 } from '../../test-support/phase3/helpers.js';
 
 async function discover(handle) {
-  const result = await handle.source.discover({ perPage: 100, progressEvery: 100 });
+  const result = await handle.source.discover({ mode: 'full', perPage: 100, progressEvery: 100 });
   assert.equal(result.status, 'completed');
   return result;
 }

@@ -10,7 +10,7 @@ const ADDRESS = 'QZLJV7wbaFyxaoZQsjm6rb9MWMiDzWsqM2';
 
 async function prepare(t, options = {}) {
   const env = await startPhase3(t, { posts: [makePost(1), makePost(2)], ...options });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const plan = await env.handle.planning.create({ batchSize: 2, estimateMedia: false });
   const selection = plan.plan.entries.filter((entry) => entry.status === 'new').map((entry) => entry.sourceKey);
   const handoff = await env.handle.publication.prepare({ planId: plan.planId, selection });
@@ -152,7 +152,7 @@ test('receipts are cross-project rejected and survive restart with partial state
   });
   const otherHandle = await env.engine.projects.open(other.id);
   t.after(() => otherHandle.close().catch(() => {}));
-  await otherHandle.source.discover({ perPage: 50 });
+  await otherHandle.source.discover({ mode: 'full', perPage: 50 });
   const otherPlan = await otherHandle.planning.create({ batchSize: 1, estimateMedia: false });
   const otherSelection = otherPlan.plan.entries.filter((entry) => entry.status === 'new').map((entry) => entry.sourceKey);
   const otherHandoff = await otherHandle.publication.prepare({ planId: otherPlan.planId, selection: otherSelection });

@@ -32,7 +32,7 @@ test('a 29-resource prepare/export response is small and clone-safe', async (t) 
     content: '<p>Body ' + index + '</p><p>' + 'x'.repeat(400_000) + '</p>'
   }));
   const env = await startPhase3(t, { posts });
-  await env.handle.source.discover({ perPage: 100 });
+  await env.handle.source.discover({ mode: 'full', perPage: 100 });
   const plan = await env.handle.planning.create({ batchSize: 20, estimateMedia: false });
   assert.equal(plan.status, 'completed');
   const selection = plan.plan.entries.map((entry) => entry.sourceKey);

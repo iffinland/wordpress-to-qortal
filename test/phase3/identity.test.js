@@ -90,7 +90,7 @@ test('a legacy project without an identity gets one lazily and keeps it', async 
 
 test('identifiers stay stable across slug and content revisions and route changes are classified separately', async (t) => {
   const env = await startPhase3(t, { posts: [makePost(1), makePost(2), makePost(3)] });
-  const discovery = await env.handle.source.discover({ perPage: 50 });
+  const discovery = await env.handle.source.discover({ mode: 'full', perPage: 50 });
   assert.equal(discovery.status, 'completed');
   const plan = await env.handle.planning.create({ batchSize: 3 });
   assert.equal(plan.status, 'completed');
@@ -108,7 +108,7 @@ test('identifiers stay stable across slug and content revisions and route change
   const routeServer = await startWordpressFixtureServer({ data: routeData });
   t.after(() => routeServer.close().catch(() => {}));
   await env.handle.update({ source: { baseUrl: routeServer.url } });
-  assert.equal((await env.handle.source.discover({ perPage: 50 })).status, 'completed');
+  assert.equal((await env.handle.source.discover({ mode: 'full', perPage: 50 })).status, 'completed');
   const routePlan = await env.handle.planning.create({ batchSize: 3, estimateMedia: false });
   assert.equal(routePlan.status, 'completed');
   assert.ok(routePlan.stats.route_changed >= 1);
@@ -128,7 +128,7 @@ test('identifiers stay stable across slug and content revisions and route change
   const contentServer = await startWordpressFixtureServer({ data: contentData });
   t.after(() => contentServer.close().catch(() => {}));
   await env.handle.update({ source: { baseUrl: contentServer.url } });
-  assert.equal((await env.handle.source.discover({ perPage: 50 })).status, 'completed');
+  assert.equal((await env.handle.source.discover({ mode: 'full', perPage: 50 })).status, 'completed');
   const modifiedPlan = await env.handle.planning.create({ batchSize: 3, estimateMedia: false });
   assert.equal(modifiedPlan.status, 'completed');
   assert.ok(modifiedPlan.stats.modified >= 1);
@@ -142,7 +142,7 @@ test('identifiers stay stable across slug and content revisions and route change
 
 test('a target change requires an explicit migration and preserves identifiers for a name-only move', async (t) => {
   const env = await startPhase3(t, { posts: [makePost(1), makePost(2)] });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const firstPlan = await env.handle.planning.create({ batchSize: 2, estimateMedia: false });
   assert.equal(firstPlan.status, 'completed');
   const before = env.handle.identity.mappingFor('post:1001');
@@ -181,7 +181,7 @@ test('a target change requires an explicit migration and preserves identifiers f
 
 test('colliding target triples are refused as conflicts and can be resolved explicitly', async (t) => {
   const env = await startPhase3(t, { posts: [makePost(0), makePost(1), makePost(2), makePost(3)] });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const first = await env.handle.planning.create({ batchSize: 1, estimateMedia: false });
   assert.equal(first.status, 'completed');
   const mappedSourceKey = first.plan.entries.find((entry) => entry.status === 'new').sourceKey;

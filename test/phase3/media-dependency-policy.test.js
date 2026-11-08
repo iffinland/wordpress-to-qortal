@@ -55,7 +55,7 @@ function attachmentHeavyData({ attachmentCount = 600, posts = 5 } = {}) {
 
 test('AUDIT-001: unreferenced attachment flood does not become required media', async (t) => {
   const env = await startPhase3(t, { data: attachmentHeavyData({ attachmentCount: 600, posts: 5 }) });
-  const discovered = await env.handle.source.discover({ perPage: 100, progressEvery: 100 });
+  const discovered = await env.handle.source.discover({ mode: 'full', perPage: 100, progressEvery: 100 });
   assert.equal(discovered.status, 'completed');
 
   const plan = await env.handle.planning.create({
@@ -80,7 +80,7 @@ test('AUDIT-001: unreferenced attachment flood does not become required media', 
 
 test('AUDIT-001: the previous 600-attachment flood still reproduces the file-cap failure when explicitly opted in', async (t) => {
   const env = await startPhase3(t, { data: attachmentHeavyData({ attachmentCount: 600, posts: 5 }) });
-  await env.handle.source.discover({ perPage: 100, progressEvery: 100 });
+  await env.handle.source.discover({ mode: 'full', perPage: 100, progressEvery: 100 });
   const plan = await env.handle.planning.create({
     batchSize: 5,
     estimateMedia: false,

@@ -87,7 +87,7 @@ test('a plan is refused before download when projected bytes plus reserve exceed
     settings: { disk: { reserveBytes: 512 * 1024 } }
     , settings: { media: { allowExternalMedia: true } }
   });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const plan = await env.handle.planning.create({ batchSize: 2 });
   assert.equal(plan.status, 'blocked');
   assert.ok(plan.errors.some((error) => error.code === 'DISK_SPACE_INSUFFICIENT'));
@@ -103,7 +103,7 @@ test('unknown media sizes are refused by default and accepted only under a bound
     ]),
     settings: { media: { allowExternalMedia: true } }
   });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const rejected = await env.handle.planning.create({ batchSize: 1 });
   assert.equal(rejected.status, 'blocked');
   assert.equal(rejected.media.unknownCount, 1);
@@ -129,7 +129,7 @@ test('plan-level per-file, file-count and byte caps reject oversized work early'
     ])
     , settings: { media: { allowExternalMedia: true } }
   });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const perFile = await env.handle.planning.create({
     batchSize: 3,
     disk: { maxFileBytes: 1024, maxBytesPerRun: 0 }
@@ -161,7 +161,7 @@ test('runtime byte and file caps pause a download with resumable receipts', asyn
     ])
     , settings: { media: { allowExternalMedia: true } }
   });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const plan = await env.handle.planning.create({ batchSize: 2, disk: { maxBytesPerRun: 0, maxFileBytes: 4096 } });
   assert.equal(plan.status, 'completed');
 
@@ -196,7 +196,7 @@ test('a full disk pauses at the runtime guard and never finalizes an unverified 
       disk: { reserveBytes: 50 * 1024 * 1024 }
     }
   });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const plan = await env.handle.planning.create({ batchSize: 1 });
   assert.equal(plan.status, 'completed');
   const download = await env.handle.media.download({ planId: plan.planId, concurrency: 1 });

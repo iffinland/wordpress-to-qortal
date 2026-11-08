@@ -88,7 +88,7 @@ test('a non-WordPress adapter registers and runs without engine changes', async 
     source: { adapter: 'fixture', baseUrl: 'fixture://site' }
   });
   const handle = await engine.projects.open(project.id);
-  const result = await handle.source.discover({ progressEvery: 1 });
+  const result = await handle.source.discover({ mode: 'full', progressEvery: 1 });
   assert.equal(result.status, 'completed');
   assert.equal(result.summary.items, 1);
   const index = JSON.parse(await (await import('node:fs/promises')).readFile(path.join(result.paths.batchDir, 'index.json'), 'utf8'));

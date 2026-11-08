@@ -10,7 +10,7 @@ test('planning state is compact, excludes item bodies and records ordered events
     content: '<p>' + marker + ' ' + index + '</p>'
   }));
   const env = await startPhase3(t, { posts });
-  const discovery = await env.handle.source.discover({ perPage: 100, progressEvery: 1000 });
+  const discovery = await env.handle.source.discover({ mode: 'full', perPage: 100, progressEvery: 1000 });
   assert.equal(discovery.status, 'completed');
   const events = [];
   const unsubscribe = env.handle.events.subscribe((event) => events.push(event));
@@ -70,7 +70,7 @@ test('a media download holds the project lock against another engine instance', 
       disk: { reserveBytes: 0, maxBytesPerRun: 0 }
     }
   });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const plan = await env.handle.planning.create({ batchSize: 1 });
   assert.equal(plan.status, 'completed');
   const controller = new AbortController();

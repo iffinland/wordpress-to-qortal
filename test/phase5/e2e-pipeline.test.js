@@ -92,7 +92,7 @@ test('WordPress to CMS pipeline: convert, publish receipt, exact read-back, CMS 
     },
     dataFactory: ({ mediaUrl }) => dataWithPosts([mediaPost(mediaUrl)])
   });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const plan = await env.handle.planning.create({ batchSize: 1 });
   assert.equal(plan.status, 'completed');
   const download = await env.handle.media.download({ planId: plan.planId, concurrency: 1 });

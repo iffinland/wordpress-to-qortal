@@ -14,7 +14,7 @@ async function mediaEnv(t) {
     settings: { media: { allowExternalMedia: true } },
     dataFactory: ({ mediaUrl }) => dataWithPosts([mediaPost(mediaUrl)])
   });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   return env;
 }
 
@@ -53,7 +53,7 @@ test('a handoff refuses selected content whose media is not locally verified', a
 
 test('two independent sites with the same source ids get disjoint QDN identifiers', async (t) => {
   const first = await startPhase3(t, { posts: [makePost(1)], target: 'SharedName' });
-  await first.handle.source.discover({ perPage: 50 });
+  await first.handle.source.discover({ mode: 'full', perPage: 50 });
   const firstPlan = await first.handle.planning.create({ batchSize: 1, estimateMedia: false });
   const firstHandoff = await first.handle.publication.prepare({
     planId: firstPlan.planId,
@@ -67,7 +67,7 @@ test('two independent sites with the same source ids get disjoint QDN identifier
   });
   const second = await first.engine.projects.open(secondProject.id);
   t.after(() => second.close().catch(() => {}));
-  await second.source.discover({ perPage: 50 });
+  await second.source.discover({ mode: 'full', perPage: 50 });
   const secondPlan = await second.planning.create({ batchSize: 1, estimateMedia: false });
   const secondHandoff = await second.publication.prepare({
     planId: secondPlan.planId,
