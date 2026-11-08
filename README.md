@@ -13,13 +13,13 @@ two Q-App ZIPs are for publishing and for the public website runtime.
 
 | What you need | Download | What it does |
 | --- | --- | --- |
-| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0-alpha.10_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/qortal-migration-studio_0.8.0-alpha.10_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
-| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-alpha.2.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/qortal-migration-publisher-v0.8.0-alpha.2.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
-| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.8.0-alpha.8.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/qortal-migration-generic-cms-v0.8.0-alpha.8.zip) | The neutral website/APP Q-App that renders a published QDN catalog and now supports owner editing of imported and CMS-authored content. It is the site runtime, not the migration tool. |
+| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0-alpha.12_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.12/qortal-migration-studio_0.8.0-alpha.12_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
+| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-alpha.2.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.12/qortal-migration-publisher-v0.8.0-alpha.2.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
+| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.8.0-alpha.8.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.12/qortal-migration-generic-cms-v0.8.0-alpha.8.zip) | The neutral website/APP Q-App that renders a published QDN catalog and now supports owner editing of imported and CMS-authored content. It is the site runtime, not the migration tool. |
 
-Also download [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/SHA256SUMS),
-[sbom.cdx.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/sbom.cdx.json)
-and [provenance.intoto.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/provenance.intoto.json)
+Also download [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.12/SHA256SUMS),
+[sbom.cdx.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.12/sbom.cdx.json)
+and [provenance.intoto.json](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.12/provenance.intoto.json)
 to verify the files. Release page:
 <https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-alpha.10>.
 The Publisher artifact is unchanged from 0.8.0-alpha.2 and is re-uploaded under
@@ -131,7 +131,7 @@ or any development tools.
 ## Download, install and launch
 
 1. Download
-   [qortal-migration-studio_0.8.0-alpha.10_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.10/qortal-migration-studio_0.8.0-alpha.10_amd64.deb)
+   [qortal-migration-studio_0.8.0-alpha.12_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-alpha.12/qortal-migration-studio_0.8.0-alpha.12_amd64.deb)
    and the release assets `SHA256SUMS`, `sbom.cdx.json` and
    `provenance.intoto.json`.
 2. Verify the checksum (see [Security](#security-and-checksums)).
