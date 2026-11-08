@@ -43,7 +43,7 @@ async function exists(file) {
   try { await access(file); return true; } catch { return false; }
 }
 
-export async function checkUniqueVersion({ repoRoot = REPO_ROOT, release, tag = releaseTag(release) }) {
+export async function checkUniqueVersion({ repoRoot = REPO_ROOT, release, tag = releaseTag(release), stage = 'prebuild' }) {
   const errors = [];
   if (release.releaseTag && release.releaseTag !== tag) {
     errors.push('release descriptor tag ' + release.releaseTag + ' does not match requested tag ' + tag + '.');
@@ -51,28 +51,52 @@ export async function checkUniqueVersion({ repoRoot = REPO_ROOT, release, tag = 
   const versions = await checkVersions(repoRoot);
   if (!versions.ok) errors.push(...versions.failures.map((failure) => 'version marker: ' + failure));
 
+  const artifact = await readJson(path.join(repoRoot, 'desktop/release/artifact.json')).catch(() => null);
+  const sourceCommit = artifact?.sourceCommit ?? null;
+
+  // The exact release tag is allowed to exist only when it pins the artifact
+  // commit. A reused version, a moved tag or a different target is a failure.
   const local = capture('git', ['tag', '--list', tag], { cwd: repoRoot });
+  const localExists = local.status === 0 && local.stdout.trim() !== '';
   if (local.status !== 0) {
     errors.push('cannot inspect local tags: ' + (local.stderr || 'git tag failed'));
-  } else if (local.stdout.trim() !== '') {
-    errors.push('tag ' + tag + ' already exists locally; published tags are immutable.');
+  } else if (localExists) {
+    const target = capture('git', ['rev-parse', tag + '^{}'], { cwd: repoRoot });
+    if (!sourceCommit || target.status !== 0 || target.stdout.trim() !== sourceCommit) {
+      errors.push('tag ' + tag + ' exists locally but does not point at the artifact commit ' + (sourceCommit || '<missing>') + '.');
+    }
+  } else if (stage === 'prepublish') {
+    errors.push('tag ' + tag + ' does not exist locally; create it at the artifact commit before publishing.');
   }
 
-  const remote = capture('git', ['ls-remote', '--tags', 'origin', 'refs/tags/' + tag], { cwd: repoRoot });
+  const remote = capture('git', ['ls-remote', 'origin', 'refs/tags/' + tag + '^{}', 'refs/tags/' + tag], { cwd: repoRoot });
   if (remote.status !== 0) {
     errors.push('cannot verify remote tag uniqueness: ' + (remote.stderr || 'git ls-remote failed'));
-  } else if (remote.stdout.trim() !== '') {
-    errors.push('tag ' + tag + ' already exists on origin.');
+  } else {
+    const lines = remote.stdout.split('\n').map((line) => line.trim()).filter(Boolean);
+    const exact = lines.find((line) => line.endsWith('refs/tags/' + tag + '^{}')) ?? lines.find((line) => line.endsWith('refs/tags/' + tag));
+    if (exact) {
+      const remoteTarget = exact.split(/\s+/)[0];
+      if (!sourceCommit || remoteTarget !== sourceCommit) {
+        errors.push('tag ' + tag + ' exists on origin but points at ' + remoteTarget + ', not the artifact commit ' + (sourceCommit || '<missing>') + '.');
+      }
+    } else if (stage === 'prepublish') {
+      errors.push('tag ' + tag + ' does not exist on origin; create it at the artifact commit before publishing.');
+    }
   }
 
-  const releaseView = capture(GH, ['release', 'view', tag, '--repo', REPO, '--json', 'tagName']);
-  if (releaseView.status === 0) {
-    errors.push('GitHub release ' + tag + ' already exists; existing releases and assets are immutable.');
-  } else {
-    const detail = String(releaseView.stderr || '');
-    if (!/release not found|HTTP 404|could not find/i.test(detail)) {
-      errors.push('cannot verify GitHub release uniqueness for ' + tag + ': ' + detail.trim().slice(0, 300));
+  // Public REST lookup, so the same gate works on build hosts without gh.
+  try {
+    const response = await fetch('https://api.github.com/repos/' + REPO + '/releases/tags/' + encodeURIComponent(tag), {
+      headers: { 'user-agent': 'qms-release-delivery-gate', accept: 'application/vnd.github+json' }
+    });
+    if (response.status === 200) {
+      errors.push('GitHub release ' + tag + ' already exists; existing releases and assets are immutable.');
+    } else if (response.status !== 404) {
+      errors.push('cannot verify GitHub release uniqueness for ' + tag + ': HTTP ' + response.status + '.');
     }
+  } catch (error) {
+    errors.push('cannot verify GitHub release uniqueness for ' + tag + ': ' + String(error?.message ?? error));
   }
 
   for (const kind of REQUIRED_ARTIFACT_KINDS) {
@@ -200,7 +224,7 @@ export async function runDeliveryGates({ repoRoot = REPO_ROOT, stage = 'prepubli
   const release = await readJson(path.join(repoRoot, 'qms-release.json'));
   const resolvedTag = tag ?? releaseTag(release);
   const checks = {};
-  checks.uniqueVersion = await checkUniqueVersion({ repoRoot, release, tag: resolvedTag });
+  checks.uniqueVersion = await checkUniqueVersion({ repoRoot, release, tag: resolvedTag, stage });
   checks.docs = await checkReleaseDocs({ repoRoot, release });
   if (stage === 'prepublish') {
     checks.installableArtifacts = await checkInstallableArtifacts({ repoRoot, release, tag: resolvedTag });

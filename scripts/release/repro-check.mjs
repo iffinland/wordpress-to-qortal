@@ -77,6 +77,7 @@ const record = {
   method: 'git archive of HEAD, byte-identical locked dependency tree, identical SOURCE_DATE_EPOCH, byte-for-byte SHA-256 comparison',
   checkedAt: new Date().toISOString()
 };
+await mkdir(path.join(REPO_ROOT, 'desktop/release'), { recursive: true });
 await writeFile(path.join(REPO_ROOT, 'desktop/release/reproducibility.json'), JSON.stringify(record, null, 2) + '\n');
 if (!equal) {
   console.error('REPRODUCIBILITY FAILURE');
