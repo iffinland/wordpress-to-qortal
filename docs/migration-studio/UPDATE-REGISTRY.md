@@ -229,19 +229,20 @@ settings and warns explicitly: do not overwrite a customized CMS with the
 generic ZIP. Republish template files only, preserving site configuration and
 custom assets.
 
-## Current pending publication (2026-11-06)
+## Current pending publication (2026-11-08)
 
 - Resource: `DOCUMENT/developer iffi/qms-update-registry`
-- Remote status: HTTP 200, sequence 1 already published (existing SHA-256
-  `6a185d9d872bdf81cc56bc7a40238ceebc8e6f148dc407d5a3e8089c9e664db7`).
-- Next document: sequence 2, generated from release `v0.8.0-alpha.7`.
-- Components: desktop 0.8.0-alpha.7, CMS 0.8.0-alpha.5, Publisher
+- Remote status: HTTP 200, sequence 2 already published (existing SHA-256
+  `3a1ef98174d6b55fedcbe47cd079593c7422dd732ccdb0ffac6814c4c32dfe44`).
+- Next document: sequence 3, generated from release `v0.8.0-alpha.10`.
+- Components: desktop 0.8.0-alpha.10, CMS 0.8.0-alpha.8, Publisher
   0.8.0-alpha.2 (unchanged; the registry keeps its original verified URL).
 - Handoff ZIP: `release/qms-update-registry-handoff.zip` (not committed),
-  2,564 bytes, SHA-256
-  `7c02ca163390f622cd450fc41083480437921de2c92284a1b61d6baa253592f1`.
+  2,663 bytes, SHA-256
+  `421678ab2955c381b63a588102e8b84db1d7469a29d7b78481a1e0c0b6fcadf9`.
 - Payload: `release/registry-handoff/payload/document/qms-update-registry.json`,
-  SHA-256 `3a1ef98174d6b55fedcbe47cd079593c7422dd732ccdb0ffac6814c4c32dfe44`.
+  4,748 bytes, SHA-256
+  `e10bf453aa773d48b3e8dd032aaa45a0cd3e0e23788a4be11b87640a0edbdc4d`.
 - One DOCUMENT resource; estimated fee 0.01 QORT at the read-only node unit fee.
 - Status: **awaiting owner approval in Qortal Hub**. Nothing was signed or
   published by the agent.
