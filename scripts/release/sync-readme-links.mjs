@@ -48,6 +48,21 @@ for (const [key, pattern] of Object.entries(PATTERNS)) {
 readme = readme.replace(new RegExp('https://github\\.com/' + REPO.replace('/', '\\/') + '/releases/download/[^/)]+/(SHA256SUMS|sbom\\.cdx\\.json|provenance\\.intoto\\.json)', 'g'),
   'https://github.com/' + REPO + '/releases/download/' + latest.tag_name + '/$1');
 
+// The visible text must follow the release too, not just the URLs.
+const desktopVersion = (targets.desktop.match(/qortal-migration-studio_([^/]+)_amd64\.deb/) || [])[1];
+if (desktopVersion) {
+  // Link labels that name a component file.
+  readme = readme.replace(/qortal-migration-studio_[0-9A-Za-z.~-]+_amd64\.deb/g, 'qortal-migration-studio_' + desktopVersion + '_amd64.deb');
+  // Section heading: "## Download Qortal Migration Studio 0.8.0 alpha.N"
+  readme = readme.replace(/(## Download Qortal Migration Studio [0-9.]+ )[0-9A-Za-z.~-]+/g, '$1' + desktopVersion.replace(/^0\.8\.0-/, ''));
+  // Release page link.
+  readme = readme.replace(/https:\/\/github\.com\/[^\s>]*\/releases\/tag\/v[0-9A-Za-z.~-]+/g, 'https://github.com/' + REPO + '/releases/tag/' + latest.tag_name);
+  // "Version **0.8.0 alpha.N** is the latest published alpha"
+  readme = readme.replace(/(Version \*\*[0-9.]+ )[0-9A-Za-z.~-]+(\*\* is the latest published alpha)/g, '$1' + desktopVersion.replace(/^0\.8\.0-/, '') + '$2');
+  // apt install line.
+  readme = readme.replace(/sudo apt install \.\/qortal-migration-studio_[0-9A-Za-z.~-]+_amd64\.deb/g, 'sudo apt install ./qortal-migration-studio_' + desktopVersion + '_amd64.deb');
+}
+
 if (readme !== before) {
   writeFileSync(README, readme);
   console.log('README updated to ' + latest.tag_name);

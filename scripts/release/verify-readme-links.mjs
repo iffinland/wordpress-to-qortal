@@ -90,6 +90,32 @@ if (sumsAsset) {
   fail('latest release ' + latest.tag_name + ' has no SHA256SUMS asset');
 }
 
+// Visible text must not advertise an older desktop build than the newest release.
+const desktopName = [...latestAssets.keys()].find((name) => COMPONENTS[0].pattern.test(name));
+if (desktopName) {
+  const desktopVersion = (desktopName.match(/qortal-migration-studio_(.+)_amd64\.deb/) || [])[1];
+  const debMentions = [...readme.matchAll(/qortal-migration-studio_([0-9A-Za-z.~-]+)_amd64\.deb/g)].map((m) => m[1]);
+  for (const version of new Set(debMentions)) {
+    if (version !== desktopVersion) {
+      fail('README still names the desktop build ' + version + ' in visible text; the newest release ships ' + desktopVersion);
+    }
+  }
+  const headingMatch = readme.match(/## Download Qortal Migration Studio [0-9.]+ ([0-9A-Za-z.~-]+)/);
+  if (headingMatch && !desktopVersion.endsWith(headingMatch[1])) {
+    fail('README download heading advertises ' + headingMatch[1] + ' but the newest desktop build is ' + desktopVersion);
+  }
+  const labelMatch = readme.match(/Version \*\*[0-9.]+ ([0-9A-Za-z.~-]+)\*\* is the latest published alpha/);
+  if (labelMatch && !desktopVersion.endsWith(labelMatch[1])) {
+    fail('README alpha-status sentence advertises ' + labelMatch[1] + ' but the newest desktop build is ' + desktopVersion);
+  }
+  const tagMentions = [...readme.matchAll(/releases\/tag\/(v[0-9A-Za-z.~-]+)/g)].map((m) => m[1]);
+  for (const tag of new Set(tagMentions)) {
+    if (tag !== latest.tag_name) {
+      fail('README links the release page ' + tag + ' but the newest release is ' + latest.tag_name);
+    }
+  }
+}
+
 const stray = links.filter((l) => l.tag !== latest.tag_name && COMPONENTS.some((c) => c.pattern.test(l.asset)));
 if (stray.length > 0) {
   fail('README.md references older component assets: ' + stray.map((s) => s.tag + '/' + s.asset).join(', '));
