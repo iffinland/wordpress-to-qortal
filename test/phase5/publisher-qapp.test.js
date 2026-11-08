@@ -26,7 +26,7 @@ test('the Publisher imports an exported .zip, validates the CMS APP bundle and r
     posts: [makePost(1)],
     settings: { extra: { website: { cms: 'generic-cms', tagline: 'Publisher package test' } } }
   });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const plan = await env.handle.planning.create({ batchSize: 2, estimateMedia: false });
   const selection = plan.plan.entries.filter((entry) => entry.status === 'new').map((entry) => entry.sourceKey);
   const handoff = await env.handle.publication.prepare({ planId: plan.planId, selection });

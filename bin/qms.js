@@ -517,11 +517,16 @@ async function main() {
         const contentTypes = flags['content-types']
           ? String(flags['content-types']).split(',').map((value) => value.trim()).filter(Boolean)
           : null;
+        const scanMode = flags.mode ? String(flags.mode) : 'full';
         const result = await handle.source.discover({
           adapterId: flags.adapter ?? null,
           auth: buildWordpressAuth(flags),
           source: flags['source-url'] ? { baseUrl: String(flags['source-url']) } : {},
           contentTypes,
+          mode: scanMode,
+          selection: scanMode === 'quick'
+            ? { perPage: flags['per-page'] ? Number(flags['per-page']) : 100, maxPages: 1, maxItems: flags['max-items'] ? Number(flags['max-items']) : 100 }
+            : {},
           perPage: flags['per-page'] ? Number(flags['per-page']) : 100,
           progressEvery: flags['progress-every'] ? Number(flags['progress-every']) : 25,
           maxItems: flags['max-items'] ? Number(flags['max-items']) : null,

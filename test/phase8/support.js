@@ -73,7 +73,7 @@ export async function crashDuring(env, { mode, options = {}, kind = null, step =
 }
 
 export async function discoverAndPlan(env, { batchSize = 2, perPage = 50, settings = {} } = {}) {
-  const discovery = await env.handle.source.discover({ perPage, ...(settings.discover ?? {}) });
+  const discovery = await env.handle.source.discover({ mode: 'full', perPage, ...(settings.discover ?? {}) });
   assert.equal(discovery.status, 'completed', JSON.stringify(discovery.error ?? {}));
   const plan = await env.handle.planning.create({ batchSize, ...(settings.planning ?? {}) });
   assert.equal(plan.status, 'completed', JSON.stringify(plan.errors ?? []));

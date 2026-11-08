@@ -5,7 +5,7 @@ import { createEngine } from '../../lib/engine/index.js';
 import { makePost, startPhase3 } from '../../test-support/phase3/helpers.js';
 
 async function discover(handle, options = {}) {
-  const result = await handle.source.discover({ perPage: 100, progressEvery: 100, ...options });
+  const result = await handle.source.discover({ mode: 'full', perPage: 100, progressEvery: 100, ...options });
   assert.equal(result.status, 'completed');
   return result;
 }
@@ -138,7 +138,7 @@ test('two projects with overlapping source ids and slugs get isolated mappings',
 
 test('a truncated discovery batch is treated as incomplete and never as deletion proof', async (t) => {
   const env = await startPhase3(t, { posts: Array.from({ length: 6 }, (_, index) => makePost(index)) });
-  const discovery = await env.handle.source.discover({ perPage: 2, maxItems: 3 });
+  const discovery = await env.handle.source.discover({ mode: 'full', perPage: 2, maxItems: 3 });
   assert.equal(discovery.status, 'completed');
   assert.equal(discovery.summary.truncated, true);
   const plan = await env.handle.planning.create({ batchSize: 10, estimateMedia: false });
@@ -151,7 +151,7 @@ test('a truncated discovery batch is treated as incomplete and never as deletion
 test('a large archive is scanned as metadata and only a bounded item set is planned', async (t) => {
   const posts = Array.from({ length: 1500 }, (_, index) => makePost(index));
   const env = await startPhase3(t, { posts });
-  const discovery = await env.handle.source.discover({ perPage: 500, progressEvery: 1000 });
+  const discovery = await env.handle.source.discover({ mode: 'full', perPage: 500, progressEvery: 1000 });
   assert.equal(discovery.status, 'completed');
   const plan = await env.handle.planning.create({ batchSize: 15, estimateMedia: false });
   assert.equal(plan.status, 'completed');

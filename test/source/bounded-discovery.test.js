@@ -305,3 +305,85 @@ test('cancel stops the scan, keeps the project and never records a completed inv
   const afterCancel = await reopened.recovery.status();
   assert.equal(afterCancel.candidates.some((entry) => entry.runId === runId), false);
 });
+
+test('a scan request without an explicit mode is rejected instead of becoming a full inventory', async (t) => {
+  const { engine, server } = await engineFixture(t, { data: createFixtureData() });
+  const project = await createProject(engine, server);
+  const handle = await engine.projects.open(project.id);
+  server.requests.length = 0;
+
+  await assert.rejects(
+    () => handle.source.discover({ perPage: 10 }),
+    (error) => error.code === 'SOURCE_SCAN_MODE_REQUIRED'
+  );
+  await assert.rejects(
+    () => handle.source.discover({ mode: 'everything', perPage: 10 }),
+    (error) => error.code === 'SOURCE_SCAN_MODE_REQUIRED'
+  );
+  // Nothing may be fetched when the mode is ambiguous.
+  assert.equal(server.requests.length, 0, 'an ambiguous mode must not touch the source');
+  await handle.close();
+});
+
+test('a quick scan beside an interrupted full inventory stays bounded and leaves the full checkpoint intact', async (t) => {
+  const { dataRoot, engine, server } = await engineFixture(t, {
+    data: createLargeFixtureData({ posts: 36_000, media: 250_000, categories: 2_053, tags: 50 })
+  });
+  const project = await createProject(engine, server);
+  const first = await engine.projects.open(project.id);
+
+  // Simulate the owner's NASA state: an interrupted full inventory that already
+  // indexed taxonomy terms and part of the media library when the app quit.
+  const stale = await first.runs.start({
+    kind: 'source.discover',
+    phase: 'terms',
+    meta: { adapterId: 'wordpress', mode: 'full' }
+  });
+  await stale.checkpoint({
+    step: 'terms_page',
+    phase: 'terms',
+    cursor: 1020,
+    total: 2094,
+    resumable: true,
+    resume: {
+      service: 'source',
+      method: 'discover',
+      params: { mode: 'full', perPage: 100, selection: {} }
+    },
+    details: { batchId: 'bat_ownerfullcheckpoint' }
+  });
+  const paths = engine.projects.paths(project.id);
+  const checkpointFile = path.join(paths.recoveryRunsDir, stale.runId + '.json');
+  const checkpoint = JSON.parse(await readFile(checkpointFile, 'utf8'));
+  checkpoint.status = 'running';
+  checkpoint.resumable = true;
+  await writeFile(checkpointFile, JSON.stringify(checkpoint), 'utf8');
+  await first.close();
+
+  // Restart: the stale full inventory must be reconciled as an interrupted
+  // operation owned by its own checkpoint, never adopted by a new quick scan.
+  const engine2 = createEngine({ dataRoot });
+  t.after(async () => { await engine2.close().catch(() => {}); });
+  const handle = await engine2.projects.open(project.id);
+  server.requests.length = 0;
+
+  const quick = await handle.source.discover({
+    mode: 'quick',
+    contentTypes: ['post'],
+    perPage: 3,
+    selection: { perPage: 3, maxPages: 1, maxItems: 3 }
+  });
+
+  assert.equal(quick.status, 'completed', JSON.stringify(quick.error ?? {}));
+  assert.equal(quick.mode, 'quick');
+  assert.equal(quick.scope.scanned, 3);
+  assert.ok(quick.scope.apiRequests <= 10, 'quick scan must stay bounded: ' + quick.scope.apiRequests);
+  assert.ok(server.requests.length <= 10, 'quick scan must not crawl: ' + server.requests.length);
+  assert.equal(requestOf(server, '/wp-json/wp/v2/posts').length, 1);
+  assert.notEqual(quick.batchId, 'bat_ownerfullcheckpoint');
+
+  const preserved = JSON.parse(await readFile(checkpointFile, 'utf8'));
+  assert.equal(preserved.cursor, 1020, 'the interrupted full checkpoint must keep its cursor');
+  assert.equal(preserved.resume.params.mode, 'full', 'the interrupted operation keeps its own mode');
+  assert.notEqual(preserved.runId, quick.runId ?? quick.batchId);
+});

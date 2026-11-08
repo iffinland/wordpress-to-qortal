@@ -179,6 +179,9 @@ export function registerIpc(deps: IpcDependencies): void {
     },
     [IPC.sourceDiscover]: async (params) => {
       const auth = await ensureAuth(String(params.projectId), params.auth);
+      // Never default the scan mode here: the engine treats a missing mode as a
+      // full inventory, so dropping the renderer's explicit quick/full choice
+      // silently upgraded a bounded request into a site-wide crawl.
       return invoke('source.discover', {
         projectId: params.projectId,
         adapterId: params.adapterId,
@@ -187,7 +190,12 @@ export function registerIpc(deps: IpcDependencies): void {
         contentTypes: params.contentTypes,
         query: params.query ?? {},
         perPage: params.perPage,
-        maxItems: params.maxItems
+        maxItems: params.maxItems,
+        mode: params.mode,
+        selection: params.selection ?? {},
+        includeTerms: params.includeTerms,
+        includeAssets: params.includeAssets,
+        progressEvery: params.progressEvery
       });
     },
 

@@ -41,7 +41,7 @@ test('source discovery writes a verified batch, index, latest pointer and sync h
   const handle = await engine.projects.open(project.id);
 
   assert.equal(handle.source.capabilities().id, 'wordpress');
-  const result = await handle.source.discover({ perPage: 2, progressEvery: 1 });
+  const result = await handle.source.discover({ mode: 'full', perPage: 2, progressEvery: 1 });
   assert.equal(result.status, 'completed');
   assert.equal(result.summary.items, 12);
   assert.equal(result.report.unsupported.length, 7);
@@ -79,8 +79,8 @@ test('re-running discovery reports unchanged content and identical hashes', asyn
   const { engine, server } = await engineFixture(t);
   const project = await createProject(engine, server);
   const handle = await engine.projects.open(project.id);
-  const first = await handle.source.discover({ perPage: 3, progressEvery: 10 });
-  const second = await handle.source.discover({ perPage: 3, progressEvery: 10 });
+  const first = await handle.source.discover({ mode: 'full', perPage: 3, progressEvery: 10 });
+  const second = await handle.source.discover({ mode: 'full', perPage: 3, progressEvery: 10 });
   assert.equal(first.summary.contentRoot, second.summary.contentRoot);
   assert.equal(second.summary.unchanged, first.summary.items);
   assert.equal(second.summary.new, 0);
@@ -97,7 +97,7 @@ test('discovery events are ordered and progress reconstructs after reopen', asyn
   const handle = await engine.projects.open(project.id);
   const events = [];
   const unsubscribe = handle.events.subscribe((event) => events.push(event));
-  const result = await handle.source.discover({ perPage: 2, progressEvery: 2 });
+  const result = await handle.source.discover({ mode: 'full', perPage: 2, progressEvery: 2 });
   unsubscribe();
   assert.equal(result.status, 'completed');
   assert.ok(events.length > 8);
@@ -130,7 +130,7 @@ test('projects stay isolated for source configuration, events and artifacts', as
   const secondFilesBefore = await filesUnder(path.join(secondPaths.artifactsDir, 'source'));
   assert.equal(secondFilesBefore.length, 0);
 
-  const result = await firstHandle.source.discover({ perPage: 5, progressEvery: 5 });
+  const result = await firstHandle.source.discover({ mode: 'full', perPage: 5, progressEvery: 5 });
   assert.equal(result.status, 'completed');
   const secondFilesAfter = await filesUnder(path.join(secondPaths.artifactsDir, 'source'));
   assert.equal(secondFilesAfter.length, 0);
@@ -151,6 +151,7 @@ test('authentication secrets never reach project state, events or artifacts', as
   const events = [];
   handle.events.subscribe((event) => events.push(event));
   const result = await handle.source.discover({
+    mode: 'full',
     perPage: 5,
     progressEvery: 5,
     auth: {
@@ -190,7 +191,7 @@ test('cancellation stops discovery and never publishes a latest pointer', async 
       }
     });
   });
-  const discovery = handle.source.discover({ perPage: 1, progressEvery: 1 });
+  const discovery = handle.source.discover({ mode: 'full', perPage: 1, progressEvery: 1 });
   await started;
   assert.ok(runId);
   await handle.runs.cancel(runId);
@@ -214,7 +215,7 @@ test('a failed discovery leaves a failed batch and no latest pointer', async (t)
   t.after(() => failing.close());
   const project = await createProject(engine, failing);
   const handle = await engine.projects.open(project.id);
-  const result = await handle.source.discover({ perPage: 5 });
+  const result = await handle.source.discover({ mode: 'full', perPage: 5 });
   assert.equal(result.status, 'failed');
   assert.equal(result.error.code, 'SOURCE_INVALID_RESPONSE');
   const batch = JSON.parse(await readFile(path.join(result.batchDir, 'batch.json'), 'utf8'));
@@ -230,7 +231,7 @@ test('maxItems produces an explicitly truncated completed batch', async (t) => {
   const { engine, server } = await engineFixture(t);
   const project = await createProject(engine, server);
   const handle = await engine.projects.open(project.id);
-  const result = await handle.source.discover({ perPage: 2, progressEvery: 10, maxItems: 3 });
+  const result = await handle.source.discover({ mode: 'full', perPage: 2, progressEvery: 10, maxItems: 3 });
   assert.equal(result.status, 'completed');
   assert.equal(result.summary.items, 3);
   assert.equal(result.summary.truncated, true);
@@ -271,7 +272,7 @@ test('a full archive does not grow the Phase 1 state store by item content', asy
   const { engine, server } = await engineFixture(t, { data });
   const project = await createProject(engine, server);
   const handle = await engine.projects.open(project.id);
-  const result = await handle.source.discover({ perPage: 100, progressEvery: 500 });
+  const result = await handle.source.discover({ mode: 'full', perPage: 100, progressEvery: 500 });
   assert.equal(result.status, 'completed');
   assert.ok(result.summary.items >= 600);
   const stateBytes = (await readFile(handle.paths.journalFile, 'utf8')).length +

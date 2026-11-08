@@ -26,7 +26,7 @@ async function prepare(t, { urlFactory, settings = {}, mediaOptions = {} }) {
     dataFactory: ({ mediaUrl }) => dataWithPosts(urlFactory(mediaUrl)),
     settings: { ...settings, media: { allowExternalMedia: true, ...(settings.media ?? {}) } }
   });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   return env;
 }
 
@@ -167,7 +167,7 @@ test('external media is linked-only by default and downloadable only when explic
     ...config,
     settings: { media: { allowExternalMedia: false } }
   });
-  await envOff.handle.source.discover({ perPage: 50 });
+  await envOff.handle.source.discover({ mode: 'full', perPage: 50 });
   const linkedOnly = await envOff.handle.planning.create({ batchSize: 1 });
   assert.equal(linkedOnly.status, 'completed');
   assert.equal(linkedOnly.media.skippedExternal, 1);
@@ -180,7 +180,7 @@ test('external media is linked-only by default and downloadable only when explic
     ...config,
     settings: { media: { allowExternalMedia: true } }
   });
-  await envOn.handle.source.discover({ perPage: 50 });
+  await envOn.handle.source.discover({ mode: 'full', perPage: 50 });
   const allowed = await envOn.handle.planning.create({ batchSize: 1 });
   assert.equal(allowed.status, 'completed');
   assert.equal(allowed.media.knownCount, 1);

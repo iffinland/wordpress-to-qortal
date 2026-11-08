@@ -79,6 +79,7 @@ test('the host exposes identity, planning, media download and inspection', async
   connection.onEvent((event) => notifications.push(event));
   const discovery = await connection.request('source.discover', {
     projectId: project.id,
+    mode: 'full',
     perPage: 10
   });
   assert.equal(discovery.status, 'completed');

@@ -76,7 +76,7 @@ test('the support bundle refuses a leaked canary or credential pattern instead o
 
 test('audit ledger entries are hash-chained and reject credential-like text', async (t) => {
   const env = await startPhase8(t);
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const entries = await env.handle.history.entries({ limit: 100 });
   assert.ok(entries.length > 0);
   for (const entry of entries) {
@@ -95,7 +95,7 @@ test('audit ledger entries are hash-chained and reject credential-like text', as
 
 test('history snapshots are sealed and independently verifiable', async (t) => {
   const env = await startPhase8(t);
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const snapshot = await env.handle.history.snapshot({ reason: 'test-export' });
   const document = await env.handle.history.readSnapshot(snapshot.relativePath);
   const integrity = document.integrity;

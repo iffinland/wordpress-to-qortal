@@ -14,7 +14,7 @@ import { startPhase3, makePost } from '../../test-support/phase3/helpers.js';
 
 async function prepareOne(t, options = {}) {
   const env = await startPhase3(t, { posts: [makePost(1), makePost(2), makePost(3)], ...options });
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const plan = await env.handle.planning.create({ batchSize: 3, estimateMedia: false });
   assert.equal(plan.status, 'completed');
   const selection = plan.plan.entries

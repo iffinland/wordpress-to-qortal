@@ -54,6 +54,7 @@ test('the host exposes source adapters, validation and discovery', async (t) => 
   connection.onEvent((event) => notifications.push(event));
   const discovery = await connection.request('source.discover', {
     projectId: project.id,
+    mode: 'full',
     perPage: 2,
     progressEvery: 1,
     maxItems: 4
