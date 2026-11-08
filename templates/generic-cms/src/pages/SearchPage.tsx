@@ -11,6 +11,7 @@ import {
   SEARCH_REBUILD_HINT
 } from '../lib/search.js';
 import { searchHref } from '../lib/routes.js';
+import { featuredImageUrlForItem } from '../lib/featuredImage.js';
 import type { CmsDataset } from '../types';
 
 export type SearchIndexLoadResult = {
@@ -111,6 +112,8 @@ export function SearchPage(props: {
     ? 'The full-text index is unavailable or incomplete, so results cover titles and excerpts only. ' + SEARCH_REBUILD_HINT
     : '';
   const stale = index && index.ok && isSearchIndexStale({ updated_at: index.updatedAt || index.entries[0]?.updated_at || null });
+  const itemsById = useMemo(() => new Map([...props.dataset.posts, ...props.dataset.pages].map((item) => [String(item.id), item])), [props.dataset]);
+  const itemsBySlug = useMemo(() => new Map([...props.dataset.posts, ...props.dataset.pages].map((item) => [item.type + ':' + item.slug, item])), [props.dataset]);
 
   return (
     <div className="page">
@@ -149,8 +152,12 @@ export function SearchPage(props: {
             <StateNotice state="empty" title="No matching content" message="The catalog is readable and no published item matches this search." />
           ) : (
             <ul className="search-results-list">
-              {results.results.map(({ entry, snippet }) => (
+              {results.results.map(({ entry, snippet }) => {
+                const item = itemsById.get(String(entry.id)) || itemsBySlug.get(entry.type + ':' + entry.slug);
+                const imageUrl = item ? featuredImageUrlForItem(item, props.dataset) : '';
+                return (
                 <li key={entry.id} className="search-result">
+                  {imageUrl ? <img className="search-result__image" src={imageUrl} alt={item?.featuredImageAlt || ''} loading="lazy" decoding="async" /> : null}
                   <p className="search-result__kind">{entry.type === 'page' ? 'Page' : 'Post'}{entry.origin ? ' · ' + entry.origin : ''}</p>
                   <h2 className="search-result__title">
                     <a href={searchIndexHref(entry.slug, entry.type, debounced)} aria-label={entry.title}>
@@ -160,7 +167,8 @@ export function SearchPage(props: {
                   {entry.excerpt ? <p className="search-result__excerpt"><Highlight text={entry.excerpt} terms={terms} /></p> : null}
                   {snippet && snippet !== entry.excerpt ? <p className="search-result__snippet"><Highlight text={snippet} terms={terms} /></p> : null}
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
         </>

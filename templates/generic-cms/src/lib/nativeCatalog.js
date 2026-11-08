@@ -13,6 +13,7 @@
  */
 
 import { slugify, slugAvailability as sharedSlugAvailability } from './slug.js';
+import { featuredImageEntryFields, normalizeFeaturedImage } from './featuredImage.js';
 
 export const NATIVE_INDEX_SCHEMA = 'qms-cms-native-index@1';
 export const NATIVE_INDEX_VERSION = 1;
@@ -106,7 +107,10 @@ export function mergeNativeCatalog(dataset, nativeIndex) {
       updatedAt: entry.updated_at || entry.updatedAt || null,
       publishedAt: entry.published_at || entry.publishedAt || entry.created_at || null,
       contentRef: entry.qdn || entry.content || null,
-      featuredImageRef: entry.featured_image || null,
+      featuredImageRef: normalizeFeaturedImage(entry.featured_image),
+      featuredImageUrl: entry.featured_image_url || null,
+      featuredImageAlt: entry.featured_image_alt || null,
+      featuredImageSource: entry.featured_image_source || null,
       contentHash: entry.contentHash || entry.content_hash || null,
       slugAliases: Array.isArray(entry.slug_aliases) ? entry.slug_aliases.map(String) : [],
       originalSlug: entry.original_slug || null,
@@ -179,6 +183,7 @@ export function nativeEntryFromDraft(draft, { siteId, qdnName, contentIdentifier
       contentHash: contentHash || null,
       slug_aliases: Array.isArray(draft.slugAliases) ? draft.slugAliases.map(String) : [],
       original_slug: draft.originalSlug || null,
+      ...featuredImageEntryFields(draft.featuredImageResolved || null),
       qdn: { service: 'DOCUMENT', name: qdnName, identifier: contentIdentifier }
     },
     categories,
@@ -210,7 +215,7 @@ export function buildNativeContentPayload(draft, { contentIdentifier, qdnName, c
     },
     authors: [{ name: draft.author || '', role: 'author' }],
     terms: { categories: draft.categoryIds || [], tags: draft.tagIds || [] },
-    media: draft.media || [],
+    media: draft.mediaDocument || { featured: null, images: Array.isArray(draft.media) ? draft.media : [], audio: [], video: [], documents: [], embeds: [], attachments: [] },
     links: { internal: [], external: [], external_media: [] },
     content_hash: contentHash || null,
     qdn: { service: 'DOCUMENT', name: qdnName, identifier: contentIdentifier }

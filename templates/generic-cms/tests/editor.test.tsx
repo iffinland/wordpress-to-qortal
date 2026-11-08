@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { EditorPage } from '../src/pages/admin/EditorPage';
 import { AdminPage } from '../src/pages/AdminPage';
 import { loadFixture, ownerIdentity, readerIdentity } from './support/fixtures';
@@ -253,6 +253,126 @@ describe('editing imported WordPress content', () => {
     }));
     await renderEditor(datasetWith());
     expect(screen.getByText(/Publication unconfirmed — not resent/)).toBeTruthy();
+  });
+});
+
+
+describe('featured images in the rendered editor', () => {
+  it('shows the template version and the exact optional-featured-image explanation', async () => {
+    stubNetwork();
+    await renderEditor();
+    expect(screen.getByText('Template vtest')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'New post' }));
+    expect(screen.getByText(/Featured image is optional/)).toBeTruthy();
+    expect(screen.getByText(/first suitable image in your post will be used automatically/)).toBeTruthy();
+    expect(screen.getByText(/published without a featured image/)).toBeTruthy();
+  });
+
+  it('selects an existing QDN image, previews it and keeps it across a draft reload', async () => {
+    stubNetwork();
+    await renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'New post' }));
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Featured post' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Choose featured image' }));
+    const picker = screen.getByRole('dialog', { name: 'Featured image' });
+    fireEvent.click(within(picker).getByRole('button', { name: 'Use https://example.org/media/hero.jpg' }));
+    expect(await screen.findByText('Selected by you')).toBeTruthy();
+    expect(document.querySelector('.featured-editor__preview')?.getAttribute('src')).toContain('qms-fixture-image-hero');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    cleanup();
+    stubNetwork();
+    await renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: /Featured post/ }));
+    expect(await screen.findByText('Selected by you')).toBeTruthy();
+    expect(document.querySelector('.featured-editor__preview')?.getAttribute('src')).toContain('qms-fixture-image-hero');
+  });
+
+  it('preserves an imported WordPress featured image and shows it before publishing', async () => {
+    stubNetwork();
+    await renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Hello Qortal' }));
+    await screen.findByLabelText('Title');
+    expect(screen.getByText('Preserved WordPress featured image')).toBeTruthy();
+    expect(document.querySelector('.featured-editor__preview')?.getAttribute('src')).toContain('qms-fixture-image-hero');
+    fireEvent.click(screen.getByRole('button', { name: 'Publish post…' }));
+    expect(screen.getByRole('dialog', { name: 'Confirm post publication' }).textContent).toContain('QDN IMAGE / QortalDemo / qms-fixture-image-hero');
+  });
+
+  it('auto-selects the first suitable body image and can be removed explicitly', async () => {
+    stubNetwork();
+    localStorage.setItem('qms-cms-post-drafts:site-fixture', JSON.stringify({
+      schema: 'qms-cms-post-drafts@1',
+      version: 1,
+      siteId: 'site-fixture',
+      drafts: [{
+        id: 'auto-draft', title: 'Auto image post', slug: 'auto-image-post', slugTouched: false,
+        html: '<p><img src="/arbitrary/IMAGE/QortalDemo/qms-fixture-image-hero" alt="Body hero"></p>',
+        sourceKind: 'cms-native', publicationState: 'draft'
+      }]
+    }));
+    await renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: /Auto image post/ }));
+    expect(await screen.findByText('Automatic: first suitable image in the post body')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove featured image' }));
+    expect(screen.getByText('No featured image will be published')).toBeTruthy();
+    expect(document.querySelector('.featured-editor__preview--empty')).toBeTruthy();
+  });
+
+  it('accepts a local image for the same authorized plan', async () => {
+    const original = URL.createObjectURL;
+    Object.defineProperty(URL, 'createObjectURL', { value: () => 'blob:featured-preview', configurable: true });
+    try {
+      stubNetwork();
+      localStorage.setItem('qms-cms-post-drafts:site-fixture', JSON.stringify({
+        schema: 'qms-cms-post-drafts@1',
+        version: 1,
+        siteId: 'site-fixture',
+        drafts: [{
+          id: 'local-featured', title: 'Local featured post', slug: 'local-featured-post', slugTouched: false,
+          html: '<p>Body for the local featured image.</p>', sourceKind: 'cms-native', publicationState: 'draft'
+        }]
+      }));
+      await renderEditor();
+      fireEvent.click(screen.getByRole('button', { name: /Local featured post/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Choose featured image' }));
+      const picker = screen.getByRole('dialog', { name: 'Featured image' });
+      const input = within(picker).getByLabelText('Choose a featured image from this device') as HTMLInputElement;
+      fireEvent.change(input, { target: { files: [new File(['image-bytes'], 'cover.jpg', { type: 'image/jpeg' })] } });
+      expect(await screen.findByText('New local image, published when you confirm')).toBeTruthy();
+      expect(document.querySelector('.featured-editor__preview')?.getAttribute('src')).toBe('blob:featured-preview');
+      fireEvent.click(screen.getByRole('button', { name: 'Publish post…' }));
+      const dialog = screen.getByRole('dialog', { name: 'Confirm post publication' });
+      expect(dialog.textContent).toContain('cover.jpg');
+      expect(dialog.textContent).toContain('fee includes one image resource');
+    } finally {
+      Object.defineProperty(URL, 'createObjectURL', { value: original, configurable: true });
+    }
+  });
+});
+
+describe('truncated automatic slug guard in the rendered editor', () => {
+  it('refuses to save or publish a one-character automatic slug from a longer title', async () => {
+    stubNetwork();
+    localStorage.setItem('qms-cms-post-drafts:site-fixture', JSON.stringify({
+      schema: 'qms-cms-post-drafts@1',
+      version: 1,
+      siteId: 'site-fixture',
+      drafts: [{
+        id: 'truncated', title: 'Teine test post', slug: 't', slugTouched: false, slugLocked: false,
+        html: '<p>Body</p>', sourceKind: 'cms-native', publicationState: 'draft'
+      }]
+    }));
+    await renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: /Teine test post/ }));
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.getAllByText(/only one character/).length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
+    expect(screen.getAllByText(/only one character/).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Publish post…' }));
+    expect(screen.queryByRole('dialog', { name: 'Confirm post publication' })).toBeNull();
+    expect(screen.getAllByText(/only one character/).length).toBeGreaterThan(0);
   });
 });
 

@@ -208,3 +208,25 @@ export function mergeAliases(existing, previousSlug, nextSlug) {
   aliases.delete(next);
   return Array.from(aliases).sort();
 }
+
+/**
+ * Guard against a historically truncated automatic slug.
+ *
+ * A one-character slug is legitimate when the whole title slugifies to that
+ * character (a post titled "Q") or when the owner typed it manually. It is not
+ * legitimate when it was auto-derived from a longer title and was never
+ * touched. The editor blocks saving/publishing that state instead of silently
+ * persisting a first-keystroke slug.
+ */
+export function prematureAutoSlugProblem(options = {}) {
+  const slug = finalizeSlug(options.slug);
+  if (!slug) return '';
+  if (options.locked === true || options.touched === true) return '';
+  if (slug.length !== 1) return '';
+  const title = String(options.title == null ? '' : options.title).trim();
+  if (title.length <= 1) return '';
+  if (slugify(title) === slug) return '';
+  return 'The automatic slug is only one character (' + JSON.stringify(slug) + ') while the title is longer ('
+    + JSON.stringify(title) + '). This is the historical first-keystroke truncation. Regenerate the slug from the complete title, '
+    + 'type a slug manually, or restore the draft from a build that generates the full slug.';
+}

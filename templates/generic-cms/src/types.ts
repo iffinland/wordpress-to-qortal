@@ -84,6 +84,10 @@ export interface CmsContentItem {
   publishedAt: string | null;
   contentRef: QdnRef | null;
   featuredImageRef: QdnRef | null;
+  /** External featured-image URL when the body image is not a QDN resource. */
+  featuredImageUrl?: string | null;
+  featuredImageAlt?: string | null;
+  featuredImageSource?: 'explicit' | 'body' | 'wordpress' | 'published' | null;
   contentHash: string | null;
   native?: boolean;
   /** True when the imported item is shown through a CMS edit overlay. */
@@ -163,6 +167,10 @@ export interface LoadedContent {
   publishedAt: string | null;
   modifiedAt: string | null;
   media: CmsMediaRef[];
+  featuredImageRef?: QdnRef | null;
+  featuredImageUrl?: string | null;
+  featuredImageAlt?: string | null;
+  featuredImageSource?: string | null;
   source: string;
 }
 
