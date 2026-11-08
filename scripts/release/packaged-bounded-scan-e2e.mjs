@@ -217,6 +217,22 @@ async function openProjectWizard(cdp, projectId) {
   await waitFor(cdp, 'document.body.innerText.includes("PROJECT SETUP") && !!document.querySelector("button")', 'project setup wizard', 180000);
 }
 
+async function fillSourceUrl(cdp, url) {
+  // A project created through the engine API does not carry wizard state, so the
+  // URL field starts empty. A user types the site URL before testing the
+  // connection; the harness does the same.
+  return cdp.evaluate(`(() => {
+    const input = [...document.querySelectorAll('input')].find((node) => (node.placeholder || '').includes('example.org'));
+    if (!input) return false;
+    if (input.value.trim() !== '') return 'already';
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    setter.call(input, ${JSON.stringify(url)});
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`).catch(() => false);
+}
+
 async function validateConnectionIfRequired(cdp) {
   // The connection step refuses Continue until the WordPress REST endpoint has
   // been tested. The fixture answers with a deliberate delay, so the harness
@@ -262,11 +278,19 @@ async function reachScanReview(cdp, server) {
   // test, tagline, identity), so the harness reacts to what the UI offers
   // instead of assuming a fixed number of clicks.
   for (let attempt = 0; attempt < 10; attempt += 1) {
-    const state = await cdp.evaluate(`(() => ({
-      confirmation: !!document.querySelector('[data-testid=scan-confirmation]'),
-      step: (document.querySelector('.stepper')?.textContent || '').slice(0, 60)
-    }))()`).catch(() => ({ confirmation: false, step: '' }));
+    const state = await cdp.evaluate(`(() => {
+      const errs = [...document.querySelectorAll('*')]
+        .filter((node) => node.children.length === 0 && /required|invalid|must|cannot|test the connection|error/i.test(node.textContent || ''))
+        .map((node) => node.textContent.trim().slice(0, 80));
+      return {
+        confirmation: !!document.querySelector('[data-testid=scan-confirmation]'),
+        step: (document.querySelector('.stepper')?.textContent || '').slice(0, 40),
+        errs: [...new Set(errs)].slice(0, 3)
+      };
+    })()`).catch(() => ({ confirmation: false, step: '', errs: ['evaluate failed'] }));
+    stage('wizard attempt ' + attempt, state);
     if (state.confirmation) return;
+    await fillSourceUrl(cdp, server ? server.url : '');
     await validateConnectionIfRequired(cdp);
     await fillRequiredTagline(cdp);
     if (server && attempt >= 2) server.requests.length = 0;
