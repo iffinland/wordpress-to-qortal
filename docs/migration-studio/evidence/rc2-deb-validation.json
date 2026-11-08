@@ -1,0 +1,314 @@
+{
+  "schema": "qms-deb-validation@1",
+  "artifact": "qortal-migration-studio_0.8.0-rc.2_amd64.deb",
+  "bytes": 108536096,
+  "sha256": "344941454765132e99331818e1043594d2cf5ad9d220490de96459a3f2693cd7",
+  "version": "0.8.0-rc.2",
+  "architecture": "amd64",
+  "checks": 60,
+  "passed": 60,
+  "failed": 0,
+  "results": [
+    {
+      "name": "artifact name follows Debian convention",
+      "ok": true,
+      "detail": "qortal-migration-studio_0.8.0-rc.2_amd64.deb"
+    },
+    {
+      "name": "artifact is a plausible Electron package size",
+      "ok": true,
+      "detail": "108536096"
+    },
+    {
+      "name": "package name",
+      "ok": true,
+      "detail": "qortal-migration-studio"
+    },
+    {
+      "name": "package version",
+      "ok": true,
+      "detail": "0.8.0~rc.2"
+    },
+    {
+      "name": "package architecture",
+      "ok": true,
+      "detail": "amd64"
+    },
+    {
+      "name": "package section",
+      "ok": true,
+      "detail": "office"
+    },
+    {
+      "name": "maintainer present",
+      "ok": true,
+      "detail": "Qortal Migration Studio contributors <maintainers@example.invalid>"
+    },
+    {
+      "name": "homepage present",
+      "ok": true,
+      "detail": "https://github.com/iffinland/wordpress-to-qortal"
+    },
+    {
+      "name": "installed size present",
+      "ok": true,
+      "detail": "276192"
+    },
+    {
+      "name": "GTK dependency alternatives",
+      "ok": true,
+      "detail": "libgtk-3-0 | libgtk-3-0t64, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0 | libatspi2.0-0t64, libuuid1, libsecret-1-0, libasound2 | libasound2t64, libgbm1, libdrm2, libxkbcommon0, libxcomposite1, libxdamage1, libxrandr2, libxfixes3, libcups2 | libcups2t64, libpango-1.0-0, libcairo2, libatk1.0-0 | libatk1.0-0t64, libatk-bridge2.0-0 | libatk-bridge2.0-0t64, libx11-6, libxcb1, libxext6, libxi6"
+    },
+    {
+      "name": "libsecret dependency",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "xdg-utils dependency",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains ./opt/qortal-migration-studio/qortal-migration-studio",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains ./opt/qortal-migration-studio/resources/app.asar",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains ./opt/qortal-migration-studio/resources/engine/bin/qms-host.js",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains ./opt/qortal-migration-studio/resources/engine/node_modules/cheerio/package.json",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains ./opt/qortal-migration-studio/resources/engine/node_modules/dotenv/package.json",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains ./opt/qortal-migration-studio/resources/engine/templates/generic-cms/dist/index.html",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains ./opt/qortal-migration-studio/resources/engine/templates/generic-cms/template.json",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains ./usr/share/applications/qortal-migration-studio.desktop",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains ./usr/bin/qortal-migration-studio",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains ./usr/share/doc/qortal-migration-studio/copyright",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains icon 16x16",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains icon 32x32",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains icon 48x48",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains icon 64x64",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains icon 128x128",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains icon 256x256",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "contains icon 512x512",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "no forbidden path /\\/profiles\\//",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no forbidden path /\\/\\.env$/",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no forbidden path /\\/fixtures\\//",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no forbidden path /\\/test\\//",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no forbidden path /\\/tests\\//",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no forbidden path /\\/test-support\\//",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no forbidden path /\\/corbettreport\\//",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no forbidden path /\\/viewer\\/node_modules\\//",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no forbidden path /\\.map$/",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no forbidden path /\\/\\.git\\//",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "no forbidden path /\\/release\\//",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "main executable is executable",
+      "ok": true,
+      "detail": "100755"
+    },
+    {
+      "name": "chrome-sandbox is setuid root",
+      "ok": true,
+      "detail": "104755"
+    },
+    {
+      "name": "chrome-sandbox mode is 4755",
+      "ok": true,
+      "detail": "104755"
+    },
+    {
+      "name": "desktop entry name",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop entry exec",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop entry icon",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "desktop entry not terminal",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "engine runtime schema",
+      "ok": true,
+      "detail": "qms-engine-runtime@1"
+    },
+    {
+      "name": "engine runtime version",
+      "ok": true,
+      "detail": "0.8.0-rc.2"
+    },
+    {
+      "name": "engine runtime template version",
+      "ok": true,
+      "detail": "0.8.0-alpha.8"
+    },
+    {
+      "name": "engine runtime file hashes match manifest",
+      "ok": true,
+      "detail": "0"
+    },
+    {
+      "name": "bundled template schema",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "bundled template version",
+      "ok": true,
+      "detail": "0.8.0-alpha.8"
+    },
+    {
+      "name": "bundled template has root index.html",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "asar package version",
+      "ok": true,
+      "detail": "0.8.0-rc.2"
+    },
+    {
+      "name": "usr/bin launcher is a symlink",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "usr/bin launcher target",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "no unsafe permissions",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "maintainer scripts never delete project data",
+      "ok": true,
+      "detail": null
+    },
+    {
+      "name": "prerm has no destructive command",
+      "ok": true,
+      "detail": null
+    }
+  ],
+  "validatedAt": "2026-11-08T20:26:47.245Z"
+}

@@ -38,6 +38,25 @@ follow-up; the changed code is limited to the Plan Review trigger/single-flight
 and the quick-scan page size. A public release still requires the complete
 A–J functional and H handoff gate described in RELEASE-WORKFLOW.md.
 
+### rc.2 build and validation record
+
+- Artifact: `qortal-migration-studio_0.8.0-rc.2_amd64.deb` (108,536,096
+  bytes), sha256
+  `344941454765132e99331818e1043594d2cf5ad9d220490de96459a3f2693cd7`;
+  built from source commit `2c61ba7b80b0cbf6d3d90f274346b93c78e90c13`,
+  source tree `d902f46d9efcf099d7098f54ecb707ea9bcffdd7`, branch
+  `fix/0.8.0-rc.2-plan-race-nasa`.
+- Staged privately at `~/qms-e2e/artifacts/` on the build VPS with its
+  `.sha256` and `INSTALL-0.8.0-rc.2.txt`; the rc.1 files remain.
+- Debian validation: 60/60 checks passed, 0 failed
+  (`evidence/rc2-deb-validation.json`).
+- Security gate: dependency audits 0 high/critical, payload scan 997 files,
+  verdict pass (`evidence/rc2-security-report.json`).
+- Engine suite: 501/501 tests passed. Desktop: 89/89 tests passed plus
+  typecheck. Generic CMS: 203/203 tests passed.
+- Packaged GUI subset on this artifact: A, B, I and J all PASS
+  (`evidence/rc2-after-functional-subset.json`).
+
 ## Result summary
 
 | Control | Method | 0.8.0-rc.1 (before fix) | Fixed build | Evidence |

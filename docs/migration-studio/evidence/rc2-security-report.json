@@ -1,0 +1,43 @@
+{
+  "schema": "qms-security-report@1",
+  "version": "0.8.0-rc.2",
+  "artifact": "qortal-migration-studio_0.8.0-rc.2_amd64.deb",
+  "dependencyAudits": [
+    {
+      "name": "engine-runtime",
+      "exitCode": 0,
+      "error": null,
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    },
+    {
+      "name": "desktop",
+      "exitCode": 0,
+      "error": null,
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 0,
+        "high": 0,
+        "critical": 0,
+        "total": 0
+      }
+    }
+  ],
+  "productionHighOrCritical": 0,
+  "payloadScan": {
+    "files": 997,
+    "textFiles": 920,
+    "bytes": 282820200,
+    "secretFindings": [],
+    "forbiddenNames": []
+  },
+  "verdict": "pass",
+  "scannedAt": "2026-11-08T20:25:44.241Z"
+}
