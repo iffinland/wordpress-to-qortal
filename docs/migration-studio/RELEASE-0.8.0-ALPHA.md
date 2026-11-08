@@ -1,8 +1,31 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-rc.1 -->
+<!-- qms-release-version: 0.8.0-rc.2 -->
 
-## 0.8.0 alpha.13 — current
+## 0.8.0 rc.2 — current (private acceptance candidate)
+
+Fixes two owner-reported defects found in the 0.8.0-rc.1 private candidate.
+
+- **BUG-005 — duplicate `plan.create` when entering Plan Review.** Step 5 was
+  started twice: once by the step effect and once by the Continue handler. The
+  engine refused the second overlapping run with *"Another plan.create
+  operation is starting in this engine."*, while the first run's ready plan
+  still rendered. The renderer now has exactly one trigger and a single-flight
+  request with an epoch; a successful preview also clears an older error.
+- **NASA Quick Scan requested 3, indexed 1.** NASA's REST API returns fewer
+  rows than `per_page` (measured: `per_page=3` returns 1, `per_page=100`
+  returns 45, while `X-WP-Total` still advertises 35,600). Quick scan now asks
+  for a full 100-item page and keeps only the requested number, so the window is
+  filled. If a source still returns fewer items than requested, the report and
+  UI state the source short page with requested/scanned/available counts instead
+  of leaving "indexed" ambiguous.
+
+Verified with the packaged Electron app: control I asserts exactly one
+`plan.create`, a ready plan and no `Another plan.create` text; control J runs
+a NASA-shaped short-page fixture and asserts three indexed posts from one
+`per_page=100` request.
+
+## 0.8.0 alpha.13
 
 Bounded source discovery for very large sites. The wizard now defaults to
 **Quick scan — selected batch** and fetches one bounded content page (maximum

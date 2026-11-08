@@ -1,7 +1,7 @@
 {
   "name": "qortal-migration-studio",
   "productName": "Qortal Migration Studio",
-  "version": "0.8.0-rc.1",
+  "version": "0.8.0-rc.2",
   "description": "Linux desktop application for safely preparing WordPress-to-Qortal migrations.",
   "private": true,
   "main": "dist-electron/main.cjs",

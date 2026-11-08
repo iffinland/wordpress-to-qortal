@@ -68,6 +68,54 @@ Fix (with permanent regression tests):
 - `desktop/tests/renderer/wizard.spec.tsx`: regression asserting the failure is visible
   inside the source-scan panel.
 
+## Known defect found by this audit (BUG-005)
+
+Entering **Plan Review** from **Import preferences** started the preview twice:
+
+- the step effect at `desktop/src/renderer/components/Wizard.tsx:245` called
+  `loadPreview()` when `step === 5`;
+- the Continue handler at `Wizard.tsx:742` called `loadPreview()` again after
+  `persist()` resolved.
+
+`loadPreview()` used only a boolean ref (`previewInFlight`), so the second
+caller could not coalesce with the first. Two `plan.create` operations reached
+the engine; the second was refused with *"Another plan.create operation is
+starting in this engine."* (lib/engine/runs.js:263) while the first preview
+still rendered a ready plan. The stale error banner stayed next to the plan.
+
+Reproduced on the packaged 0.8.0-rc.1 app, control I. Raw evidence:
+`docs/migration-studio/evidence/rc2-bug005-before-plan-race.json` and
+`rc2-bug005-before-plan-race.txt`.
+
+Fix (0.8.0-rc.2):
+
+- the step effect is the **only** trigger for the first preview; the Continue
+  handler no longer calls `loadPreview()`;
+- `desktop/src/renderer/lib/plan-preview.ts` implements a single-flight request
+  with a request epoch. Concurrent callers share one promise; a late result or
+  error from an older request can neither overwrite a newer one nor resurrect
+  an old error;
+- `applyPlanResult` on success also clears the wizard-level error;
+- `desktop/tests/renderer/plan-preview.spec.ts` proves two concurrent
+  `loadPreview()` calls produce one engine request and that stale results and
+  errors are discarded;
+- `desktop/tests/renderer/wizard.spec.tsx` and packaged control I assert one
+  `plan.create`, a ready plan and no `Another plan.create` text.
+
+## NASA short-page undercount (owner report, 0.8.0-rc.2)
+
+The owner's "NASA CMS Test" quick scan requested 3 and indexed 1. The live NASA
+REST API returns fewer rows than `per_page` while `X-WP-Total` advertises
+35,600 (`per_page=3` -> 1 row, `per_page=100` -> 45 rows). The wizard used
+`perPage = maxItems = 3`, so one request returned one usable row.
+
+Fix: quick scan still fetches exactly one content page but requests the full
+100-item page and keeps only `maxItems`. A genuine source short page is recorded
+as `underReturned`/`shortfall` and `SOURCE_UNDER_RETURNED`, and the UI states
+requested/scanned/available. Evidence:
+`docs/migration-studio/evidence/rc2-nasa-before-undercount.json` and
+`rc2-nasa-before-undercount.txt`; packaged control J.
+
 ## Control inventory
 
 ### App shell and navigation
@@ -105,8 +153,8 @@ Fix (with permanent regression tests):
 | **Test connection** | Validates the WordPress REST contract and auth. | `testConnection` | `qms:source:validate` → `source.validate` | Badge + connection report; failure alert stays inside step 2. | wizard spec | No packaged test of the report rendering. |
 | **Continue** step 2 | Requires a successful connection. | `next` | project.update | Blocked with an explicit message. | wizard spec | None. |
 | **Continue** step 3 | Validates Qortal name, title, tagline, service and saves target. | `next` | `qms:identity:validate-target` → `identity.validateTarget`; project.update | Local validation only; no ownership claim. | wizard spec, qortalName tests | None. |
-| **Continue** step 4 | Saves preferences; never starts discovery. | `next` → `savePreferences` | project.update | Shows explicit scan confirmation panel. | wizard spec | None. |
-| **Run quick scan** (direct) | Runs the bounded selection and stays on step 4. | `runScan('quick')` | `qms:source:discover` → `source.discover({mode:'quick',selection})` | Completion counts + run state; failure must be visible next to controls. | wizard spec (calls + new error locality), bounded-discovery engine test | **BUG-004**: IPC allowlist dropped mode/selection. Packaged failure reproduced. |
+| **Continue** step 4 | Saves preferences; never starts discovery. If discovery already completed, advances to Plan Review, whose step effect starts exactly one preview. | `next` → `savePreferences` | project.update; then `qms:plan:create` once | Shows the explicit scan confirmation panel, or Plan Review with one `plan.create`. | wizard spec, plan-preview spec, packaged control I | BUG-005 fixed (was two triggers). |
+| **Run quick scan** (direct) | Runs the bounded selection and stays on step 4. Requests a full 100-item page and keeps `maxItems`; a source short page is reported, never hidden. | `runScan('quick')` | `qms:source:discover` → `source.discover({mode:'quick',selection})` | Completion counts + run state; under-return notice when the source returns fewer usable rows; failure visible next to controls. | wizard spec, bounded-discovery engine tests (short page), packaged control J | BUG-004 fixed; NASA short-page undercount fixed in rc.2. |
 | **Confirm quick scan and continue** | Runs the same bounded scan, saves discovery and advances to plan review. | `runScan('quick',{continueAfter:true})` | same as above, then `plan.create` | Plan review with selected count; blocked if empty. | wizard spec, engine tests | **BUG-004** same root cause; post-scan navigation differs from direct button. |
 | **Run full inventory** | Explicit full crawl after acknowledgement. | `runScan('full')` | `source.discover({mode:'full'})` | Long operation; pause/cancel available. | wizard spec, bounded-discovery | **BUG-004** same root cause. |
 | **Full-inventory acknowledgement** | Enables the full button and shows worst-case pages. | `setFullScanAcknowledged` | none | Button disabled until ticked. | wizard spec | None. |
@@ -114,7 +162,7 @@ Fix (with permanent regression tests):
 | **Cancel scan** | Ends the run and keeps the project/assets. | `cancelScan` | `qms:run:cancel` → `run.cancel` | Cancelled notice; project preserved. | wizard spec, bounded-discovery | Packaged cancel covered by acceptance E. |
 | **Resume interrupted scan from checkpoint** | Re-drives the durable batch. | `resumeInterruptedScan` | `qms:recovery:resume` → `recovery.resume` | Completes from cursor; failure shown locally. | wizard spec, bounded-discovery | Packaged resume covered by D. |
 | **Check disk** | Previews free/reserve/fit. | `checkDisk` | `qms:disk:check` → `disk.check` | Fits/does-not-fit; error shown. | wizard + phase3 tests | None. |
-| **Refresh preview** (step 5) | Rebuilds the plan preview without persisting. | `loadPreview` | `qms:plan:create` with `persist:false` | Plan/statistics/blocked reasons. | wizard spec, phase3 | None. |
+| **Refresh preview** (step 5) | Rebuilds the plan preview without persisting; concurrent callers share one in-flight request. | `loadPreview` via single-flight flight | `qms:plan:create` with `persist:false` | Plan/statistics/blocked reasons; a success clears a stale planning error. | wizard spec, plan-preview spec, phase3 | BUG-005 regression covered by packaged control I. |
 | **Approve local preparation** | Persists a ready plan and opens Progress. | `approve` | `qms:plan:create` with `persist:true` | Disabled with a reason unless a ready non-empty plan exists. | wizard spec | None. |
 | **Back / Back to settings** | Navigates and persists. | `goTo` | save-wizard | No destructive action. | wizard spec | None. |
 | **Back to dashboard** | Closes the wizard view. | `onClose` | none | Dashboard refreshes. | wizard spec | None. |

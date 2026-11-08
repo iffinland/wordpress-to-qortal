@@ -1,0 +1,122 @@
+{
+  "schema": "qms-packaged-functional-acceptance@1",
+  "startedAt": "2026-11-08T20:18:00.394Z",
+  "environment": {
+    "appDir": "/home/qmse2e/qms-rc/desktop/release/linux-unpacked",
+    "rootfs": "/home/qmse2e/qms-e2e/rootfs",
+    "work": "/home/qmse2e/qms-e2e/work/nasa-before"
+  },
+  "controls": {
+    "A": {
+      "control": "Direct Run quick scan",
+      "status": "SKIPPED"
+    },
+    "B": {
+      "control": "Confirm quick scan and continue",
+      "status": "SKIPPED"
+    },
+    "C": {
+      "control": "Full inventory on a small fixture",
+      "status": "SKIPPED"
+    },
+    "I": {
+      "control": "Plan Review entry: one plan.create, no stale error (BUG-005)",
+      "status": "SKIPPED"
+    },
+    "J": {
+      "control": "NASA-shaped short page still fills the requested window",
+      "status": "FAIL",
+      "error": "short-page source indexed fewer than three posts: {\"panel\":\"Source scan\\n\\nChoose an explicit scope. Quick scan is the recommended default for a small import; it never enumerates the whole library or every taxonomy term.\\n\\nQuick scan — selected batch (recommended)\\nIndex up to (newest matching items)\\nOne REST page, maximum 100. Only taxonomy terms and media dependencies referenced by these items are fetched.\\n\\nScope: up to 3 post item(s) in 1 content page request(s), plus bounded lookups for only the referenced terms and media. Source total: post 35600.\\n\\nFull site inventory (explicitly chosen; can be very long)\\nRun quick scan\\nPhase content · mode quick · 1/\",\"counts\":{\"posts\":1,\"pages\":0,\"categories\":2,\"tags\":1,\"media\":2},\"scope\":{\"schema\":\"qms-scan-scope@1\",\"mode\":\"quick\",\"bounded\":true,\"contentTypes\":[\"post\"],\"selection\":{\"include\":[],\"slug\":[],\"perPage\":3,\"maxPages\":1,\"maxItems\":3},\"requested\":3,\"scanned\":1,\"postsScanned\":1,\"pagesScanned\":0,\"pagesFetched\":4,\"totalAvailable\":{\"post\":35600},\"worstCasePages\":1,\"termsReferenced\":3,\"termsRequested\":3,\"mediaDependencies\":2,\"apiRequests\":6,\"bytesTransferred\":2867},\"postRequests\":[{\"per_page\":\"3\",\"page\":\"1\"}],\"underReturnedNotice\":false}",
+      "rendererExceptions": []
+    },
+    "D": {
+      "control": "Pause then Resume",
+      "status": "SKIPPED"
+    },
+    "E": {
+      "control": "Cancel a running scan",
+      "status": "SKIPPED"
+    },
+    "F": {
+      "control": "Interrupted Full checkpoint, then independent Quick scan",
+      "status": "SKIPPED"
+    },
+    "G1": {
+      "control": "Connection failure is visible",
+      "status": "SKIPPED"
+    },
+    "G2": {
+      "control": "Invalid source is visible",
+      "status": "SKIPPED"
+    },
+    "G3": {
+      "control": "API timeout is visible next to the scan controls",
+      "status": "SKIPPED"
+    },
+    "G4": {
+      "control": "Engine failure is visible",
+      "status": "SKIPPED"
+    }
+  },
+  "projects": {
+    "A": {
+      "projectId": "prj_38sf84799pk97p76",
+      "siteId": "site_91b67c616eb218e0aaa8e84430a204d5"
+    },
+    "B": {
+      "projectId": "prj_lzek4yxfb1sg0pcz",
+      "siteId": "site_33951b4fa2476f94260af16a9cec8952"
+    },
+    "C": {
+      "projectId": "prj_tmjpg53cttzrnyjw",
+      "siteId": "site_e26508aafa27b050af60bbef31f8e755"
+    },
+    "D": {
+      "projectId": "prj_jw5ucfok9rze8dkb",
+      "siteId": "site_026b6122c6d76a464010a099e6ce9954"
+    },
+    "E": {
+      "projectId": "prj_empwxqfoclbqsflr",
+      "siteId": "site_aa653d8a908957c44933a8080bc91bf2"
+    },
+    "F": {
+      "projectId": "prj_13ks39h3zxm7b4wo",
+      "siteId": "site_474d0935324bb106568b41e4c8976239"
+    },
+    "G1": {
+      "projectId": "prj_3of5rgvo88qadiho",
+      "siteId": "site_18fb1d1153a6c14e018c95b5d3af128f"
+    },
+    "G2": {
+      "projectId": "prj_jx71u5m0u0ud65d5",
+      "siteId": "site_dd8aab980d378d7f64e5a0e00db02845"
+    },
+    "G3": {
+      "projectId": "prj_3v6cje7b2hm8h9u3",
+      "siteId": "site_a820be2c2daf8f2817623a84e79cf9d8"
+    },
+    "G4": {
+      "projectId": "prj_llpinaaccvht09jk",
+      "siteId": "site_302adcb3fc0c73841041fe68a2d2128e"
+    },
+    "I": {
+      "projectId": "prj_2rbyrybuos4ewe3w",
+      "siteId": "site_af7e960462612edc769af03eba1da5a6"
+    },
+    "J": {
+      "projectId": "prj_tzi0gamfe3onobfc",
+      "siteId": "site_0ee010f1b9e40c247cdf42fb49630324"
+    }
+  },
+  "fixtures": {
+    "small": "http://127.0.0.1:40317",
+    "medium": "http://127.0.0.1:36907",
+    "badHtml": "http://127.0.0.1:40139",
+    "hanging": "http://127.0.0.1:34035"
+  },
+  "failures": [
+    "J: short-page source indexed fewer than three posts: {\"panel\":\"Source scan\\n\\nChoose an explicit scope. Quick scan is the recommended default for a small import; it never enumerates the whole library or every taxonomy term.\\n\\nQuick scan — selected batch (recommended)\\nIndex up to (newest matching items)\\nOne REST page, maximum 100. Only taxonomy terms and media dependencies referenced by these items are fetched.\\n\\nScope: up to 3 post item(s) in 1 content page request(s), plus bounded lookups for only the referenced terms and media. Source total: post 35600.\\n\\nFull site inventory (explicitly chosen; can be very long)\\nRun quick scan\\nPhase content · mode quick · 1/\",\"counts\":{\"posts\":1,\"pages\":0,\"categories\":2,\"tags\":1,\"media\":2},\"scope\":{\"schema\":\"qms-scan-scope@1\",\"mode\":\"quick\",\"bounded\":true,\"contentTypes\":[\"post\"],\"selection\":{\"include\":[],\"slug\":[],\"perPage\":3,\"maxPages\":1,\"maxItems\":3},\"requested\":3,\"scanned\":1,\"postsScanned\":1,\"pagesScanned\":0,\"pagesFetched\":4,\"totalAvailable\":{\"post\":35600},\"worstCasePages\":1,\"termsReferenced\":3,\"termsRequested\":3,\"mediaDependencies\":2,\"apiRequests\":6,\"bytesTransferred\":2867},\"postRequests\":[{\"per_page\":\"3\",\"page\":\"1\"}],\"underReturnedNotice\":false}"
+  ],
+  "status": "fail",
+  "finishedAt": "2026-11-08T20:18:37.862Z"
+}

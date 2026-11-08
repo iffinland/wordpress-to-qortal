@@ -44,6 +44,8 @@ const outFile = path.resolve(argument('out', path.join(work, 'functional-accepta
 const dataHome = path.join(work, 'datahome');
 const dataRoot = path.join(dataHome, 'qortal-migration-studio');
 const CDP_PORT = Number(argument('port', '9341'));
+const only = argument('only', null);
+const wanted = only ? new Set(only.split(',').map((value) => value.trim()).filter(Boolean)) : null;
 const sessionScript = path.join(work, 'session.sh');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -144,6 +146,25 @@ function wizardState(serverUrl, options) {
     planId: null,
     updatedAt: new Date().toISOString()
   };
+}
+
+async function seedCompletedQuickScan(projectId, { maxItems = 3 } = {}) {
+  const engine = createEngine({ dataRoot, diskProbe: fixedDiskProbe(10 * GIB) });
+  try {
+    const handle = await engine.projects.open(projectId);
+    const result = await handle.source.discover({
+      mode: 'quick',
+      contentTypes: ['post'],
+      perPage: 100,
+      selection: { perPage: 100, maxPages: 1, maxItems }
+    });
+    if (result.status !== 'completed') {
+      throw new Error('seeded quick scan did not complete: ' + JSON.stringify(result.error ?? result.status));
+    }
+    return result;
+  } finally {
+    await engine.close().catch(() => {});
+  }
 }
 
 async function seedProject(serverUrl, options) {
@@ -504,6 +525,10 @@ const results = {};
 const failures = [];
 
 async function record(name, label, body) {
+  if (wanted && !wanted.has(name)) {
+    results[name] = { control: label, status: 'SKIPPED' };
+    return;
+  }
   try {
     const value = await body();
     results[name] = { control: label, status: 'PASS', ...value };
@@ -527,6 +552,13 @@ async function main() {
   });
   const badHtml = await startBadHtmlServer();
   const hanging = await startHangingPostsServer();
+  // NASA-shaped source: its REST API returns fewer rows than per_page even
+  // though X-WP-Total advertises tens of thousands. A three-item quick scan
+  // must still index three.
+  const shortPage = await startWordpressFixtureServer({
+    data: createLargeFixtureData({ posts: 35_600, media: 60, categories: 20, tags: 5 }),
+    partialPages: { posts: 0.45 }
+  });
 
   const projects = {};
   const seed = async (key, server, options) => {
@@ -545,6 +577,8 @@ async function main() {
     await seed('G2', badHtml, { name: 'Functional G2 invalid', qdnName: 'FunctionalG2Invalid', step: 2, completedSteps: [1] });
     await seed('G3', hanging, { name: 'Functional G3 timeout', qdnName: 'FunctionalG3Timeout', contentTypes: ['post'], step: 4, sourceExtra: { timeoutMs: 1200 } });
     await seed('G4', small, { name: 'Functional G4 engine', qdnName: 'FunctionalG4Engine', contentTypes: ['post'] });
+    await seed('I', small, { name: 'Functional I plan review', qdnName: 'FunctionalIPlanReview', contentTypes: ['post'], batchSize: 3 });
+    await seed('J', shortPage, { name: 'Functional J short page', qdnName: 'FunctionalJShortPage', contentTypes: ['post'], batchSize: 3 });
 
     evidence.projects = projects;
     evidence.fixtures = { small: small.url, medium: medium.url, badHtml: badHtml.url, hanging: hanging.url };
@@ -603,6 +637,66 @@ async function main() {
         throw new Error('unexpected full-inventory counts: ' + JSON.stringify(counts));
       }
       return { outcome: 'completed', counts, latest: { mode: state.latest.mode, batchId: state.latest.batchId }, ui: outcome.text.slice(0, 400) };
+    });
+    await backToDashboard(cdp);
+    await openWizardStep(cdp, projects.I.projectId, 'Import preferences');
+    await record('I', 'Plan Review entry: one plan.create, no stale error (BUG-005)', async () => {
+      await setQuickLimit(cdp, 3);
+      await click(cdp, 'Run quick scan');
+      const scanOutcome = await waitScanOutcome(cdp, 180000);
+      if (scanOutcome.outcome !== 'completed') throw new Error('quick scan did not complete: ' + scanOutcome.outcome + ' ' + (scanOutcome.error ?? ''));
+      const scanPanel = await cdp.evaluate('document.querySelector("[data-testid=source-scan]").innerText');
+      if (!/Posts indexed:\s*3\b/.test(scanPanel)) throw new Error('quick scan indexed fewer than three posts: ' + scanPanel.slice(0, 800));
+
+      // Import preferences -> Plan Review. This is the path that used to
+      // start two plan.create operations and leave "Another plan.create..."
+      // beside a ready plan.
+      await click(cdp, 'Continue');
+      await waitFor(cdp, '!!document.querySelector("[data-testid=plan-review]")', 'plan review', 180000);
+      await waitFor(cdp, '(() => { const p = document.querySelector("[data-testid=plan-review]"); const b = p && p.querySelector(".badge"); return !!b && !!b.innerText.trim(); })()', 'plan badge', 60000);
+      await sleep(2000);
+      const review = await cdp.evaluate('(() => { const panel = document.querySelector("[data-testid=plan-review]"); const badge = panel ? panel.querySelector(".badge") : null; return { text: panel ? panel.innerText : "", badge: badge ? badge.innerText.trim() : null, body: document.body.innerText }; })()');
+      const state = await projectState(projects.I.projectId);
+      const planRuns = state.runs.filter((run) => run.kind === 'plan.create');
+      const planError = /Another plan\.create[^\n]*/.exec(review.body)?.[0] ?? null;
+      if (review.badge !== 'ready') throw new Error('plan status is ' + review.badge + ': ' + review.text.slice(0, 600));
+      if (!/Selected:\s*3\b/.test(review.text)) throw new Error('plan did not select 3 items: ' + review.text.slice(0, 600));
+      if (planError) throw new Error('stale plan.create error rendered: ' + planError);
+      if (/Planning failed/.test(review.body)) throw new Error('planning failure banner rendered next to a ready plan');
+      if (planRuns.length !== 1) throw new Error('expected exactly one plan.create run, saw ' + planRuns.length);
+      return {
+        badge: review.badge,
+        planRuns: planRuns.length,
+        planText: review.text.slice(0, 700),
+        scanPanel: scanPanel.slice(0, 500),
+        stalePlanError: null
+      };
+    });
+
+    await backToDashboard(cdp);
+    await openWizardStep(cdp, projects.J.projectId, 'Import preferences');
+    await record('J', 'NASA-shaped short page still fills the requested window', async () => {
+      await setQuickLimit(cdp, 3);
+      const requestsBefore = shortPage.requests.length;
+      await click(cdp, 'Run quick scan');
+      const outcome = await waitScanOutcome(cdp, 180000);
+      if (outcome.outcome !== 'completed') throw new Error('short-page quick scan did not complete: ' + outcome.outcome + ' ' + (outcome.error ?? ''));
+      const panel = await cdp.evaluate('document.querySelector("[data-testid=source-scan]").innerText');
+      const state = await projectState(projects.J.projectId);
+      const postRequests = shortPage.requests.slice(requestsBefore).filter((request) => request.path.endsWith('/wp-json/wp/v2/posts'));
+      const result = {
+        panel: panel.slice(0, 600),
+        counts: state.report?.counts ?? null,
+        scope: state.report?.scope ?? null,
+        postRequests: postRequests.map((request) => ({ per_page: request.query.per_page, page: request.query.page })),
+        underReturnedNotice: /Source returned a short page|returned fewer|QMS indexed exactly/.test(panel)
+      };
+      if (!/Posts indexed:\s*3\b/.test(panel)) throw new Error('short-page source indexed fewer than three posts: ' + JSON.stringify(result));
+      if (Number(state.report?.counts?.posts) !== 3) throw new Error('recorded short-page count is ' + state.report?.counts?.posts);
+      if (postRequests.length !== 1 || postRequests[0].query.per_page !== '100') {
+        throw new Error('quick scan did not request one full page: ' + JSON.stringify(result));
+      }
+      return result;
     });
     await stopApp();
 
@@ -753,6 +847,7 @@ async function main() {
     await medium.close().catch(() => {});
     await badHtml.close().catch(() => {});
     await hanging.close().catch(() => {});
+    await shortPage.close().catch(() => {});
   }
 }
 

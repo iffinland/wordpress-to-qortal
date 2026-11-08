@@ -1,22 +1,22 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-rc.1",
+  "version": "0.8.0-rc.2",
   "channel": "rc",
-  "releaseTag": "v0.8.0-rc.1",
+  "releaseTag": "v0.8.0-rc.2",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
   "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-ALPHA.md",
   "changelog": {
-    "summary": "Bounded source discovery for very large WordPress sites. The wizard defaults to Quick scan: one bounded content page (max 100 items) plus only the taxonomy terms and media dependencies those items reference, never the whole media library or all history. Full site inventory is an explicit, acknowledged choice and remains resumable at term/asset/content page boundaries. Continue no longer starts a scan automatically; it shows the mode, item limit, filters and worst-case page count first. Adds separate Pause/Resume/Cancel, a single-flight guard, startup reconciliation of stale running checkpoints, real progress counters (mode, items scanned/requested, API pages, media dependencies, referenced terms, bytes) and a NASA-scale 36k-post/250k-media fixture proving a three-post scan stays within ten requests. See docs/migration-studio/BOUNDED-SOURCE-SCANS.md."
+    "summary": "0.8.0-rc.2 fixes the duplicate plan.create race when entering Plan Review and makes short-page sources explicit: quick scan requests a full bounded page while keeping only the requested window, and any remaining source-side short page is reported with requested/scanned/available counts instead of looking like local index loss. See docs/migration-studio/ACCEPTANCE-FIXES-0.8.0-ALPHA.md."
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-rc.1",
+      "version": "0.8.0-rc.2",
       "channel": "rc",
       "source": "desktop/package.json",
-      "changelog": "Desktop 0.8.0-alpha.13: bounded source scans. Quick scan is the recommended default and fetches one bounded content page plus referenced taxonomy/media dependencies only; Full site inventory requires an explicit acknowledgement and shows its worst-case page count. Continue cannot start an unbounded crawl. Pause and Cancel are separate controls during a run; Resume is offered for interrupted checkpoints. Progress reports real counters and distinguishes scan scope from total available source content. Also fixes stale running checkpoints being offered for resume after restart. Rebuilt with CMS 0.8.0-alpha.8 and Publisher 0.8.0-alpha.2."
+      "changelog": "Desktop 0.8.0-rc.2: Plan Review uses one single-flight preview request with a request epoch, so entering step 5 produces exactly one plan.create and a successful preview clears any stale planning error. Quick scan requests a full 100-item page while indexing only the requested count, so sources with partial REST pages (NASA) still fill the window; genuine under-returns are reported as a source short page. Adds a renderer regression test and packaged-GUI controls I and J."
     },
     "publisher": {
       "version": "0.8.0-alpha.2",

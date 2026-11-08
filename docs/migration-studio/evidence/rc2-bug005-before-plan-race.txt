@@ -1,0 +1,42 @@
+RC 0.8.0-rc.1 (source c42bd697, BUG-004 fix) — BUG-005 reproduction
+====================================================================
+
+Build:  desktop/release/linux-unpacked built from c42bd697
+Method: scripts/release/packaged-functional-acceptance.mjs --only=I
+        (packaged Electron under Xvfb, CDP, deterministic WordPress fixture)
+
+Command:
+  node scripts/release/packaged-functional-acceptance.mjs --only=I \
+    --rootfs=/home/qmse2e/qms-e2e/rootfs \
+    --app=/home/qmse2e/qms-rc/desktop/release/linux-unpacked \
+    --work=/home/qmse2e/qms-e2e/work/bug005-before
+
+Observed (raw harness output):
+
+  [stage] fixtures and projects ready
+  [stage] I FAIL {"error":"stale plan.create error rendered: Another plan.create operation is starting in this engine."}
+  {
+    "status": "fail",
+    "failures": [
+      "I: stale plan.create error rendered: Another plan.create operation is starting in this engine."
+    ]
+  }
+
+Control I reached a ready plan (badge "ready", "Selected: 3") and then found
+the engine's second start rejection in the same DOM. The recorded project had
+exactly one completed plan.create run (the rejected second start never created
+a run), which is consistent with the engine guard refusing the duplicate before
+its transaction:
+
+  recovery/runs: source.discover completed; plan.create completed
+
+Root cause (renderer):
+  desktop/src/renderer/components/Wizard.tsx:245  step effect calls loadPreview()
+  desktop/src/renderer/components/Wizard.tsx:742  Continue handler called loadPreview() again
+  desktop/src/renderer/components/Wizard.tsx:837  loadPreview() only used a boolean ref,
+                                                  so concurrent callers could not coalesce.
+
+The engine message is emitted by lib/engine/runs.js:263 when a second
+plan.create enters RunService.start() while the first is in its starting window.
+
+Artifact: docs/migration-studio/evidence/rc2-bug005-before-plan-race.json

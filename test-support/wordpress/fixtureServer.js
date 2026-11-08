@@ -425,7 +425,7 @@ function termRepresentation(req, taxonomy, term) {
   };
 }
 
-function collection(items, query, { emptyMiddlePage = false, defaultOrderBy = 'date', defaultStatus = null } = {}) {
+function collection(items, query, { emptyMiddlePage = false, defaultOrderBy = 'date', defaultStatus = null, itemCap = null } = {}) {
   const perPageRaw = Number(query.get('per_page') ?? 10);
   const perPage = Math.max(1, Math.min(Number.isFinite(perPageRaw) ? perPageRaw : 10, 100));
   const offsetParam = query.get('offset');
@@ -485,15 +485,22 @@ function collection(items, query, { emptyMiddlePage = false, defaultOrderBy = 'd
 
   const total = filtered.length;
   let page = Math.max(1, Number.isFinite(pageParam) ? pageParam : 1);
+  // An integer caps a page at that many rows. A fraction (0 < x < 1) models a
+  // source such as NASA that returns a roughly proportional short page
+  // (per_page=3 -> 1, per_page=100 -> 45) while X-WP-Total stays correct.
+  const resolvedCap = typeof itemCap === 'number' && Number.isFinite(itemCap) && itemCap >= 0
+    ? (itemCap > 0 && itemCap < 1 ? Math.floor(perPage * itemCap) : Math.floor(itemCap))
+    : null;
+  const capItems = (slice) => (resolvedCap === null ? slice : slice.slice(0, Math.max(0, resolvedCap)));
   if (offsetParam !== null) {
     const offset = Math.max(0, Number(offsetParam));
     const slice = filtered.slice(offset, offset + perPage);
-    return { items: slice, total, totalPages: Math.ceil(Math.max(0, total - offset) / perPage) || 1, page: 1, perPage };
+    return { items: capItems(slice), total, totalPages: Math.ceil(Math.max(0, total - offset) / perPage) || 1, page: 1, perPage };
   }
   const totalPages = Math.max(1, Math.ceil(total / perPage));
   const emptyPage = emptyMiddlePage && page === 2 && totalPages >= 3;
   return {
-    items: emptyPage ? [] : filtered.slice((page - 1) * perPage, page * perPage),
+    items: emptyPage ? [] : capItems(filtered.slice((page - 1) * perPage, page * perPage)),
     total,
     totalPages,
     page,
@@ -548,11 +555,13 @@ function isAuthorized(req, options) {
 
 export async function startWordpressFixtureServer(options = {}) {
   const data = options.data ?? createFixtureData();
+  const partialPages = options.partialPages ?? {};
   const state = {
     delayMs: options.delayMs ?? 0,
     malformed: options.malformed ?? false,
     failStatus: options.failStatus ?? null,
     emptyMiddlePage: options.emptyMiddlePage ?? false,
+    partialPages,
     requests: []
   };
   const server = http.createServer(async (req, res) => {
@@ -639,21 +648,21 @@ export async function startWordpressFixtureServer(options = {}) {
     let collectionResult = null;
     let mapping = null;
     if (url.pathname === '/wp-json/wp/v2/posts') {
-      collectionResult = collection(data.posts, query, { emptyMiddlePage: state.emptyMiddlePage, defaultStatus: 'publish' });
+      collectionResult = collection(data.posts, query, { emptyMiddlePage: state.emptyMiddlePage, defaultStatus: 'publish', itemCap: partialPages.posts });
       mapping = (item) => postRepresentation(req, item);
     } else if (url.pathname === '/wp-json/wp/v2/pages') {
-      collectionResult = collection(data.pages, query, { emptyMiddlePage: state.emptyMiddlePage, defaultStatus: 'publish' });
+      collectionResult = collection(data.pages, query, { emptyMiddlePage: state.emptyMiddlePage, defaultStatus: 'publish', itemCap: partialPages.pages });
       mapping = (item) => pageRepresentation(req, item);
     } else if (url.pathname === '/wp-json/wp/v2/categories') {
-      collectionResult = collection(data.categories, query, { defaultOrderBy: 'id' });
+      collectionResult = collection(data.categories, query, { defaultOrderBy: 'id', itemCap: partialPages.categories });
       mapping = (item) => termRepresentation(req, 'category', item);
     } else if (url.pathname === '/wp-json/wp/v2/tags') {
-      collectionResult = collection(data.tags, query, { defaultOrderBy: 'id' });
+      collectionResult = collection(data.tags, query, { defaultOrderBy: 'id', itemCap: partialPages.tags });
       mapping = (item) => termRepresentation(req, 'post_tag', item);
     } else if (url.pathname === '/wp-json/wp/v2/media') {
       const parent = query.get('parent');
       const mediaItems = parent ? data.media.filter((item) => String(item.post) === String(parent)) : data.media;
-      collectionResult = collection(mediaItems, query, { defaultOrderBy: 'date' });
+      collectionResult = collection(mediaItems, query, { defaultOrderBy: 'date', itemCap: partialPages.media });
       mapping = (item) => mediaRepresentation(req, item);
     } else if (url.pathname === '/wp-json/wp/v2/books') {
       collectionResult = collection(data.books, query, { defaultOrderBy: 'id' });

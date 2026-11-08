@@ -1,0 +1,122 @@
+{
+  "schema": "qms-packaged-functional-acceptance@1",
+  "startedAt": "2026-11-08T20:16:47.510Z",
+  "environment": {
+    "appDir": "/home/qmse2e/qms-rc/desktop/release/linux-unpacked",
+    "rootfs": "/home/qmse2e/qms-e2e/rootfs",
+    "work": "/home/qmse2e/qms-e2e/work/bug005-before"
+  },
+  "controls": {
+    "A": {
+      "control": "Direct Run quick scan",
+      "status": "SKIPPED"
+    },
+    "B": {
+      "control": "Confirm quick scan and continue",
+      "status": "SKIPPED"
+    },
+    "C": {
+      "control": "Full inventory on a small fixture",
+      "status": "SKIPPED"
+    },
+    "I": {
+      "control": "Plan Review entry: one plan.create, no stale error (BUG-005)",
+      "status": "FAIL",
+      "error": "stale plan.create error rendered: Another plan.create operation is starting in this engine.",
+      "rendererExceptions": []
+    },
+    "J": {
+      "control": "NASA-shaped short page still fills the requested window",
+      "status": "SKIPPED"
+    },
+    "D": {
+      "control": "Pause then Resume",
+      "status": "SKIPPED"
+    },
+    "E": {
+      "control": "Cancel a running scan",
+      "status": "SKIPPED"
+    },
+    "F": {
+      "control": "Interrupted Full checkpoint, then independent Quick scan",
+      "status": "SKIPPED"
+    },
+    "G1": {
+      "control": "Connection failure is visible",
+      "status": "SKIPPED"
+    },
+    "G2": {
+      "control": "Invalid source is visible",
+      "status": "SKIPPED"
+    },
+    "G3": {
+      "control": "API timeout is visible next to the scan controls",
+      "status": "SKIPPED"
+    },
+    "G4": {
+      "control": "Engine failure is visible",
+      "status": "SKIPPED"
+    }
+  },
+  "projects": {
+    "A": {
+      "projectId": "prj_fb5pnzx5vfaa40b9",
+      "siteId": "site_986f47141d24f59f420c5e79779f0af5"
+    },
+    "B": {
+      "projectId": "prj_haer4dkb6wb5ow71",
+      "siteId": "site_df45c12623d69d5755d0ceb25fdde1e1"
+    },
+    "C": {
+      "projectId": "prj_wpn0r722dyuez889",
+      "siteId": "site_6d161880764c271db750b011e0d5b3bf"
+    },
+    "D": {
+      "projectId": "prj_88zy8mt8z1qus930",
+      "siteId": "site_cbf33d533a1266e0152c7787d0a0a4ac"
+    },
+    "E": {
+      "projectId": "prj_14zpzlxgcawp94c4",
+      "siteId": "site_27832ed76d58f7d2f6d742226a424016"
+    },
+    "F": {
+      "projectId": "prj_bt5zpimm3d1ramqr",
+      "siteId": "site_a28838a3863e3087b9a89486b8973ee7"
+    },
+    "G1": {
+      "projectId": "prj_39l56yfmcpt91atw",
+      "siteId": "site_6dbfcc1ce30334de63ff4656dea5ad9c"
+    },
+    "G2": {
+      "projectId": "prj_41ug9zug12m6zkev",
+      "siteId": "site_fb38ab1ddd3657f68742419b28f4dfe3"
+    },
+    "G3": {
+      "projectId": "prj_lcg1c66xcqjcebdf",
+      "siteId": "site_4e6ff7f8bf2c50501e5218d938d8d4db"
+    },
+    "G4": {
+      "projectId": "prj_rnu61rvyimxkunp4",
+      "siteId": "site_43b898c23e5aef8aec6695bcb9c260e6"
+    },
+    "I": {
+      "projectId": "prj_dd64wx593r3pioh1",
+      "siteId": "site_7794e57d2b187b9867aa8bb86c7949c8"
+    },
+    "J": {
+      "projectId": "prj_yyl9rkiiaug0oh3n",
+      "siteId": "site_da80cbe57203a456fa13ebba4a03216c"
+    }
+  },
+  "fixtures": {
+    "small": "http://127.0.0.1:42541",
+    "medium": "http://127.0.0.1:42117",
+    "badHtml": "http://127.0.0.1:35143",
+    "hanging": "http://127.0.0.1:35791"
+  },
+  "failures": [
+    "I: stale plan.create error rendered: Another plan.create operation is starting in this engine."
+  ],
+  "status": "fail",
+  "finishedAt": "2026-11-08T20:17:49.472Z"
+}

@@ -1,0 +1,232 @@
+{
+  "schema": "qms-packaged-functional-acceptance@1",
+  "startedAt": "2026-11-08T20:22:35.999Z",
+  "environment": {
+    "appDir": "/home/qmse2e/qms-rc/desktop/release/linux-unpacked",
+    "rootfs": "/home/qmse2e/qms-e2e/rootfs",
+    "work": "/home/qmse2e/qms-e2e/work/rc2-after"
+  },
+  "controls": {
+    "A": {
+      "control": "Direct Run quick scan",
+      "status": "PASS",
+      "outcome": "completed",
+      "ui": {
+        "scan": "Source scan\n\nChoose an explicit scope. Quick scan is the recommended default for a small import; it never enumerates the whole library or every taxonomy term.\n\nQuick scan — selected batch (recommended)\nIndex up to (newest matching items)\nOne REST page, maximum 100. Only taxonomy terms and media dependencies referenced by these items are fetched.\n\nScope: up to 3 post item(s) in 1 content page request(s), plus bounded lookups for only the referenced terms and media. Source total: post 3.\n\nThis is ",
+        "telemetry": "Phase content · mode quick · 3/3 item(s) · API pages — · media deps 0 · terms 0 · 4.6 KiB"
+      },
+      "run": "run_vu3ko9by5zsdcm0x",
+      "latest": {
+        "mode": "quick",
+        "batchId": "bat_vu3ko9by5zsdcm0x",
+        "counts": {
+          "posts": 3,
+          "pages": 0,
+          "categories": 2,
+          "tags": 2,
+          "media": 1
+        },
+        "scope": {
+          "schema": "qms-scan-scope@1",
+          "mode": "quick",
+          "bounded": true,
+          "contentTypes": [
+            "post"
+          ],
+          "selection": {
+            "include": [],
+            "slug": [],
+            "perPage": 100,
+            "maxPages": 1,
+            "maxItems": 3
+          },
+          "requested": 3,
+          "scanned": 3,
+          "underReturned": false,
+          "shortfall": 0,
+          "availableTotal": 3,
+          "postsScanned": 3,
+          "pagesScanned": 0,
+          "pagesFetched": 4,
+          "totalAvailable": {
+            "post": 3
+          },
+          "worstCasePages": 1,
+          "termsReferenced": 4,
+          "termsRequested": 4,
+          "mediaDependencies": 1,
+          "apiRequests": 6,
+          "bytesTransferred": 4692
+        }
+      },
+      "indexEntries": 8,
+      "duplicateIndexKeys": 0
+    },
+    "B": {
+      "control": "Confirm quick scan and continue",
+      "status": "PASS",
+      "planText": "ready\nSelected: 3\nScanned: 8\nNew: 3\nModified: 0\nRoute-only: 0\nUnchanged (verified): 0\nReserved pending: 0\nConflicts: 0\nMedia\n\nResources: 9 · known 0 · unknown 0 · missing 0\n\nKnown bytes: 0 B\n\nDisk\n\nAvailable: 140.5 GiB\n\nReserve: 0 B · projected: 83.0 KiB\n\nFits the configured safety limits.\n\nEstimated QDN fee\n\n3 resources × 0.01 QORT ≈ 0.03 QORT\n\nEstimate only. Phase 5 must quote the current network fee before approval. No transaction is created here.\n\nPublication state\n\n0 item(s) reserved or prepared locally; 0 locally prepared.\n\nReserved is not published. Publication requires Phase 5 remote r",
+      "latest": {
+        "mode": "quick",
+        "counts": {
+          "posts": 3,
+          "pages": 0,
+          "categories": 2,
+          "tags": 2,
+          "media": 1
+        }
+      }
+    },
+    "C": {
+      "control": "Full inventory on a small fixture",
+      "status": "SKIPPED"
+    },
+    "I": {
+      "control": "Plan Review entry: one plan.create, no stale error (BUG-005)",
+      "status": "PASS",
+      "badge": "ready",
+      "planRuns": 1,
+      "planText": "ready\nSelected: 3\nScanned: 8\nNew: 3\nModified: 0\nRoute-only: 0\nUnchanged (verified): 0\nReserved pending: 0\nConflicts: 0\nMedia\n\nResources: 9 · known 0 · unknown 0 · missing 0\n\nKnown bytes: 0 B\n\nDisk\n\nAvailable: 140.5 GiB\n\nReserve: 0 B · projected: 83.0 KiB\n\nFits the configured safety limits.\n\nEstimated QDN fee\n\n3 resources × 0.01 QORT ≈ 0.03 QORT\n\nEstimate only. Phase 5 must quote the current network fee before approval. No transaction is created here.\n\nPublication state\n\n0 item(s) reserved or prepared locally; 0 locally prepared.\n\nReserved is not published. Publication requires Phase 5 remote read-back.\n\nITEM\tTYPE\tSTATUS\tPUBLICATION\tMEDIA\tQDN IDENTIFIER\nCorbett’s & News\tpost\tnew\treserved\t10\tq",
+      "scanPanel": "Source scan\n\nChoose an explicit scope. Quick scan is the recommended default for a small import; it never enumerates the whole library or every taxonomy term.\n\nQuick scan — selected batch (recommended)\nIndex up to (newest matching items)\nOne REST page, maximum 100. Only taxonomy terms and media dependencies referenced by these items are fetched.\n\nScope: up to 3 post item(s) in 1 content page request(s), plus bounded lookups for only the referenced terms and media. Source total: post 3.\n\nThis is ",
+      "stalePlanError": null
+    },
+    "J": {
+      "control": "NASA-shaped short page still fills the requested window",
+      "status": "PASS",
+      "panel": "Source scan\n\nChoose an explicit scope. Quick scan is the recommended default for a small import; it never enumerates the whole library or every taxonomy term.\n\nQuick scan — selected batch (recommended)\nIndex up to (newest matching items)\nOne REST page, maximum 100. Only taxonomy terms and media dependencies referenced by these items are fetched.\n\nScope: up to 3 post item(s) in 1 content page request(s), plus bounded lookups for only the referenced terms and media. Source total: post 35600.\n\nThis is a hard one-page window. Because of that, QMS requests a full page and keeps only the requested n",
+      "counts": {
+        "posts": 3,
+        "pages": 0,
+        "categories": 2,
+        "tags": 2,
+        "media": 3
+      },
+      "scope": {
+        "schema": "qms-scan-scope@1",
+        "mode": "quick",
+        "bounded": true,
+        "contentTypes": [
+          "post"
+        ],
+        "selection": {
+          "include": [],
+          "slug": [],
+          "perPage": 100,
+          "maxPages": 1,
+          "maxItems": 3
+        },
+        "requested": 3,
+        "scanned": 3,
+        "underReturned": false,
+        "shortfall": 0,
+        "availableTotal": 35600,
+        "postsScanned": 3,
+        "pagesScanned": 0,
+        "pagesFetched": 4,
+        "totalAvailable": {
+          "post": 35600
+        },
+        "worstCasePages": 1,
+        "termsReferenced": 4,
+        "termsRequested": 4,
+        "mediaDependencies": 3,
+        "apiRequests": 6,
+        "bytesTransferred": 34991
+      },
+      "postRequests": [
+        {
+          "per_page": "100",
+          "page": "1"
+        }
+      ],
+      "underReturnedNotice": false
+    },
+    "D": {
+      "control": "Pause then Resume",
+      "status": "SKIPPED"
+    },
+    "E": {
+      "control": "Cancel a running scan",
+      "status": "SKIPPED"
+    },
+    "F": {
+      "control": "Interrupted Full checkpoint, then independent Quick scan",
+      "status": "SKIPPED"
+    },
+    "G1": {
+      "control": "Connection failure is visible",
+      "status": "SKIPPED"
+    },
+    "G2": {
+      "control": "Invalid source is visible",
+      "status": "SKIPPED"
+    },
+    "G3": {
+      "control": "API timeout is visible next to the scan controls",
+      "status": "SKIPPED"
+    },
+    "G4": {
+      "control": "Engine failure is visible",
+      "status": "SKIPPED"
+    }
+  },
+  "projects": {
+    "A": {
+      "projectId": "prj_p7286jvhqct9m43v",
+      "siteId": "site_9155900344d875f5c4dc39c4392980bb"
+    },
+    "B": {
+      "projectId": "prj_0z8nbnxgmokqwwts",
+      "siteId": "site_36cdfd1a06c00220a0742106a35d1425"
+    },
+    "C": {
+      "projectId": "prj_0c387lojwuyqo05n",
+      "siteId": "site_c99b6c92332b1300c3abc77a092792c3"
+    },
+    "D": {
+      "projectId": "prj_ycrl4e8igvgxwqvo",
+      "siteId": "site_96f61b925f2f46f1be30b5620ef8a22d"
+    },
+    "E": {
+      "projectId": "prj_3pj4qp1hw7ju15lp",
+      "siteId": "site_290c2b209f55ea9d3cc4e0ee859b6baf"
+    },
+    "F": {
+      "projectId": "prj_vmorgtvnqharkagc",
+      "siteId": "site_500f89368e4a302760a3107b2b4c7de7"
+    },
+    "G1": {
+      "projectId": "prj_gcep3gtj8nknfq7m",
+      "siteId": "site_7892ae2e7bab5ccee6f31308df6e683a"
+    },
+    "G2": {
+      "projectId": "prj_b01lpm9exhglnov6",
+      "siteId": "site_f456c74dec330c8ccbb70b4b3ebff273"
+    },
+    "G3": {
+      "projectId": "prj_st81d17v8b12p2xn",
+      "siteId": "site_78138fe313c94d7a8de56b841f2fda6a"
+    },
+    "G4": {
+      "projectId": "prj_23n51d8963n8wuqh",
+      "siteId": "site_90f8cb5ceca418777b0c8807cb136d4a"
+    },
+    "I": {
+      "projectId": "prj_yl3t1mxe1lo2urxr",
+      "siteId": "site_c1e5aaea3f9b3560e9c3e52f81d5a8de"
+    },
+    "J": {
+      "projectId": "prj_7utb45abayqqdwum",
+      "siteId": "site_5490d4cf280d32fe89448b19c228353d"
+    }
+  },
+  "fixtures": {
+    "small": "http://127.0.0.1:35797",
+    "medium": "http://127.0.0.1:42307",
+    "badHtml": "http://127.0.0.1:34771",
+    "hanging": "http://127.0.0.1:37547"
+  },
+  "failures": [],
+  "status": "pass",
+  "finishedAt": "2026-11-08T20:23:34.013Z"
+}

@@ -115,6 +115,71 @@ test('NASA-scale quick scan fetches one bounded post page and only referenced te
   assert.ok(result.scope.apiRequests * 100 < theoreticalFullRequests, 'bounded scan must be far smaller than full inventory');
 });
 
+test('a source that returns a short page still fills the requested quick-scan window', async (t) => {
+  // NASA's REST API returns fewer rows than per_page (per_page=100 -> 45,
+  // per_page=3 -> 1). The wizard now requests a full page and keeps only the
+  // requested items, so this fixture must produce the full three-item window.
+  const data = createLargeFixtureData({ posts: 40, media: 10, categories: 2, tags: 2 });
+  const { engine, server } = await engineFixture(t, { data, partialPages: { posts: 15 } });
+  const project = await createProject(engine, server);
+  const handle = await engine.projects.open(project.id);
+  server.requests.length = 0;
+
+  const result = await handle.source.discover({
+    mode: 'quick',
+    contentTypes: ['post'],
+    perPage: 100,
+    selection: { perPage: 100, maxPages: 1, maxItems: 3 }
+  });
+
+  assert.equal(result.status, 'completed', JSON.stringify(result.error ?? {}));
+  assert.equal(result.scope.requested, 3);
+  assert.equal(result.scope.scanned, 3);
+  assert.equal(result.scope.postsScanned, 3);
+  assert.equal(result.scope.underReturned, false);
+  assert.equal(result.scope.availableTotal, 40);
+  const index = JSON.parse(await readFile(result.paths.indexFile, 'utf8'));
+  assert.equal(index.entries.filter((entry) => entry.sourceKey.startsWith('post:')).length, 3);
+  const postRequests = requestOf(server, '/wp-json/wp/v2/posts');
+  assert.equal(postRequests.length, 1);
+  assert.equal(postRequests[0].query.per_page, '100');
+  assert.equal(postRequests[0].query.page, '1');
+});
+
+test('a short page below the requested window is reported as a source under-return, never as local loss', async (t) => {
+  const data = createLargeFixtureData({ posts: 40, media: 10, categories: 2, tags: 2 });
+  const { engine, server } = await engineFixture(t, { data, partialPages: { posts: 1 } });
+  const project = await createProject(engine, server);
+  const handle = await engine.projects.open(project.id);
+  server.requests.length = 0;
+
+  const result = await handle.source.discover({
+    mode: 'quick',
+    contentTypes: ['post'],
+    perPage: 100,
+    selection: { perPage: 100, maxPages: 1, maxItems: 3 }
+  });
+
+  assert.equal(result.status, 'completed', JSON.stringify(result.error ?? {}));
+  assert.equal(result.scope.requested, 3);
+  assert.equal(result.scope.scanned, 1);
+  assert.equal(result.scope.underReturned, true);
+  assert.equal(result.scope.shortfall, 2);
+  assert.equal(result.scope.availableTotal, 40);
+  const index = JSON.parse(await readFile(result.paths.indexFile, 'utf8'));
+  assert.equal(index.entries.filter((entry) => entry.sourceKey.startsWith('post:')).length, 1);
+  assert.ok(
+    (result.report?.warnings ?? []).some((warning) => warning.code === 'SOURCE_UNDER_RETURNED'),
+    JSON.stringify(result.report?.warnings)
+  );
+  const latest = JSON.parse(await readFile(result.paths.latestFile, 'utf8'));
+  assert.equal(latest.scope.underReturned, true);
+  assert.equal(latest.scope.requested, 3);
+  assert.equal(latest.scope.scanned, 1);
+  const postRequests = requestOf(server, '/wp-json/wp/v2/posts');
+  assert.equal(postRequests.length, 1, 'the quick scan must stay a one-content-page operation');
+});
+
 test('explicit full inventory still enumerates and records full mode', async (t) => {
   const { engine, server } = await engineFixture(t, { data: createFixtureData() });
   const project = await createProject(engine, server);

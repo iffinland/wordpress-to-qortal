@@ -14,6 +14,30 @@ click or a rendered label alone.
 
 Evidence directory: `docs/migration-studio/evidence/`.
 
+## 0.8.0-rc.2 follow-up acceptance (BUG-005 and the NASA short page)
+
+Date: 2026-11-08. Build: private `0.8.0-rc.2`, packaged from the commit that
+contains this report. These controls are in addition to A–H above; they were
+driven through the packaged Electron app over CDP under Xvfb.
+
+| Control | Method | Result | Evidence |
+| --- | --- | --- | --- |
+| I. Enter Plan Review from Import preferences | Packaged UI; complete a 3-post quick scan, click **Continue**; assert one `plan.create` run, badge `ready`, Selected 3, and no `Another plan.create`/planning-failure text | **PASS** — planRuns 1, badge `ready`, Selected 3, no stale error | `evidence/rc2-after-functional-subset.json` (controls.I) |
+| J. NASA-shaped short page | Packaged UI; fixture advertises 35,600 posts but returns 45 rows per 100 requested; scan limit 3 | **PASS** — Posts indexed 3, counts.posts 3, scope `perPage 100 / maxItems 3 / scanned 3 / availableTotal 35600 / underReturned false`, one `per_page=100` content request | `evidence/rc2-after-functional-subset.json` (controls.J) |
+| A. Direct Quick scan (regression) | Packaged UI; 3-post fixture | **PASS** — 3 posts, 6 API requests, one content page, perPage 100 / maxItems 3 | `evidence/rc2-after-functional-subset.json` (controls.A) |
+| B. Confirm quick scan and continue (regression) | Packaged UI; confirmation → Plan Review | **PASS** — ready plan, Selected 3, Scanned 8 | `evidence/rc2-after-functional-subset.json` (controls.B) |
+
+Before the fix, control I failed with the owner's exact message
+(`Another plan.create operation is starting in this engine.`) while a ready
+plan was rendered (`evidence/rc2-bug005-before-plan-race.json`). Control J
+failed on rc.1 with `counts.posts = 1` and one `per_page=3` request
+(`evidence/rc2-nasa-before-undercount.json`).
+
+The full A–F/ G1–G4 / H suite above was **not** re-run on rc.2 in this
+follow-up; the changed code is limited to the Plan Review trigger/single-flight
+and the quick-scan page size. A public release still requires the complete
+A–J functional and H handoff gate described in RELEASE-WORKFLOW.md.
+
 ## Result summary
 
 | Control | Method | 0.8.0-rc.1 (before fix) | Fixed build | Evidence |

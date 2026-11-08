@@ -16,7 +16,7 @@ function argument(name, fallback = null) {
 
 const functionalFile = path.resolve(argument('functional', path.join('release', 'packaged-functional-acceptance.json')));
 const handoffFile = path.resolve(argument('handoff', path.join('release', 'packaged-handoff-e2e.json')));
-const REQUIRED = ['A', 'B', 'C', 'D', 'E', 'F', 'G1', 'G2', 'G3', 'G4'];
+const REQUIRED = ['A', 'B', 'C', 'D', 'E', 'F', 'G1', 'G2', 'G3', 'G4', 'I', 'J'];
 
 function fail(message) {
   console.error('FAIL: ' + message);

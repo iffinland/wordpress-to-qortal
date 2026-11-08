@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
 import type { AdapterInfo, DesktopSettings, FilterDiagnostics, PlanCreateResult, PlanDocument, ProjectDocument, QmsEvent, RecoveryCandidate, SourceValidationResult, WizardState } from '../../shared/types.js';
 import { Alert, Badge, Card, ErrorText, Field } from './Common.js';
+import { createPlanPreviewFlight } from '../lib/plan-preview.js';
 import { formatBytes, formatDate, formatScalar } from '../format.js';
 import { checkQortalName } from '../../shared/qortalName.js';
 import {
@@ -83,6 +84,17 @@ function totalAvailableLabel(scope: Record<string, unknown> | null | undefined):
     .filter(([, value]) => value !== null && value !== undefined)
     .map(([key, value]) => key + ' ' + (Number.isFinite(Number(value)) ? Number(value) : '?'));
   return entries.length > 0 ? entries.join(' · ') : 'unknown until the first response';
+}
+
+function underReturnNotice(scope: Record<string, unknown> | null | undefined): string | null {
+  if (!scope || scope.underReturned !== true) return null;
+  const scanned = Number(scope.scanned);
+  const requested = Number(scope.requested);
+  const available = Number(scope.availableTotal);
+  if (![scanned, requested, available].every(Number.isFinite)) return null;
+  return 'The source returned ' + scanned + ' usable item(s) for the requested window (up to ' + requested +
+    ') although it advertises ' + available + ' matching item(s). QMS indexed exactly ' + scanned +
+    '; nothing was dropped locally.';
 }
 
 function planFailureFrom(result: PlanCreateResult): { code: string; message: string; details?: Record<string, unknown> } | null {
@@ -173,7 +185,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
   const initialService = String(initial.website?.service ?? 'APP').toUpperCase();
   const migrationNeeded = useMemo(() => migrateWizardForLoad(storedWizard(project)).changed, [project]);
   const migrationSaved = useRef(false);
-  const previewInFlight = useRef(false);
+  const previewFlight = useRef(createPlanPreviewFlight<PlanCreateResult>()).current;
   const preferences = (initial.preferences ?? {}) as Record<string, unknown>;
   const [step, setStep] = useState(Math.max(1, Math.min(5, initial.step)));
   const [completed, setCompleted] = useState<WizardStepId[]>(initial.completedSteps);
@@ -241,10 +253,15 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
     if (authModes.length > 0 && !authModes.includes(authMode)) setAuthMode(authModes[0]);
   }, [authModes, authMode]);
 
+  // The step effect is the single trigger for the first Plan Review load.
+  // Navigation handlers must not call loadPreview() a second time; the helper
+  // itself also coalesces any concurrent caller into one plan.create request.
   useEffect(() => {
-    if (step === 5 && !planPreview && !previewing && !previewInFlight.current) void loadPreview();
+    if (step === 5 && !planPreview && !previewing) void loadPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
+
+  useEffect(() => () => previewFlight.reset(), [previewFlight]);
 
   useEffect(() => {
     if (!migrationNeeded || migrationSaved.current) return;
@@ -560,10 +577,15 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       const result = await api().sources.discover(project.id, {
         adapterId,
         contentTypes,
-        perPage: mode === 'quick' ? limit : 100,
+        // A quick scan still fetches exactly one content page. Ask for the
+        // full page size rather than exactly maxItems: some WordPress APIs
+        // (NASA is one) return fewer rows than per_page, and a tiny window
+        // then indexes fewer items than the owner asked for. The engine slices
+        // the page to maxItems, so only the requested number is indexed.
+        perPage: 100,
         mode,
         selection: mode === 'quick'
-          ? { perPage: limit, maxPages: 1, maxItems: limit }
+          ? { perPage: 100, maxPages: 1, maxItems: limit }
           : {},
         includeTerms: true,
         includeAssets: true
@@ -739,7 +761,6 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       setCompleted(nextCompleted);
       setStep(nextStep);
       await persist(nextStep, nextCompleted, scanOverride);
-      if (nextStep === 5) await loadPreview();
     } catch (nextError) {
       setError(nextError);
     } finally {
@@ -834,28 +855,35 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
     };
   }
 
-  async function loadPreview() {
-    previewInFlight.current = true;
-    setPreviewing(true);
-    setError(null);
-    setPlanFailure(null);
-    try {
-      if (!(await hasCompletedDiscovery())) {
-        const info = await runScan();
-        if (!info) return;
-      }
-      const result = await api().plans.create(project.id, planOptions(false));
-      applyPlanResult(result);
-    } catch (previewError) {
-      setError(previewError);
-      setPlanFailure({
-        code: (previewError as { code?: string } | null)?.code ?? 'PLAN_PREVIEW_FAILED',
-        message: previewError instanceof Error ? previewError.message : 'The plan preview could not be loaded.'
-      });
-    } finally {
-      previewInFlight.current = false;
-      setPreviewing(false);
-    }
+  function loadPreview(): Promise<void> {
+    return previewFlight.load({
+      onStart: () => {
+        setPreviewing(true);
+        setError(null);
+        setPlanFailure(null);
+      },
+      task: async () => {
+        if (!(await hasCompletedDiscovery())) {
+          const info = await runScan();
+          if (!info) return null;
+        }
+        return api().plans.create(project.id, planOptions(false));
+      },
+      onSuccess: (result) => {
+        applyPlanResult(result);
+        // A successful preview must not leave an older error (for example a
+        // rejected concurrent plan.create) next to a ready plan.
+        setError(null);
+      },
+      onError: (previewError) => {
+        setError(previewError);
+        setPlanFailure({
+          code: (previewError as { code?: string } | null)?.code ?? 'PLAN_PREVIEW_FAILED',
+          message: previewError instanceof Error ? previewError.message : 'The plan preview could not be loaded.'
+        });
+      },
+      onSettled: () => setPreviewing(false)
+    });
   }
 
   async function approve() {
@@ -907,6 +935,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
             : selectedCount === 0
               ? 'No content matches the current filters, so nothing can be approved.'
               : '';
+  const underReturnMessage = underReturnNotice(scan?.scope);
   const serviceChanged = cmsService !== initialService;
   const readOnlyReasons = planDocument?.warnings?.filter((warning) => warning.code === 'READ_ONLY').length ?? 0;
   void readOnlyReasons;
@@ -1207,6 +1236,9 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
                   <p className="small">
                     Scope: up to {Math.min(100, Math.max(1, Number(quickScanLimit) || 100))} {contentTypes.join(' / ') || 'content'} item(s) in {Math.max(1, contentTypes.length)} content page request(s), plus bounded lookups for only the referenced terms and media. Source total: {scan?.scope ? totalAvailableLabel(scan.scope) : 'not fetched yet'}.
                   </p>
+                  <p className="small muted">
+                    This is a hard one-page window. Because of that, QMS requests a full page and keeps only the requested number of items, so a source that returns short pages cannot silently reduce the batch.
+                  </p>
                 </div>
               )}
               <label className="checkbox wide">
@@ -1293,6 +1325,11 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
                     <span className="pill">Pages indexed: {scan.counts.pages ?? 0}</span>
                     <span className="pill">Categories indexed: {scan.counts.categories ?? 0}</span>
                     <span className="pill">Tags indexed: {scan.counts.tags ?? 0}</span>
+                  </div>
+                  {underReturnMessage && (
+                    <p className="small warn-text" data-testid="scan-under-returned">{underReturnMessage}</p>
+                  )}
+                  <div className="row wrap gap">
                     <span className="pill">Media dependencies: {scan.counts.media ?? 0}</span>
                   </div>
                   {scan.truncated && (
@@ -1358,6 +1395,11 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
                   <span className="pill">Reserved pending: {planDocument?.stats.reserved ?? 0}</span>
                   <span className="pill">Conflicts: {planDocument?.stats.conflict ?? 0}</span>
                 </div>
+                {underReturnMessage && (
+                  <Alert tone="warn" title="Source returned a short page">
+                    <p data-testid="plan-under-returned">{underReturnMessage}</p>
+                  </Alert>
+                )}
                 {planDocument?.selection?.empty && (
                   <Alert tone="warn" title="No content matches the current filters">
                     <p>{describeDateRange(planDocument.filters?.after, planDocument.filters?.before)}</p>

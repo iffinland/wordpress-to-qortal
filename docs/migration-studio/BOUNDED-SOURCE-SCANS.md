@@ -34,9 +34,16 @@ Discovery now requires an explicit mode.
   mode: 'quick',
   contentTypes: ['post'],
   perPage: 100,
-  selection: { perPage: 100, maxPages: 1, maxItems: 100 }
+  selection: { perPage: 100, maxPages: 1, maxItems: 3 }
 }
 ```
+
+The desktop wizard always requests a full 100-item page and keeps only
+`maxItems` items. Some WordPress APIs return fewer rows than `per_page`
+(NASA returns 1 row for `per_page=3` and 45 for `per_page=100` while
+`X-WP-Total` reports 35,600). A tiny page size would therefore index fewer
+items than the owner asked for. Requesting a full page keeps the one-request
+contract and still fills the requested window.
 
 A quick scan:
 
@@ -99,6 +106,23 @@ implicitly.
   request per post.
 - Request timeouts are 15 s by default; retries are bounded and use backoff.
   Cancellation aborts in-flight requests.
+
+## Short pages and source under-return
+
+A source may return fewer usable rows than `per_page` even though
+`X-WP-Total` advertises more matching items. QMS never pads, invents or
+silently drops items:
+
+- the quick scan keeps the rows the source returned (up to `maxItems`);
+- the scan scope records `requested`, `scanned`, `availableTotal`,
+  `underReturned` and `shortfall`;
+- a `SOURCE_UNDER_RETURNED` warning is written to the report and
+  `latest.json`;
+- the UI states the source short page with requested/scanned/available
+  counts, so "Posts indexed" cannot be mistaken for a local counting bug.
+
+With the wizard's full-page request, a NASA-style proportional short page
+(`per_page=100` -> 45 rows) still fills a three-item window in one request.
 
 ## Scope vs available content
 
@@ -180,7 +204,11 @@ huge crawl.
   scan issues one content page, only referenced term/media includes, and no
   more than ten requests; it also covers explicit full inventory, pause across
   restart and resume, stale-checkpoint reconciliation, single-flight, and
-  cancel (no latest pointer, project kept, no resumable candidate).
+  cancel (no latest pointer, project kept, no resumable candidate). Two
+  additional tests use a short-page fixture: a source returning 15 of 100 rows
+  still fills a three-item window from one `per_page=100` request, and a
+  source returning only 1 of 100 rows is recorded as `underReturned` with
+  `SOURCE_UNDER_RETURNED` instead of looking like local loss.
 - `scripts/release/packaged-bounded-scan-e2e.mjs` drives the packaged Electron
   app in an isolated rootfs over CDP against the same NASA-shaped fixture:
   Continue produces zero content requests, the confirmed quick scan stays

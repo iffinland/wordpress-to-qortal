@@ -1,0 +1,57 @@
+NASA CMS Test — Quick Scan "Index up to: 3" indexed 1 (0.8.0-rc.1)
+====================================================================
+
+Owner project: "NASA CMS Test", source https://www.nasa.gov, mode Quick Scan,
+"Index up to: 3".
+
+Live read-only probe, 2026-11-08 (Europe/Helsinki), GET only:
+
+  GET /wp-json/wp/v2/posts?per_page=2   -> returned 0  ; X-WP-Total 35600
+  GET /wp-json/wp/v2/posts?per_page=3   -> returned 1  ; X-WP-Total 35600
+  GET /wp-json/wp/v2/posts?per_page=5   -> returned 1  ; X-WP-Total 35600
+  GET /wp-json/wp/v2/posts?per_page=10  -> returned 5  ; X-WP-Total 35600
+  GET /wp-json/wp/v2/posts?per_page=20  -> returned 8  ; X-WP-Total 35600
+  GET /wp-json/wp/v2/posts?per_page=100 -> returned 45 ; X-WP-Total 35600
+
+The one post returned for per_page=3:
+  1062633  nasa-astronauts-to-answer-questions-from-florida-students-2
+  (type post, status publish, date 2026-11-05T10:11:25)
+
+This is a source-side short page: the NASA REST API returns fewer rows than
+per_page while its X-WP-Total header still advertises 35,600 matching posts.
+It is not a QMS count of a different content type and it is not a local index
+loss: QMS indexed exactly the single row the source returned.
+
+Packaged reproduction before the fix
+------------------------------------
+scripts/release/packaged-functional-acceptance.mjs --only=J
+NASA-shaped fixture: 35,600 posts, partialPages.posts = 0.45
+(per_page=3 -> 1 row, per_page=100 -> 45 rows; X-WP-Total stays 35600)
+
+Raw result:
+  counts: { posts: 1, pages: 0, categories: 2, tags: 1, media: 2 }
+  scope:  { perPage: 3, maxPages: 1, maxItems: 3,
+            requested: 3, scanned: 1, postsScanned: 1,
+            totalAvailable: { post: 35600 }, apiRequests: 6 }
+  post requests: [ { per_page: "3", page: "1" } ]
+  UI: "Posts indexed: 1"
+  failure: "short-page source indexed fewer than three posts"
+
+Root cause of the requested-vs-indexed mismatch
+----------------------------------------------
+The wizard passed perPage = maxItems = 3, so one REST request asked NASA for
+three rows. NASA returned one usable row for that request; the engine correctly
+indexed the one row it received. "Index up to 3" therefore described the
+request, while "Posts indexed: 1" described the source response.
+
+Fix (0.8.0-rc.2)
+----------------
+- Quick scan keeps its one-content-page contract but requests a full 100-item
+  page and slices it to the requested maxItems. For NASA, per_page=100 returns
+  45 usable rows, so a 3-item window is filled from one request.
+- If a source still returns fewer usable rows than requested while advertising
+  more matching items, the scan scope now records underReturned/shortfall and
+  emits SOURCE_UNDER_RETURNED; the UI states requested/scanned/available and
+  says QMS indexed exactly the rows the source returned.
+
+Artifact: docs/migration-studio/evidence/rc2-nasa-before-undercount.json

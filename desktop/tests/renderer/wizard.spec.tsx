@@ -376,5 +376,55 @@ describe('setup wizard', () => {
     const scanCard = screen.getByTestId('source-scan');
     expect(scanCard.contains(panel)).toBe(true);
   });
+
+  it('requests a full bounded page so a short-page source still fills the requested window', async () => {
+    const user = userEvent.setup();
+    const api = mockApi();
+    window.qms = api;
+    render(<Wizard project={scanProject()} adapters={[adapter()]} settings={settings()} onClose={vi.fn(async () => {})} onComplete={vi.fn(async () => {})} />);
+    await user.click(screen.getByRole('button', { name: 'Run quick scan' }));
+    await waitFor(() => expect(api.sources.discover).toHaveBeenCalled());
+    const call = (api.sources.discover as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+    expect(call.perPage).toBe(100);
+    expect(call.selection).toMatchObject({ perPage: 100, maxPages: 1, maxItems: 100 });
+  });
+
+  it('enters Plan Review with exactly one plan.create request (single-flight, BUG-005 regression)', async () => {
+    const user = userEvent.setup();
+    const api = mockApi();
+    // A completed discovery means Continue goes straight to Plan Review.
+    (api.runs.list as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { id: 'run_discovery', kind: 'source.discover', state: 'completed' }
+    ]);
+    let resolvePlan!: (value: unknown) => void;
+    (api.plans.create as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise((resolve) => {
+      resolvePlan = resolve;
+    }));
+    window.qms = api;
+    render(<Wizard project={scanProject()} adapters={[adapter()]} settings={settings()} onClose={vi.fn(async () => {})} onComplete={vi.fn(async () => {})} />);
+
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await waitFor(() => expect(api.plans.create).toHaveBeenCalledTimes(1));
+    // Give the step effect and the former handler trigger time to race. The
+    // engine may only see one plan.create for one step-5 entry.
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 25)); });
+    expect(api.plans.create).toHaveBeenCalledTimes(1);
+    expect(api.sources.discover).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolvePlan({
+        runId: 'run_test',
+        status: 'completed',
+        planId: 'plan_abcdefgh',
+        plan: plan(),
+        stats: plan().stats,
+        media: plan().mediaSummary,
+        disk: plan().disk
+      });
+    });
+    expect(await screen.findByTestId('plan-review')).toBeInTheDocument();
+    expect(document.body.textContent).not.toContain('Another plan.create');
+    expect(screen.queryByText(/Planning failed/)).toBeNull();
+  });
 });
 

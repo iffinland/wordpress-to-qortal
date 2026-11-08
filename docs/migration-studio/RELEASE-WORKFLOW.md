@@ -291,7 +291,7 @@ npm run release:packaged-e2e -- \
 npm run release:verify-functional   # blocking; release:prepare runs it too
 ```
 
-The first evidence file must record `status: pass` for controls A–G:
+The first evidence file must record `status: pass` for controls A–J:
 
 - A direct Run quick scan indexes exactly three posts with referenced terms/media;
 - B Confirm quick scan and continue produces a ready three-item plan;
@@ -300,7 +300,15 @@ The first evidence file must record `status: pass` for controls A–G:
 - E Cancel stops the run and preserves the project;
 - F an interrupted Full checkpoint does not block an independent Quick scan;
 - G connection failure, invalid source, API timeout and engine failure are visible
-  next to the controls that failed.
+  next to the controls that failed;
+- I entering Plan Review from Import preferences performs exactly one
+  `plan.create`, renders a ready plan and shows no stale planning error
+  (BUG-005);
+- J a NASA-shaped short-page source still fills a requested three-item window
+  from one `per_page=100` content request.
+
+`npm run release:verify-functional` lists A, B, C, D, E, F, G1–G4, I and J as
+required controls; a missing or non-PASS control blocks the release.
 
 The second evidence file must record `status: pass` for the handoff flow and a
 `receiptVerify` stage with every resource `remote_verified` only after independent
