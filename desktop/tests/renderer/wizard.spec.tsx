@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Wizard } from '../../src/renderer/components/Wizard.js';
@@ -229,6 +229,133 @@ describe('setup wizard', () => {
     await user.selectOptions(screen.getByLabelText(/Website hosting service/i), 'APP');
     expect(screen.getByTestId('service-safety').textContent).toContain('Hosting service changed');
     expect(screen.getByTestId('service-safety').textContent).toContain('You changed WEBSITE to APP');
+  });
+
+  function scanProject(preferences: Record<string, unknown> = {}) {
+    return project({
+      settings: {
+        desktopWizard: {
+          step: 4,
+          completedSteps: [1, 2, 3],
+          adapterId: 'wordpress',
+          sourceUrl: 'https://example.org',
+          authMode: 'none',
+          connection: { status: 'completed', report: { ok: true, counts: { posts: 35600, pages: 1200, categories: 2053, tags: 41, media: 250279 } } },
+          targetQdnName: 'DemoQortalName',
+          siteTitle: 'Demo',
+          siteDescription: '',
+          preferences: { batchSize: 3, contentTypes: ['post'], ...preferences },
+          planId: null,
+          updatedAt: '2026-11-03T10:00:00.000Z'
+        }
+      }
+    });
+  }
+
+  it('Continue never starts discovery and shows the bounded scan scope for explicit confirmation', async () => {
+    const user = userEvent.setup();
+    const api = mockApi();
+    window.qms = api;
+    render(<Wizard project={scanProject()} adapters={[adapter()]} settings={settings()} onClose={vi.fn(async () => {})} onComplete={vi.fn(async () => {})} />);
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(api.sources.discover).not.toHaveBeenCalled();
+    const confirmation = await screen.findByTestId('scan-confirmation');
+    expect(confirmation.textContent).toContain('QMS will not start an unbounded scan from Continue');
+    expect(screen.getByText(/Quick scan — selected batch/)).toBeInTheDocument();
+    expect(screen.getByText(/Full site inventory/)).toBeInTheDocument();
+  });
+
+  it('confirming quick scan sends a bounded mode and selection, never an unbounded full scan', async () => {
+    const user = userEvent.setup();
+    const api = mockApi();
+    let discoveryCompleted = false;
+    (api.runs.list as ReturnType<typeof vi.fn>).mockImplementation(async () => discoveryCompleted
+      ? [{ id: 'run_q', kind: 'source.discover', state: 'completed', phase: 'finalize', startedAt: '2026-11-08T10:00:00.000Z', endedAt: '2026-11-08T10:00:01.000Z', progress: null }]
+      : []);
+    (api.sources.discover as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      discoveryCompleted = true;
+      return {
+      runId: 'run_q', status: 'completed', batchId: 'bat_q', mode: 'quick',
+      summary: { counts: { posts: 3, pages: 0, categories: 2, tags: 2, media: 3 }, truncated: false },
+      report: { counts: { posts: 3, pages: 0, categories: 2, tags: 2, media: 3 }, mode: 'quick' },
+        scope: { mode: 'quick', bounded: true, requested: 100, scanned: 3, totalAvailable: { post: 35600 }, pagesFetched: 1, mediaDependencies: 3, termsReferenced: 4 },
+        metrics: { requests: 6, pages: 1, bytesTransferred: 2048 }
+      };
+    });
+    window.qms = api;
+    render(<Wizard project={scanProject()} adapters={[adapter()]} settings={settings()} onClose={vi.fn(async () => {})} onComplete={vi.fn(async () => {})} />);
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(await screen.findByRole('button', { name: 'Confirm quick scan and continue' }));
+    await waitFor(() => expect(api.sources.discover).toHaveBeenCalledTimes(1));
+    const input = (api.sources.discover as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+    expect(input.mode).toBe('quick');
+    expect(input.perPage).toBe(100);
+    expect(input.selection).toMatchObject({ perPage: 100, maxPages: 1, maxItems: 100 });
+  });
+
+  it('requires an explicit full-inventory acknowledgement and never runs it implicitly', async () => {
+    const user = userEvent.setup();
+    const api = mockApi();
+    (api.sources.discover as ReturnType<typeof vi.fn>).mockResolvedValue({ status: 'paused' });
+    window.qms = api;
+    render(<Wizard project={scanProject()} adapters={[adapter()]} settings={settings()} onClose={vi.fn(async () => {})} onComplete={vi.fn(async () => {})} />);
+    await user.click(screen.getByRole('radio', { name: /Full site inventory/ }));
+    expect(screen.getByRole('button', { name: 'Run full inventory' })).toBeDisabled();
+    expect(screen.getByText(/Worst case: 2892 API page/)).toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: /I understand this can crawl the entire site/ }));
+    await user.click(screen.getByRole('button', { name: 'Run full inventory' }));
+    await waitFor(() => expect(api.sources.discover).toHaveBeenCalledTimes(1));
+    const input = (api.sources.discover as ReturnType<typeof vi.fn>).mock.calls[0][1] as Record<string, unknown>;
+    expect(input.mode).toBe('full');
+    expect(input.selection).toEqual({});
+  });
+
+  it('offers resume for an interrupted source scan and uses the durable checkpoint', async () => {
+    const user = userEvent.setup();
+    const api = mockApi();
+    (api.recovery.status as ReturnType<typeof vi.fn>).mockResolvedValue({
+      schema: 'qms-recovery-status@1',
+      projectId: 'prj_abcdefgh',
+      checkedAt: '2026-11-08T10:00:00.000Z',
+      recovery: { interruptedRuns: 1, resumableRuns: 1, interruptedStages: 0, ambiguousResources: 0, corruptCheckpoints: 0 },
+      candidates: [{
+        runId: 'run_interrupted_scan', kind: 'source.discover', state: 'interrupted', phase: 'terms', step: 'content_fetched', cursor: 3, total: 3,
+        resumable: true, action: { service: 'source', method: 'discover', params: { mode: 'quick', selection: { maxItems: 3 } } },
+        resumeHint: 'Resume from checkpoint', startedAt: '2026-11-08T09:00:00.000Z', endedAt: '2026-11-08T09:01:00.000Z', error: null
+      }],
+      ambiguousResources: [], corruptCheckpoints: [], cleanups: []
+    });
+    (api.recovery.resume as ReturnType<typeof vi.fn>).mockResolvedValue({ runId: 'run_interrupted_scan', state: 'resumed', resumedFrom: { step: 'content_fetched' }, result: { status: 'paused' } });
+    window.qms = api;
+    render(<Wizard project={scanProject()} adapters={[adapter()]} settings={settings()} onClose={vi.fn(async () => {})} onComplete={vi.fn(async () => {})} />);
+    const banner = await screen.findByTestId('interrupted-scan');
+    expect(banner.textContent).toContain('content_fetched');
+    await user.click(screen.getByRole('button', { name: 'Resume interrupted scan from checkpoint' }));
+    await waitFor(() => expect(api.recovery.resume).toHaveBeenCalledWith('prj_abcdefgh', { runId: 'run_interrupted_scan' }));
+  });
+
+  it('exposes pause and cancel while a scan run is active', async () => {
+    const user = userEvent.setup();
+    const api = mockApi();
+    let listener: ((event: unknown) => void) | null = null;
+    (api.events.on as ReturnType<typeof vi.fn>).mockImplementation((fn: (event: unknown) => void) => { listener = fn; return () => {}; });
+    let resolveDiscover: ((value: unknown) => void) | null = null;
+    (api.sources.discover as ReturnType<typeof vi.fn>).mockImplementation(() => new Promise((resolve) => { resolveDiscover = resolve; }));
+    window.qms = api;
+    render(<Wizard project={scanProject()} adapters={[adapter()]} settings={settings()} onClose={vi.fn(async () => {})} onComplete={vi.fn(async () => {})} />);
+    await user.click(screen.getByRole('button', { name: 'Run quick scan' }));
+    await waitFor(() => expect(listener).not.toBeNull());
+    act(() => {
+      listener?.({
+        schema: 'qms-event@1', seq: 1, id: 'evt_1', timestamp: '2026-11-08T10:00:00.000Z', project_id: 'prj_abcdefgh',
+        run_id: 'run_active_scan', item_id: null, phase: 'select', type: 'operation_started', level: 'info', code: 'OPERATION_STARTED',
+        message: 'Operation started: source.discover', progress: { completed: 0, total: 0, bytes: 0 }, retryable: false, details: { kind: 'source.discover', mode: 'quick' }
+      });
+    });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Pause' })).toBeEnabled());
+    await user.click(screen.getByRole('button', { name: 'Pause' }));
+    await waitFor(() => expect(api.runs.pause).toHaveBeenCalledWith('prj_abcdefgh', 'run_active_scan'));
+    act(() => { resolveDiscover?.({ status: 'paused' }); });
   });
 });
 

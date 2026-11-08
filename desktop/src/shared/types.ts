@@ -66,6 +66,10 @@ export interface RunSummary {
   startedAt: string;
   endedAt: string | null;
   progress: { completed: number; total: number; bytes: number } | null;
+  pausedAt?: string | null;
+  interruptedAt?: string | null;
+  interruption?: Record<string, unknown> | null;
+  meta?: Record<string, unknown>;
   error?: Record<string, unknown> | null;
   result?: Record<string, unknown> | null;
 }

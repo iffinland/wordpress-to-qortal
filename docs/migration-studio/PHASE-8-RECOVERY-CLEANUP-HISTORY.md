@@ -13,7 +13,10 @@
 ## 1. Scope and guarantees
 
 Phase 8 makes long-lived projects safe to interrupt. It adds four cooperating
-layers without changing Phase 5 read-back semantics or Phase 7 sync authority:
+layers without changing Phase 5 read-back semantics or Phase 7 sync authority.
+Bounded scan checkpoints, pause/resume/cancel and startup reconciliation of
+stale checkpoint files are documented in
+[`BOUNDED-SOURCE-SCANS.md`](BOUNDED-SOURCE-SCANS.md).
 
 1. **Recovery** — durable checkpoints plus an explicit interrupted/ambiguous
    state model.

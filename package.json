@@ -84,6 +84,7 @@
     "release:registry": "node scripts/release/update-registry.mjs",
     "release:registry:verify": "node scripts/release/update-registry.mjs --verify-published",
     "release:packaged-e2e": "node scripts/release/packaged-handoff-e2e.mjs",
+    "release:packaged-bounded-scan": "node scripts/release/packaged-bounded-scan-e2e.mjs",
     "test:update": "node --test test/update/*.test.js",
     "test:notify": "node --test test/notify/*.test.js",
     "notify:completion": "node scripts/notify/telegram-notify.mjs",

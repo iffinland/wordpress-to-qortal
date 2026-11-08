@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
-import type { AdapterInfo, DesktopSettings, FilterDiagnostics, PlanCreateResult, PlanDocument, ProjectDocument, QmsEvent, SourceValidationResult, WizardState } from '../../shared/types.js';
+import type { AdapterInfo, DesktopSettings, FilterDiagnostics, PlanCreateResult, PlanDocument, ProjectDocument, QmsEvent, RecoveryCandidate, SourceValidationResult, WizardState } from '../../shared/types.js';
 import { Alert, Badge, Card, ErrorText, Field } from './Common.js';
 import { formatBytes, formatDate, formatScalar } from '../format.js';
 import { checkQortalName } from '../../shared/qortalName.js';
@@ -33,6 +33,23 @@ interface DiscoveryInfo {
   counts: Record<string, number>;
   contentTypes: string[];
   truncated: boolean;
+  mode?: 'quick' | 'full' | null;
+  scope?: Record<string, unknown> | null;
+  metrics?: Record<string, unknown> | null;
+}
+
+interface ScanTelemetry {
+  phase: string;
+  message: string;
+  completed: number;
+  total: number;
+  mode: string | null;
+  postsScanned: number | null;
+  requested: number | null;
+  pages: number | null;
+  mediaDependencies: number | null;
+  termsReferenced: number | null;
+  bytesTransferred: number | null;
 }
 
 function discoveryFromWizard(wizard: Record<string, unknown>): DiscoveryInfo | null {
@@ -47,8 +64,25 @@ function discoveryFromWizard(wizard: Record<string, unknown>): DiscoveryInfo | n
     completedAt: typeof record.completedAt === 'string' ? record.completedAt : '',
     counts,
     contentTypes: Array.isArray(record.contentTypes) ? record.contentTypes.map(String) : [],
-    truncated: record.truncated === true
+    truncated: record.truncated === true,
+    mode: record.mode === 'quick' || record.mode === 'full' ? record.mode : null,
+    scope: record.scope && typeof record.scope === 'object' && !Array.isArray(record.scope) ? record.scope as Record<string, unknown> : null,
+    metrics: record.metrics && typeof record.metrics === 'object' && !Array.isArray(record.metrics) ? record.metrics as Record<string, unknown> : null
   };
+}
+
+function scopeNumber(scope: Record<string, unknown> | null | undefined, key: string): number | null {
+  const value = Number(scope?.[key]);
+  return Number.isFinite(value) ? value : null;
+}
+
+function totalAvailableLabel(scope: Record<string, unknown> | null | undefined): string {
+  const total = scope?.totalAvailable;
+  if (!total || typeof total !== 'object' || Array.isArray(total)) return 'unknown until the first response';
+  const entries = Object.entries(total as Record<string, unknown>)
+    .filter(([, value]) => value !== null && value !== undefined)
+    .map(([key, value]) => key + ' ' + (Number.isFinite(Number(value)) ? Number(value) : '?'));
+  return entries.length > 0 ? entries.join(' · ') : 'unknown until the first response';
 }
 
 function planFailureFrom(result: PlanCreateResult): { code: string; message: string; details?: Record<string, unknown> } | null {
@@ -179,6 +213,15 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
   const [scan, setScan] = useState<DiscoveryInfo | null>(discoveryFromWizard(preferences));
   const [scanning, setScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState('');
+  const [scanMode, setScanMode] = useState<'quick' | 'full'>('quick');
+  const [quickScanLimit, setQuickScanLimit] = useState(100);
+  const [fullScanAcknowledged, setFullScanAcknowledged] = useState(false);
+  const [scanConfirmRequired, setScanConfirmRequired] = useState(false);
+  const [scanRunId, setScanRunId] = useState<string | null>(null);
+  const [scanState, setScanState] = useState<string | null>(null);
+  const [scanTelemetry, setScanTelemetry] = useState<ScanTelemetry | null>(null);
+  const [interruptedScan, setInterruptedScan] = useState<RecoveryCandidate | null>(null);
+  const [resumingScan, setResumingScan] = useState(false);
   const [planPhase, setPlanPhase] = useState<{ phase: string; completed: number; total: number; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [previewing, setPreviewing] = useState(false);
@@ -210,18 +253,68 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
     const unsubscribe = api().events.on((payload) => {
       const event = payload as QmsEvent;
       if (event.project_id !== project.id) return;
+      const kind = String(event.details?.kind ?? '');
+      if (event.type === 'operation_started' && kind === 'source.discover') {
+        setScanRunId(event.run_id ?? null);
+        setScanState('running');
+        setScanning(true);
+      }
+      if (event.run_id && ['operation_completed', 'operation_cancelled', 'operation_failed'].includes(event.type)) {
+        if (event.type === 'operation_completed') setScanState('completed');
+        else if (event.type === 'operation_cancelled') setScanState(event.code === 'OPERATION_PAUSED' ? 'paused' : 'cancelled');
+        else setScanState('failed');
+      }
       if (event.progress && (event.type === 'progress_updated' || event.type === 'operation_started')) {
         const total = Number(event.progress.total ?? 0);
         const completed = Number(event.progress.completed ?? 0);
+        const details = event.details ?? {};
+        const scanRelated = details.mode === 'quick' || details.mode === 'full' ||
+          ['connect', 'select', 'terms', 'assets', 'content', 'finalize'].includes(String(event.phase ?? ''));
+        if (scanRelated && !['index', 'classify', 'media_estimate', 'prepare'].includes(String(event.phase ?? ''))) {
+          setScanTelemetry({
+            phase: String(event.phase ?? 'scan'),
+            message: event.message ?? '',
+            completed,
+            total,
+            mode: details.mode === 'quick' || details.mode === 'full' ? details.mode : null,
+            postsScanned: Number.isFinite(Number(details.postsScanned ?? details.contentProcessed ?? details.scanned))
+              ? Number(details.postsScanned ?? details.contentProcessed ?? details.scanned)
+              : null,
+            requested: Number.isFinite(Number(details.requested ?? details.contentTotal)) ? Number(details.requested ?? details.contentTotal) : null,
+            pages: Number.isFinite(Number(details.pages ?? details.pagesFetched)) ? Number(details.pages ?? details.pagesFetched) : null,
+            mediaDependencies: Number.isFinite(Number(details.mediaDependencies)) ? Number(details.mediaDependencies) : null,
+            termsReferenced: Number.isFinite(Number(details.termsReferenced)) ? Number(details.termsReferenced) : null,
+            bytesTransferred: Number.isFinite(Number(details.bytesTransferred ?? event.progress.bytes)) ? Number(details.bytesTransferred ?? event.progress.bytes) : null
+          });
+        }
         if (event.phase && ['index', 'classify', 'select', 'media_estimate', 'prepare'].includes(event.phase)) {
           setPlanPhase({ phase: event.phase, completed, total, message: event.message ?? '' });
+        } else if (!scanRelated) {
+          setScanProgress(event.message ?? ('Scanning: ' + completed + (total > 0 ? '/' + total + ' item(s)' : ' so far')));
         } else {
-          setScanProgress(event.message ?? ('Scanning: ' + completed + (total > 0 ? '/' + total : '') + ' item(s)'));
+          setScanProgress(event.message ?? ('Scanning: ' + completed + (total > 0 ? '/' + total + ' item(s)' : ' so far')));
         }
       }
     });
     return unsubscribe;
   }, [project.id]);
+
+  useEffect(() => {
+    if (step !== 4) return undefined;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const status = await api().recovery.status(project.id);
+        const candidate = [...status.candidates]
+          .filter((entry) => entry.kind === 'source.discover' && entry.resumable && entry.runId)
+          .sort((left, right) => String(right.startedAt ?? '').localeCompare(String(left.startedAt ?? '')))[0] ?? null;
+        if (!cancelled) setInterruptedScan(candidate);
+      } catch {
+        if (!cancelled) setInterruptedScan(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [project.id, step, scan?.batchId, scanState]);
 
   function wizardState(
     nextStep = step,
@@ -376,44 +469,186 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
     return Boolean(scan?.batchId);
   }
 
-  async function runScan(): Promise<DiscoveryInfo | null> {
+  function discoveryInfoFrom(result: Record<string, unknown>): DiscoveryInfo {
+    const report = result.report && typeof result.report === 'object' ? result.report as Record<string, unknown> : {};
+    const summary = result.summary && typeof result.summary === 'object' ? result.summary as Record<string, unknown> : {};
+    const scope = result.scope && typeof result.scope === 'object' && !Array.isArray(result.scope)
+      ? result.scope as Record<string, unknown>
+      : report.scope && typeof report.scope === 'object' && !Array.isArray(report.scope)
+        ? report.scope as Record<string, unknown>
+        : null;
+    const metrics = result.metrics && typeof result.metrics === 'object' && !Array.isArray(result.metrics)
+      ? result.metrics as Record<string, unknown>
+      : report.metrics && typeof report.metrics === 'object' && !Array.isArray(report.metrics)
+        ? report.metrics as Record<string, unknown>
+        : null;
+    return {
+      batchId: typeof result.batchId === 'string' ? result.batchId : null,
+      completedAt: new Date().toISOString(),
+      counts: numericCounts(report.counts ?? summary.counts),
+      contentTypes,
+      truncated: Boolean(summary.truncated ?? report.truncated),
+      mode: result.mode === 'quick' || result.mode === 'full' ? result.mode : report.mode === 'quick' || report.mode === 'full' ? report.mode : null,
+      scope,
+      metrics
+    };
+  }
+
+  function startScanTracking(): () => void {
+    if (typeof window === 'undefined') return () => {};
+    const timer = window.setInterval(() => {
+      void (async () => {
+        try {
+          const runs = await api().runs.list(project.id);
+          const active = runs.find((run) => run.kind === 'source.discover' && run.state === 'running');
+          if (active) setScanRunId(active.id);
+          const latest = runs.find((run) => run.kind === 'source.discover');
+          if (latest?.state) setScanState(latest.state);
+        } catch {
+          // Polling is advisory; the awaited operation remains authoritative.
+        }
+      })();
+    }, 800);
+    return () => window.clearInterval(timer);
+  }
+
+  function fullInventoryWorstCasePages(): number | null {
+    const counts = (connection?.report?.counts ?? scan?.counts ?? {}) as Record<string, unknown>;
+    const posts = Number(counts.posts);
+    const pages = Number(counts.pages);
+    const categories = Number(counts.categories);
+    const tags = Number(counts.tags);
+    const media = Number(counts.media);
+    if (![posts, pages, categories, tags, media].every(Number.isFinite)) return null;
+    return Math.ceil((posts + pages) / 100) + Math.ceil((categories + tags) / 100) + Math.ceil(media / 100);
+  }
+
+  async function runScan(mode: 'quick' | 'full' = scanMode, { continueAfter = false } = {}): Promise<DiscoveryInfo | null> {
+    if (mode === 'full' && !fullScanAcknowledged) {
+      setStepError('Full site inventory is a long, explicit operation. Tick the confirmation before starting it.');
+      return null;
+    }
+    const limit = Math.max(1, Math.min(100, Number(quickScanLimit) || 100));
     setScanning(true);
-    setScanProgress('Connecting to the source…');
+    setScanState('running');
+    setScanRunId(null);
+    setScanConfirmRequired(false);
+    setScanProgress(mode === 'quick'
+      ? 'Quick scan: fetching one bounded content page and only referenced dependencies…'
+      : 'Full inventory: this can take a long time. Pause and cancel remain available.');
     setError(null);
     setStepError('');
+    const stopTracking = startScanTracking();
     try {
       const result = await api().sources.discover(project.id, {
         adapterId,
         contentTypes,
-        perPage: 100
+        perPage: mode === 'quick' ? limit : 100,
+        mode,
+        selection: mode === 'quick'
+          ? { perPage: limit, maxPages: 1, maxItems: limit }
+          : {},
+        includeTerms: true,
+        includeAssets: true
       }) as Record<string, unknown>;
+      if (result.status === 'paused') {
+        setScanState('paused');
+        setScanProgress('Scan paused at the last durable checkpoint. Resume it from here or from Recovery.');
+        setStepError('The scan is paused. Press Resume interrupted scan to continue from the checkpoint.');
+        return null;
+      }
+      if (result.status === 'cancelled') {
+        setScanState('cancelled');
+        setScanProgress('Scan cancelled. The project and every completed asset are preserved.');
+        return null;
+      }
       if (result.status !== 'completed') {
         const failure = result.error && typeof result.error === 'object' ? result.error as Record<string, unknown> : {};
         const message = typeof failure.message === 'string' ? failure.message : 'The source scan did not complete.';
         const code = typeof failure.code === 'string' ? failure.code : 'SOURCE_SCAN_FAILED';
-        setPlanFailure({ code, message, details: failure.details as Record<string, unknown> | undefined });
+        setScanState('failed');
         setStepError('Source scan failed (' + code + '): ' + message);
         return null;
       }
-      const report = result.report && typeof result.report === 'object' ? result.report as Record<string, unknown> : {};
-      const summary = result.summary && typeof result.summary === 'object' ? result.summary as Record<string, unknown> : {};
-      const info: DiscoveryInfo = {
-        batchId: typeof result.batchId === 'string' ? result.batchId : null,
-        completedAt: new Date().toISOString(),
-        counts: numericCounts(report.counts ?? summary.counts),
-        contentTypes,
-        truncated: Boolean(summary.truncated ?? report.truncated)
-      };
+      const info = discoveryInfoFrom(result);
       setScan(info);
-      setScanProgress('Scan complete.');
+      setScanState('completed');
+      setScanProgress(mode === 'quick' ? 'Quick scan complete within its request budget.' : 'Full inventory complete.');
       await persist(step, completed, info);
+      if (continueAfter) {
+        await next();
+      }
       return info;
     } catch (scanError) {
+      setScanState('failed');
       setError(scanError);
       setStepError('Source scan failed: ' + (scanError instanceof Error ? scanError.message : 'unknown error'));
       return null;
     } finally {
+      stopTracking();
       setScanning(false);
+    }
+  }
+
+  async function resumeInterruptedScan(): Promise<DiscoveryInfo | null> {
+    if (!interruptedScan?.runId) return null;
+    setResumingScan(true);
+    setScanning(true);
+    setScanState('running');
+    setScanRunId(null);
+    setScanProgress('Resuming from the durable checkpoint…');
+    setStepError('');
+    const stopTracking = startScanTracking();
+    try {
+      const resumed = await api().recovery.resume(project.id, { runId: interruptedScan.runId });
+      const result = resumed.result && typeof resumed.result === 'object' ? resumed.result as Record<string, unknown> : {};
+      if (result.status === 'paused') {
+        setScanState('paused');
+        setScanProgress('Resume paused again at a safe boundary. No completed work was lost.');
+        return null;
+      }
+      if (result.status !== 'completed') {
+        const failure = result.error && typeof result.error === 'object' ? result.error as Record<string, unknown> : {};
+        setScanState('failed');
+        setStepError('Resume did not complete (' + String(failure.code ?? 'RECOVERY_NOT_RESUMABLE') + '): ' + String(failure.message ?? 'unknown error'));
+        return null;
+      }
+      const info = discoveryInfoFrom(result);
+      setScan(info);
+      setScanState('completed');
+      setInterruptedScan(null);
+      setScanProgress('Interrupted scan resumed from the checkpoint and completed.');
+      await persist(step, completed, info);
+      return info;
+    } catch (resumeError) {
+      setScanState('failed');
+      setError(resumeError);
+      setStepError('Resume failed: ' + (resumeError instanceof Error ? resumeError.message : 'unknown error'));
+      return null;
+    } finally {
+      stopTracking();
+      setScanning(false);
+      setResumingScan(false);
+    }
+  }
+
+  async function pauseScan(): Promise<void> {
+    if (!scanRunId) return;
+    try {
+      await api().runs.pause(project.id, scanRunId);
+      setScanProgress('Pause requested. Finalizing the current safe boundary…');
+    } catch (pauseError) {
+      setStepError('Pause failed: ' + (pauseError instanceof Error ? pauseError.message : 'unknown error'));
+    }
+  }
+
+  async function cancelScan(): Promise<void> {
+    if (!scanRunId) return;
+    try {
+      await api().runs.cancel(project.id, scanRunId);
+      setScanProgress('Cancel requested. The project, checkpoints and verified assets are preserved.');
+    } catch (cancelError) {
+      setStepError('Cancel failed: ' + (cancelError instanceof Error ? cancelError.message : 'unknown error'));
     }
   }
 
@@ -456,8 +691,13 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       if (step === 4) {
         await savePreferences();
         if (!(await hasCompletedDiscovery())) {
-          scanOverride = await runScan();
-          if (!scanOverride) return;
+          // Never launch a long or unbounded source crawl from 'Continue'.
+          // Show the exact scope and make the owner confirm it explicitly.
+          setScanConfirmRequired(true);
+          setStepError(scanMode === 'quick'
+            ? 'Review the bounded quick-scan scope below, then run it explicitly. QMS will not start a full-site crawl automatically.'
+            : 'Full site inventory is a long operation. Confirm it explicitly below before it starts.');
+          return;
         }
       }
       const nextStep = Math.min(5, step + 1);
@@ -914,31 +1154,114 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
             </details>
             <div className="wide capability-box" data-testid="source-scan">
               <strong>Source scan</strong>
+              <p className="small muted">Choose an explicit scope. Quick scan is the recommended default for a small import; it never enumerates the whole library or every taxonomy term.</p>
+              <label className="checkbox wide">
+                <input type="radio" name="scan-mode" checked={scanMode === 'quick'} onChange={() => setScanMode('quick')} disabled={scanning} />
+                Quick scan — selected batch (recommended)
+              </label>
+              {scanMode === 'quick' && (
+                <div className="stack-sm">
+                  <Field label="Index up to (newest matching items)" hint="One REST page, maximum 100. Only taxonomy terms and media dependencies referenced by these items are fetched.">
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={quickScanLimit}
+                      onChange={(event) => setQuickScanLimit(Math.max(1, Math.min(100, Number(event.target.value) || 1)))}
+                      disabled={scanning}
+                    />
+                  </Field>
+                  <p className="small">
+                    Scope: up to {Math.min(100, Math.max(1, Number(quickScanLimit) || 100))} {contentTypes.join(' / ') || 'content'} item(s) in {Math.max(1, contentTypes.length)} content page request(s), plus bounded lookups for only the referenced terms and media. Source total: {scan?.scope ? totalAvailableLabel(scan.scope) : 'not fetched yet'}.
+                  </p>
+                </div>
+              )}
+              <label className="checkbox wide">
+                <input type="radio" name="scan-mode" checked={scanMode === 'full'} onChange={() => setScanMode('full')} disabled={scanning} />
+                Full site inventory (explicitly chosen; can be very long)
+              </label>
+              {scanMode === 'full' && (
+                <div className="stack-sm">
+                  <p className="small warn-text">
+                    Full inventory walks every {contentTypes.join(' / ') || 'content'} item, every category/tag and the whole media library. Worst case: {fullInventoryWorstCasePages() !== null ? fullInventoryWorstCasePages() + ' API page(s)' : 'unknown until the source reports totals'}.
+                  </p>
+                  <label className="checkbox wide">
+                    <input type="checkbox" checked={fullScanAcknowledged} onChange={(event) => setFullScanAcknowledged(event.target.checked)} disabled={scanning} />
+                    I understand this can crawl the entire site before any content is prepared.
+                  </label>
+                </div>
+              )}
+              {scanConfirmRequired && !scanning && (
+                <div className="wide small warn-text" data-testid="scan-confirmation">
+                  Scan scope is not confirmed yet. Press <strong>Confirm quick scan and continue</strong> for the bounded selection above, or explicitly start full inventory. QMS will not start an unbounded scan from Continue.
+                </div>
+              )}
+              {interruptedScan && !scanning && (
+                <div className="stack-sm" data-testid="interrupted-scan">
+                  <p className="small warn-text">
+                    Interrupted scan found ({String((interruptedScan.action?.params as Record<string, unknown> | undefined)?.mode ?? scan?.mode ?? 'scan')}, checkpoint {interruptedScan.step ?? 'unknown'} {interruptedScan.cursor}/{interruptedScan.total}). Completed pages and referenced terms stay reusable.
+                  </p>
+                  <button type="button" onClick={() => void resumeInterruptedScan()} disabled={resumingScan || busy}>
+                    {resumingScan ? 'Resuming…' : 'Resume interrupted scan from checkpoint'}
+                  </button>
+                </div>
+              )}
+              <div className="row wrap gap">
+                {scanning ? (
+                  <>
+                    <button type="button" onClick={() => void pauseScan()} disabled={!scanRunId || busy}>Pause</button>
+                    <button type="button" className="danger" onClick={() => void cancelScan()} disabled={!scanRunId || busy}>Cancel scan</button>
+                    <span className="small muted">{scanRunId ? 'Run ' + scanRunId : 'Starting…'}</span>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={() => void runScan(scanMode)} disabled={busy || resumingScan || (scanMode === 'full' && !fullScanAcknowledged)}>
+                      {scanMode === 'quick' ? 'Run quick scan' : 'Run full inventory'}
+                    </button>
+                    {scanConfirmRequired && scanMode === 'quick' && (
+                      <button type="button" className="primary" onClick={() => void runScan('quick', { continueAfter: true })} disabled={busy || resumingScan}>
+                        Confirm quick scan and continue
+                      </button>
+                    )}
+                    {scanMode === 'full' && (
+                      <button type="button" className="primary" onClick={() => void runScan('full', { continueAfter: true })} disabled={busy || resumingScan || !fullScanAcknowledged}>
+                        Confirm full inventory and continue
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+              {scanTelemetry && (
+                <div className="small" data-testid="scan-telemetry">
+                  Phase {scanTelemetry.phase} · mode {scanTelemetry.mode ?? scanMode} · {scanTelemetry.postsScanned ?? 0}/{scanTelemetry.requested ?? '?'} item(s) · API pages {scanTelemetry.pages ?? '—'} · media deps {scanTelemetry.mediaDependencies ?? 0} · terms {scanTelemetry.termsReferenced ?? 0} · {scanTelemetry.bytesTransferred !== null ? formatBytes(scanTelemetry.bytesTransferred) : 'bytes —'}
+                </div>
+              )}
+              {scanning && <p className="small">{scanProgress || 'Scanning the source…'}</p>}
+              {!scanning && scanProgress && <p className="small muted">{scanProgress}</p>}
               {scan ? (
                 <div className="stack-sm">
                   <p className="small">
-                    Last completed scan {scan.completedAt ? formatDate(scan.completedAt) : 'just now'}
+                    Last completed {scan.mode ?? 'scan'} {scan.completedAt ? formatDate(scan.completedAt) : 'just now'}
                     {scan.batchId ? ' · batch ' + scan.batchId : ''}
+                    {scanState ? ' · ' + scanState : ''}
+                  </p>
+                  <p className="small muted">
+                    Scope: {scopeNumber(scan.scope, 'scanned') ?? ((scan.counts.posts ?? 0) + (scan.counts.pages ?? 0))} item(s) scanned, requested {scopeNumber(scan.scope, 'requested') ?? '—'}, source total {totalAvailableLabel(scan.scope)}, API pages {scopeNumber(scan.scope, 'pagesFetched') ?? scopeNumber(scan.metrics, 'pages') ?? '—'}, media dependencies {scopeNumber(scan.scope, 'mediaDependencies') ?? scan.counts.media ?? 0}, referenced terms {scopeNumber(scan.scope, 'termsReferenced') ?? ((scan.counts.categories ?? 0) + (scan.counts.tags ?? 0))}.
                   </p>
                   <div className="row wrap gap">
-                    <span className="pill">Posts: {scan.counts.posts ?? 0}</span>
-                    <span className="pill">Pages: {scan.counts.pages ?? 0}</span>
-                    <span className="pill">Categories: {scan.counts.categories ?? 0}</span>
-                    <span className="pill">Tags: {scan.counts.tags ?? 0}</span>
-                    <span className="pill">Media: {scan.counts.media ?? 0}</span>
+                    <span className="pill">Posts indexed: {scan.counts.posts ?? 0}</span>
+                    <span className="pill">Pages indexed: {scan.counts.pages ?? 0}</span>
+                    <span className="pill">Categories indexed: {scan.counts.categories ?? 0}</span>
+                    <span className="pill">Tags indexed: {scan.counts.tags ?? 0}</span>
+                    <span className="pill">Media dependencies: {scan.counts.media ?? 0}</span>
                   </div>
                   {scan.truncated && (
                     <p className="small warn-text">The scan stopped at an item limit; this batch is partial. Rescan before relying on an empty result.</p>
                   )}
                 </div>
               ) : (
-                <p className="small muted">No source scan has completed for this project. Planning needs an indexed content batch; QMS will scan automatically when you continue.</p>
+                <p className="small muted">No source scan has completed for this project. Planning needs an indexed content batch. Choose a bounded scope above and run it explicitly.</p>
               )}
-              <button type="button" onClick={() => void runScan()} disabled={scanning || busy}>
-                {scanning ? 'Scanning…' : scan ? 'Rescan WordPress content' : 'Scan WordPress content'}
-              </button>
-              {scanning && <p className="small">{scanProgress || 'Scanning the source…'}</p>}
-              {!scanning && scanProgress && <p className="small muted">{scanProgress}</p>}
             </div>
             <div className="wide capability-box">
               <strong>Workspace location</strong>

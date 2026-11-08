@@ -264,7 +264,15 @@ export function Recovery({ projectId, onBack }: RecoveryProps) {
                   <tr key={candidate.stageId ?? candidate.runId ?? candidate.kind}>
                     <td>{candidate.kind}</td>
                     <td><Badge tone={toneForStatus(candidate.state)}>{candidate.state}</Badge></td>
-                    <td>{candidate.phase ?? '—'} / {candidate.step ?? '—'} ({candidate.cursor}/{candidate.total})</td>
+                    <td>
+                      {candidate.phase ?? '—'} / {candidate.step ?? '—'} ({candidate.cursor}/{candidate.total})
+                      {candidate.kind === 'source.discover' && (candidate.action?.params as Record<string, unknown> | undefined)?.mode === 'quick' && (
+                        <span className="small muted"> · quick scan, up to {String(((candidate.action?.params as Record<string, unknown>).selection as Record<string, unknown> | undefined)?.maxItems ?? '?')} item(s)</span>
+                      )}
+                      {candidate.kind === 'source.discover' && (candidate.action?.params as Record<string, unknown> | undefined)?.mode === 'full' && (
+                        <span className="small warn-text"> · full inventory</span>
+                      )}
+                    </td>
                     <td>{candidate.resumable ? 'yes' : 'no'}</td>
                     <td>
                       <div className="row gap">
