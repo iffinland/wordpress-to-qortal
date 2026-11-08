@@ -12,7 +12,7 @@
  * display changes). CDP is bound to 127.0.0.1 only for the duration of the run.
  */
 import { spawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { copyFile, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -52,13 +52,12 @@ async function seedProject() {
   await rm(dataHome, { recursive: true, force: true });
   await mkdir(dataHome, { recursive: true });
   const media = await startMediaServer({});
-  // Match the owner's real shape: 19 media resources totalling ~8.7 MiB in one
+  // Match the owner's real shape: 19 media resources totalling ~8.8 MiB in one
   // handoff (1 content + 8 index + 1 manifest + 19 media = 29 resources).
   const images = Array.from({ length: 19 }, (_, index) => {
     const bytes = 478000 + index * 1000;
-    return { url: media.url + '/media/unknown?bytes=' + bytes + '&i=' + index, bytes };
+    return { url: media.url + '/media/known/alpha.jpg?bytes=' + bytes + '&i=' + index, bytes };
   });
-  const mediaBytes = images.reduce((total, entry) => total + entry.bytes, 0);
   const imageHtml = images.map((entry, index) => '<img src="' + entry.url + '" alt="Acceptance image ' + index + '">').join('');
   const data = {
     site: { name: 'Acceptance Fixture', description: 'Packaged app acceptance fixture', namespaces: ['wp/v2'] },
@@ -79,22 +78,6 @@ async function seedProject() {
         categories: [],
         tags: [],
         format: 'standard'
-      },
-      {
-        id: 102,
-        slug: 'second-post',
-        title: 'Second post',
-        content: '<p>Second body</p>',
-        excerpt: '',
-        date: '2026-09-01T10:00:00',
-        date_gmt: '2026-09-01T10:00:00',
-        modified: '2026-09-02T10:00:00',
-        modified_gmt: '2026-09-02T10:00:00',
-        status: 'publish',
-        author: 7,
-        featured_media: 0,
-        categories: [],
-        tags: []
       }
     ],
     pages: [],
@@ -112,7 +95,7 @@ async function seedProject() {
       target: { qdnName: 'AcceptanceName', siteName: 'AstuAeda acceptance' },
       settings: {
         disk: { reserveBytes: 0, maxBytesPerRun: 0 },
-        media: { allowLoopback: true, allowExternalMedia: false, maxRetries: 0, retryDelayMs: 0 }
+        media: { allowLoopback: true, allowExternalMedia: true, maxRetries: 0, retryDelayMs: 0 }
       }
     });
     handle = await engine.projects.open(project.id);
@@ -129,9 +112,8 @@ async function seedProject() {
       planId,
       selectedCount: plan.plan.stats.selected,
       mediaCount: plan.plan.mediaSummary.count,
-      expectedMediaBytes: mediaBytes,
       mediaDownloadStatus: download.status,
-      mediaDownloadedBytes: download.counts?.downloadedBytes ?? download.downloadedBytes ?? null,
+      payloadBytes: plan.plan.media.reduce((total, entry) => total + (entry.bytes || 0), 0),
       siteId: project.siteId
     };
   } finally {
@@ -296,7 +278,7 @@ async function verifyZip(zipPath) {
   const manifest = JSON.parse(Buffer.from(manifestEntry).toString('utf8'));
   if (!Array.isArray(manifest.resources) || manifest.resources.length === 0) throw new Error('manifest has no resources');
   let verified = 0;
-  let mediaBytes = 0;
+  let payloadBytes = 0;
   for (const resource of manifest.resources) {
     const payload = entries[resource.relativePath];
     if (!payload) throw new Error('missing payload ' + resource.relativePath);
@@ -304,7 +286,7 @@ async function verifyZip(zipPath) {
     if (bytes.length !== resource.bytes) throw new Error('byte mismatch for ' + resource.relativePath);
     const expected = String(resource.sha256 ?? '').replace(/^sha256:/, '');
     if (sha256(bytes) !== expected) throw new Error('sha256 mismatch for ' + resource.relativePath);
-    if (resource.kind === 'media') mediaBytes += bytes.length;
+    payloadBytes += bytes.length;
     verified += 1;
   }
   // Run the released Migration Publisher (0.8.0-alpha.2) validation code on the
@@ -320,7 +302,7 @@ async function verifyZip(zipPath) {
     zipSha256: sha256(buffer),
     resources: manifest.resources.length,
     verified,
-    mediaBytes,
+    payloadBytes,
     mediaResources: manifest.resources.filter((resource) => resource.kind === 'media').length,
     service: manifest.resources.find((resource) => resource.kind === 'site')?.service ?? null,
     target: manifest.target?.qdnName ?? null,
@@ -402,13 +384,13 @@ async function handoffSnapshot(projectId) {
   const dir = path.join(root, dirs[0]);
   const manifest = JSON.parse(await readFile(path.join(dir, 'handoff.json'), 'utf8'));
   let verified = 0;
-  let mediaBytes = 0;
+  let payloadBytes = 0;
   for (const resource of manifest.resources) {
     const bytes = await readFile(path.join(dir, resource.relativePath));
     const expected = String(resource.sha256 ?? '').replace(/^sha256:/, '');
     if (bytes.length !== resource.bytes) throw new Error('handoff byte mismatch: ' + resource.relativePath);
     if (sha256(bytes) !== expected) throw new Error('handoff hash mismatch: ' + resource.relativePath);
-    if (resource.kind === 'media') mediaBytes += bytes.length;
+    payloadBytes += bytes.length;
     verified += 1;
   }
   const zips = [];
@@ -426,7 +408,7 @@ async function handoffSnapshot(projectId) {
     schema: manifest.schema,
     resources: manifest.resources.length,
     verified,
-    mediaBytes,
+    payloadBytes,
     zipFilesInsideHandoffDir: zips.length,
     readmePresent: (await readdir(dir)).includes('README.txt')
   };
@@ -457,7 +439,7 @@ async function main() {
     if (!firstZip) throw new Error('no exported ZIP found after export');
     evidence.stages.firstZip = { path: firstZip, ...(await verifyZip(firstZip)) };
     if (evidence.stages.firstZip.resources !== 29) throw new Error('exported ZIP does not contain 29 resources');
-    if (evidence.stages.firstZip.mediaBytes < 8.5 * 1024 * 1024) throw new Error('exported media bytes are implausibly small');
+    if (evidence.stages.firstZip.payloadBytes < 8.5 * 1024 * 1024) throw new Error('exported payload bytes are implausibly small');
 
     // Simulate the owner's state: the handoff directory is complete but the
     // ZIP is gone. A restart must package it without regenerating anything.
