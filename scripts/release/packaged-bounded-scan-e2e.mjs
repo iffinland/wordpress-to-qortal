@@ -213,7 +213,7 @@ async function openProjectWizard(cdp, projectId) {
   await waitFor(cdp, '!!document.querySelector(' + JSON.stringify(card) + ')', 'project card');
   const opened = await cdp.evaluate('(() => { const card = document.querySelector(' + JSON.stringify(card) + '); const button = [...card.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Open"); if (!button) return false; button.click(); return true; })()');
   if (!opened) throw new Error('Open button missing');
-  await waitFor(cdp, 'document.querySelector("[data-testid=source-scan]") !== null', 'source scan panel', 180000);
+  await waitFor(cdp, 'document.body.innerText.includes("PROJECT SETUP") && !!document.querySelector("button")', 'project setup wizard', 180000);
 }
 
 async function stepContinue(cdp, label) {
