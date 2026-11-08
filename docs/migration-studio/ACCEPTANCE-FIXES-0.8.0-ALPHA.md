@@ -151,4 +151,11 @@ warning details.
   601+ required media before the policy and 3 after it.
 - Packaged app: a real Electron run from the built package opens a seeded
   project, generates a handoff through the UI, exports the Publisher ZIP,
-  verifies manifest/hashes, restarts and reopens the handoff.
+  verifies manifest/hashes, restarts and reopens the handoff. The recorded run
+  (0.8.0-alpha.11) verified 10/10 resources, passed the released Publisher
+  handoff validator, and reproduced the identical ZIP SHA-256 after restart
+  (no renderer exceptions).
+- Release: `qortal-migration-studio_0.8.0-alpha.11_amd64.deb`,
+  108,520,072 bytes, SHA-256
+  `29b2a1e45c16c3a040803de4449c71a06062d62c7d0c998d0b57c6ac42e95b9e`;
+  reproducible from a clean `git archive` build.
