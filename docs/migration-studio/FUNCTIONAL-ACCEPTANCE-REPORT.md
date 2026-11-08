@@ -157,4 +157,22 @@ scripts; the security gate wrote `qms-security-report@1` with verdict `pass`.
 | Security gate | **PASS** — verdict pass; 0 high/critical production vulnerabilities; 0 secret findings; 0 forbidden filenames |
 | Packaged functional A–G evidence verifier | **PASS** — 10 controls, all PASS |
 | Packaged handoff H evidence verifier | **PASS** — 29 resources, 29 remote verified |
-| `.deb` build | pending (see the final artifact section) |
+| `.deb` build | **PASS** — `qortal-migration-studio_0.8.0-rc.1_amd64.deb`, 108,535,598 bytes, sha256 `3b54fa5b…6dd92c05` |
+| Debian artifact validation | **PASS** — 60 checks, 60 passed, 0 failed |
+
+## Delivered private artifact
+
+- Filename: `qortal-migration-studio_0.8.0-rc.1_amd64.deb`
+- Size: 108,535,598 bytes
+- SHA-256: `3b54fa5bd94b537e7b73436dc29222d43d85030adc7b737c735976dd6dd92c05`
+- Build source: commit `c42bd6970f2ec13bb35ae55c5259d24a77bd2fe7`, tree
+  `e434fbda18d0833dc47a0a6fdf2408818f4a2976`
+- Debian validation: `qms-deb-validation@1`, 60/60 checks passed
+- This replaces the previously built private rc.1 artifact
+  (sha256 `e35ae84545f3b7a118df2f7bf153755fb86d7749b8aebdb3f1faa03f79fb5115`),
+  which contained BUG-004. Nothing was published to GitHub or QDN.
+- The packaged acceptance run used the `linux-unpacked` build from the same source
+  commit; the `.deb` was assembled from that build tree. Source hashes of the fixed
+  files were compared between the committed tree and the build host before packaging.
+
+
