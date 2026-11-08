@@ -1,6 +1,11 @@
 export const IPC = {
   appInfo: 'qms:app:info',
   appSettings: 'qms:app:settings',
+  appReportError: 'qms:app:report-error',
+  nodesGet: 'qms:nodes:get',
+  nodesSet: 'qms:nodes:set',
+  nodesRemove: 'qms:nodes:remove',
+  nodesTest: 'qms:nodes:test',
   setDataRoot: 'qms:app:set-data-root',
   openPath: 'qms:app:open-path',
   openUrl: 'qms:app:open-url',

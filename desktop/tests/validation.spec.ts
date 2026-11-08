@@ -94,6 +94,86 @@ describe('IPC validation', () => {
     expect(validateIpcPayload(IPC.publicationResources, { projectId: 'prj_abcd' })).toEqual({ projectId: 'prj_abcd', handoffId: null });
   });
 
+  it('saves a legacy project whose cached discovery is absent (BUG-001 regression)', () => {
+    // Mirrors the owner's AstuAeda project after reopening: legacy numeric
+    // completedSteps, stringified preference scalars, node settings and no
+    // discovery object for this session. Before the fix the wizard autosave
+    // threw "persisted value type is not allowed." for the undefined
+    // preferences.discovery member, so steps 1-4 could not be saved.
+    const wizard = {
+      step: 4,
+      completedSteps: [1, 2, 3],
+      wizardVersion: 2,
+      adapterId: 'wordpress',
+      sourceUrl: 'https://astuaeda.ee',
+      authMode: 'none',
+      connection: {
+        status: 'completed',
+        report: {
+          ok: true,
+          site: { name: 'AstuAeda', url: 'https://astuaeda.ee' },
+          counts: { posts: 1180, pages: 17, media: 6421 },
+          contentTypes: ['post', 'page'],
+          warnings: []
+        },
+        error: null
+      },
+      targetQdnName: 'AstuAeda',
+      siteTitle: 'AstuAeda',
+      siteDescription: 'Migration test',
+      website: { cms: 'generic-cms', service: 'APP', tagline: 'Astu Aeda', accent: '#4da3ff' },
+      preferences: {
+        batchSize: '1',
+        contentTypes: ['post', 'page'],
+        after: '',
+        before: '',
+        includeReserved: 'false',
+        allowExternalMedia: 'false',
+        concurrency: '4',
+        reserveGib: '10',
+        maxRunGib: '2',
+        maxFileMib: '256',
+        maxFiles: '500',
+        unknownPolicy: 'reject',
+        nodeSettings: { qortalNodeUrl: 'http://127.0.0.1:24991', updateNodeUrl: 'http://127.0.0.1:62391' },
+        discovery: undefined
+      },
+      planId: null,
+      updatedAt: '2026-11-08T08:00:00.000Z'
+    };
+
+    const result = validateIpcPayload(IPC.projectSaveWizard, { projectId: 'prj_astuaeda01', wizard });
+    const saved = result.wizard as Record<string, unknown>;
+    expect(saved.wizardVersion).toBe(3);
+    expect(saved.completedSteps).toEqual(['source', 'connection', 'destination']);
+    const preferences = saved.preferences as Record<string, unknown>;
+    expect(preferences.batchSize).toBe(1);
+    expect(preferences.maxFiles).toBe(500);
+    expect(preferences.includeReserved).toBe(false);
+    expect(preferences.allowExternalMedia).toBe(false);
+    // Unknown extension data is preserved (node settings survive migration).
+    expect(preferences.nodeSettings).toEqual({ qortalNodeUrl: 'http://127.0.0.1:24991', updateNodeUrl: 'http://127.0.0.1:62391' });
+    // Undefined is dropped exactly like JSON would, not rejected.
+    expect(Object.prototype.hasOwnProperty.call(preferences, 'discovery')).toBe(false);
+  });
+
+  it('mirrors JSON semantics for undefined and null inside persisted state', () => {
+    const cleaned = sanitizePersisted({
+      step: 3,
+      keep: 'value',
+      absent: undefined,
+      nested: { absent: undefined, zero: 0, no: false, empty: null },
+      list: ['one', undefined, 2]
+    });
+    expect(cleaned).toEqual({
+      step: 3,
+      keep: 'value',
+      nested: { zero: 0, no: false, empty: null },
+      list: ['one', null, 2]
+    });
+    expect(() => sanitizePersisted({ bad: BigInt(1) })).toThrow(/persisted value type/);
+  });
+
   it('rejects oversized payloads', () => {
     expect(() => validateIpcPayload(IPC.projectCreate, {
       name: 'x'.repeat(200),

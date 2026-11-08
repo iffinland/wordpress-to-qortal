@@ -17,6 +17,9 @@ export const WIZARD_STEP_LABELS: Record<WizardStepId, string> = {
   plan: 'Plan and review'
 };
 
+/** Current persisted wizard schema. Version 3 migrated legacy scalar types. */
+export const WIZARD_STATE_VERSION = 3;
+
 export const WIZARD_STEP_INDEX: Record<WizardStepId, number> = {
   source: 1,
   connection: 2,
@@ -161,7 +164,36 @@ export interface WizardLoadMigration {
 
 /**
  * Normalize a persisted desktopWizard object for loading. Returns the same
- * object shape plus wizardVersion: 2. Does not delete any settings.
+ * object shape plus the current wizardVersion. Does not delete project data.
+ */
+const NUMERIC_PREFERENCES = ['batchSize', 'concurrency', 'reserveGib', 'maxRunGib', 'maxFileMib', 'maxFiles', 'totalSelected', 'scanned'] as const;
+const BOOLEAN_PREFERENCES = ['includeReserved', 'allowExternalMedia', 'includeUnreferencedAttachments'] as const;
+
+function legacyNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) return Number(value);
+  return null;
+}
+
+function legacyBoolean(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'off'].includes(normalized)) return false;
+  }
+  if (typeof value === 'number' && (value === 0 || value === 1)) return value === 1;
+  return null;
+}
+
+/**
+ * Project load migration for settings.desktopWizard.
+ *
+ * Older builds wrote numeric step indexes and, in a few releases, stringified
+ * preference scalars ("5", "false"). Those documents must keep loading without
+ * losing mappings, checkpoints, plans or downloaded assets. Migration is
+ * idempotent and preserves unknown keys: it only normalizes types and removes
+ * a null/blank cached discovery record that made the JSON payload invalid.
  */
 export function migrateWizardForLoad(input: unknown): WizardLoadMigration {
   const wizard = input && typeof input === 'object' && !Array.isArray(input)
@@ -174,7 +206,7 @@ export function migrateWizardForLoad(input: unknown): WizardLoadMigration {
     : {};
   let changed = completed.changed;
   if (wizard.completedSteps !== undefined && !Array.isArray(wizard.completedSteps)) changed = true;
-  if (!Number.isFinite(version) || version < 2) changed = true;
+  if (!Number.isFinite(version) || version < WIZARD_STATE_VERSION) changed = true;
   if (Object.prototype.hasOwnProperty.call(preferences, 'before')) {
     const normalized = normalizeBeforeDate(preferences.before, version);
     if (normalized !== preferences.before) {
@@ -182,8 +214,50 @@ export function migrateWizardForLoad(input: unknown): WizardLoadMigration {
       changed = true;
     }
   }
+  for (const key of NUMERIC_PREFERENCES) {
+    if (!Object.prototype.hasOwnProperty.call(preferences, key)) continue;
+    const coerced = legacyNumber(preferences[key]);
+    if (coerced !== null && coerced !== preferences[key]) {
+      preferences[key] = coerced;
+      changed = true;
+    }
+  }
+  for (const key of BOOLEAN_PREFERENCES) {
+    if (!Object.prototype.hasOwnProperty.call(preferences, key)) continue;
+    const coerced = legacyBoolean(preferences[key]);
+    if (coerced !== null && coerced !== preferences[key]) {
+      preferences[key] = coerced;
+      changed = true;
+    }
+  }
+  const discovery = preferences.discovery;
+  if (discovery === null || discovery === undefined) {
+    if (Object.prototype.hasOwnProperty.call(preferences, 'discovery')) {
+      delete preferences.discovery;
+      changed = true;
+    }
+  } else if (typeof discovery !== 'object' || Array.isArray(discovery)) {
+    delete preferences.discovery;
+    changed = true;
+  } else {
+    const record = discovery as Record<string, unknown>;
+    if (record.batchId !== null && typeof record.batchId !== 'string') {
+      record.batchId = typeof record.batchId === 'number' ? String(record.batchId) : null;
+      changed = true;
+    }
+    if (record.counts !== undefined && (typeof record.counts !== 'object' || Array.isArray(record.counts) || record.counts === null)) {
+      record.counts = {};
+      changed = true;
+    }
+  }
+  for (const key of ['adapterId', 'sourceUrl', 'authMode', 'targetQdnName', 'siteTitle', 'siteDescription']) {
+    if (typeof wizard[key] === 'number' || typeof wizard[key] === 'boolean') {
+      wizard[key] = String(wizard[key]);
+      changed = true;
+    }
+  }
   wizard.completedSteps = completed.steps;
-  wizard.wizardVersion = 2;
+  wizard.wizardVersion = WIZARD_STATE_VERSION;
   wizard.preferences = preferences;
   return {
     wizard,

@@ -55,6 +55,14 @@ test('the stdio host exposes the publication handoff, receipt and verification c
   });
   assert.equal(prepared.status, 'handoff_ready');
   assert.equal(prepared.packageValidated, true);
+  // BUG-002 regression: every prepared resource must carry the publication
+  // state the desktop table renders. Older records had only "state", and the
+  // renderer crashed with a blank window when status was absent.
+  assert.ok(prepared.resources.length > 0);
+  for (const resource of prepared.resources) {
+    assert.equal(resource.status, 'handoff_ready');
+    assert.equal(resource.state, 'handoff_ready');
+  }
 
   const listed = await client.request('publication.list', { projectId: created.id });
   assert.equal(listed.length, 1);

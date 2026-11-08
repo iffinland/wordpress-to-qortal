@@ -15,10 +15,17 @@ import {
   migrateWizardForLoad,
   normalizeCompletedSteps,
   startOfDayIso,
+  WIZARD_STATE_VERSION,
   type WizardStepId
 } from '../../shared/wizard.js';
 
 const STEPS = WIZARD_STEP_IDS.map((id) => WIZARD_STEP_LABELS[id]);
+
+function authModeLabel(mode: string): string {
+  if (mode === 'application_password') return 'Application password (recommended)';
+  if (mode === 'session') return 'WordPress login session (legacy)';
+  return 'Public REST API (no login)';
+}
 
 interface DiscoveryInfo {
   batchId: string | null;
@@ -92,7 +99,7 @@ function defaultWizard(project: ProjectDocument, adapters: AdapterInfo[]): Wizar
   return {
     step: typeof stored.step === 'number' ? stored.step : 1,
     completedSteps: normalizeCompletedSteps(stored.completedSteps),
-    wizardVersion: 2,
+    wizardVersion: WIZARD_STATE_VERSION,
     adapterId: stored.adapterId ?? String(source.adapter ?? adapters[0]?.id ?? 'wordpress'),
     sourceUrl: stored.sourceUrl ?? String(source.baseUrl ?? ''),
     authMode: stored.authMode ?? 'none',
@@ -157,6 +164,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
   const [before, setBefore] = useState(String(preferences.before ?? ''));
   const [includeReserved, setIncludeReserved] = useState(Boolean(preferences.includeReserved));
   const [allowExternal, setAllowExternal] = useState(Boolean(preferences.allowExternalMedia));
+  const [includeUnreferencedAttachments, setIncludeUnreferencedAttachments] = useState(Boolean(preferences.includeUnreferencedAttachments));
   const [concurrency, setConcurrency] = useState(numberValue(preferences.concurrency, 4));
   const [reserveGib, setReserveGib] = useState(numberValue(preferences.reserveGib, 10));
   const [maxRunGib, setMaxRunGib] = useState(numberValue(preferences.maxRunGib, 2));
@@ -171,6 +179,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
   const [scan, setScan] = useState<DiscoveryInfo | null>(discoveryFromWizard(preferences));
   const [scanning, setScanning] = useState(false);
   const [scanProgress, setScanProgress] = useState('');
+  const [planPhase, setPlanPhase] = useState<{ phase: string; completed: number; total: number; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [previewing, setPreviewing] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -204,7 +213,11 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       if (event.progress && (event.type === 'progress_updated' || event.type === 'operation_started')) {
         const total = Number(event.progress.total ?? 0);
         const completed = Number(event.progress.completed ?? 0);
-        setScanProgress(event.message ?? ('Scanning: ' + completed + (total > 0 ? '/' + total : '') + ' item(s)'));
+        if (event.phase && ['index', 'classify', 'select', 'media_estimate', 'prepare'].includes(event.phase)) {
+          setPlanPhase({ phase: event.phase, completed, total, message: event.message ?? '' });
+        } else {
+          setScanProgress(event.message ?? ('Scanning: ' + completed + (total > 0 ? '/' + total : '') + ' item(s)'));
+        }
       }
     });
     return unsubscribe;
@@ -220,7 +233,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
     return {
       step: nextStep,
       completedSteps: nextCompleted,
-      wizardVersion: 2,
+      wizardVersion: WIZARD_STATE_VERSION,
       adapterId,
       sourceUrl,
       authMode,
@@ -251,13 +264,17 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
         before,
         includeReserved,
         allowExternalMedia: allowExternal,
+        includeUnreferencedAttachments,
         concurrency: Number(concurrency),
         reserveGib: Number(reserveGib),
         maxRunGib: Number(maxRunGib),
         maxFileMib: Number(maxFileMib),
         maxFiles: Number(maxFiles),
         unknownPolicy,
-        discovery: effectiveScan ?? undefined
+        // Never persist an undefined member: JSON drops it, but the IPC
+        // validator used to reject undefined before the write. Omit the key
+        // entirely when there is no cached discovery result.
+        ...(effectiveScan ? { discovery: effectiveScan } : {})
       },
       planId: planOverride?.planId ?? planPreview?.planId ?? initial.planId ?? null,
       updatedAt: new Date().toISOString()
@@ -508,6 +525,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
         disk: diskOverrides(),
         media: {
           allowExternalMedia: allowExternal,
+          includeUnreferencedAttachments,
           concurrency: Number(concurrency) || 4
         }
       }
@@ -537,7 +555,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       },
       planning: { includeReserved, includePages: contentTypes.includes('page') },
       disk: diskOverrides(),
-      media: { allowExternalMedia: allowExternal, concurrency: Number(concurrency) || 4 },
+      media: { allowExternalMedia: allowExternal, includeUnreferencedAttachments, concurrency: Number(concurrency) || 4 },
       estimateMedia: true,
       persist: persistPlan
     };
@@ -679,23 +697,35 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
             <Field label="WordPress site URL" hint="The REST API root is discovered automatically.">
               <input value={sourceUrl} onChange={(event) => { setSourceUrl(event.target.value); setConnection(null); }} placeholder="https://example.org" />
             </Field>
-            <Field label="Authentication mode" hint="Modes are reported by the adapter.">
+            <Field
+              label="Authentication mode"
+              hint="Public posts and pages usually need no login. Drafts, private items and media in a protected library need an application password."
+            >
               <select value={authMode} onChange={(event) => { setAuthMode(event.target.value); setConnection(null); }}>
-                {authModes.map((mode) => <option key={mode} value={mode}>{mode}</option>)}
+                {authModes.map((mode) => <option key={mode} value={mode}>{authModeLabel(mode)}</option>)}
               </select>
             </Field>
+            <div className="wide capability-box" data-testid="auth-guidance">
+              <strong>How WordPress access works</strong>
+              <ul className="small">
+                <li><strong>Public REST API (no login)</strong> — reads published content from <code>/wp-json/wp/v2</code>. No credentials are stored.</li>
+                <li><strong>Application password (recommended)</strong> — WordPress generates a revocable password for this app in Users → Profile. It is different from your normal login password and can be revoked at any time.</li>
+                <li><strong>Login session (legacy)</strong> — some hosts disable it or block it with a security plugin. Prefer an application password when drafts must be read.</li>
+                <li>The desktop app never exposes your WordPress site or its private APIs to Qortal or the internet.</li>
+              </ul>
+            </div>
             {authMode !== 'none' && (
               <Field label="Username">
                 <input value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" />
               </Field>
             )}
             {authMode === 'application_password' && (
-              <Field label="Application password" hint="Used for this session; never stored in plaintext.">
+              <Field label="Application password" hint="Create one in WordPress Users → Profile → Application Passwords. Used for this session; stored only in the keyring when selected.">
                 <input type="password" value={appPassword} onChange={(event) => setAppPassword(event.target.value)} autoComplete="current-password" />
               </Field>
             )}
             {authMode === 'session' && (
-              <Field label="Password" hint="Session login through the WordPress login endpoint.">
+              <Field label="WordPress login password" hint="Session login through the WordPress login endpoint; not the application password. Some hosts disable this.">
                 <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" />
               </Field>
             )}
@@ -803,9 +833,23 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       {step === 4 && (
         <Card title="Import preferences" subtitle="Defaults come from the Phase 3 planning and disk safety model. Limits are enforced by the engine.">
           <div className="grid-2">
-            <Field label="Batch size" hint="Default 15. Integer from 1 to 1000.">
+            <Field
+              label="Items prepared per batch"
+              hint="How many selected items QMS prepares in this run. It does not limit how many posts your WordPress site has or how many Qortal can hold — after this batch, plan the next one. Default 15; 1 is useful for testing one post."
+            >
               <input type="number" min={1} max={1000} value={batchSize} onChange={(event) => setBatchSize(event.target.value)} />
             </Field>
+            <div className="wide capability-box" data-testid="selection-counts">
+              <strong>Discovered vs scanned vs selected</strong>
+              <div className="row wrap gap">
+                <span className="pill">Discovered on the site: {(scan?.counts.posts ?? 0) + (scan?.counts.pages ?? 0)} (posts {scan?.counts.posts ?? 0}, pages {scan?.counts.pages ?? 0})</span>
+                <span className="pill">Scanned into the local index: {planDocument?.stats.scanned ?? planPreview?.stats?.scanned ?? 0}</span>
+                <span className="pill">Selected for this batch: {planDocument?.stats.selected ?? planPreview?.stats?.selected ?? 0}</span>
+              </div>
+              <p className="small muted">
+                A batch selects a subset of the indexed items. "Selected" is the number this run will prepare, not the total available.
+              </p>
+            </div>
             <div className="stack-sm">
               <span className="field-label">Content types</span>
               {availableContentTypes.map((type) => (
@@ -829,6 +873,9 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
                 <span className="danger-text"> The lower bound is later than the upper bound; this interval can never match content.</span>
               )}
             </div>
+            <details className="wide capability-box">
+              <summary><strong>Advanced storage, media and recovery settings</strong> — defaults are safe for most sites</summary>
+              <div className="grid-2" style={{ marginTop: '0.8rem' }}>
             <Field label="Minimum free disk (GiB)" hint="Reserve kept free on the workspace filesystem.">
               <input type="number" min={0} step={0.5} value={reserveGib} onChange={(event) => setReserveGib(event.target.value)} />
             </Field>
@@ -859,6 +906,12 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
               <input type="checkbox" checked={includeReserved} onChange={(event) => setIncludeReserved(event.target.checked)} />
               Re-include reserved items for preparation (recovery; never marks them published)
             </label>
+            <label className="checkbox wide">
+              <input type="checkbox" checked={includeUnreferencedAttachments} onChange={(event) => setIncludeUnreferencedAttachments(event.target.checked)} />
+              Also download media-library attachments the post never references (off by default; can be hundreds of files)
+            </label>
+              </div>
+            </details>
             <div className="wide capability-box" data-testid="source-scan">
               <strong>Source scan</strong>
               {scan ? (
@@ -906,7 +959,16 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       {step === 5 && (
         <div className="stack">
           <Card title="Plan review" subtitle="This is a qms-plan@1 preview. It prepares locally and never publishes, signs or spends QORT." actions={<button onClick={() => void loadPreview()} disabled={previewing}>{previewing ? 'Loading…' : 'Refresh preview'}</button>}>
-            {previewing && <p className="muted">Scanning the source and building the plan preview…</p>}
+            {previewing && (
+              <div className="stack-sm" data-testid="planning-progress">
+                <p className="muted">
+                  {planPhase
+                    ? planPhase.message + (planPhase.total > 0 ? ' (' + planPhase.completed + ' / ' + planPhase.total + ')' : ' (' + planPhase.completed + ' so far)')
+                    : 'Scanning the source and building the plan preview…'}
+                </p>
+                <p className="small muted">Phase: {planPhase?.phase ?? 'starting'}. Counts are reported by the engine; no percentage is shown until a real total is known.</p>
+              </div>
+            )}
             {!planPreview && !previewing && <p className="muted">No plan preview has been loaded.</p>}
             {planFailure && (
               <Alert tone="bad" title={'Planning failed: ' + planFailure.code}>
@@ -959,6 +1021,11 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
                         <strong>Media</strong>
                         <p className="small">Resources: {planDocument.mediaSummary.count} · known {planDocument.mediaSummary.knownCount} · unknown {planDocument.mediaSummary.unknownCount} · missing {planDocument.mediaSummary.missingCount}</p>
                         <p className="small">Known bytes: {formatBytes(planDocument.mediaSummary.knownBytes)}</p>
+                        {(planDocument.mediaSummary.unreferencedAttachmentsSkipped ?? 0) > 0 && (
+                          <p className="small muted" data-testid="unreferenced-attachments">
+                            {(planDocument.mediaSummary.unreferencedAttachmentsSkipped ?? 0)} media-library attachment(s) are not referenced by the selected posts and were not added as required dependencies. They remain in the source index and can be included in Advanced settings.
+                          </p>
+                        )}
                       </div>
                       <div className="capability-box">
                         <strong>Disk</strong>

@@ -1,8 +1,38 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-alpha.10 -->
+<!-- qms-release-version: 0.8.0-alpha.11 -->
 
-## 0.8.0 alpha.10 — current
+## 0.8.0 alpha.11 — current
+
+Desktop acceptance fix release after the first real MX Linux test of the
+installed `.deb`. The desktop component changes; the Publisher (0.8.0-alpha.2)
+and CMS (0.8.0-alpha.8) components are unchanged and keep their artifacts.
+
+- **BUG-001:** an existing project could not be saved between wizard steps
+  ("persisted value type is not allowed.") because the autosave stored an
+  `undefined` discovery value and the IPC validator rejected undefined. The
+  validator now follows JSON semantics and wizard schema v3 migrates legacy
+  scalar types in place. No project data is deleted.
+- **BUG-002:** "Generate handoff package" appeared to blank the window. The
+  handoff had been written and validated; the resource table then dereferenced
+  a missing `status` and React unmounted the tree. Resources now accept
+  `status` or `state`, a top-level error boundary keeps a recovery screen,
+  renderer failures are logged redacted, and preparation shows real phases and
+  counts.
+- **AUDIT-001:** unreferenced WordPress media-library attachments no longer
+  become required media dependencies. A 600-attachment fixture used to need
+  601+ files; it now needs only the 3 displayed images. Opt-in remains in
+  Advanced settings.
+- UX: honest progress bars, batch-size and selected/scanned/discovered
+  explanations, simpler auth and advanced configuration, persisted
+  90/100/115/130/150% text size, custom Qortal node configuration with a
+  read-only connectivity test, and human-readable skipped-content-type
+  reporting.
+
+See [ACCEPTANCE-FIXES-0.8.0-ALPHA.md](ACCEPTANCE-FIXES-0.8.0-ALPHA.md) for
+root causes, evidence and limitations.
+
+## 0.8.0 alpha.10
 
 This unsigned alpha prerelease supersedes v0.8.0-alpha.9. It adds optional
 featured images to the Generic CMS editor and hardens the slug fix so a stale

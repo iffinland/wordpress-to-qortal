@@ -1,7 +1,57 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { EngineHost } from './host.js';
 import { exportsDir } from './paths.js';
+
+export interface RendererErrorRecord {
+  source: string;
+  message: string;
+  stack?: string;
+  componentStack?: string;
+  at: string;
+}
+
+const rendererErrors: RendererErrorRecord[] = [];
+const MAX_RENDERER_ERRORS = 50;
+
+export function recentRendererErrors(): RendererErrorRecord[] {
+  return [...rendererErrors];
+}
+
+function trim(value: unknown, max: number): string | undefined {
+  if (typeof value !== 'string' || value.trim() === '') return undefined;
+  return value.length > max ? value.slice(0, max) + '...' : value;
+}
+
+/**
+ * Persist a redacted renderer/main-process failure record. This is how a blank
+ * window becomes diagnosable without asking the user to reproduce it: the
+ * renderer ErrorBoundary, unhandled rejections and render-process-gone all
+ * land in <dataRoot>/logs/renderer-errors.log and in diagnostics exports.
+ */
+export async function recordRendererError(
+  dataRoot: string,
+  entry: { source?: unknown; message?: unknown; stack?: unknown; componentStack?: unknown }
+): Promise<RendererErrorRecord> {
+  const record: RendererErrorRecord = {
+    source: trim(entry.source, 120) ?? 'renderer',
+    message: trim(entry.message, 2000) ?? 'Unknown renderer failure',
+    stack: trim(entry.stack, 8000),
+    componentStack: trim(entry.componentStack, 8000),
+    at: new Date().toISOString()
+  };
+  const sanitized = sanitizeForDiagnostics(record) as RendererErrorRecord;
+  rendererErrors.push(sanitized);
+  if (rendererErrors.length > MAX_RENDERER_ERRORS) rendererErrors.splice(0, rendererErrors.length - MAX_RENDERER_ERRORS);
+  try {
+    const dir = path.join(dataRoot, 'logs');
+    await mkdir(dir, { recursive: true, mode: 0o700 });
+    await appendFile(path.join(dir, 'renderer-errors.log'), JSON.stringify(sanitized) + '\n', { mode: 0o600 });
+  } catch {
+    // Logging must never turn a UI failure into a second failure.
+  }
+  return sanitized;
+}
 
 const SECRET_KEY = /(password|passwd|secret|token|apikey|api_key|seed|privatekey|private_key|wallet|authorization|cookie|session|credential|mnemonic|bearer)/i;
 const URL_CREDENTIALS = /(https?:\/\/)([^\s"'<>\/:@]+):([^\s"'<>\/@]+)@/gi;
@@ -68,7 +118,8 @@ export async function exportDiagnostics({
     ],
     project: inspection,
     projectDocument: document,
-    engineStderr: host.logLines.slice(-100)
+    engineStderr: host.logLines.slice(-100),
+    rendererErrors: recentRendererErrors()
   });
   const body = JSON.stringify(payload, null, 2) + '\n';
   const dir = exportsDir(dataRoot);

@@ -7,7 +7,10 @@ import type {
   PublicationHandoffDetail,
   PublicationHandoffSummary,
   PublicationPrepareResult,
-  PublicationVerifyResult
+  PublicationVerifyResult,
+  NodeSettings,
+  NodeTestResult,
+  QmsEvent
 } from '../../shared/types.js';
 import { Alert, Badge, Card, ErrorText, Field } from './Common.js';
 import { formatBytes, formatDate, shortId } from '../format.js';
@@ -31,8 +34,19 @@ function tone(status: string) {
   return STATUS_TONES[status] ?? 'neutral';
 }
 
-function statusLabel(status: string): string {
-  return status.replace(/_/g, ' ');
+function statusLabel(status: unknown): string {
+  const value = String(status ?? 'unknown');
+  return value.replace(/_/g, ' ');
+}
+
+/**
+ * A publication resource may carry its publication state in "status" and its
+ * handoff preparation state in "state" (older prepared records had only
+ * "state"). Rendering must tolerate either shape; dereferencing a missing
+ * status used to throw inside the table and unmount the whole renderer.
+ */
+function resourceStatus(resource: { status?: string | null; state?: string | null }): string {
+  return resource.status ?? resource.state ?? 'handoff_ready';
 }
 
 export function Publishing({ projectId, initialPlanId = null, onBack }: { projectId: string; initialPlanId?: string | null; onBack: () => void }) {
@@ -47,11 +61,17 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
   const [bundle, setBundle] = useState<PublicationBundleExport | null>(null);
   const [receiptText, setReceiptText] = useState('');
   const [nodeUrl, setNodeUrl] = useState('http://127.0.0.1:12391');
+  const [nodeSettings, setNodeSettings] = useState<NodeSettings | null>(null);
+  const [nodeTest, setNodeTest] = useState<NodeTestResult | null>(null);
+  const [nodeTesting, setNodeTesting] = useState(false);
   const [attempts, setAttempts] = useState(6);
   const [verification, setVerification] = useState<PublicationVerifyResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [prepareProgress, setPrepareProgress] = useState<{ phase: string; completed: number; total: number; message: string } | null>(null);
+  const [prepareStartedAt, setPrepareStartedAt] = useState<number | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   async function refresh() {
     const [planList, handoffList] = await Promise.all([
@@ -75,6 +95,42 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
     void refresh().catch(setError);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  useEffect(() => {
+    api().nodes.get()
+      .then((settings) => {
+        setNodeSettings(settings);
+        setNodeUrl(settings.selected ?? settings.defaultNode);
+      })
+      .catch(() => {
+        // Node settings are optional; preparation still works fully offline.
+      });
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = api().events.on((payload) => {
+      const event = payload as QmsEvent;
+      if (event.project_id !== projectId) return;
+      if (!event.progress) return;
+      const service = (event.details as Record<string, unknown> | undefined)?.service;
+      if (service !== 'publication.prepare') return;
+      setPrepareProgress({
+        phase: String(event.phase ?? 'prepare'),
+        completed: Number(event.progress.completed ?? 0),
+        total: Number(event.progress.total ?? 0),
+        message: event.message ?? ''
+      });
+    });
+    return unsubscribe;
+  }, [projectId]);
+
+  useEffect(() => {
+    if (!prepareStartedAt) return;
+    const timer = setInterval(() => {
+      setElapsedSeconds(Math.max(0, Math.round((Date.now() - prepareStartedAt) / 1000)));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [prepareStartedAt]);
 
   useEffect(() => {
     if (!selectedPlanId) {
@@ -124,18 +180,28 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
     setLoading(true);
     setError(null);
     setMessage(null);
+    setPrepared(null);
+    setPrepareProgress(null);
+    setPrepareStartedAt(Date.now());
+    setElapsedSeconds(0);
     try {
       const result = await api().publication.prepare(projectId, plan.planId, [...selection], {
         feePerResource: plan.estimates?.feePerResource
       });
       setPrepared(result);
-      setMessage('Handoff package created and every payload hash was verified locally.');
+      setMessage(result.reused
+        ? 'An equivalent handoff already existed; it was reopened instead of duplicating QDN identities.'
+        : 'Handoff package created and every payload hash was verified locally.');
       await refresh();
       setSelectedHandoffId(result.handoffId);
     } catch (prepareError) {
       setError(prepareError);
+      // The package may still have been written before a failure; reload the
+      // handoff list so the user can see and export any completed artifact.
+      await refresh().catch(() => {});
     } finally {
       setLoading(false);
+      setPrepareStartedAt(null);
     }
   }
 
@@ -208,6 +274,34 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
       setReceiptText(await file.text());
     } catch (readError) {
       setError(readError);
+    }
+  }
+
+  async function saveNode(select: boolean) {
+    setNodeTesting(true);
+    setError(null);
+    try {
+      const settings = await api().nodes.set(nodeUrl, select);
+      setNodeSettings(settings);
+      setNodeUrl(settings.selected ?? nodeUrl);
+      setMessage('Node saved. It is used only for read-only QDN verification.');
+    } catch (saveError) {
+      setError(saveError);
+    } finally {
+      setNodeTesting(false);
+    }
+  }
+
+  async function testNode() {
+    setNodeTesting(true);
+    setError(null);
+    try {
+      setNodeTest(await api().nodes.test(nodeUrl));
+    } catch (testError) {
+      setError(testError);
+      setNodeTest(null);
+    } finally {
+      setNodeTesting(false);
     }
   }
 
@@ -314,10 +408,24 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
         )}
         <div className="row gap wrap">
           <button className="primary" type="button" disabled={!plan || selection.size === 0 || loading} onClick={() => void prepareHandoff()}>
-            Generate handoff package
+            {loading ? 'Preparing handoff…' : 'Generate handoff package'}
           </button>
           <span className="muted">{selection.size} of {actionable.length} resources selected</span>
         </div>
+        {loading && (
+          <Alert tone="info" title="Preparing handoff">
+            <p>
+              {prepareProgress
+                ? prepareProgress.message + (prepareProgress.total > 0
+                  ? ' (' + prepareProgress.completed + ' / ' + prepareProgress.total + ')'
+                  : '')
+                : 'Starting local preparation. Payloads are written and hashed before anything is reported as ready.'}
+            </p>
+            <p className="small muted">
+              Phase: {prepareProgress?.phase ?? 'starting'} · {elapsedSeconds}s elapsed. The project and verified downloads stay untouched if this takes longer.
+            </p>
+          </Alert>
+        )}
 
         {prepared && (
           <Alert tone="info" title="Handoff ready">
@@ -350,10 +458,50 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
               ))}
             </select>
           </Field>
-          <Field label="Qortal node URL (read-only)" hint="Use a node that permits read-only arbitrary reads, or enable QDNAuthBypass.">
-            <input value={nodeUrl} onChange={(event) => setNodeUrl(event.target.value)} />
+          <Field
+            label="Qortal node for read-only verification"
+            hint="Optional. Use a local node or an SSH-forwarded port such as http://127.0.0.1:24991. The desktop app works offline without a node."
+          >
+            <input value={nodeUrl} onChange={(event) => { setNodeUrl(event.target.value); setNodeTest(null); }} placeholder="http://127.0.0.1:24991" />
           </Field>
         </div>
+        <div className="row wrap gap" data-testid="node-controls">
+          {nodeSettings && nodeSettings.nodes.length > 0 && (
+            <label className="text-size-control">
+              <span className="small muted">Saved node</span>
+              <select
+                aria-label="Saved Qortal node"
+                value={nodeSettings.nodes.includes(nodeUrl) ? nodeUrl : ''}
+                onChange={(event) => {
+                  if (!event.target.value) return;
+                  setNodeUrl(event.target.value);
+                  setNodeTest(null);
+                }}
+              >
+                <option value="">Custom / not saved</option>
+                {nodeSettings.nodes.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
+              </select>
+            </label>
+          )}
+          <button className="ghost" type="button" onClick={() => void testNode()} disabled={nodeTesting || !nodeUrl.trim()}>
+            {nodeTesting ? 'Testing…' : 'Test connection'}
+          </button>
+          <button className="ghost" type="button" onClick={() => void saveNode(true)} disabled={nodeTesting || !nodeUrl.trim()}>
+            Save as preferred node
+          </button>
+        </div>
+        {nodeTest && (
+          <Alert tone={nodeTest.ok ? 'good' : 'warn'} title={nodeTest.ok ? 'Node reachable' : 'Node not reachable'}>
+            <p>{nodeTest.message}</p>
+            <p className="small muted">
+              {nodeTest.url} · {nodeTest.status === null ? 'no HTTP status' : 'HTTP ' + nodeTest.status} · {nodeTest.latencyMs} ms
+              {nodeTest.height !== null ? ' · block ' + nodeTest.height : ''}
+            </p>
+            <p className="small muted">
+              Only a public read-only endpoint was probed. QMS never enables or exposes a private node API and never changes SSH tunnels.
+            </p>
+          </Alert>
+        )}
 
         <div className="grid-2">
           <Field label="Publisher receipt JSON" hint="Select the receipt exported by the Migration Publisher Q-App.">
@@ -419,7 +567,7 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
                       <td>{resource.kind}</td>
                       <td>{resource.service}</td>
                       <td><code>{resource.identifier}</code></td>
-                      <td><Badge tone={tone(resource.status)}>{statusLabel(resource.status)}</Badge></td>
+                      <td><Badge tone={tone(resourceStatus(resource))}>{statusLabel(resourceStatus(resource))}</Badge></td>
                       <td>{resource.publisherReportedStatus ?? '—'}</td>
                       <td>{resource.txSignature ? shortId(resource.txSignature) : '—'}</td>
                       <td>{formatBytes(resource.bytes)}</td>

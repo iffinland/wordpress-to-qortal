@@ -1,6 +1,6 @@
 import { IPC } from './channels.js';
 import { checkQortalName } from './qortalName.js';
-import { migrateWizardForLoad, normalizeCompletedSteps } from './wizard.js';
+import { WIZARD_STATE_VERSION, migrateWizardForLoad, normalizeCompletedSteps } from './wizard.js';
 
 export class IpcValidationError extends Error {
   code = 'IPC_INVALID_INPUT';
@@ -252,7 +252,7 @@ function sanitizeMedia(input: unknown): Dict {
   for (const key of ['concurrency', 'timeoutMs', 'maxRetries', 'retryDelayMs', 'maxRedirects']) {
     if (media[key] !== undefined) out[key] = integer(media[key], 'media.' + key, { min: 0, max: 600000 });
   }
-  for (const key of ['allowExternalMedia', 'allowLoopback']) {
+  for (const key of ['allowExternalMedia', 'allowLoopback', 'includeUnreferencedAttachments']) {
     if (media[key] !== undefined) out[key] = bool(media[key], 'media.' + key, false);
   }
   return out;
@@ -269,23 +269,42 @@ function sanitizeSettings(input: unknown): Dict {
   return out;
 }
 
+/**
+ * Sanitize a value that is about to be persisted as JSON.
+ *
+ * JSON has no undefined: object keys with an undefined value are dropped and
+ * undefined array entries become null. The previous implementation rejected
+ * any undefined value, which made an ordinary wizard save fail with
+ * "persisted value type is not allowed." whenever an optional field (for
+ * example the cached discovery result) was absent. Legacy projects therefore
+ * could not be saved before a fresh scan. Mirror JSON semantics instead, and
+ * reject only values JSON cannot represent.
+ */
 export function sanitizePersisted(value: unknown, depth = 0): unknown {
   if (depth > 6) fail('persisted state is too deep.');
+  if (value === undefined) return undefined;
   if (Array.isArray(value)) {
     if (value.length > 500) fail('persisted array is too large.');
-    return value.map((entry) => sanitizePersisted(entry, depth + 1));
+    return value.map((entry) => {
+      const clean = sanitizePersisted(entry, depth + 1);
+      // JSON.stringify turns a top-level undefined array member into null.
+      return clean === undefined ? null : clean;
+    });
   }
   if (isPlainObject(value)) {
     const out: Dict = {};
     for (const [key, entry] of Object.entries(value)) {
       if (SECRET_KEY.test(key)) continue;
       if (typeof entry === 'string' && entry.length > MAX_STRING) fail('persisted value is too long.');
-      out[key] = sanitizePersisted(entry, depth + 1);
+      const clean = sanitizePersisted(entry, depth + 1);
+      if (clean !== undefined) out[key] = clean;
     }
     return out;
   }
   if (typeof value === 'string' && value.length > MAX_STRING) fail('persisted value is too long.');
-  if (value !== null && !['string', 'number', 'boolean'].includes(typeof value)) fail('persisted value type is not allowed.');
+  if (value !== null && !['string', 'number', 'boolean'].includes(typeof value)) {
+    fail('persisted value type is not allowed (' + (typeof value) + ').');
+  }
   return value;
 }
 
@@ -310,7 +329,7 @@ function sanitizeWizard(input: unknown): Dict {
   return {
     step,
     completedSteps,
-    wizardVersion: 2,
+    wizardVersion: WIZARD_STATE_VERSION,
     adapterId: text(loaded.adapterId, 'wizard.adapterId', { optional: true, max: 32 }) ?? 'wordpress',
     sourceUrl: text(loaded.sourceUrl, 'wizard.sourceUrl', { optional: true, max: 2000 }) ?? '',
     authMode: text(loaded.authMode, 'wizard.authMode', { optional: true, max: 40 }) ?? 'none',
@@ -337,11 +356,32 @@ export function validateIpcPayload(channel: string, payload: unknown): Dict {
   switch (channel) {
     case IPC.appInfo:
     case IPC.appSettings:
+    case IPC.nodesGet:
     case IPC.sourceList:
     case IPC.credentialStatus:
     case IPC.updatesState:
     case IPC.updatesCheck:
       return {};
+
+    case IPC.appReportError:
+      return {
+        source: text(params.source, 'source', { optional: true, max: 120 }) ?? 'renderer',
+        message: text(params.message, 'message', { max: 2000 }) as string,
+        stack: text(params.stack, 'stack', { optional: true, max: 8000, trim: false }),
+        componentStack: text(params.componentStack, 'componentStack', { optional: true, max: 8000, trim: false })
+      };
+
+    case IPC.nodesSet:
+      return {
+        url: text(params.url, 'url', { max: 1000 }) as string,
+        selected: bool(params.selected, 'selected', true)
+      };
+
+    case IPC.nodesRemove:
+      return { url: text(params.url, 'url', { max: 1000 }) as string };
+
+    case IPC.nodesTest:
+      return { url: text(params.url, 'url', { max: 1000 }) as string };
 
     case IPC.updatesSetNode:
       return { url: text(params.url, 'url', { max: 1000 }) as string };

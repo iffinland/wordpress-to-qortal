@@ -1,22 +1,22 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-alpha.10",
+  "version": "0.8.0-alpha.11",
   "channel": "alpha",
-  "releaseTag": "v0.8.0-alpha.10",
+  "releaseTag": "v0.8.0-alpha.11",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
   "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-ALPHA.md",
   "changelog": {
-    "summary": "Adds optional featured images to the Generic CMS editor: choose an existing QDN image, upload a local image, preview, replace or remove it, and see the exact image that will be published. Resolution is deterministic: explicit selection, then a preserved WordPress featured image, then the first suitable image in the post body, then none. Tracking pixels, icons, SVG placeholders, video thumbnails and broken refs are skipped. The image is persisted in the native index, the qms-qdn-content@1 media document and the WordPress edit overlay, reused by content hash, and rendered on home cards, lists, detail and search. Also hardens the slug fix: the Admin shows the template version and a stale-deployment warning, and Save draft/Publish refuse an untouched one-character automatic slug from a longer title while preserving legitimate short and manually chosen slugs. Fixes the media-map array normalization that produced the URL '0' for catalog media."
+    "summary": "Desktop acceptance fix release after the first real MX Linux test. Fixes the persisted-value error that blocked saving an existing project (undefined discovery in the wizard autosave plus a strict validator; wizard schema v3 migrates legacy scalar types in place), and the blank window after Generate handoff package (prepared resources had no status field, so the resource table threw and React unmounted the tree; adds a top-level error boundary, redacted renderer error logging and renderer-crash recovery). Adds real handoff progress, honest progress bars, batch-size and selection explanations, simpler auth/advanced configuration, a persisted 90-150% global text size, custom Qortal node configuration with a read-only connectivity test, human-readable skipped-content-type reporting, and a media dependency policy that stops unreferenced WordPress media-library attachments from flooding the plan (still opt-in). Includes the previous featured-image CMS work: choose an existing QDN image, choose an existing QDN image, upload a local image, preview, replace or remove it, and see the exact image that will be published. Resolution is deterministic: explicit selection, then a preserved WordPress featured image, then the first suitable image in the post body, then none. Tracking pixels, icons, SVG placeholders, video thumbnails and broken refs are skipped. The image is persisted in the native index, the qms-qdn-content@1 media document and the WordPress edit overlay, reused by content hash, and rendered on home cards, lists, detail and search. Also hardens the slug fix: the Admin shows the template version and a stale-deployment warning, and Save draft/Publish refuse an untouched one-character automatic slug from a longer title while preserving legitimate short and manually chosen slugs. Fixes the media-map array normalization that produced the URL '0' for catalog media."
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-alpha.10",
+      "version": "0.8.0-alpha.11",
       "channel": "alpha",
       "source": "desktop/package.json",
-      "changelog": "Rebuilt with CMS 0.8.0-alpha.8. Desktop sources are otherwise unchanged; the desktop artifact carries the new CMS template, featured-image editor and slug guard, and the new release identity."
+      "changelog": "Desktop 0.8.0-alpha.11: fixes the legacy-project save error and the blank renderer after handoff generation, adds an error boundary and diagnostics logging, real handoff progress, honest progress bars, batch-size and selection explanations, auth/advanced configuration guidance, persisted 90/100/115/130/150% text size, custom Qortal node configuration with a read-only connectivity test, human-readable unsupported-content reporting, and the attachment dependency policy. Rebuilt with CMS 0.8.0-alpha.8."
     },
     "publisher": {
       "version": "0.8.0-alpha.2",
