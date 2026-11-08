@@ -114,6 +114,7 @@ try {
     auth: { mode: 'none' },
     source: { baseUrl: fixture.url },
     contentTypes: ['post', 'page'],
+    mode: 'full',
     perPage: 20,
     maxItems: 20
   });

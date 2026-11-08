@@ -48,7 +48,7 @@ const handle = await engine.projects.open(projectId, { recoverStaleLock: true, r
 
 switch (mode) {
   case 'discover':
-    await handle.source.discover(options);
+    await handle.source.discover({ mode: 'full', ...options });
     break;
   case 'plan':
     await handle.planning.create(options);
