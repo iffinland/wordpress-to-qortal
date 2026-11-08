@@ -1,0 +1,83 @@
+{
+  "schema": "qms-packaged-handoff-e2e@1",
+  "startedAt": "2026-11-08T21:56:20.739Z",
+  "stages": {
+    "seed": {
+      "projectId": "prj_2myf4kuuf9jflbe6",
+      "planId": "plan_jcifcpulf4mr3xrrqoestrpq",
+      "selectedCount": 1,
+      "mediaCount": 19,
+      "mediaDownloadStatus": "completed",
+      "payloadBytes": 9253000,
+      "siteId": "site_951d71ca0703f04f0e231d220d4e1ebf"
+    },
+    "firstRun": {
+      "text": "Q\nQortal Migration Studio\nLocal WordPress → QDN preparation\nText size\n90%\n100%\n115%\n130%\n150%\nUpdates\ninstalled v0.8.0-rc.2\nengine 0.8.0-rc.2\nsession-only credentials\nSync\nRecovery\nPublishing\nDashboard\n\nPHASE 5 · VARIANT A\n\nPublish through Qortal Hub\n\nPrepare exact QDN bytes here, hand the folder to the Migration Publisher Q-App, then import its signed receipt. Hub signs and approves; this desktop app never sees wallet keys or seeds.\n\nBack\nStatus\nHandoff package created and every payload hash was verified locally.\n1. Prepare a portable handoff\n\nResources are selected explicitly. Estimated fees are not a live quote.\n\nCompleted plan\nSelect a ready plan\nplan_jcifc…trpq · 1 selected · 11/8/2026, 11:56:22 PM\n\nEstimated fee: 0.2 QORT · 20 resources planned\n\nEstimate only; Phase 5 must quote the current network fee before approval.\n\nUSE\tTYPE\tTITLE\tQDN IDENTIFIER\tSTATUS\tMEDIA\n\tpost\tAcceptance post\tqms-nslxrrcjzu4xi4nb-conupfhinusbjdgxbo3\tnew\t19\nBefore preparing a publication\n\nTarget Qortal name: AcceptanceName. APP and WEBSITE are separate deployments, and a different project identity always derives a different QDN identifier.\n\nQMS never overwrites an existing deployment. A resource is updated only when this project republishes the exact service, name and identifier shown in the handoff table. Review the service column before approving in Qortal Hub.\n\nGenerate handoff package\n1 of 1 resources selected\nHandoff ready\n\nPortable handoff is ready. Open it in the Migration Publisher Q-App in Qortal Hub.\n\n/tmp/qms-handoff-final/datahome/qortal-migration-studio/projects/prj_2myf4kuuf9jflbe6/publication/handoffs/hof_42gnyril7ddwzh3iykzwg3wi\n\nExport one .zip package and select it in Qortal Hub → Migration Publisher. The Publisher validates the manifest, every SHA-256 and any CMS application bundle (APP or WEBSITE) before asking for approval.\n\nExport Publisher package (.zip)\nOpen handoff folder\n2. Import Publisher receipt and verify QDN\n\nPublisher-reported evidence is not proof. Exact read-back decides remote verification.\n\nHandoff package\nSelect a handoff\nhof_42gnyr…g3wi · handoff_ready · 29 resources\nQortal node for read-only verification\nOptional. Use a local node or an SSH-forwarded port such as http://127.0.0.1:24991. The desktop app works offline without a node.\nTest connection\nSave as preferred node\nPublisher receipt JSON\nSelect the receipt exported by the Migration Publisher Q-App.\nVerification attempts\nBounded polling; pending or unavailable results are never treated as success.\nImport receipt\nRun independent QDN verification\nPackage existing handoff (.zip)\nOpen selected handoff folder\nOpen published website\nRecovery and truthfulness\n\nWhat the statuses mean\n\nhandoff ready means bytes are prepared locally and hashed; nothing is published.\nsubmitted / pending confirmation are Publisher-reported states and remain unverified.\nremote verified requires an exact read-back whose SHA-256 and byte length match the handoff.\nambiguous means Qortal replied without a definitive per-resource result, or read-back disagreed; reconcile manually and never auto-resubmit.\nfailed / declined / blocked are preserved for an explicit, user-approved retry. This desktop app does not publish or retry in the background.\nWorkspace: /tmp/qms-handoff-final/datahome/qortal-migration-studio\nHub signs and approves; this app never holds wallet keys.",
+      "shell": true,
+      "error": false,
+      "rows": 1
+    },
+    "handoffDir": {
+      "handoffDir": "/tmp/qms-handoff-final/datahome/qortal-migration-studio/projects/prj_2myf4kuuf9jflbe6/publication/handoffs/hof_42gnyril7ddwzh3iykzwg3wi",
+      "handoffId": "hof_42gnyril7ddwzh3iykzwg3wi",
+      "schema": "qms-publication-handoff@1",
+      "resources": 29,
+      "verified": 29,
+      "payloadBytes": 9284050,
+      "zipFilesInsideHandoffDir": 0,
+      "readmePresent": true
+    },
+    "firstZip": {
+      "path": "/tmp/qms-handoff-final/datahome/qortal-migration-studio/exports/hof_42gnyril7ddwzh3iykzwg3wi-publisher.zip",
+      "publisherCompatible": true,
+      "publisherResources": 29,
+      "publisherSummaryResources": 29,
+      "zipBytes": 28083,
+      "zipSha256": "c76adfb0ab86bf5326675889f9c0affa48634b29a3d05d0549008dd1bc9d459d",
+      "resources": 29,
+      "verified": 29,
+      "payloadBytes": 9284050,
+      "mediaResources": 19,
+      "service": null,
+      "target": "AcceptanceName",
+      "handoffId": "hof_42gnyril7ddwzh3iykzwg3wi"
+    },
+    "recovery": {
+      "zipRemoved": true,
+      "handoffDirKept": true
+    },
+    "restart": {
+      "text": "Q\nQortal Migration Studio\nLocal WordPress → QDN preparation\nText size\n90%\n100%\n115%\n130%\n150%\nUpdates\ninstalled v0.8.0-rc.2\nengine 0.8.0-rc.2\nsession-only credentials\nSync\nRecovery\nPublishing\nDashboard\n\nPHASE 5 · VARIANT A\n\nPublish through Qortal Hub\n\nPrepare exact QDN bytes here, hand the folder to the Migration Publisher Q-App, then import its signed receipt. Hub signs and approves; this desktop app never sees wallet keys or seeds.\n\nBack\nStatus\nPublisher package exported. In Qortal Hub open the Migration Publisher Q-App and select this .zip file.\n1. Prepare a portable handoff\n\nResources are selected explicitly. Estimated fees are not a live quote.\n\nCompleted plan\nSelect a ready plan\nplan_jcifc…trpq · 1 selected · 11/8/2026, 11:56:22 PM\n\nEstimated fee: 0.2 QORT · 20 resources planned\n\nEstimate only; Phase 5 must quote the current network fee before approval.\n\nUSE\tTYPE\tTITLE\tQDN IDENTIFIER\tSTATUS\tMEDIA\n\tpost\tAcceptance post\tqms-nslxrrcjzu4xi4nb-conupfhinusbjdgxbo3\tnew\t19\nBefore preparing a publication\n\nTarget Qortal name: AcceptanceName. APP and WEBSITE are separate deployments, and a different project identity always derives a different QDN identifier.\n\nQMS never overwrites an existing deployment. A resource is updated only when this project republishes the exact service, name and identifier shown in the handoff table. Review the service column before approving in Qortal Hub.\n\nGenerate handoff package\n1 of 1 resources selected\n2. Import Publisher receipt and verify QDN\n\nPublisher-reported evidence is not proof. Exact read-back decides remote verification.\n\nHandoff package\nSelect a handoff\nhof_42gnyr…g3wi · handoff_ready · 29 resources\nQortal node for read-only verification\nOptional. Use a local node or an SSH-forwarded port such as http://127.0.0.1:24991. The desktop app works offline without a node.\nTest connection\nSave as preferred node\nPublisher receipt JSON\nSelect the receipt exported by the Migration Publisher Q-App.\nVerification attempts\nBounded polling; pending or unavailable results are never treated as success.\nImport receipt\nRun independent QDN verification\nPackage existing handoff (.zip)\nOpen selected handoff folder\nOpen published website\nPublisher package ready\n\n/tmp/qms-handoff-final/datahome/qortal-migration-studio/exports/hof_42gnyril7ddwzh3iykzwg3wi-publisher.zip\n\n27.4 KiB · SHA-256 sha256:c76adfb0ab86bf5326675889f9c0affa48634b29a3d05d0549008dd1bc9d459d · 29 resources\n\nPackaged from the existing handoff without regenerating or duplicating resources.\n\nPackage validated · 29 resources · 29 files hashed · target AcceptanceName\n\nKIND\tSERVICE\tIDENTIFIER\tSTATUS\tRECEIPT\tSIGNATURE\tBYTES\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imglscv7zx5qhenh23i\thandoff ready\t—\t—\t468.8 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-img3jn6qncuxache5nv\thandoff ready\t—\t—\t481.4 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imgbrf3q3sel4ajtsn7\thandoff ready\t—\t—\t479.5 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imgksva4imcgkqmyyt2\thandoff ready\t—\t—\t472.7 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imgx5mgerpy2e3w73ch\thandoff ready\t—\t—\t482.4 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imgvh7bouwptlotezj7\thandoff ready\t—\t—\t467.8 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-img2li7z3xkvaxzppef\thandoff ready\t—\t—\t471.7 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imgbv33u3yctzyrnula\thandoff ready\t—\t—\t483.4 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-img7sb6wp5epeplzpwn\thandoff ready\t—\t—\t474.6 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-img3q22cfiss4etqbwt\thandoff ready\t—\t—\t473.6 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imgopd5lffnolkvni2y\thandoff ready\t—\t—\t469.7 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imgo5uzxuf4vwlcu2qy\thandoff ready\t—\t—\t475.6 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imgw62awld7v22vvhck\thandoff ready\t—\t—\t478.5 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imgh2a6yk76dqzsuqs4\thandoff ready\t—\t—\t466.8 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imgg7fxkg3nu33pss4x\thandoff ready\t—\t—\t476.6 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imgzhut4g4jwi73qlec\thandoff ready\t—\t—\t484.4 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-img5mn7yzyyn4prglez\thandoff ready\t—\t—\t470.7 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imgx3zlp67dt6n32qmq\thandoff ready\t—\t—\t480.5 KiB\nmedia\tIMAGE\tqms-nslxrrcjzu4xi4nb-imgsxbqzl4rxdkv4ly7\thandoff ready\t—\t—\t477.5 KiB\ncontent\tDOCUMENT\tqms-nslxrrcjzu4xi4nb-conupfhinusbjdgxbo3\thandoff ready\t—\t—\t9.7 KiB\nindex\tDOCUMENT\tqms-nslxrrcjzu4xi4nb-idx-posts-f06f16a935\thandoff ready\t—\t—\t461 B\nindex\tDOCUMENT\tqms-nslxrrcjzu4xi4nb-idx-pages-3f17e81298\thandoff ready\t—\t—\t121 B\nindex\tDOCUMENT\tqms-nslxrrcjzu4xi4nb-idx-categories-c3768b4a02\thandoff ready\t—\t—\t126 B\nindex\tDOCUMENT\tqms-nslxrrcjzu4xi4nb-idx-tags-37979567b4\thandoff ready\t—\t—\t120 B\nindex\tDOCUMENT\tqms-nslxrrcjzu4xi4nb-idx-search-99634ae5c4\thandoff ready\t—\t—\t386 B\nindex\tDOCUMENT\tqms-nslxrrcjzu4xi4nb-idx-media-map-5c9276b728\thandoff ready\t—\t—\t5.4 KiB\nindex\tDOCUMENT\tqms-nslxrrcjzu4xi4nb-idx-url-map-d23478ccd2\thandoff ready\t—\t—\t257 B\nindex\tDOCUMENT\tqms-nslxrrcjzu4xi4nb-idx-import-manifest-e80f15366a\thandoff ready\t—\t—\t327 B\nmanifest\tDOCUMENT\tqms-nslxrrcjzu4xi4nb-man-site-manifest-d67cb2ae5d\thandoff ready\t—\t—\t13.4 KiB\nRecovery and truthfulness\n\nWhat the statuses mean\n\nhandoff ready means bytes are prepared locally and hashed; nothing is published.\nsubmitted / pending confirmation are Publisher-reported states and remain unverified.\nremote verified requires an exact read-back whose SHA-256 and byte length match the handoff.\nambiguous means Qortal replied without a definitive per-resource result, or read-back disagreed; reconcile manually and never auto-resubmit.\nfailed / declined / blocked are preserved for an explicit, user-approved retry. This desktop app does not publish or retry in the background.\nWorkspace: /tmp/qms-handoff-final/datahome/qortal-migration-studio\nHub signs and approves; this app never holds wallet keys.",
+      "shell": true,
+      "error": false
+    },
+    "restartZip": {
+      "path": "/tmp/qms-handoff-final/datahome/qortal-migration-studio/exports/hof_42gnyril7ddwzh3iykzwg3wi-publisher.zip",
+      "handoffDirsAfterRecovery": 1,
+      "handoffIdUnchanged": true,
+      "publisherCompatible": true,
+      "publisherResources": 29,
+      "publisherSummaryResources": 29,
+      "zipBytes": 28083,
+      "zipSha256": "c76adfb0ab86bf5326675889f9c0affa48634b29a3d05d0549008dd1bc9d459d",
+      "resources": 29,
+      "verified": 29,
+      "payloadBytes": 9284050,
+      "mediaResources": 19,
+      "service": null,
+      "target": "AcceptanceName",
+      "handoffId": "hof_42gnyril7ddwzh3iykzwg3wi"
+    },
+    "receiptVerify": {
+      "receiptId": "rcp_pkgaccept0001",
+      "resources": 29,
+      "nodeUrl": "http://127.0.0.1:39671",
+      "importClaimedVerification": false,
+      "remoteVerifiedRows": 29,
+      "verifiedMessage": "Exact read-back completed for every resource",
+      "uiText": "Q\nQortal Migration Studio\nLocal WordPress → QDN preparation\nText size\n90%\n100%\n115%\n130%\n150%\nUpdates\ninstalled v0.8.0-rc.2\nengine 0.8.0-rc.2\nsession-only credentials\nSync\nRecovery\nPublishing\nDashboard\n\nPHASE 5 · VARIANT A\n\nPublish through Qortal Hub\n\nPrepare exact QDN bytes here, hand the folder to the Migration Publisher Q-App, then import its signed receipt. Hub signs and approves; this desktop app never sees wallet keys or seeds.\n\nBack\nStatus\nExact read-back completed for every resource.\n1. Prepare a portable handoff\n\nResources are selected explicitly. Estimated fees are not a live quote.\n\nCompleted plan\nSelect a ready plan\nplan_jcifc…trpq · 1 selected · 11/8/2026, 11:56:22 PM\n\nEstimated fee: 0.2 QORT · 20 resources planned\n\nEstimate only; Phase 5 must quote the current network fee before approval.\n\nUSE\tTYPE\tTITLE\tQDN IDENTIFIER\tSTATUS\tMEDIA\n\tpost\tAcceptance post\tqms-nslxrrcjzu4xi4nb-conupfhinusbjdgxbo3\tnew\t19\nBefore preparing a publication\n\nTarget Qortal name: AcceptanceName. APP and WEBSITE are separate deployments, and a different project identity always derives a different QDN identifier.\n\nQMS never overwrites an existing deployment. A resource is updated only when this pro"
+    }
+  },
+  "status": "pass",
+  "finishedAt": "2026-11-08T21:56:46.229Z"
+}

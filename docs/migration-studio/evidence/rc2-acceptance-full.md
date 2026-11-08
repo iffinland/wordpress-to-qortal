@@ -2,9 +2,9 @@
 
 Date: 2026-11-08
 Artifact under test: `qortal-migration-studio_0.8.0-rc.2_amd64.deb`
-Size: 108,536,096 bytes
-SHA-256: `344941454765132e99331818e1043594d2cf5ad9d220490de96459a3f2693cd7`
-Built from commit: `2c61ba7b80b0cbf6d3d90f274346b93c78e90c13` (tree `d902f46d9efcf099d7098f54ecb707ea9bcffdd7`)
+Size: 108,536,012 bytes
+SHA-256: `47a5920d549b1af95d295509a82fa915275a67bb9e924e228259c4168c935e50`
+Built from commit: `d3cf22b00f104f7806f9dd2b508e7f26a3f6610d` (tree `4961111959d01fd81d9c21b7ebcb7bf47a908fd0`)
 Host: `vmi3490660` (private build/acceptance VPS)
 Driver: packaged Electron over CDP under Xvfb, deterministic WordPress, media and QDN fixtures. The app was extracted from the staged .deb with `dpkg-deb -x`; the extracted `resources/app.asar` SHA-256 (`7a95d9986140f310812448f11eb4fc0d8c26216c2c5d9267be8b57d2fcec275e`) is identical to the built `desktop/release/linux-unpacked` payload.
 
