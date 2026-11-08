@@ -45,7 +45,7 @@ test('the host exposes the Phase 8 recovery, cleanup, history and support RPC su
       media: { allowLoopback: true }
     }
   });
-  await connection.request('source.discover', { projectId: project.id, perPage: 50 });
+  await connection.request('source.discover', { projectId: project.id, mode: 'full', perPage: 50 });
   await connection.request('plan.create', { projectId: project.id, batchSize: 2 });
 
   const recovery = await connection.request('recovery.status', { projectId: project.id });

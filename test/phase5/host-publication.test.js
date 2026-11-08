@@ -44,7 +44,7 @@ test('the stdio host exposes the publication handoff, receipt and verification c
     settings: { disk: { reserveBytes: 0, maxBytesPerRun: 0 }, media: { allowLoopback: true } }
   });
   await client.request('project.open', { projectId: created.id });
-  await client.request('source.discover', { projectId: created.id, perPage: 50 });
+  await client.request('source.discover', { projectId: created.id, mode: 'full', perPage: 50 });
   const plan = await client.request('plan.create', { projectId: created.id, batchSize: 2, estimateMedia: false });
   assert.equal(plan.status, 'completed');
   const selection = plan.plan.entries.filter((entry) => entry.status === 'new').map((entry) => entry.sourceKey);

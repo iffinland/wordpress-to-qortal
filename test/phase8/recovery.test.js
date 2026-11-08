@@ -70,7 +70,7 @@ test('AC8.1 kill during discovery leaves a resumable run and resumes without dup
 
 test('AC8.1 kill during planning resumes and produces exactly one usable plan', async (t) => {
   const env = await startPhase8(t);
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const handle = await crashDuring(env, {
     mode: 'plan',
     options: { batchSize: 2 },
@@ -274,7 +274,7 @@ test('network loss during verification leaves evidence unverified and a later re
 
 test('power loss (torn checkpoint file) is reported without breaking recovery or opening the project', async (t) => {
   const env = await startPhase8(t);
-  await env.handle.source.discover({ perPage: 50 });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
   const handle = await crashDuring(env, {
     mode: 'plan',
     options: { batchSize: 2 },
