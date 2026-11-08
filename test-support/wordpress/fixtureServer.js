@@ -261,13 +261,13 @@ export function createLargeFixtureData(options = {}) {
       tags: [10, 11]
     }
   ];
+  // Bulk records stay compact on purpose: the fixture must describe a
+  // NASA-scale site without materialising hundreds of thousands of full
+  // WordPress payloads in memory. Representation helpers derive the display
+  // fields (slug, title, content) from the id.
   for (let id = 104; posts.length < postCount; id += 1) {
     posts.push({
       id,
-      slug: 'nasa-article-' + id,
-      title: 'NASA article ' + id,
-      content: '<p>Article ' + id + '</p>',
-      excerpt: '',
       date: oldDate,
       date_gmt: oldDate,
       modified: oldDate,
@@ -288,8 +288,6 @@ export function createLargeFixtureData(options = {}) {
   for (let id = 10_000; media.length < mediaCount; id += 1) {
     media.push({
       id,
-      slug: 'media-' + id,
-      title: 'Media ' + id,
       date: oldDate,
       date_gmt: oldDate,
       modified: oldDate,
@@ -297,13 +295,7 @@ export function createLargeFixtureData(options = {}) {
       status: 'inherit',
       media_type: 'image',
       mime_type: 'image/jpeg',
-      source_url: '/wp-content/uploads/media-' + id + '.jpg',
-      alt_text: '',
-      caption: '',
-      description: '',
-      post: 0,
-      width: null,
-      height: null
+      post: 0
     });
   }
   const categories = [];
@@ -358,18 +350,21 @@ function textFor(value) {
 }
 
 function postRepresentation(req, post) {
+  const derivedSlug = post.slug ?? 'nasa-article-' + post.id;
+  const derivedTitle = post.title ?? 'NASA article ' + post.id;
+  const derivedContent = post.content ?? '<p>Article ' + post.id + '</p>';
   return {
     id: post.id,
     date: normalizeDate(post.date),
     date_gmt: normalizeDate(post.date_gmt ?? post.date),
     modified: normalizeDate(post.modified ?? post.date),
     modified_gmt: normalizeDate(post.modified_gmt ?? post.modified ?? post.date),
-    slug: post.slug,
+    slug: derivedSlug,
     status: post.status ?? 'publish',
     type: post.type ?? 'post',
     link: linkFor(req, post),
-    title: textFor(post.title),
-    content: { rendered: post.content ?? '', protected: false },
+    title: textFor(derivedTitle),
+    content: { rendered: derivedContent, protected: false },
     excerpt: textFor(post.excerpt ?? ''),
     author: post.author ?? 7,
     featured_media: post.featured_media ?? 0,
@@ -399,16 +394,16 @@ function mediaRepresentation(req, media) {
     date_gmt: normalizeDate(media.date_gmt ?? media.date),
     modified: normalizeDate(media.modified ?? media.date),
     modified_gmt: normalizeDate(media.modified_gmt ?? media.modified ?? media.date),
-    slug: media.slug,
+    slug: media.slug ?? 'media-' + media.id,
     status: media.status ?? 'inherit',
     type: 'attachment',
     link: mediaLink(req, media),
-    title: textFor(media.title),
+    title: textFor(media.title ?? 'Media ' + media.id),
     author: 7,
     featured_media: 0,
     media_type: media.media_type ?? 'file',
     mime_type: media.mime_type ?? 'application/octet-stream',
-    source_url: media.source_url?.startsWith('http') ? media.source_url : `${requestBase(req)}${media.source_url ?? ''}`,
+    source_url: media.source_url?.startsWith('http') ? media.source_url : `${requestBase(req)}${media.source_url ?? '/wp-content/uploads/media-' + media.id + '.jpg'}`,
     alt_text: media.alt_text ?? '',
     caption: textFor(media.caption ?? ''),
     description: textFor(media.description ?? ''),

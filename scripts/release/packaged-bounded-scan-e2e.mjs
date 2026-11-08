@@ -17,7 +17,7 @@
  * display changes). CDP is bound to 127.0.0.1 only for the duration of the run.
  */
 import { spawn } from 'node:child_process';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createEngine } from '../../lib/engine/index.js';
@@ -42,6 +42,7 @@ const sessionScript = path.join(work, 'session.sh');
 const CDP_PORT = Number(argument('port', '9334'));
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const stage = (label, extra) => process.stderr.write('[stage] ' + label + (extra ? ' ' + JSON.stringify(extra) : '') + '\n');
 
 function shellQuote(value) {
   return "'" + String(value).replace(/'/g, "'\\''") + "'";
@@ -92,7 +93,7 @@ async function writeSessionScript() {
     'Xvfb :99 -screen 0 1366x900x24 -nolisten tcp -ac >/tmp/xvfb.log 2>&1 &',
     'for i in $(seq 1 60); do [ -S /tmp/.X11-unix/X99 ] && break; sleep 0.2; done',
     '[ -S /tmp/.X11-unix/X99 ] || { echo XVFB_FAILED; cat /tmp/xvfb.log; exit 1; }',
-    'exec /opt/qms-e2e/app/qortal-migration-studio --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=' + CDP_PORT + ' --remote-allow-origins=*'
+    'exec /opt/qms-e2e/app/qortal-migration-studio --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=' + CDP_PORT + ' --remote-allow-origins=* >/tmp/app.log 2>&1'
   ].join('\n');
   const outer = [
     'set -e',
@@ -216,16 +217,87 @@ async function openProjectWizard(cdp, projectId) {
   await waitFor(cdp, 'document.body.innerText.includes("PROJECT SETUP") && !!document.querySelector("button")', 'project setup wizard', 180000);
 }
 
+async function fillSourceUrl(cdp, url) {
+  // A project created through the engine API does not carry wizard state, so the
+  // URL field starts empty. A user types the site URL before testing the
+  // connection; the harness does the same.
+  return cdp.evaluate(`(() => {
+    const input = [...document.querySelectorAll('input')].find((node) => (node.placeholder || '').includes('example.org'));
+    if (!input) return false;
+    if (input.value.trim() !== '') return 'already';
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    setter.call(input, ${JSON.stringify(url)});
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`).catch(() => false);
+}
+
+async function validateConnectionIfRequired(cdp) {
+  // The connection step refuses Continue until the WordPress REST endpoint has
+  // been tested. The fixture answers with a deliberate delay, so the harness
+  // waits for the wizard to accept the test instead of clicking Continue too
+  // early and reading the "test the connection" guard as a hard failure.
+  const needsTest = await cdp.evaluate('document.body.innerText.includes("Test the connection before continuing") || !!document.querySelector("button")').catch(() => false);
+  if (!needsTest) return false;
+  const clicked = await cdp.evaluate('(() => { const button = [...document.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Test connection"); if (!button || button.disabled) return false; button.click(); return true; })()').catch(() => false);
+  if (!clicked) return false;
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    await sleep(400);
+    const settled = await cdp.evaluate('(() => { const badge = document.body.innerText; return !/Testing|Validating/i.test(badge); })()').catch(() => false);
+    if (settled) break;
+  }
+  await sleep(600);
+  return true;
+}
+
+async function fillRequiredTagline(cdp) {
+  // The Generic CMS step refuses Continue until a tagline exists; a real user
+  // types it, so the harness sets the field through a native input event.
+  return cdp.evaluate(`(() => {
+    const input = [...document.querySelectorAll('input')].find((node) => node.placeholder === 'Independent publishing on Qortal');
+    if (!input || input.value.trim() !== '') return false;
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set;
+    setter.call(input, 'Independent publishing on Qortal');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    return true;
+  })()`).catch(() => false);
+}
+
 async function stepContinue(cdp, label) {
+  await validateConnectionIfRequired(cdp);
+  await fillRequiredTagline(cdp);
   await waitFor(cdp, clickButton('Continue'), 'Continue: ' + label);
   await sleep(400);
 }
 
-async function reachScanReview(cdp) {
-  await stepContinue(cdp, 'adapter');
-  await stepContinue(cdp, 'source url');
-  await stepContinue(cdp, 'identity');
-  await stepContinue(cdp, 'scan review');
+async function reachScanReview(cdp, server) {
+  // Drive the wizard until the bounded-scan confirmation appears. The wizard has
+  // five steps and each one gates Continue on its own validation (connection
+  // test, tagline, identity), so the harness reacts to what the UI offers
+  // instead of assuming a fixed number of clicks.
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const state = await cdp.evaluate(`(() => {
+      const errs = [...document.querySelectorAll('*')]
+        .filter((node) => node.children.length === 0 && /required|invalid|must|cannot|test the connection|error/i.test(node.textContent || ''))
+        .map((node) => node.textContent.trim().slice(0, 80));
+      return {
+        confirmation: !!document.querySelector('[data-testid=scan-confirmation]'),
+        step: (document.querySelector('.stepper')?.textContent || '').slice(0, 40),
+        errs: [...new Set(errs)].slice(0, 3)
+      };
+    })()`).catch(() => ({ confirmation: false, step: '', errs: ['evaluate failed'] }));
+    stage('wizard attempt ' + attempt, state);
+    if (state.confirmation) return;
+    await fillSourceUrl(cdp, server ? server.url : '');
+    await validateConnectionIfRequired(cdp);
+    await fillRequiredTagline(cdp);
+    if (server && attempt >= 2) server.requests.length = 0;
+    const clicked = await cdp.evaluate(clickButton('Continue')).catch(() => false);
+    await sleep(900);
+    if (!clicked) await sleep(400);
+  }
   await waitFor(cdp, 'document.querySelector("[data-testid=scan-confirmation]") !== null', 'scan confirmation panel');
 }
 
@@ -239,7 +311,7 @@ async function waitForScanComplete(cdp) {
 }
 
 async function scenarioBoundedScan(cdp, server) {
-  await reachScanReview(cdp);
+  await reachScanReview(cdp, server);
   const afterContinue = fixtureRequestCounts(server);
   if (afterContinue.posts !== 0) throw new Error('Continue started content requests: ' + afterContinue.posts);
 
@@ -259,7 +331,7 @@ async function scenarioBoundedScan(cdp, server) {
 }
 
 async function scenarioPause(cdp, server) {
-  await reachScanReview(cdp);
+  await reachScanReview(cdp, server);
   await waitFor(cdp, clickButton('Confirm quick scan and continue'), 'confirm quick scan');
   await waitFor(cdp, '!![...document.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Pause")', 'pause button', 60000);
   const clicked = await waitFor(cdp, clickButton('Pause'), 'pause click');
@@ -301,11 +373,14 @@ async function main() {
   let cdp = null;
   const env = { ...process.env, ROOTFS: rootfs, APP_DIR: appDir, DATA_HOME: dataHome };
   try {
-    const bounded = await seedProject(server, 'NASA bounded acceptance', 'NasaBoundedScan');
-    const paused = await seedProject(server, 'NASA pause acceptance', 'NasaPauseScan');
+    stage('fixture ready');
+    const bounded = await seedProject(server, 'NASA bounded acceptance', 'nasaboundedscan');
+    const paused = await seedProject(server, 'NASA pause acceptance', 'nasapausescan');
+    stage('seeded projects', { bounded: bounded.projectId, paused: paused.projectId });
     evidence.stages.seed = { boundedProjectId: bounded.projectId, pausedProjectId: paused.projectId, fixtureUrl: server.url };
     await writeSessionScript();
 
+    stage('launching packaged app');
     child = spawn('unshare', ['-rmpf', 'bash', sessionScript], { detached: true, stdio: 'ignore', env });
     cdp = await connectCdp();
     await openProjectWizard(cdp, bounded.projectId);
@@ -321,6 +396,7 @@ async function main() {
 
     child = spawn('unshare', ['-rmpf', 'bash', sessionScript], { detached: true, stdio: 'ignore', env });
     cdp = await connectCdp();
+    stage('cdp connected');
     scenarioResume.projectId = paused.projectId;
     await scenarioResume(cdp);
     const postsAfter = server.requests.filter((request) => request.path.endsWith('/wp-json/wp/v2/posts')).length;
@@ -338,8 +414,14 @@ async function main() {
     if (cdp) cdp.close();
     if (child) await stopApp(child).catch(() => {});
     await server.close().catch(() => {});
+    try {
+      evidence.appLog = (await readFile(path.join(rootfs, 'tmp/app.log'), 'utf8')).split('\n').slice(-60);
+    } catch (error) {
+      evidence.appLog = ['unavailable: ' + error.message];
+    }
     evidence.finishedAt = new Date().toISOString();
     await writeFile(outFile, JSON.stringify(evidence, null, 2) + '\n');
+  stage('evidence written', { status: evidence.status });
   }
   console.log(JSON.stringify({ status: evidence.status, out: outFile, error: evidence.error ?? null, stages: Object.keys(evidence.stages) }, null, 2));
   if (evidence.status !== 'pass') process.exit(1);
