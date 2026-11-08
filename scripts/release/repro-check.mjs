@@ -21,7 +21,10 @@ const reference = referenceArg
   : path.join(REPO_ROOT, 'desktop/release', artifactName(config.packageName, desktopVersion, release.architecture));
 const git = gitInfo(REPO_ROOT);
 const epoch = Number(process.env.SOURCE_DATE_EPOCH) || git.commitTime;
-const workRoot = path.join('/home/iffi/dev-workspace/tmp/qms-phase9-repro', git.commit);
+const workArg = process.argv.find((value) => value.startsWith('--work='));
+const workRoot = workArg
+  ? path.resolve(workArg.slice('--work='.length), git.commit)
+  : path.join('/home/iffi/dev-workspace/tmp/qms-phase9-repro', git.commit);
 const cleanRoot = path.join(workRoot, 'source');
 const archiveFile = path.join(workRoot, 'source.tar');
 

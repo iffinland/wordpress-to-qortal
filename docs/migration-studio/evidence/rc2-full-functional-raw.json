@@ -1,0 +1,278 @@
+{
+  "schema": "qms-packaged-functional-acceptance@1",
+  "startedAt": "2026-11-08T20:57:46.137Z",
+  "environment": {
+    "appDir": "/home/qmse2e/qms-e2e/rc2-deb/opt/qortal-migration-studio",
+    "rootfs": "/home/qmse2e/qms-e2e/rootfs",
+    "work": "/home/qmse2e/qms-e2e/work/rc2-full"
+  },
+  "controls": {
+    "A": {
+      "control": "Direct Run quick scan",
+      "status": "PASS",
+      "outcome": "completed",
+      "ui": {
+        "scan": "Source scan\n\nChoose an explicit scope. Quick scan is the recommended default for a small import; it never enumerates the whole library or every taxonomy term.\n\nQuick scan — selected batch (recommended)\nIndex up to (newest matching items)\nOne REST page, maximum 100. Only taxonomy terms and media dependencies referenced by these items are fetched.\n\nScope: up to 3 post item(s) in 1 content page request(s), plus bounded lookups for only the referenced terms and media. Source total: post 3.\n\nThis is ",
+        "telemetry": "Phase content · mode quick · 3/3 item(s) · API pages — · media deps 0 · terms 0 · 4.6 KiB"
+      },
+      "run": "run_kymiiu9dupcpd0jd",
+      "latest": {
+        "mode": "quick",
+        "batchId": "bat_kymiiu9dupcpd0jd",
+        "counts": {
+          "posts": 3,
+          "pages": 0,
+          "categories": 2,
+          "tags": 2,
+          "media": 1
+        },
+        "scope": {
+          "schema": "qms-scan-scope@1",
+          "mode": "quick",
+          "bounded": true,
+          "contentTypes": [
+            "post"
+          ],
+          "selection": {
+            "include": [],
+            "slug": [],
+            "perPage": 100,
+            "maxPages": 1,
+            "maxItems": 3
+          },
+          "requested": 3,
+          "scanned": 3,
+          "underReturned": false,
+          "shortfall": 0,
+          "availableTotal": 3,
+          "postsScanned": 3,
+          "pagesScanned": 0,
+          "pagesFetched": 4,
+          "totalAvailable": {
+            "post": 3
+          },
+          "worstCasePages": 1,
+          "termsReferenced": 4,
+          "termsRequested": 4,
+          "mediaDependencies": 1,
+          "apiRequests": 6,
+          "bytesTransferred": 4692
+        }
+      },
+      "indexEntries": 8,
+      "duplicateIndexKeys": 0
+    },
+    "B": {
+      "control": "Confirm quick scan and continue",
+      "status": "PASS",
+      "planText": "ready\nSelected: 3\nScanned: 8\nNew: 3\nModified: 0\nRoute-only: 0\nUnchanged (verified): 0\nReserved pending: 0\nConflicts: 0\nMedia\n\nResources: 9 · known 0 · unknown 0 · missing 0\n\nKnown bytes: 0 B\n\nDisk\n\nAvailable: 139.9 GiB\n\nReserve: 0 B · projected: 83.0 KiB\n\nFits the configured safety limits.\n\nEstimated QDN fee\n\n3 resources × 0.01 QORT ≈ 0.03 QORT\n\nEstimate only. Phase 5 must quote the current network fee before approval. No transaction is created here.\n\nPublication state\n\n0 item(s) reserved or prepared locally; 0 locally prepared.\n\nReserved is not published. Publication requires Phase 5 remote r",
+      "latest": {
+        "mode": "quick",
+        "counts": {
+          "posts": 3,
+          "pages": 0,
+          "categories": 2,
+          "tags": 2,
+          "media": 1
+        }
+      }
+    },
+    "C": {
+      "control": "Full inventory on a small fixture",
+      "status": "PASS",
+      "outcome": "completed",
+      "counts": {
+        "posts": 3,
+        "pages": 2,
+        "categories": 2,
+        "tags": 2,
+        "media": 3
+      },
+      "latest": {
+        "mode": "full",
+        "batchId": "bat_f9qnrcd3maiwnwtd"
+      },
+      "ui": "Source scan\n\nChoose an explicit scope. Quick scan is the recommended default for a small import; it never enumerates the whole library or every taxonomy term.\n\nQuick scan — selected batch (recommended)\nFull site inventory (explicitly chosen; can be very long)\n\nFull inventory walks every post / page item, every category/tag and the whole media library. Worst case: 3 API page(s).\n\nI understand this "
+    },
+    "I": {
+      "control": "Plan Review entry: one plan.create, no stale error (BUG-005)",
+      "status": "PASS",
+      "badge": "ready",
+      "planRuns": 1,
+      "planText": "ready\nSelected: 3\nScanned: 8\nNew: 3\nModified: 0\nRoute-only: 0\nUnchanged (verified): 0\nReserved pending: 0\nConflicts: 0\nMedia\n\nResources: 9 · known 0 · unknown 0 · missing 0\n\nKnown bytes: 0 B\n\nDisk\n\nAvailable: 139.9 GiB\n\nReserve: 0 B · projected: 83.0 KiB\n\nFits the configured safety limits.\n\nEstimated QDN fee\n\n3 resources × 0.01 QORT ≈ 0.03 QORT\n\nEstimate only. Phase 5 must quote the current network fee before approval. No transaction is created here.\n\nPublication state\n\n0 item(s) reserved or prepared locally; 0 locally prepared.\n\nReserved is not published. Publication requires Phase 5 remote read-back.\n\nITEM\tTYPE\tSTATUS\tPUBLICATION\tMEDIA\tQDN IDENTIFIER\nCorbett’s & News\tpost\tnew\treserved\t10\tq",
+      "scanPanel": "Source scan\n\nChoose an explicit scope. Quick scan is the recommended default for a small import; it never enumerates the whole library or every taxonomy term.\n\nQuick scan — selected batch (recommended)\nIndex up to (newest matching items)\nOne REST page, maximum 100. Only taxonomy terms and media dependencies referenced by these items are fetched.\n\nScope: up to 3 post item(s) in 1 content page request(s), plus bounded lookups for only the referenced terms and media. Source total: post 3.\n\nThis is ",
+      "stalePlanError": null
+    },
+    "J": {
+      "control": "NASA-shaped short page still fills the requested window",
+      "status": "PASS",
+      "panel": "Source scan\n\nChoose an explicit scope. Quick scan is the recommended default for a small import; it never enumerates the whole library or every taxonomy term.\n\nQuick scan — selected batch (recommended)\nIndex up to (newest matching items)\nOne REST page, maximum 100. Only taxonomy terms and media dependencies referenced by these items are fetched.\n\nScope: up to 3 post item(s) in 1 content page request(s), plus bounded lookups for only the referenced terms and media. Source total: post 35600.\n\nThis is a hard one-page window. Because of that, QMS requests a full page and keeps only the requested n",
+      "counts": {
+        "posts": 3,
+        "pages": 0,
+        "categories": 2,
+        "tags": 2,
+        "media": 3
+      },
+      "scope": {
+        "schema": "qms-scan-scope@1",
+        "mode": "quick",
+        "bounded": true,
+        "contentTypes": [
+          "post"
+        ],
+        "selection": {
+          "include": [],
+          "slug": [],
+          "perPage": 100,
+          "maxPages": 1,
+          "maxItems": 3
+        },
+        "requested": 3,
+        "scanned": 3,
+        "underReturned": false,
+        "shortfall": 0,
+        "availableTotal": 35600,
+        "postsScanned": 3,
+        "pagesScanned": 0,
+        "pagesFetched": 4,
+        "totalAvailable": {
+          "post": 35600
+        },
+        "worstCasePages": 1,
+        "termsReferenced": 4,
+        "termsRequested": 4,
+        "mediaDependencies": 3,
+        "apiRequests": 6,
+        "bytesTransferred": 34991
+      },
+      "postRequests": [
+        {
+          "per_page": "100",
+          "page": "1"
+        }
+      ],
+      "underReturnedNotice": false
+    },
+    "D": {
+      "control": "Pause then Resume",
+      "status": "PASS",
+      "outcome": "completed",
+      "postsRequestsBeforePause": 0,
+      "postsRequestsAfterResume": 13,
+      "counts": {
+        "posts": 1200,
+        "pages": 0,
+        "categories": 60,
+        "tags": 12,
+        "media": 600
+      },
+      "duplicates": 0
+    },
+    "E": {
+      "control": "Cancel a running scan",
+      "status": "PASS",
+      "cancelled": true,
+      "projectExists": true,
+      "latestBeforeCancel": null
+    },
+    "F": {
+      "control": "Interrupted Full checkpoint, then independent Quick scan",
+      "status": "PASS",
+      "quickRun": "run_asmuq7giqsvw65q4",
+      "quickMode": "quick",
+      "quickCounts": {
+        "posts": 3,
+        "pages": 0,
+        "categories": 2,
+        "tags": 2,
+        "media": 3
+      },
+      "pausedRunStillPaused": true,
+      "fullCheckpointPreserved": "bat_rogb77ytt3h0dg2f",
+      "banner": "Interrupted scan found (full, checkpoint content_page 100/1200). Completed pages and referenced terms stay reusable.\n\nResume interrupted scan from checkpoint"
+    },
+    "G1": {
+      "control": "Connection failure is visible",
+      "status": "PASS",
+      "text": "Connect to WordPress\n\nValidation goes through the engine adapter. Credentials are never written to project files or logs.\n\nWordPress site URL\nThe REST API root is discovered automatically.\nAuthentication mode\nPublic REST API (no login)\nApplication password (recommended)\nWordPress login session (legacy)\nPublic posts and pages usually need no login. Drafts, private items and media in a protected library need an application password.\nHow WordPress access works\nPublic REST API (no login) — reads published content from /wp-json/wp/v2. No credentials are stored.\nApplication password (recommended) — WordPress generates a revocable password for this app in Users → Profile. It is different from your normal login password and can be revoked at any time.\nLogin session (legacy) — some hosts disable it or block it with a security plugin. Prefer an application password when drafts must be read.\nThe desktop app never exposes your WordPress site or its private APIs to Qortal or the internet.\nRemember credentials in the Linux keyring\nNo keyring detected: credentials stay in memory for this session only.\nTest connection\nfailed\nSOURCE_NETWORK_ERROR\nCould not reach the WordPress site.",
+      "alert": "SOURCE_NETWORK_ERROR\nCould not reach the WordPress site."
+    },
+    "G2": {
+      "control": "Invalid source is visible",
+      "status": "PASS",
+      "text": "Connect to WordPress\n\nValidation goes through the engine adapter. Credentials are never written to project files or logs.\n\nWordPress site URL\nThe REST API root is discovered automatically.\nAuthentication mode\nPublic REST API (no login)\nApplication password (recommended)\nWordPress login session (legacy)\nPublic posts and pages usually need no login. Drafts, private items and media in a protected library need an application password.\nHow WordPress access works\nPublic REST API (no login) — reads published content from /wp-json/wp/v2. No credentials are stored.\nApplication password (recommended) — WordPress generates a revocable password for this app in Users → Profile. It is different from your normal login password and can be revoked at any time.\nLogin session (legacy) — some hosts disable it or block it with a security plugin. Prefer an application password when drafts must be read.\nThe desktop app never exposes your WordPress site or its private APIs to Qortal or the internet.\nRemember credentials in the Linux keyring\nNo keyring detected: credentials stay in memory for this session only.\nTest connection\nfailed\nSOURCE_INVALID_RESPONSE\nWordPress returned a non-JSON response.",
+      "alert": "SOURCE_INVALID_RESPONSE\nWordPress returned a non-JSON response."
+    },
+    "G3": {
+      "control": "API timeout is visible next to the scan controls",
+      "status": "PASS",
+      "error": "Source scan did not complete\nSource scan failed (SOURCE_TIMEOUT): WordPress request timed out after 1200 ms.",
+      "visibleInScanPanel": true
+    },
+    "G4": {
+      "control": "Engine failure is visible",
+      "status": "PASS",
+      "error": "Source scan did not complete\nSource scan failed: Engine host is not running."
+    }
+  },
+  "projects": {
+    "A": {
+      "projectId": "prj_figsuazu0poos8g8",
+      "siteId": "site_46c19d942aacd35477a4b885a39f200b"
+    },
+    "B": {
+      "projectId": "prj_7xpzro6z20e7w7d9",
+      "siteId": "site_72a60cec4e5c3eb4ee6742ffdd000014"
+    },
+    "C": {
+      "projectId": "prj_cakjr1kzz3phlhes",
+      "siteId": "site_1168c9ad0bc75b0ab941ac3e18dd3cff"
+    },
+    "D": {
+      "projectId": "prj_6ei1u11u0ucg6q2j",
+      "siteId": "site_1b0adbda0b26d381a6f70d4970d98664"
+    },
+    "E": {
+      "projectId": "prj_unyo12lhn091uzlz",
+      "siteId": "site_f1b1f5bbafa598d9198bdd310e0559a0"
+    },
+    "F": {
+      "projectId": "prj_6legwg5ruada18zg",
+      "siteId": "site_f19a46b9d9c6e2cc8ffaff23caf30dfa"
+    },
+    "G1": {
+      "projectId": "prj_lzzaa58ocr0pgiyz",
+      "siteId": "site_08e556b70fe1dfabcf7a78b9bb29d383"
+    },
+    "G2": {
+      "projectId": "prj_fr583jhynnuoe8q4",
+      "siteId": "site_4995b629d66db75e28a5bf73dea6e4f7"
+    },
+    "G3": {
+      "projectId": "prj_zyifru7a11l14plu",
+      "siteId": "site_1d1a00e8afd490b5e8fccc043f507291"
+    },
+    "G4": {
+      "projectId": "prj_8m68l0wm2fqsdx05",
+      "siteId": "site_664d82edc1b82b87f34d68952e06f535"
+    },
+    "I": {
+      "projectId": "prj_apiua3crj02s2vaj",
+      "siteId": "site_597f7ea5ba6e9e781fc5113a9112a070"
+    },
+    "J": {
+      "projectId": "prj_zgzl93pite9zdpcm",
+      "siteId": "site_745443b8456f3e1bbbca76acef531441"
+    }
+  },
+  "fixtures": {
+    "small": "http://127.0.0.1:34789",
+    "medium": "http://127.0.0.1:42537",
+    "badHtml": "http://127.0.0.1:35693",
+    "hanging": "http://127.0.0.1:43371"
+  },
+  "failures": [],
+  "status": "pass",
+  "finishedAt": "2026-11-08T21:03:22.858Z"
+}

@@ -14,6 +14,36 @@ the QMS desktop app, engine, broker and generic CMS template.
 Published tags are immutable. Never move, rewrite or delete a released tag such as
 `v0.6.0-alpha.1`.
 
+## Permanent delivery rules (enforced)
+
+1. **Every completed release-facing bug fix must produce a uniquely versioned,
+   tested, GitHub-downloadable installable package.** A fix is not complete on a
+   branch, in a local build, or in an unpublished artifact.
+2. **Every code fix and package release must include all necessary
+   documentation updates** release notes, this workflow, README download links,
+   install/upgrade guidance and every affected behaviour document.
+
+Both rules are blocking, not advisory:
+
+- `scripts/release/delivery-gate.mjs --stage=prebuild` runs before any artifact
+  build. It fails when the version/tag/release already exists, a version marker
+  disagrees, the release notes file is missing or unversioned, or required
+  documentation is missing.
+- `--stage=prepublish` additionally fails unless the `.deb` and both Q-App ZIPs
+  exist for this exact version, match `release/release-manifest.json` and are
+  covered by `release/SHA256SUMS`.
+- `scripts/release/release-prepare.mjs` runs both stages and keeps the packaged
+  A–J + H evidence gates blocking. A verified artifact may be reused with
+  `--reuse-deb=<path>`; validation, engine, security and packaged gates still
+  run against it.
+- `scripts/release/publish-release.mjs` re-runs the prepublish gate immediately
+  before publishing, downloads every public asset over HTTPS and re-hashes it,
+  syncs the README download links and re-runs the README link gate.
+- `release/delivery-complete.json` is written only after those checks pass.
+- The task-completion checklist is
+  [RELEASE-DELIVERY-CHECKLIST.md](RELEASE-DELIVERY-CHECKLIST.md); a release task
+  must not be reported complete while any item is unchecked.
+
 ## Preconditions
 
 - Verified source commit on a clean branch that contains the current remote `main`
@@ -109,7 +139,7 @@ publishing. Manual asset selection is not supported.
 
 ## Documentation gate
 Every release updates the beginner-facing documents together: top-level
-`README.md`, `QUICKSTART.md`, `INSTALL-LINUX.md`, `FIRST-RUN-GUIDE.md`,
+`README.md`, `QUICKSTART.md`, `CHANGELOG.md`, `INSTALL-LINUX.md`, `FIRST-RUN-GUIDE.md`,
 `MIGRATION-WALKTHROUGH.md`, `PUBLISHER-QAPP-DEPLOYMENT.md`, the Generic CMS
 README, release workflow, release notes and known issues. Beginner instructions
 must require no development tools and no manual compilation; source-build steps

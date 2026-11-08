@@ -33,10 +33,13 @@ plan was rendered (`evidence/rc2-bug005-before-plan-race.json`). Control J
 failed on rc.1 with `counts.posts = 1` and one `per_page=3` request
 (`evidence/rc2-nasa-before-undercount.json`).
 
-The full A–F/ G1–G4 / H suite above was **not** re-run on rc.2 in this
-follow-up; the changed code is limited to the Plan Review trigger/single-flight
-and the quick-scan page size. A public release still requires the complete
-A–J functional and H handoff gate described in RELEASE-WORKFLOW.md.
+The complete A–J functional suite and the H handoff gate **were re-run on the
+rc.2 artifact** after the fixes. All twelve functional controls (A, B, C, D, E,
+F, G1–G4, I, J) and H passed against the packaged app extracted from
+`qortal-migration-studio_0.8.0-rc.2_amd64.deb`. H recorded a 29-resource
+handoff, a receipt import that did not claim verification, and 29/29 resources
+verified only after exact read-back. See
+`evidence/rc2-acceptance-full.json` and `evidence/rc2-acceptance-full.md`.
 
 ### rc.2 build and validation record
 
@@ -54,8 +57,9 @@ A–J functional and H handoff gate described in RELEASE-WORKFLOW.md.
   verdict pass (`evidence/rc2-security-report.json`).
 - Engine suite: 501/501 tests passed. Desktop: 89/89 tests passed plus
   typecheck. Generic CMS: 203/203 tests passed.
-- Packaged GUI subset on this artifact: A, B, I and J all PASS
-  (`evidence/rc2-after-functional-subset.json`).
+- Packaged GUI full suite on this artifact: A–J and H all PASS
+  (`evidence/rc2-acceptance-full.json`, `evidence/rc2-acceptance-full.md`;
+  earlier subset record: `evidence/rc2-after-functional-subset.json`).
 
 ## Result summary
 

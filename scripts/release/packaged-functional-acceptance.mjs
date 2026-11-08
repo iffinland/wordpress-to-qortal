@@ -379,10 +379,35 @@ async function connectCdp() {
 }
 
 async function startApp() {
-  await writeSessionScript();
-  child = spawn('bash', [sessionScript], { detached: true, stdio: 'ignore', env: { ...process.env } });
-  cdp = await connectCdp();
-  await waitFor(cdp, 'document.querySelector("[data-testid=app-shell]") !== null', 'app shell', 180000);
+  let lastError = null;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await writeSessionScript();
+      child = spawn('bash', [sessionScript], { detached: true, stdio: 'ignore', env: { ...process.env } });
+      cdp = await connectCdp();
+      await waitFor(cdp, 'document.querySelector("[data-testid=app-shell]") !== null', 'app shell', 90000);
+      return;
+    } catch (error) {
+      lastError = error;
+      stage('app start attempt ' + attempt + ' failed', { error: String(error?.message ?? error) });
+      await stopApp().catch(() => {});
+      await sleep(1500 + attempt * 1000);
+    }
+  }
+  throw lastError ?? new Error('packaged app did not start');
+}
+
+async function waitForNoApp(timeoutMs = 20000) {
+  const started = Date.now();
+  while (Date.now() - started < timeoutMs) {
+    let pids = '';
+    try {
+      pids = execFileSync('pgrep', ['-f', '^' + appDir + '/qortal-migration-studio'], { encoding: 'utf8' }).trim();
+    } catch {}
+    if (pids === '') return true;
+    await sleep(250);
+  }
+  return false;
 }
 
 async function stopApp() {
@@ -399,9 +424,15 @@ async function stopApp() {
     });
     child = null;
   }
-  try { execFileSync('pkill', ['-f', appDir + '/qortal-migration-studio'], { stdio: 'ignore' }); } catch {}
+  try { execFileSync('pkill', ['-f', '^' + appDir + '/qortal-migration-studio'], { stdio: 'ignore' }); } catch {}
   try { execFileSync('pkill', ['-f', 'Xvfb :99'], { stdio: 'ignore' }); } catch {}
-  await sleep(1200);
+  // The packaged app is single-instance. Starting the next session before the
+  // previous process is gone makes the new instance exit immediately, which
+  // looks like a product failure. Prove the old process group is gone first.
+  if (!(await waitForNoApp(25000))) {
+    stage('app did not exit after stop', { appDir });
+  }
+  await sleep(800);
 }
 
 async function waitFor(connection, expression, label, timeoutMs = 90000) {

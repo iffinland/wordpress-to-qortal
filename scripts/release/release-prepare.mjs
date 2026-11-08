@@ -7,7 +7,7 @@
  * release manifest is incomplete, or SHA256SUMS omits a required artifact.
  */
 import { spawnSync } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { copyFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { REPO_ROOT, readJson } from './lib.mjs';
 import { releaseArtifactPaths } from './artifact-set.mjs';
@@ -15,6 +15,7 @@ import { releaseTag } from './three-artifact-gate.mjs';
 
 const args = new Set(process.argv.slice(2));
 const tagArg = process.argv.find((value) => value.startsWith('--tag='))?.slice('--tag='.length) ?? null;
+const reuseDebArg = process.argv.find((value) => value.startsWith('--reuse-deb='))?.slice('--reuse-deb='.length) ?? null;
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const tag = tagArg ?? releaseTag(release);
 
@@ -29,11 +30,21 @@ function run(label, command, commandArgs, options = {}) {
 }
 
 run('verify release version markers', process.execPath, ['scripts/qms-release.mjs', 'check']);
+// Owner rule (a)/(b): the version must be unique and the release-facing docs
+// must be updated before any artifact is built.
+run('enforce unique version and release documentation', process.execPath, ['scripts/release/delivery-gate.mjs', '--stage=prebuild', '--tag=' + tag]);
 run('build Generic CMS root-layout Q-App', 'npm', ['run', 'cms-template:package']);
 run('build Migration Publisher Q-App', 'npm', ['run', 'publisher:build']);
 run('validate Migration Publisher bundle', 'npm', ['run', 'publisher:validate']);
 run('package Migration Publisher Q-App', 'npm', ['run', 'publisher:package']);
-run('build Debian package', 'npm', ['run', 'release:deb']);
+if (reuseDebArg) {
+  const target = releaseArtifactPaths(REPO_ROOT, release).deb;
+  await copyFile(path.resolve(reuseDebArg), target);
+  console.log('\n=== reuse a verified Debian package ===');
+  console.log('Reusing ' + target + '; no desktop rebuild and no deb reproducibility rebuild.');
+} else {
+  run('build Debian package', 'npm', ['run', 'release:deb']);
+}
 run('validate Debian package', 'npm', ['run', 'release:validate']);
 run('verify packaged engine JSON-RPC handshake from the extracted .deb', process.execPath, ['scripts/release/engine-clean-install-test.mjs']);
 run('prove the gate detects a missing engine runtime dependency', process.execPath, ['scripts/release/engine-clean-install-test.mjs', '--hide-node-module=fflate', '--expect-failure']);
@@ -55,7 +66,11 @@ if (!args.has('--skip-repro')) {
     }
   }
   console.log('Q-App ZIP reproducibility verified for both ZIPs.');
-  run('verify .deb reproducibility from a clean checkout', process.execPath, ['scripts/release/repro-check.mjs']);
+  if (reuseDebArg) {
+    console.log('Debian reproducibility rebuild skipped: this run reuses the tested artifact and validates it against its metadata.');
+  } else {
+    run('verify .deb reproducibility from a clean checkout', process.execPath, ['scripts/release/repro-check.mjs']);
+  }
 } else {
   console.log('WARNING: --skip-repro was used; reproducibility evidence is missing.');
 }
@@ -71,6 +86,9 @@ run('enforce packaged functional acceptance evidence', 'npm', ['run', 'release:v
 run('generate CycloneDX SBOM', 'npm', ['run', 'release:sbom']);
 run('generate build provenance', 'npm', ['run', 'release:provenance']);
 run('verify release state and checksums', 'npm', ['run', 'release:verify']);
+// Owner rule (a): the installable artifacts for this exact unique version must
+// exist, match the manifest and be covered by SHA256SUMS before publishing.
+run('enforce installable artifacts and release documentation', process.execPath, ['scripts/release/delivery-gate.mjs', '--stage=prepublish', '--tag=' + tag]);
 
 console.log('\nRelease preparation complete for ' + release.product + ' ' + release.version + ' (' + tag + ').');
 console.log('Artifacts are described by release/release-manifest.json and release/SHA256SUMS.');

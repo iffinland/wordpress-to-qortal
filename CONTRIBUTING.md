@@ -29,6 +29,26 @@ targets the desktop app, engine, broker and generic CMS template.
 Run the gates that cover your change. Before a release-facing change, run the
 full suite documented in [docs/migration-studio/TESTING.md](docs/migration-studio/TESTING.md).
 
+## Release-facing fixes and package releases
+
+Two permanent rules apply to every release-facing fix and every package release:
+
+1. **A completed release-facing bug fix must produce a uniquely versioned,
+   tested, GitHub-downloadable installable package.** A branch commit, a local
+   build or an unpublished artifact is not completion.
+2. **Every code fix and package release must include all necessary
+   documentation updates.** Release notes, the release workflow, README download
+   links, install/upgrade instructions and every affected behaviour document
+   must describe the shipped version.
+
+These rules are enforced, not advisory. Run the task-completion checklist in
+[docs/migration-studio/RELEASE-DELIVERY-CHECKLIST.md](docs/migration-studio/RELEASE-DELIVERY-CHECKLIST.md).
+`scripts/release/delivery-gate.mjs` blocks a reused version/tag, missing release
+notes or missing documentation; `release-prepare.mjs` and
+`publish-release.mjs` run it and keep the packaged A–J + H evidence blocking. Do
+not report a release task complete until the unique artifact is publicly
+downloadable, its SHA-256 matches, and the documentation is updated.
+
 ## Pull requests
 
 - Describe the problem, the change and the verification evidence.

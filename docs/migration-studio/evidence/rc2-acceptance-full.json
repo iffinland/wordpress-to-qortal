@@ -1,0 +1,292 @@
+{
+  "schema": "qms-rc2-acceptance-full@1",
+  "version": "0.8.0-rc.2",
+  "artifact": {
+    "name": "qortal-migration-studio_0.8.0-rc.2_amd64.deb",
+    "bytes": 108536096,
+    "sha256": "344941454765132e99331818e1043594d2cf5ad9d220490de96459a3f2693cd7",
+    "sourceCommit": "2c61ba7b80b0cbf6d3d90f274346b93c78e90c13",
+    "sourceTree": "d902f46d9efcf099d7098f54ecb707ea9bcffdd7"
+  },
+  "environment": {
+    "host": "vmi3490660",
+    "appDir": "/home/qmse2e/qms-e2e/rc2-deb/opt/qortal-migration-studio",
+    "extraction": "dpkg-deb -x of the staged rc.2 .deb (app.asar sha256 7a95d9986140f310812448f11eb4fc0d8c26216c2c5d9267be8b57d2fcec275e, identical to desktop/release/linux-unpacked)",
+    "rootfs": "/home/qmse2e/qms-e2e/rootfs",
+    "driver": "packaged Electron over CDP under Xvfb; deterministic WordPress/media/QDN fixtures"
+  },
+  "functional": {
+    "schema": "qms-packaged-functional-acceptance@1",
+    "status": "pass",
+    "startedAt": "2026-11-08T20:57:46.137Z",
+    "finishedAt": "2026-11-08T21:03:22.858Z",
+    "failures": [],
+    "checks": {
+      "A": {
+        "control": "Direct Run quick scan",
+        "status": "PASS",
+        "error": null,
+        "run": "run_kymiiu9dupcpd0jd",
+        "recorded": {
+          "outcome": "completed",
+          "counts": {
+            "posts": 3,
+            "pages": 0,
+            "categories": 2,
+            "tags": 2,
+            "media": 1
+          },
+          "scope": {
+            "schema": "qms-scan-scope@1",
+            "mode": "quick",
+            "bounded": true,
+            "contentTypes": [
+              "post"
+            ],
+            "selection": {
+              "include": [],
+              "slug": [],
+              "perPage": 100,
+              "maxPages": 1,
+              "maxItems": 3
+            },
+            "requested": 3,
+            "scanned": 3,
+            "underReturned": false,
+            "shortfall": 0,
+            "availableTotal": 3,
+            "postsScanned": 3,
+            "pagesScanned": 0,
+            "pagesFetched": 4,
+            "totalAvailable": {
+              "post": 3
+            },
+            "worstCasePages": 1,
+            "termsReferenced": 4,
+            "termsRequested": 4,
+            "mediaDependencies": 1,
+            "apiRequests": 6,
+            "bytesTransferred": 4692
+          },
+          "indexEntries": 8,
+          "duplicateIndexKeys": 0
+        }
+      },
+      "B": {
+        "control": "Confirm quick scan and continue",
+        "status": "PASS",
+        "error": null,
+        "run": null,
+        "recorded": {
+          "planText": "ready\nSelected: 3\nScanned: 8\nNew: 3\nModified: 0\nRoute-only: 0\nUnchanged (verified): 0\nReserved pending: 0\nConflicts: 0\nMedia\n\nResources: 9 · known 0 · unknown 0 · missing 0\n\nKnown bytes: 0 B\n\nDisk\n\nAvailable: 139.9 GiB\n\nReserve: 0 B · projected: 83.0 KiB\n\nFits the configured safety limits.\n\nEstimated QDN fee\n\n3 resources × 0.01 QORT ≈ 0.03 QORT\n\nEstimate only. Phase 5 must quote the current networ",
+          "latest": {
+            "mode": "quick",
+            "counts": {
+              "posts": 3,
+              "pages": 0,
+              "categories": 2,
+              "tags": 2,
+              "media": 1
+            }
+          }
+        }
+      },
+      "C": {
+        "control": "Full inventory on a small fixture",
+        "status": "PASS",
+        "error": null,
+        "run": null,
+        "recorded": {
+          "outcome": "completed",
+          "counts": {
+            "posts": 3,
+            "pages": 2,
+            "categories": 2,
+            "tags": 2,
+            "media": 3
+          },
+          "latest": {
+            "mode": "full",
+            "batchId": "bat_f9qnrcd3maiwnwtd"
+          }
+        }
+      },
+      "D": {
+        "control": "Pause then Resume",
+        "status": "PASS",
+        "error": null,
+        "run": null,
+        "recorded": {
+          "outcome": "completed",
+          "counts": {
+            "posts": 1200,
+            "pages": 0,
+            "categories": 60,
+            "tags": 12,
+            "media": 600
+          },
+          "duplicates": 0
+        }
+      },
+      "E": {
+        "control": "Cancel a running scan",
+        "status": "PASS",
+        "error": null,
+        "run": null,
+        "recorded": {
+          "cancelled": true,
+          "projectExists": true
+        }
+      },
+      "F": {
+        "control": "Interrupted Full checkpoint, then independent Quick scan",
+        "status": "PASS",
+        "error": null,
+        "run": null,
+        "recorded": {
+          "quickRun": "run_asmuq7giqsvw65q4",
+          "quickMode": "quick",
+          "quickCounts": {
+            "posts": 3,
+            "pages": 0,
+            "categories": 2,
+            "tags": 2,
+            "media": 3
+          },
+          "pausedRunStillPaused": true,
+          "fullCheckpointPreserved": "bat_rogb77ytt3h0dg2f"
+        }
+      },
+      "G1": {
+        "control": "Connection failure is visible",
+        "status": "PASS",
+        "error": null,
+        "run": null,
+        "recorded": {}
+      },
+      "G2": {
+        "control": "Invalid source is visible",
+        "status": "PASS",
+        "error": null,
+        "run": null,
+        "recorded": {}
+      },
+      "G3": {
+        "control": "API timeout is visible next to the scan controls",
+        "status": "PASS",
+        "error": "Source scan did not complete\nSource scan failed (SOURCE_TIMEOUT): WordPress request timed out after 1200 ms.",
+        "run": null,
+        "recorded": {
+          "error": "Source scan did not complete\nSource scan failed (SOURCE_TIMEOUT): WordPress request timed out after 1200 ms.",
+          "visibleInScanPanel": true
+        }
+      },
+      "G4": {
+        "control": "Engine failure is visible",
+        "status": "PASS",
+        "error": "Source scan did not complete\nSource scan failed: Engine host is not running.",
+        "run": null,
+        "recorded": {
+          "error": "Source scan did not complete\nSource scan failed: Engine host is not running."
+        }
+      },
+      "I": {
+        "control": "Plan Review entry: one plan.create, no stale error (BUG-005)",
+        "status": "PASS",
+        "error": null,
+        "run": null,
+        "recorded": {
+          "badge": "ready",
+          "planRuns": 1,
+          "stalePlanError": null
+        }
+      },
+      "J": {
+        "control": "NASA-shaped short page still fills the requested window",
+        "status": "PASS",
+        "error": null,
+        "run": null,
+        "recorded": {
+          "counts": {
+            "posts": 3,
+            "pages": 0,
+            "categories": 2,
+            "tags": 2,
+            "media": 3
+          },
+          "scope": {
+            "schema": "qms-scan-scope@1",
+            "mode": "quick",
+            "bounded": true,
+            "contentTypes": [
+              "post"
+            ],
+            "selection": {
+              "include": [],
+              "slug": [],
+              "perPage": 100,
+              "maxPages": 1,
+              "maxItems": 3
+            },
+            "requested": 3,
+            "scanned": 3,
+            "underReturned": false,
+            "shortfall": 0,
+            "availableTotal": 35600,
+            "postsScanned": 3,
+            "pagesScanned": 0,
+            "pagesFetched": 4,
+            "totalAvailable": {
+              "post": 35600
+            },
+            "worstCasePages": 1,
+            "termsReferenced": 4,
+            "termsRequested": 4,
+            "mediaDependencies": 3,
+            "apiRequests": 6,
+            "bytesTransferred": 34991
+          },
+          "postRequests": [
+            {
+              "per_page": "100",
+              "page": "1"
+            }
+          ],
+          "underReturnedNotice": false
+        }
+      }
+    }
+  },
+  "handoff": {
+    "schema": "qms-packaged-handoff-e2e@1",
+    "status": "pass",
+    "startedAt": "2026-11-08T21:04:10.901Z",
+    "finishedAt": "2026-11-08T21:05:08.005Z",
+    "stages": [
+      "seed",
+      "firstRun",
+      "handoffDir",
+      "firstZip",
+      "recovery",
+      "restart",
+      "restartZip",
+      "receiptVerify"
+    ],
+    "resources": 29,
+    "remoteVerifiedRows": 29,
+    "importClaimedVerification": false,
+    "receiptId": "rcp_pkgaccept0001",
+    "exactReadBackMessage": "Exact read-back completed for every resource",
+    "duplicateZipBytes": null
+  },
+  "evidenceFiles": [
+    "docs/migration-studio/evidence/rc2-full-functional-raw.json",
+    "docs/migration-studio/evidence/rc2-full-handoff-raw.json"
+  ],
+  "summary": {
+    "totalControls": 12,
+    "passed": 12,
+    "failed": 0,
+    "handoffPass": true
+  }
+}

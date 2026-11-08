@@ -97,7 +97,8 @@
     "release:readme-links": "node scripts/release/verify-readme-links.mjs",
     "release:readme-sync": "node scripts/release/sync-readme-links.mjs",
     "release:verify-packaged-scan": "node scripts/release/verify-packaged-scan-evidence.mjs",
-    "release:verify-functional": "node scripts/release/verify-functional-acceptance-evidence.mjs"
+    "release:verify-functional": "node scripts/release/verify-functional-acceptance-evidence.mjs",
+    "release:delivery-gate": "node scripts/release/delivery-gate.mjs"
   },
   "engines": {
     "node": ">=20.0.0"

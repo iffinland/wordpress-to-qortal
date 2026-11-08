@@ -14,6 +14,7 @@ import path from 'node:path';
 import { REPO_ROOT, readJson, sha256File, writeJson } from './lib.mjs';
 import { REQUIRED_ARTIFACT_KINDS, releaseArtifactPaths } from './artifact-set.mjs';
 import { releaseTag } from './three-artifact-gate.mjs';
+import { runDeliveryGates } from './delivery-gate.mjs';
 
 const REPO = 'iffinland/wordpress-to-qortal';
 const GH = process.env.GH_BIN || '/home/iffi/.local/bin/gh';
@@ -32,6 +33,17 @@ if (manifest.version !== release.version || manifest.tag !== tag) {
   console.error('release manifest version/tag does not match the requested release.');
   process.exit(1);
 }
+// Owner rules (a)/(b) are blocking: unique version, installable artifacts and
+// release documentation must all be proven immediately before publishing.
+const deliveryGate = await runDeliveryGates({ stage: 'prepublish', tag });
+if (!deliveryGate.ok) {
+  console.error('DELIVERY GATE FAILED immediately before publication:');
+  for (const [name, check] of Object.entries(deliveryGate.checks)) {
+    for (const error of check.errors) console.error(' - ' + name + ': ' + error);
+  }
+  process.exit(1);
+}
+
 for (const kind of REQUIRED_ARTIFACT_KINDS) {
   const entry = manifest.artifacts.find((artifact) => artifact.kind === kind);
   if (!entry) {
@@ -210,4 +222,15 @@ if (readmeGate.status !== 0) {
   process.exit(1);
 }
 
+await writeJson(path.join(releaseDir, 'delivery-complete.json'), {
+  schema: 'qms-delivery-complete@1',
+  version: release.version,
+  tag,
+  sourceCommit: manifest.source?.commit ?? null,
+  artifacts: manifest.artifacts.map((entry) => ({ name: entry.name, bytes: entry.bytes, sha256: entry.sha256 })),
+  publicVerification: { ok: report.ok, artifacts: report.artifacts, sumsOk: report.sumsOk },
+  readmeGate: 'pass',
+  deliveryGate: { ok: deliveryGate.ok, version: deliveryGate.version, tag: deliveryGate.tag },
+  completedAt: new Date().toISOString()
+});
 console.log(JSON.stringify(report, null, 2));
