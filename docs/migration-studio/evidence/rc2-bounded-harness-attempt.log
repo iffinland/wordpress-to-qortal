@@ -1,0 +1,13 @@
+[stage] fixture ready
+[stage] seeded projects {"bounded":"prj_bpxs9vfa2kjis9ed","paused":"prj_ctvu3pw9heafid3w"}
+[stage] launching packaged app
+[stage] evidence written {"status":"fail"}
+{
+  "status": "fail",
+  "out": "/home/qmse2e/qms-e2e/evidence/rc2-bounded.json",
+  "error": "timed out waiting for http://127.0.0.1:9359/json/list",
+  "stages": [
+    "seed",
+    "rendererExceptions"
+  ]
+}

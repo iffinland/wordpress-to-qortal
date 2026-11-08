@@ -74,7 +74,29 @@ async function seedProject(server, name, qdnName) {
       name,
       source: { adapter: 'wordpress', baseUrl: server.url },
       target: { qdnName, siteName: name },
-      settings: { fixture: true, disk: { reserveBytes: 0, maxBytesPerRun: 0 } }
+      settings: {
+        fixture: true,
+        disk: { reserveBytes: 0, maxBytesPerRun: 0 },
+        // The harness begins at Import preferences, exactly like the owner's
+        // state after a validated connection. Continue must still show the
+        // explicit bounded-scan confirmation and must not start a crawl.
+        desktopWizard: {
+          step: 4,
+          completedSteps: [1, 2, 3],
+          wizardVersion: 2,
+          adapterId: 'wordpress',
+          sourceUrl: server.url,
+          authMode: 'none',
+          connection: { status: 'completed', report: { ok: true, auth: { mode: 'none', authenticated: true }, counts: { posts: 35600, pages: 0, categories: 2053, tags: 50, media: 250000 } } },
+          targetQdnName: qdnName,
+          siteTitle: name,
+          siteDescription: '',
+          website: { cms: 'none', service: 'APP', tagline: 'fixture', accent: '#4da3ff' },
+          preferences: { batchSize: 3, contentTypes: ['post'], includeReserved: false, allowExternalMedia: true, includeUnreferencedAttachments: false, concurrency: 2, reserveGib: 0, maxRunGib: 0, maxFileMib: 256, maxFiles: 500, unknownPolicy: 'cap' },
+          planId: null,
+          updatedAt: new Date().toISOString()
+        }
+      }
     });
     return { projectId: project.id, siteId: project.siteId };
   } finally {
@@ -83,42 +105,33 @@ async function seedProject(server, name, qdnName) {
 }
 
 async function writeSessionScript() {
-  const inner = [
+  // Electron needs /proc, which a user namespace cannot mount. Keep only
+  // Xvfb inside the chroot (rootless user namespace) and run the packaged app
+  // natively against the X server over TCP, like the functional harness.
+  const script = [
+    '#!/bin/bash',
     'set -e',
-    'export HOME=/home/qms',
-    'export XDG_DATA_HOME=/mnt/datahome',
-    'export XDG_CONFIG_HOME=/home/qms/.config',
-    'export DISPLAY=:99',
-    'export ELECTRON_DISABLE_SECURITY_WARNINGS=1',
-    'Xvfb :99 -screen 0 1366x900x24 -nolisten tcp -ac >/tmp/xvfb.log 2>&1 &',
-    'for i in $(seq 1 60); do [ -S /tmp/.X11-unix/X99 ] && break; sleep 0.2; done',
-    '[ -S /tmp/.X11-unix/X99 ] || { echo XVFB_FAILED; cat /tmp/xvfb.log; exit 1; }',
-    'exec /opt/qms-e2e/app/qortal-migration-studio --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=' + CDP_PORT + ' --remote-allow-origins=* >/tmp/app.log 2>&1'
+    'export R="$ROOTFS"',
+    'APP="$APP_DIR"',
+    'W="$DATA_HOME"',
+    'mkdir -p "$W/home" "$W/config" "$W/run"',
+    'chmod 700 "$W/run" || true',
+    'rm -rf "$W/config"; mkdir -p "$W/config"',
+    'rm -f "$R/tmp/.X99-lock" "$R/tmp/.X11-unix/X99"',
+    "setsid unshare -rmpf bash -c '",
+    '  mkdir -p "$R/tmp/.X11-unix" "$R/var/lib/xkb"',
+    '  mount -t tmpfs -o mode=755 tmpfs "$R/dev" 2>/dev/null || true',
+    '  exec /usr/sbin/chroot "$R" /usr/bin/Xvfb :99 -screen 0 1366x900x24 -listen tcp -ac',
+    "' >\"$W/xvfb.log\" 2>&1 &",
+    'for i in $(seq 1 80); do (exec 3<>/dev/tcp/127.0.0.1/6099) 2>/dev/null && { exec 3>&-; break; }; sleep 0.25; done',
+    'if ! (exec 3<>/dev/tcp/127.0.0.1/6099) 2>/dev/null; then echo XVFB_FAILED; cat "$W/xvfb.log"; exit 1; fi',
+    'export HOME="$W/home" XDG_DATA_HOME="$W" XDG_CONFIG_HOME="$W/config" XDG_RUNTIME_DIR="$W/run"',
+    'export DISPLAY=127.0.0.1:99',
+    'LIBS="$R/usr/lib/x86_64-linux-gnu:$R/lib/x86_64-linux-gnu"',
+    'exec env LD_LIBRARY_PATH="$LIBS:$APP" "$APP/qortal-migration-studio" --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=' + CDP_PORT + ' --remote-allow-origins=* >"$W/app.log" 2>&1',
+    ''
   ].join('\n');
-  const outer = [
-    'set -e',
-    'R="$ROOTFS"',
-    'APP_DIR="$APP_DIR"',
-    'DATA_HOME="$DATA_HOME"',
-    'mkdir -p "$DATA_HOME"',
-    'mount -t proc proc "$R/proc" 2>/dev/null || true',
-    'mount -t tmpfs -o mode=755 tmpfs "$R/dev" 2>/dev/null || true',
-    'for d in null zero full random urandom tty ptmx; do',
-    '  [ -e "$R/dev/$d" ] || touch "$R/dev/$d"',
-    '  chmod 666 "$R/dev/$d" 2>/dev/null || true',
-    '  mount --bind "/dev/$d" "$R/dev/$d" 2>/dev/null || true',
-    'done',
-    'mkdir -p "$R/dev/pts" "$R/dev/shm" "$R/opt/qms-e2e/app" "$R/mnt/datahome" "$R/home/qms/.config" "$R/tmp/.X11-unix"',
-    'mount -t tmpfs -o mode=1777 tmpfs "$R/dev/shm" 2>/dev/null || true',
-    'mount -t devpts devpts "$R/dev/pts" 2>/dev/null || true',
-    'mount --bind "$APP_DIR" "$R/opt/qms-e2e/app"',
-    'mount --bind "$DATA_HOME" "$R/mnt/datahome"',
-    'rm -f "$R/tmp/.X99-lock" "$R/tmp/.X11-unix/X99" "$R/tmp/app.log" "$R/tmp/xvfb.log"',
-    'rm -rf "$R/home/qms/.config"',
-    'mkdir -p "$R/home/qms/.config"',
-    '/usr/sbin/chroot "$R" /bin/bash -c ' + shellQuote(inner)
-  ].join('\n');
-  await writeFile(sessionScript, outer + '\n', { mode: 0o755 });
+  await writeFile(sessionScript, script, { mode: 0o755 });
 }
 
 class Cdp {
@@ -310,6 +323,12 @@ async function waitForScanComplete(cdp) {
   );
 }
 
+async function backToDashboard(cdp) {
+  if (await cdp.evaluate('document.body.innerText.includes("Your migration projects")').catch(() => false)) return;
+  await cdp.evaluate(clickButton('Dashboard')).catch(() => false);
+  await waitFor(cdp, 'document.body.innerText.includes("Your migration projects")', 'dashboard', 60000);
+}
+
 async function scenarioBoundedScan(cdp, server) {
   await reachScanReview(cdp, server);
   const afterContinue = fixtureRequestCounts(server);
@@ -381,11 +400,12 @@ async function main() {
     await writeSessionScript();
 
     stage('launching packaged app');
-    child = spawn('unshare', ['-rmpf', 'bash', sessionScript], { detached: true, stdio: 'ignore', env });
+    child = spawn('bash', [sessionScript], { detached: true, stdio: 'ignore', env });
     cdp = await connectCdp();
     await openProjectWizard(cdp, bounded.projectId);
     evidence.stages.boundedScan = await scenarioBoundedScan(cdp, server);
 
+    await backToDashboard(cdp);
     server.requests.length = 0;
     await openProjectWizard(cdp, paused.projectId);
     evidence.stages.pause = await scenarioPause(cdp, server);
@@ -394,7 +414,7 @@ async function main() {
     cdp.close();
     cdp = null;
 
-    child = spawn('unshare', ['-rmpf', 'bash', sessionScript], { detached: true, stdio: 'ignore', env });
+    child = spawn('bash', [sessionScript], { detached: true, stdio: 'ignore', env });
     cdp = await connectCdp();
     stage('cdp connected');
     scenarioResume.projectId = paused.projectId;
@@ -415,7 +435,7 @@ async function main() {
     if (child) await stopApp(child).catch(() => {});
     await server.close().catch(() => {});
     try {
-      evidence.appLog = (await readFile(path.join(rootfs, 'tmp/app.log'), 'utf8')).split('\n').slice(-60);
+      evidence.appLog = (await readFile(path.join(dataHome, 'app.log'), 'utf8')).split('\n').slice(-60);
     } catch (error) {
       evidence.appLog = ['unavailable: ' + error.message];
     }

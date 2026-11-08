@@ -302,8 +302,19 @@ async function openPublishing(cdp, projectId) {
   await waitFor(cdp, "document.querySelector('[data-testid=app-shell]') !== null", 'app shell', 120000);
   const cardSelector = '[data-testid="project-' + projectId + '"]';
   await waitFor(cdp, '!!document.querySelector(' + JSON.stringify(cardSelector) + ')', 'project card');
-  const opened = await cdp.evaluate('(() => { const card = document.querySelector(' + JSON.stringify(cardSelector) + '); if (!card) return false; const button = [...card.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Open"); if (!button) return false; button.click(); return true; })()');
+  let opened = await cdp.evaluate('(() => { const card = document.querySelector(' + JSON.stringify(cardSelector) + '); if (!card) return false; const button = [...card.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Open"); if (!button) return false; button.click(); return true; })()');
   if (!opened) throw new Error('Open button missing');
+  const afterOpen = await waitFor(cdp, '(() => { if (document.querySelector("[data-testid=stale-lock-banner]")) return "stale"; if (document.body.innerText.includes("PROJECT SETUP")) return "wizard"; return false; })()', 'project open or stale lock', 120000);
+  if (afterOpen === 'stale') {
+    stage('stale lock reported; recovering project explicitly');
+    await cdp.evaluate(clickButton('Recover project'));
+    await waitFor(cdp, 'document.body.innerText.includes("Dashboard")', 'recovery view', 60000);
+    await cdp.evaluate(clickButton('Dashboard'));
+    await waitFor(cdp, 'document.body.innerText.includes("Your migration projects")', 'dashboard after recovery', 60000);
+    opened = await cdp.evaluate('(() => { const card = document.querySelector(' + JSON.stringify(cardSelector) + '); if (!card) return false; const button = [...card.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Open"); if (!button) return false; button.click(); return true; })()');
+    if (!opened) throw new Error('Open button missing after stale-lock recovery');
+    await waitFor(cdp, 'document.body.innerText.includes("PROJECT SETUP")', 'wizard after recovery', 120000);
+  }
   await waitFor(cdp, clickButton('Publishing'), 'Publishing navigation');
   await waitFor(cdp, "document.querySelector('[data-testid=publishing-view]') !== null", 'publishing view');
 }
@@ -354,12 +365,20 @@ async function stopApp(child) {
     await Promise.race([cdp.evaluate('window.close()').catch(() => {}), sleep(2000)]);
     cdp.close();
   } catch {}
-  await sleep(1500);
-  try { process.kill(-child.pid, 'SIGTERM'); } catch {}
-  await new Promise((resolve) => {
-    const timer = setTimeout(resolve, 8000);
-    child.once('exit', () => { clearTimeout(timer); resolve(); });
+  // Let before-quit stop the engine and release the project lock. A forced
+  // SIGTERM too early leaves a stale lock and makes the restarted app open the
+  // recovery screen instead of the project.
+  const exited = await new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(false), 20000);
+    child.once('exit', () => { clearTimeout(timer); resolve(true); });
   });
+  if (!exited) {
+    try { process.kill(-child.pid, 'SIGTERM'); } catch {}
+    await new Promise((resolve) => {
+      const timer = setTimeout(resolve, 8000);
+      child.once('exit', () => { clearTimeout(timer); resolve(); });
+    });
+  }
 }
 
 async function handoffSnapshot(projectId) {

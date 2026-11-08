@@ -411,18 +411,29 @@ async function waitForNoApp(timeoutMs = 20000) {
 }
 
 async function stopApp() {
+  // Ask the app to quit and give before-quit enough time to stop the engine and
+  // release the project lock. Killing it after 2 s left a stale lock, which
+  // made the next session open the recovery screen instead of the wizard.
   if (cdp) {
     await Promise.race([cdp.evaluate('window.close()').catch(() => {}), sleep(2000)]);
-    cdp.close();
-    cdp = null;
   }
   if (child) {
-    try { process.kill(-child.pid, 'SIGTERM'); } catch {}
-    await new Promise((resolve) => {
-      const timer = setTimeout(resolve, 8000);
-      child.once('exit', () => { clearTimeout(timer); resolve(); });
+    const exited = await new Promise((resolve) => {
+      const timer = setTimeout(() => resolve(false), 20000);
+      child.once('exit', () => { clearTimeout(timer); resolve(true); });
     });
+    if (!exited) {
+      try { process.kill(-child.pid, 'SIGTERM'); } catch {}
+      await new Promise((resolve) => {
+        const timer = setTimeout(resolve, 8000);
+        child.once('exit', () => { clearTimeout(timer); resolve(); });
+      });
+    }
     child = null;
+  }
+  if (cdp) {
+    cdp.close();
+    cdp = null;
   }
   try { execFileSync('pkill', ['-f', '^' + appDir + '/qortal-migration-studio'], { stdio: 'ignore' }); } catch {}
   try { execFileSync('pkill', ['-f', 'Xvfb :99'], { stdio: 'ignore' }); } catch {}
@@ -464,7 +475,26 @@ async function openProject(connection, projectId) {
 }
 
 async function openWizardStep(connection, projectId, marker) {
-  await openProject(connection, projectId);
+  const opened = await openProject(connection, projectId);
+  stage('project open requested', { projectId, text: String(opened?.text ?? '').slice(0, 300), dashboard: opened?.dashboard });
+  let state;
+  try {
+    state = await waitFor(connection, '(() => { if (document.body.innerText.includes(' + JSON.stringify(marker) + ')) return "wizard"; if (document.querySelector("[data-testid=stale-lock-banner]")) return "stale"; return false; })()', 'wizard or stale-lock state', 120000);
+  } catch (error) {
+    const snapshot = await connection.evaluate('({ text: document.body.innerText.slice(0, 2000), alerts: [...document.querySelectorAll("[role=alert]")].map((node) => node.innerText).slice(0, 5), cards: document.querySelectorAll("[data-testid^=project-]").length, stale: !!document.querySelector("[data-testid=stale-lock-banner]") })').catch(() => null);
+    throw new Error(error.message + ' | DOM=' + JSON.stringify(snapshot));
+  }
+  if (state === 'stale') {
+    // An unclean previous session is a real owner situation. Recover the
+    // project explicitly, return to the dashboard and open it again; the
+    // wizard and checkpoint must then be intact.
+    stage('stale lock reported; recovering project explicitly', { projectId });
+    await click(connection, 'Recover project');
+    await waitFor(connection, 'document.body.innerText.includes("Dashboard")', 'recovery view', 60000);
+    await click(connection, 'Dashboard');
+    await waitFor(connection, 'document.body.innerText.includes("Your migration projects")', 'dashboard after recovery', 60000);
+    await openProject(connection, projectId);
+  }
   await waitFor(connection, 'document.body.innerText.includes(' + JSON.stringify(marker) + ')', 'wizard marker ' + marker, 120000);
 }
 
