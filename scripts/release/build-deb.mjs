@@ -232,6 +232,7 @@ async function normalize(current) {
     const absolute = path.join(current, child.name);
     if (child.isDirectory()) {
       await normalize(absolute);
+      chmodSync(absolute, 0o755);
       await utimes(absolute, epochSeconds, epochSeconds);
     } else if (child.isFile()) {
       await utimes(absolute, epochSeconds, epochSeconds);
@@ -239,10 +240,12 @@ async function normalize(current) {
   }
 }
 await normalize(stage);
+chmodSync(stage, 0o755);
 await utimes(stage, epochSeconds, epochSeconds);
 
 const binLink = path.join(stage, 'usr/bin', config.executableName);
 await mkdir(path.dirname(binLink), { recursive: true });
+chmodSync(path.dirname(binLink), 0o755);
 await symlink(path.join(config.installationRoot, config.executableName), binLink);
 await lstat(binLink);
 

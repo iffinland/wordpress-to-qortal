@@ -387,3 +387,8 @@ and CMS download links on their existing release unless their assets are also
 attached to the new tag. Verify the actual unauthenticated .deb download, size and
 SHA-256 before moving the README primary desktop link. A local artifact or a
 blocked API call is not a published release.
+
+The Debian staging step normalizes directory modes to 0755, including DEBIAN
+and usr/bin. A restrictive build-shell umask (such as 0077) must not make the
+package unbuildable or its installed directories inaccessible. This is packaging
+metadata; reuse the accepted desktop/engine outputs when only this normalization changes.
