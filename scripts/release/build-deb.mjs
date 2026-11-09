@@ -235,6 +235,7 @@ async function normalize(current) {
       chmodSync(absolute, 0o755);
       await utimes(absolute, epochSeconds, epochSeconds);
     } else if (child.isFile()) {
+      chmodSync(absolute, fileModeFor(path.relative(stage, absolute), (await stat(absolute)).mode));
       await utimes(absolute, epochSeconds, epochSeconds);
     }
   }

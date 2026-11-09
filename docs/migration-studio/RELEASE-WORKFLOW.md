@@ -389,6 +389,6 @@ SHA-256 before moving the README primary desktop link. A local artifact or a
 blocked API call is not a published release.
 
 The Debian staging step normalizes directory modes to 0755, including DEBIAN
-and usr/bin. A restrictive build-shell umask (such as 0077) must not make the
+and usr/bin, and normalizes control files/maintainer scripts after writing them. A restrictive build-shell umask (such as 0077) must not make the
 package unbuildable or its installed directories inaccessible. This is packaging
 metadata; reuse the accepted desktop/engine outputs when only this normalization changes.
