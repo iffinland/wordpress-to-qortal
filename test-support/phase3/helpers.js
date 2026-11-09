@@ -49,7 +49,8 @@ export async function startPhase3(t, {
   diskProbe = fixedDiskProbe(10 * GIB),
   mediaServer = false,
   mediaOptions = {},
-  wpOptions = {}
+  wpOptions = {},
+  engineFactory = createEngine
 } = {}) {
   const dataRoot = await mkdtemp(path.join(os.tmpdir(), 'qms-phase3-'));
   const media = mediaServer ? await startMediaServer(mediaOptions) : null;
@@ -57,7 +58,7 @@ export async function startPhase3(t, {
     ? dataFactory({ mediaUrl: media?.url ?? null })
     : dataWithPosts((posts ?? Array.from({ length: 12 }, (_, index) => makePost(index)))));
   const wp = await startWordpressFixtureServer({ data: fixtureData, ...wpOptions });
-  const engine = createEngine({ dataRoot, diskProbe });
+  const engine = engineFactory({ dataRoot, diskProbe });
   const project = await engine.projects.create({
     name: 'Synthetic Project',
     source: { adapter: 'wordpress', baseUrl: wp.url },

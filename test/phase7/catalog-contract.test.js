@@ -2,14 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { unzipSync } from 'fflate';
 import { JSDOM } from 'jsdom';
-import { startPhase3, makePost, dataWithPosts } from '../../test-support/phase3/helpers.js';
+import { startPhase3 as startFixture, makePost, dataWithPosts } from '../../test-support/phase3/helpers.js';
 import { startQdnServer } from '../../test-support/phase5/qdnServer.js';
 import { populateQdn, receiptFor } from './support.js';
 import { createCmsRepository } from '../../templates/generic-cms/src/lib/repository.js';
 import { emptyNativeIndex, NATIVE_INDEX_IDENTIFIER } from '../../templates/generic-cms/src/lib/nativeCatalog.js';
 import { emptyOverlay, createOverlayEntry, OVERLAY_IDENTIFIER } from '../../templates/generic-cms/src/lib/overlay.js';
+
+const packagedEngine = process.env.QMS_CATALOG_ENGINE_ROOT
+  ? await import(pathToFileURL(path.join(process.env.QMS_CATALOG_ENGINE_ROOT, 'lib/engine/index.js')).href) : null;
+const startPhase3 = (t, options) => startFixture(t, {
+  ...options, ...(packagedEngine ? { engineFactory: packagedEngine.createEngine } : {})
+});
 
 async function prepare(env, count = 15) {
   await env.handle.source.discover({ mode: 'full', contentTypes: ['post'], perPage: 15 });

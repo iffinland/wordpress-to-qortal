@@ -106,3 +106,10 @@ relationship are **unknown**, not proven. The code defects above are independent
 reproduced; they must not be described as proof of that specific runtime event.
 Read-only diagnosis needs the original project's retained state and the currently
 served CMS config/manifest/index. No live writes are authorized by this repair.
+
+The same contract can select a built package's engine with
+`QMS_CATALOG_ENGINE_ROOT=<extracted-app>/resources/engine`; execute the tests with
+`ELECTRON_RUN_AS_NODE=1 <extracted-app>/qortal-migration-studio --test test/phase7/catalog-contract.test.js`.
+The rc.3 artifact passes all eight cases under its bundled Node 20.18.3. See
+[evidence](evidence/rc3-catalog-validation.md) for the accepted artifact size/hash
+and the distinct local validation versus GitHub publication status.

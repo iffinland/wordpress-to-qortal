@@ -5,7 +5,8 @@
 ## 0.8.0 rc.3 — cumulative catalog candidate
 
 Desktop/engine repair; Publisher and Generic CMS product bytes are unchanged.
-The primary acceptance is the bounded local production-reader catalog contract,
+The primary acceptance is the bounded production-reader catalog contract, also
+passed against the actual extracted .deb engine using bundled Node 20.18.3,
 not a full checkpoint matrix. See [CUMULATIVE-CATALOG.md](CUMULATIVE-CATALOG.md).
 
 - One site's A15 → B15 catalog retains all 30 imported posts; an A3 update
