@@ -2,7 +2,7 @@
 
 <!-- qms-release-version: 0.8.0-rc.3 -->
 
-## 0.8.0 rc.3 — cumulative catalog candidate
+## 0.8.0 rc.3 — current (published GitHub prerelease)
 
 Desktop/engine repair; Publisher and Generic CMS product bytes are unchanged.
 The primary acceptance is the bounded production-reader catalog contract, also
@@ -22,11 +22,15 @@ not a full checkpoint matrix. See [CUMULATIVE-CATALOG.md](CUMULATIVE-CATALOG.md)
   No automatic remote-only identity recovery, QDN write or signing is added.
 
 The specific reported 122-resource owner runtime has not been diagnosed from
-live evidence; its same/different site relationship remains unknown. No claim
-of a live QDN publication or of a published rc.3 download is made by these notes.
-Publication status must be updated only after the public asset is verified.
+live evidence; its same/different site relationship remains unknown. No live QDN publication is claimed. The rc.3 desktop is published at
+<https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-rc.3>.
+The actual unauthenticated GitHub download was checked: filename
+`qortal-migration-studio_0.8.0-rc.3_amd64.deb`, 108539962 bytes, SHA-256
+`47eecd4ffe2e30423e780c94fd60e8661ed6a5d7a318dcd254006a35387503a2`.
+Its release tag points to build-source commit `548d91f5530bbbe29ed6cbb1df0490ed40caf477`.
+No product rebuild was required for publication.
 
-## 0.8.0 rc.2 — current (published GitHub prerelease)
+## 0.8.0 rc.2 — previous published GitHub prerelease
 
 Fixes two owner-reported defects found in the 0.8.0-rc.1 private candidate.
 Published as GitHub prerelease `v0.8.0-rc.2` from source commit `2c61ba7`; the packaged

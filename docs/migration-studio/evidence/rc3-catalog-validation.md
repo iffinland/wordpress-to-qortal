@@ -19,7 +19,7 @@ Independent bounded code review performed. Confirmed findings fixed and regresse
 
 The 8 catalog-contract tests use the real engine, durable project state, exact base64 HTTP read-back and production CMS repository; A15 + B15 + modified A3, native content, overlay, no unchanged republish, continuation/adoption/reopen, separate project, withdrawal and legacy compatibility are covered.
 
-Real owner-runtime identity/namespace relationship remains unknown: the specific 122-resource owner workspace and live CMS config/manifest/index are absent from fetched branches. No live QDN write, wallet signing or QORT spending. GitHub API access is currently blocked by outbound proxy 403 for api.github.com. Release publication and public download verification are not established by this report.
+Real owner-runtime identity/namespace relationship remains unknown: the specific 122-resource owner workspace and live CMS config/manifest/index are absent from fetched branches. No live QDN write, wallet signing or QORT spending. Direct cloud GitHub API access is blocked by outbound proxy 403 for api.github.com. The accepted binary was subsequently published by a narrowly scoped GitHub Actions upload; public download verification is recorded below.
 
 ## Built package evidence
 
@@ -39,6 +39,23 @@ Real owner-runtime identity/namespace relationship remains unknown: the specific
   umask; the desktop and engine were staged once and reused for final Debian assembly.
 - No reusable QMS SKILL.md files exist in this checkout; no unrelated cloud setup skill was changed.
 
-GitHub prerelease/tag creation, public asset download verification and the README
-primary download update remain pending the blocked GitHub API destination. Existing
-README download links continue to refer to the actually published rc.2 artifacts.
+## Public delivery
+
+- Prerelease: https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-rc.3
+- Direct desktop asset: https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.3/qortal-migration-studio_0.8.0-rc.3_amd64.deb
+- Remote tag verified at `548d91f5530bbbe29ed6cbb1df0490ed40caf477`, the exact build source.
+- The existing accepted .deb was transported on a temporary delivery branch in three
+  chunks and reassembled by GitHub Actions; it was **not rebuilt**. The runner checked
+  its accepted size/hash before uploading. Main contains no binary chunks or upload workflow.
+- Upload run: https://github.com/iffinland/wordpress-to-qortal/actions/runs/42569408967
+  Release creation/upload succeeded. Its first public-read step failed with a transient
+  HTTP response (exit 22); a later independent unauthenticated download from this cloud
+  session succeeded, including final HTTP 200 and Content-Disposition filename.
+- Verified public filename: `qortal-migration-studio_0.8.0-rc.3_amd64.deb`.
+- Verified public byte size: **108539962**.
+- Verified public SHA-256: `47eecd4ffe2e30423e780c94fd60e8661ed6a5d7a318dcd254006a35387503a2`.
+- Main README primary desktop link now points directly to the new asset. Unchanged
+  Publisher and Generic CMS links still use their actual rc.2 release assets.
+
+The owner's specific live 122-resource identity/namespace relationship remains unknown;
+public delivery and deterministic acceptance do not establish that separate diagnosis.
