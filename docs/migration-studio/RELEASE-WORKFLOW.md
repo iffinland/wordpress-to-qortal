@@ -275,14 +275,36 @@ the homepage still advertises an older alpha.
 
 ## Artifact provenance vs. main HEAD
 
-The three-artifact gate compares each artifact's recorded `sourceCommit` with the current `HEAD`.
-Artifacts are built from the release commit, so `npm run release:gate` legitimately fails after
-main advances (for example the automatic README link commit that runs during publish). That is not a
-defect: `provenance.intoto.json` inside the release records the exact build commit, and only that
-commit plus the published SHA-256 values identify the shipped bytes.
+An installable artifact binds to its **exact product source**, not to the tip of the branch. The
+three-artifact gate therefore compares the product-source digest of the artifact's recorded
+`sourceCommit` with the product-source digest of `HEAD` (`PRODUCT_SOURCE_PATHS`: `bin`, `desktop`,
+`lib`, `src`, `templates`, `package.json`, `package-lock.json`).
 
-Before reporting a release, confirm instead that the delta between the build commit and current main
-touches no shipped code (docs, README and release tooling only).
+- Product source changed since the build → the gate fails and the artifact must be rebuilt.
+- Only documentation, evidence, test or release-tooling commits came after the build → the digests
+  match, the gate passes, and the existing artifact stays the release artifact.
+- `provenance.intoto.json` and `desktop/release/artifact.json` keep recording the exact build
+  commit, so the shipped bytes always remain traceable to one product source.
+
+Never rebuild an already accepted artifact merely because a later documentation or release-metadata
+commit moved `HEAD`. Never publish an artifact whose product source no longer matches `HEAD`.
+
+## Validation cost rule (blocking)
+
+Proven functional evidence stays valid until something that can invalidate it changes.
+
+- Packaged A–J + H acceptance, once passed against a specific artifact SHA-256, remains valid while
+  the product payload and runtime behaviour are unchanged. Do not rerun the expensive matrix because
+  documentation, evidence, release metadata, README links or reproducibility tooling changed.
+- Rerun only the directly affected gates for documentation-only or release-tooling-only changes
+  (for example the artifact gate, README link gate and download verification).
+- Rerun the affected functional controls when a change touches product code or packaging content;
+  rerun the full matrix when the runtime, engine, wizard or packaged payload changes.
+- Byte-level reproducibility mismatches must first be reduced to a cheap deterministic comparison
+  (extracted payload file hashes, Debian control metadata, archive metadata). If the installed
+  payload and control data are functionally identical, record the build as non-byte-reproducible in
+  `docs/migration-studio/evidence/` and keep the tested artifact. Do not rebuild and do not bump a
+  release to make packaging timestamps match.
 
 ## Packaged bounded-scan acceptance (blocking gate)
 

@@ -11,7 +11,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { REPO_ROOT, gitInfo, readJson, sha256File, writeJson } from './lib.mjs';
+import { REPO_ROOT, gitInfo, productSourceDigest, readJson, sha256File, writeJson } from './lib.mjs';
 import {
   ARTIFACT_COMPONENTS,
   ARTIFACT_LABELS,
@@ -147,7 +147,19 @@ export async function runThreeArtifactGate({ repoRoot = REPO_ROOT, release: rele
       artifact = null;
     }
     if (artifact) {
-      if (artifact.sourceCommit !== git.commit) failures.push('deb: source commit ' + artifact.sourceCommit + ' does not match HEAD ' + git.commit + '.');
+      if (artifact.sourceCommit !== git.commit) {
+        // The artifact binds the product source that produced its payload, not the
+        // tip of documentation or release-tooling commits made after the build.
+        let matches = false;
+        try {
+          matches = productSourceDigest(repoRoot, git.commit) === productSourceDigest(repoRoot, artifact.sourceCommit);
+        } catch (error) {
+          failures.push('deb: cannot compare product sources: ' + error.message);
+        }
+        if (!matches) {
+          failures.push('deb: product source changed since the artifact was built at ' + artifact.sourceCommit + '; rebuild before release.');
+        }
+      }
       if (artifact.dirty === true) failures.push('deb: artifact was built from a dirty worktree.');
     }
   }

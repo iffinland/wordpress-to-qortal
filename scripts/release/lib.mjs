@@ -91,6 +91,25 @@ export function gitInfo(cwd = REPO_ROOT) {
   };
 }
 
+/**
+ * Paths whose content is baked into the installable .deb payload. A release
+ * artifact is bound to the product-source digest of these paths at its build
+ * commit; documentation, evidence, test and release-tooling commits after the
+ * build do not change that digest and must not force a rebuild.
+ */
+export const PRODUCT_SOURCE_PATHS = [
+  'bin',
+  'desktop',
+  'lib',
+  'src',
+  'templates'
+];
+
+export function productSourceDigest(cwd, commit) {
+  const listing = capture('git', ['ls-tree', '-r', '--full-tree', commit, '--', ...PRODUCT_SOURCE_PATHS], { cwd });
+  return createHash('sha256').update(listing).digest('hex');
+}
+
 function gitInfoFromRepository(cwd) {
   const commit = capture('git', ['rev-parse', 'HEAD'], { cwd });
   const tree = capture('git', ['rev-parse', 'HEAD^{tree}'], { cwd });
