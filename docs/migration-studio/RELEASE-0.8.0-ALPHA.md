@@ -2,9 +2,12 @@
 
 <!-- qms-release-version: 0.8.0-rc.2 -->
 
-## 0.8.0 rc.2 — current (private acceptance candidate)
+## 0.8.0 rc.2 — current (published GitHub prerelease)
 
 Fixes two owner-reported defects found in the 0.8.0-rc.1 private candidate.
+Published as GitHub prerelease `v0.8.0-rc.2` from source commit `2c61ba7`; the packaged
+acceptance matrix (A–J plus the QDN handoff control H) passed against the exact published
+`.deb` (SHA-256 `344941454765132e99331818e1043594d2cf5ad9d220490de96459a3f2693cd7`).
 
 - **BUG-005 — duplicate `plan.create` when entering Plan Review.** Step 5 was
   started twice: once by the step effect and once by the Continue handler. The
