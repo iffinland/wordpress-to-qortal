@@ -415,6 +415,7 @@ export interface PublicationHandoffSummary {
 }
 
 export interface PublicationHandoffDetail {
+  siteDeployment?: PublicationResource | null;
   handoff: PublicationHandoffSummary & { resources: PublicationResource[]; siteId: string; projectId: string };
   resources: PublicationResource[];
   absolutePath: string;

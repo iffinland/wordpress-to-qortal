@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Dashboard } from '../../src/renderer/components/Dashboard.js';
 import { adapter, mockApi, project } from './fixtures.js';
@@ -34,5 +34,32 @@ describe('project dashboard', () => {
     expect(screen.getAllByText('Demo publication').length).toBeGreaterThan(0);
     expect(screen.getAllByText('https://example.org').length).toBeGreaterThan(0);
   });
+  it('continues the exact existing site without creating or replacing its identity', async () => {
+    const existing = project();
+    const onOpen = vi.fn(async () => {});
+    const client = mockApi();
+    client.projects.create = vi.fn();
+    window.qms = client;
+    render(<Dashboard projects={[existing]} adapters={[adapter()]} onRefresh={vi.fn(async () => {})}
+      onOpen={onOpen} onHistory={vi.fn(async () => {})} onSync={vi.fn(async () => {})} onRecovery={vi.fn(async () => {})} />);
+    fireEvent.click(screen.getByText('New site or continue existing site'));
+    fireEvent.change(screen.getByLabelText('Site workflow'), { target: { value: 'continue' } });
+    fireEvent.change(screen.getByLabelText('Existing QMS site'), { target: { value: existing.id } });
+    fireEvent.click(screen.getByText('Continue selected site'));
+    await waitFor(() => expect(onOpen).toHaveBeenCalledWith(existing.id));
+    expect(client.projects.create).not.toHaveBeenCalled();
+    expect(screen.getByText(/restore its original QMS workspace/)).toBeInTheDocument();
+  });
+
+  it('warns that reusing a Qortal name in a new project starts a separate catalog', async () => {
+    const existing = project();
+    render(<Dashboard projects={[existing]} adapters={[adapter()]} onRefresh={vi.fn(async () => {})}
+      onOpen={vi.fn(async () => {})} onHistory={vi.fn(async () => {})} onSync={vi.fn(async () => {})} onRecovery={vi.fn(async () => {})} />);
+    fireEvent.click(screen.getByText('New site or continue existing site'));
+    fireEvent.change(screen.getByLabelText(/Qortal name/), { target: { value: existing.targetQdnName } });
+    expect(screen.getByRole('status')).toHaveTextContent('Creating here starts a separate site with a different namespace');
+    expect(screen.getByText('Create new independent site')).toBeInTheDocument();
+  });
+
 });
 

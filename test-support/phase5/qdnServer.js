@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { unzipSync } from 'fflate';
 import { createHash } from 'node:crypto';
 
 function key(service, name, identifier) {
@@ -17,7 +18,7 @@ export async function startQdnServer({ resources = [], names = [], status = 'REA
   for (const record of names) nameStore.set(record.lookupName ?? record.name, record);
   const server = http.createServer(async (request, response) => {
     const url = new URL(request.url, 'http://127.0.0.1');
-    const parts = url.pathname.split('/').filter(Boolean);
+    const parts = url.pathname.split('/').filter(Boolean).map(decodeURIComponent);
     const sendJson = (code, body) => {
       response.writeHead(code, { 'content-type': 'application/json' });
       response.end(JSON.stringify(body));
@@ -50,13 +51,19 @@ export async function startQdnServer({ resources = [], names = [], status = 'REA
         response.end('missing');
         return;
       }
+      let payload = record.bytes;
+      if (url.searchParams.has('filepath')) {
+        const member = unzipSync(payload)[url.searchParams.get('filepath')];
+        if (!member) return sendJson(404, { error: 'member missing' });
+        payload = Buffer.from(member);
+      }
       if (url.searchParams.get('encoding') === 'base64') {
         response.writeHead(200, { 'content-type': 'text/plain' });
-        response.end(record.bytes.toString('base64'));
+        response.end(payload.toString('base64'));
         return;
       }
       response.writeHead(200, { 'content-type': record.contentType ?? 'application/octet-stream' });
-      response.end(record.bytes);
+      response.end(payload);
       return;
     }
     sendJson(404, { error: 'not found' });

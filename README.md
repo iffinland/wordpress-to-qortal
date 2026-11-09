@@ -439,6 +439,14 @@ documented separately in
 The short version is `npm run release:prepare` followed by
 `npm run release:publish -- --tag=<tag>`.
 
+## Continuing one migration across batches
+
+Use **Continue existing QMS site** (or **Continue this site** on its project card)
+for each later batch. **New site/project** creates an independent site even when
+it uses the same Qortal name. See the [catalog and continuation guide](docs/migration-studio/CUMULATIVE-CATALOG.md)
+for verified revision authority, cumulative indexes, unchanged CMS deployment
+reuse and restoring an existing project's workspace.
+
 ## Contributing
 
 Contributions are welcome through pull requests against `main`.

@@ -1,6 +1,29 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-rc.2 -->
+<!-- qms-release-version: 0.8.0-rc.3 -->
+
+## 0.8.0 rc.3 — cumulative catalog candidate
+
+Desktop/engine repair; Publisher and Generic CMS product bytes are unchanged.
+The primary acceptance is the bounded local production-reader catalog contract,
+not a full checkpoint matrix. See [CUMULATIVE-CATALOG.md](CUMULATIVE-CATALOG.md).
+
+- One site's A15 → B15 catalog retains all 30 imported posts; an A3 update
+  replaces one logical entry. Native posts and owner edit overlays survive.
+- New site versus Continue existing site is explicit. Continuation reopens the
+  original project, retaining its immutable identity and namespace.
+- Only exact read-back promotes a published revision; pending plans/receipts
+  cannot replace the last verified catalog. Verification automatically derives
+  the durable published catalog through the existing Phase 7 service.
+- Unchanged content, shared media and the deployed CMS APP are reused. Stale
+  handoffs cannot export a replacing catalog; unresolved batches are sequential.
+- Existing project identity, namespace and QDN identifiers remain unchanged.
+  No automatic remote-only identity recovery, QDN write or signing is added.
+
+The specific reported 122-resource owner runtime has not been diagnosed from
+live evidence; its same/different site relationship remains unknown. No claim
+of a live QDN publication or of a published rc.3 download is made by these notes.
+Publication status must be updated only after the public asset is verified.
 
 ## 0.8.0 rc.2 — current (published GitHub prerelease)
 

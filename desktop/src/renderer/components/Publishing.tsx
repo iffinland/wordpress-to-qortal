@@ -205,7 +205,7 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
     }
   }
 
-  const siteResource = handoff?.resources.find((resource) => resource.kind === 'site') ?? null;
+  const siteResource = handoff?.resources.find((resource) => resource.kind === 'site') ?? handoff?.siteDeployment ?? null;
 
   async function openPublishedSite() {
     if (!siteResource) return;
@@ -584,7 +584,7 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
             </p>
             {siteResource && (
               <p className="small warn-text" data-testid="site-deployment">
-                Site deployment: {siteResource.service} / {siteResource.name} / <code>{siteResource.identifier}</code>.
+                Site deployment{handoff?.siteDeployment ? ' (already verified; reused without republishing)' : ''}: {siteResource.service} / {siteResource.name} / <code>{siteResource.identifier}</code>.
                 Existing resources with a different service or identifier are not modified.
               </p>
             )}

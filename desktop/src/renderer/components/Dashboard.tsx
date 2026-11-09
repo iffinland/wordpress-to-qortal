@@ -19,6 +19,8 @@ export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory, on
   const [inspectErrors, setInspectErrors] = useState<Record<string, string>>({});
   const [showCreate, setShowCreate] = useState(projects.length === 0);
   const [name, setName] = useState('');
+  const [projectMode, setProjectMode] = useState<'new' | 'continue'>('new');
+  const [continueId, setContinueId] = useState('');
   const [adapterId, setAdapterId] = useState(adapters[0]?.id ?? 'wordpress');
   const [sourceUrl, setSourceUrl] = useState('');
   const [qdnName, setQdnName] = useState('');
@@ -93,7 +95,7 @@ export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory, on
           <p className="muted">Plan batches, verify media and inspect reserved identities. Nothing is published or signed in this phase.</p>
         </div>
         <button className="primary" onClick={() => setShowCreate((value) => !value)}>
-          {showCreate ? 'Close' : 'New project'}
+          {showCreate ? 'Close' : 'New site or continue existing site'}
         </button>
       </div>
 
@@ -101,7 +103,28 @@ export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory, on
       <ErrorText error={error} />
 
       {showCreate && (
-        <Card title="Create a project" subtitle="A random, immutable site identity is generated automatically. You never type a technical identifier." testId="create-project">
+        <Card title="Open a migration site" subtitle="Continue the same project for every batch of one site. A new project creates an independent site." testId="create-project">
+          <Field label="Site workflow">
+            <select value={projectMode} onChange={(event) => setProjectMode(event.target.value as 'new' | 'continue')}>
+              <option value="new">New site/project — new identity and catalog</option>
+              <option value="continue">Continue existing QMS site — preserve identity and catalog</option>
+            </select>
+          </Field>
+          {projectMode === 'continue' ? <div className="stack">
+            <Field label="Existing QMS site">
+              <select value={continueId} onChange={(event) => setContinueId(event.target.value)}>
+                <option value="">Select the existing project</option>
+                {projects.filter((project) => !project.archivedAt).map((project) => <option key={project.id} value={project.id}>
+                  {project.name} · {project.targetQdnName ?? 'no destination'} · {project.siteId} · {project.siteNamespace}
+                </option>)}
+              </select>
+            </Field>
+            <p>Reopens the original durable project, keeping its site identity, namespace, verified mappings and cumulative catalog.
+              Entering the same Qortal name in a new project does not recover or continue a published site.
+              If this site is missing, restore its original QMS workspace first; QMS will not guess its identity.</p>
+            <button className="primary" disabled={!continueId || busy} onClick={() => void onOpen(continueId)}>Continue selected site</button>
+          </div> : <>
+          <p>A new project always creates a new independent site, even when another project uses the same Qortal name.</p>
           <form className="grid-2" onSubmit={createProject}>
             <Field label="Project name">
               <input value={name} onChange={(event) => setName(event.target.value)} placeholder="My publication" required maxLength={120} />
@@ -117,6 +140,10 @@ export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory, on
             <Field label="Qortal name" hint="Optional now. Ownership is verified in Phase 5, not here.">
               <input value={qdnName} onChange={(event) => setQdnName(event.target.value)} placeholder="MyQortalName" />
             </Field>
+            {projects.some((project) => qdnName.trim() && project.targetQdnName === qdnName.trim()) && (
+              <p className="wide notice" role="status">This Qortal name already has a local QMS project. To add another batch to its CMS, choose Continue existing QMS site.
+                Creating here starts a separate site with a different namespace.</p>
+            )}
             {selectedAdapter && (
               <div className="wide capability-box">
                 <strong>Adapter capabilities</strong>
@@ -128,10 +155,11 @@ export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory, on
               </div>
             )}
             <div className="wide row gap">
-              <button className="primary" type="submit" disabled={busy || !name.trim()}>{busy ? 'Creating…' : 'Create and continue'}</button>
+              <button className="primary" type="submit" disabled={busy || !name.trim()}>{busy ? 'Creating…' : 'Create new independent site'}</button>
               <span className="muted">No terminal commands required.</span>
             </div>
           </form>
+          </>}
         </Card>
       )}
 
@@ -161,6 +189,7 @@ export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory, on
               <dl className="meta-list">
                 <div><dt>Destination</dt><dd>{project.targetQdnName ?? identity?.target?.qdnName as string ?? 'not set'}</dd></div>
                 <div><dt>Site identity</dt><dd title={project.siteId ?? ''}>{shortId(project.siteId)}</dd></div>
+                <div><dt>Site namespace</dt><dd>{project.siteNamespace ?? 'not initialized'}</dd></div>
                 <div><dt>Last activity</dt><dd>{formatDate(inspection?.lastActivity ?? project.updatedAt)}</dd></div>
                 <div><dt>Status</dt><dd>{problem ? 'Status unavailable: ' + problem : active > 0 ? 'Operation running' : interrupted > 0 ? 'Needs attention' : 'Ready'}</dd></div>
               </dl>
@@ -183,7 +212,7 @@ export function Dashboard({ projects, adapters, onRefresh, onOpen, onHistory, on
                   <span className="pill">Archived projects are read-only in this prototype</span>
                 ) : (
                   <>
-                    <button className="primary" onClick={() => void onOpen(project.id)}>Open</button>
+                    <button className="primary" onClick={() => void onOpen(project.id)}>Continue this site</button>
                     <button onClick={() => void onSync(project.id)}>Check for updates</button>
                     <button onClick={() => void onHistory(project.id)}>History & diagnostics</button>
                     <button onClick={() => void onRecovery(project.id)}>Recovery & cleanup</button>

@@ -367,3 +367,23 @@ The second evidence file must record `status: pass` for the handoff flow and a
 read-back. Receipt import alone is never accepted as proof. Missing evidence, a
 failed control, a missing receipt stage, or a pass produced by skipping a stage
 blocks the release.
+
+## Focused cumulative-catalog repair (rc.3)
+
+For this owner-authorized bounded repair, use the directly affected identity,
+Phase 5/6/7 and GUI regressions plus the deterministic local catalog-contract
+smoke in [CUMULATIVE-CATALOG.md](CUMULATIVE-CATALOG.md). Do not run the A–J+H
+checkpoint or reproducibility matrices for this change. Historical rc.2 evidence
+is not evidence for the changed rc.3 product.
+
+After final product review, build the changed desktop once with the existing
+locked engine staging and `build-deb.mjs`; reuse the unchanged CMS template build
+and installed verified Electron distribution. Run artifact validation and the
+clean-install engine handshake. `release:prepare` / `release:publish` enforce the
+checkpoint profile and are not the bounded path for this repair. Publish a unique
+GitHub prerelease with `gh release create`, attaching the .deb, SHA256SUMS and
+release notes; never overwrite an existing tag or asset. Keep unchanged Publisher
+and CMS download links on their existing release unless their assets are also
+attached to the new tag. Verify the actual unauthenticated .deb download, size and
+SHA-256 before moving the README primary desktop link. A local artifact or a
+blocked API call is not a published release.

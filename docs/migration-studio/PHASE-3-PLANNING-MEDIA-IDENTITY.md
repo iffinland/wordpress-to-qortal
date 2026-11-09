@@ -1,5 +1,10 @@
 # Phase 3 — Batch planning, media, disk protection and QDN identity
 
+> **0.8.0 rc.3 behavior:** [Site continuation and cumulative catalogs](CUMULATIVE-CATALOG.md)
+> defines the current identity, verified publication authority, multi-batch catalog,
+> CMS deployment reuse, withdrawal and legacy recovery behavior. Earlier phase
+> implementation notes below are historical where that update supersedes them.
+
 | Field | Value |
 | --- | --- |
 | Document | Phase 3 implementation and developer guide |
