@@ -5,7 +5,7 @@ import {
   normalizeContentPayload,
   normalizeManifest
 } from './manifest.js';
-import { createQdnResourceUrl, discoverQdnName, fetchQdnResource } from './qortal.js';
+import { createQdnResourceUrl, discoverHostedQdnResource, fetchQdnResource, safeDecodeQdnName } from './qortal.js';
 import { rewriteMediaUrls } from './media.js';
 import { mergeNativeCatalog, readNativeIndex, NATIVE_INDEX_IDENTIFIER } from './nativeCatalog.js';
 import { readSearchIndex, SEARCH_INDEX_IDENTIFIER } from './search.js';
@@ -14,27 +14,67 @@ import { mergeOverlayCatalog, readOverlay, OVERLAY_IDENTIFIER } from './overlay.
 import { resolveBySlug } from './slug.js';
 
 const MANIFEST_TIMEOUT_MS = 7000;
-const CACHE_SCHEMA = 'qms-cms-dataset-cache@1';
+const CACHE_SCHEMA = 'qms-cms-dataset-cache@2';
 
-function readCache(key) {
+function normalizedName(value) {
+  return safeDecodeQdnName(value).replace(/\s+/g, ' ').toLowerCase();
+}
+
+function cacheBinding({ source, name, service, identifier, manifestIdentifier, siteId }) {
+  return {
+    schema: 'qms-cms-cache-binding@1',
+    source: String(source),
+    name: normalizedName(name),
+    service: String(service || 'APP').toUpperCase(),
+    identifier: String(identifier || 'default'),
+    manifestIdentifier: String(manifestIdentifier || ''),
+    siteId: String(siteId || '')
+  };
+}
+
+function cacheKey(binding) {
+  return 'qms-cms-dataset:v2:' + [
+    binding.source,
+    binding.service,
+    binding.name,
+    binding.identifier,
+    binding.manifestIdentifier,
+    binding.siteId
+  ].map(encodeURIComponent).join(':');
+}
+
+function bindingsMatch(actual, expected) {
+  if (!actual || actual.schema !== 'qms-cms-cache-binding@1') return false;
+  return actual.source === expected.source
+    && actual.name === expected.name
+    && actual.service === expected.service
+    && actual.identifier === expected.identifier
+    && actual.manifestIdentifier === expected.manifestIdentifier
+    && actual.siteId === expected.siteId;
+}
+
+function readCache(key, expectedBinding) {
   if (typeof localStorage === 'undefined') return null;
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (!parsed || parsed.schema !== CACHE_SCHEMA || !parsed.dataset || !Array.isArray(parsed.dataset.posts)) return null;
+    if (!parsed || parsed.schema !== CACHE_SCHEMA || !bindingsMatch(parsed.binding, expectedBinding)
+      || !parsed.dataset || !Array.isArray(parsed.dataset.posts)
+      || (expectedBinding.source !== 'fixture' && String(parsed.dataset.site?.id || '') !== expectedBinding.siteId)) return null;
     return { dataset: parsed.dataset, cachedAt: parsed.cachedAt || null };
   } catch {
     return null;
   }
 }
 
-function writeCache(key, dataset) {
+function writeCache(key, binding, dataset) {
   if (typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(key, JSON.stringify({
       schema: CACHE_SCHEMA,
       cachedAt: new Date().toISOString(),
+      binding,
       dataset
     }));
   } catch {
@@ -56,7 +96,16 @@ export function createCmsRepository(config, options = {}) {
   const source = requestedSource === 'fixture' && !devMode ? 'qdn' : requestedSource;
   // Visitor query parameters must never select a different QDN identity for
   // catalog reads; only the hosting context or published config may.
-  const manifestName = String(options.name || discoverQdnName(config.site.ownerName || ''));
+  const hosted = discoverHostedQdnResource({
+    name: config.deployment?.name || config.site.ownerName || '',
+    service: config.deployment?.service || 'APP',
+    identifier: config.deployment?.identifier || 'default'
+  });
+  // `options.name` exists for local fixtures only. Live QDN reads always use
+  // the actual APP/WEBSITE host, never an arbitrary caller or visitor value.
+  const manifestName = String(source === 'fixture'
+    ? (options.name || hosted.name || config.site.ownerName || '')
+    : (hosted.name || config.deployment?.name || config.site.ownerName || ''));
   const fixtureManifestUrl = options.fixtureManifestUrl || query.get('manifest') || '/cms-fixture/qms-cms-manifest.json';
   const siteDefaults = {
     id: config.site.id,
@@ -67,7 +116,17 @@ export function createCmsRepository(config, options = {}) {
     publicAuthor: config.site.publicAuthor
   };
   const staleAfterMs = Math.max(1, Number(config.content.staleAfterDays) || 30) * 24 * 60 * 60 * 1000;
-  const cacheKey = 'qms-cms-dataset:' + String(config.site.id || 'site');
+  const cacheBindings = (source === 'fixture' ? ['fixture'] : [config.content.manifestIdentifier, config.content.legacyManifestIdentifier])
+    .filter(Boolean)
+    .filter((value, index, values) => values.indexOf(value) === index)
+    .map((identifier) => cacheBinding({
+      source,
+      name: manifestName,
+      service: hosted.service,
+      identifier: hosted.identifier,
+      manifestIdentifier: identifier,
+      siteId: config.site.id
+    }));
   let datasetPromise = null;
   let searchPromise = null;
   let searchCache = null;
@@ -112,7 +171,9 @@ export function createCmsRepository(config, options = {}) {
   }
 
   async function load() {
-    const cached = readCache(cacheKey);
+    const cached = cacheBindings
+      .map((binding) => readCache(cacheKey(binding), binding))
+      .find(Boolean) || null;
     try {
       let raw;
       let identifier;
@@ -125,7 +186,10 @@ export function createCmsRepository(config, options = {}) {
         identifier = loaded.identifier;
       }
       manifestIdentifier = identifier;
-      normalizedManifest = normalizeManifest(raw, { siteDefaults });
+      normalizedManifest = normalizeManifest(raw, { siteDefaults, expectedName: source === 'fixture' ? '' : manifestName });
+      if (source !== 'fixture' && String(normalizedManifest.site?.id || '') !== String(config.site.id || '')) {
+        throw new CatalogError('manifest-site-id-mismatch', 'The QDN catalog site identity does not match this CMS configuration.');
+      }
       dataset = await loadCmsDataset(raw, {
         manifest: normalizedManifest,
         fetchRef: source === 'fixture' ? fixtureFetchRef : qdnFetchRef,
@@ -171,7 +235,17 @@ export function createCmsRepository(config, options = {}) {
           // No overlay is normal before the first edit.
         }
       }
-      if (dataset.state !== 'error') writeCache(cacheKey, dataset);
+      if (dataset.state !== 'error') {
+        const binding = cacheBinding({
+          source,
+          name: manifestName,
+          service: hosted.service,
+          identifier: hosted.identifier,
+          manifestIdentifier: identifier,
+          siteId: config.site.id
+        });
+        writeCache(cacheKey(binding), binding, dataset);
+      }
       return dataset;
     } catch (error) {
       if (cached) {

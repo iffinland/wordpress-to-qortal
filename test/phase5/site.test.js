@@ -4,6 +4,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { unzipSync } from 'fflate';
 import { startPhase3, makePost } from '../../test-support/phase3/helpers.js';
+import { createEngine } from '../../lib/engine/index.js';
 import { assertHandoffManifest, sealDocument, validateHandoffPackage, sha256Bytes } from '../../lib/engine/publication/index.js';
 import { verifyResourceOnce } from '../../lib/engine/publication/remote.js';
 
@@ -46,12 +47,69 @@ test('a Generic CMS site is packaged as an exact APP bundle after the manifest',
   assert.equal(config.site.ownerName, 'SyntheticSite');
   assert.equal(config.theme.colors.accent, '#ff8800');
   assert.equal(config.content.manifestIdentifier, dependency.identifier);
+  assert.deepEqual(config.deployment, { service: 'APP', name: site.name, identifier: site.identifier });
   assert.ok(config.navigation.some((entry) => entry.href === '#/admin'), 'default CMS navigation includes the admin route');
   assert.ok(entries['index.html'], 'entrypoint is present');
   const validated = await validateHandoffPackage({ handoffDir: dir });
   assert.equal(validated.verified.length, manifest.resources.length);
   assert.ok(validated.verified.find((entry) => entry.id === site.id).bundle.verified >= 3);
   assert.equal(handoff.counts.site, 1);
+});
+
+test('a legacy desktop-wizard Generic CMS selection still produces an APP bundle', async (t) => {
+  const env = await startPhase3(t, {
+    posts: [makePost(1)],
+    settings: { extra: { desktopWizard: { website: { cms: 'generic-cms', service: 'APP', tagline: 'Legacy wizard selection' } } } }
+  });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
+  const plan = await env.handle.planning.create({ batchSize: 2, estimateMedia: false });
+  const selection = plan.plan.entries.filter((entry) => entry.status === 'new').map((entry) => entry.sourceKey);
+  const handoff = await env.handle.publication.prepare({ planId: plan.planId, selection });
+  const dir = path.join(env.engine.projects.paths(env.project.id).root, handoff.handoffPath);
+  const manifest = JSON.parse(await readFile(path.join(dir, 'handoff.json'), 'utf8'));
+  const site = manifest.resources.find((resource) => resource.kind === 'site');
+  assert.ok(site, 'legacy wizard selection includes the CMS site resource');
+  assert.equal(manifest.cms.selection, 'generic-cms');
+  assert.equal(manifest.cms.delivery, 'included');
+  assert.equal(manifest.cms.resourceId, site.id);
+});
+
+test('Content only explicitly omits CMS resources by choice', async (t) => {
+  const env = await startPhase3(t, {
+    posts: [makePost(1)],
+    settings: { extra: { website: { cms: 'none' } } }
+  });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
+  const plan = await env.handle.planning.create({ batchSize: 2, estimateMedia: false });
+  const selection = plan.plan.entries.filter((entry) => entry.status === 'new').map((entry) => entry.sourceKey);
+  const handoff = await env.handle.publication.prepare({ planId: plan.planId, selection });
+  const dir = path.join(env.engine.projects.paths(env.project.id).root, handoff.handoffPath);
+  const manifest = JSON.parse(await readFile(path.join(dir, 'handoff.json'), 'utf8'));
+  assert.equal(manifest.resources.some((resource) => resource.kind === 'site'), false);
+  assert.deepEqual(manifest.cms, {
+    selection: 'content-only',
+    delivery: 'omitted-by-choice',
+    service: null,
+    name: null,
+    identifier: null,
+    resourceId: null,
+    message: 'CMS omitted by Content only selection.'
+  });
+});
+
+test('Generic CMS export fails instead of silently emitting content only when its template is unavailable', async (t) => {
+  const env = await startPhase3(t, {
+    posts: [makePost(1)],
+    settings: { extra: { website: { cms: 'generic-cms' } } },
+    engineFactory: (options) => createEngine({ ...options, repoRoot: path.join(options.dataRoot, 'missing-repository') })
+  });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
+  const plan = await env.handle.planning.create({ batchSize: 2, estimateMedia: false });
+  const selection = plan.plan.entries.filter((entry) => entry.status === 'new').map((entry) => entry.sourceKey);
+  await assert.rejects(
+    () => env.handle.publication.prepare({ planId: plan.planId, selection }),
+    (error) => error.code === 'PUBLICATION_NOT_READY' && /generic CMS template/i.test(error.message)
+  );
 });
 
 test('the CMS can be hosted as WEBSITE under the same registered name', async (t) => {
@@ -77,6 +135,9 @@ test('APP and WEBSITE application bundles may share one registered name', async 
   const { manifest } = await prepareSite(t);
   const site = manifest.resources.find((resource) => resource.kind === 'site');
   const clone = structuredClone(manifest);
+  // This structural triple test is intentionally schema-agnostic; an actual
+  // Generic CMS handoff has exactly one declared runtime deployment.
+  delete clone.cms;
   const website = structuredClone(site);
   website.id = 'res_websitedemo0001';
   website.service = 'WEBSITE';

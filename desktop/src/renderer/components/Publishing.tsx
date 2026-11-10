@@ -191,7 +191,7 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
       setPrepared(result);
       setMessage(result.reused
         ? 'An equivalent handoff already existed; it was reopened instead of duplicating QDN identities.'
-        : 'Handoff package created and every payload hash was verified locally.');
+        : 'Handoff package created and every payload hash was verified locally.' + (result.cms?.message ? ' ' + result.cms.message : ''));
       await refresh();
       setSelectedHandoffId(result.handoffId);
     } catch (prepareError) {

@@ -4,6 +4,19 @@ These are release-gate facts, not a substitute for testing your own site. The
 0.8.0-alpha.9 release is published as a prerelease with all three artifacts.
 Downloading an artifact is not deployment or live validation.
 
+## 0.8.0 rc.4 beta-blocker candidate
+
+1. **No automatic recovery, signing or QDN resubmission is performed.** For the
+   owner-reported NASA handoff, 17 resources are reported remote-verified and
+   17 pending/ambiguous. Treat that as existing evidence only: use read-only
+   reconciliation and exact read-back before any human-directed next step.
+2. **CMS cache contamination is fixed locally, not proved on the owner's live
+   deployment.** Existing generic CMS bundles need a controlled replacement
+   deployment to carry the new host binding. Until then, an old deployed bundle
+   is outside this candidate's runtime proof.
+3. **Destination-name and earlier wizard UX observations are deferred.** They
+   are intentionally not changed by the BUG-04/BUG-05 beta-blocker scope.
+
 ## New in 0.8.0-alpha.9
 
 1. **Fee quote corrected.** Both editing paths write three resources; alpha.8

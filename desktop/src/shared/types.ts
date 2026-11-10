@@ -433,6 +433,15 @@ export interface PublicationPrepareResult {
   resources: PublicationResource[];
   counts: Record<string, number>;
   estimate: Record<string, unknown>;
+  cms?: {
+    selection: 'generic-cms' | 'content-only';
+    delivery: 'included' | 'reused-remote-verified' | 'omitted-by-choice';
+    service: string | null;
+    name: string | null;
+    identifier: string | null;
+    resourceId: string | null;
+    message: string;
+  };
   packageValidated: boolean;
   reused?: boolean;
   message: string;

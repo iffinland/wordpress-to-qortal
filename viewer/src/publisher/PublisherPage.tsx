@@ -865,6 +865,13 @@ export function PublisherPage({ initialName = '', onBack }: { initialName?: stri
                 Authorize updates to existing resources ({collisionCount} collision{collisionCount === 1 ? '' : 's'})
               </label>
             </div>
+            {manifest.cms && (
+              <p className={manifest.cms.selection === 'content-only' ? 'publisher-note' : 'publisher-ok'} role="status">
+                {manifest.cms.message || (manifest.cms.selection === 'content-only'
+                  ? 'CMS omitted by Content only selection.'
+                  : 'Generic CMS APP/WEBSITE bundle is included and publishable after its dependencies.')}
+              </p>
+            )}
             {manifest.resources.map((resource) => {
               const state = states[resource.id];
               const status = statusOf(state);

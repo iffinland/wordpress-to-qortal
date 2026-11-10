@@ -202,3 +202,13 @@ test('unsupported newer manifest versions fail closed', () => {
     return true;
   });
 });
+
+test('a CMS manifest cannot redirect the hosted site to another QDN name', async () => {
+  const fixture = await loadFixtureManifest('qms-cms-manifest.json');
+  const raw = structuredClone(fixture.raw);
+  raw.site.owner_name = 'developer iffi';
+  assert.throws(() => normalizeManifest(raw, { expectedName: 'NASA-Official' }), (error) => {
+    assert.equal(error.code, 'manifest-name-mismatch');
+    return true;
+  });
+});

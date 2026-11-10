@@ -23,6 +23,17 @@ export function validateCmsConfig(config) {
   if (config.schema !== CMS_TEMPLATE_CONFIG_SCHEMA) {
     errors.push('schema must be ' + CMS_TEMPLATE_CONFIG_SCHEMA + '.');
   }
+  if (config.deployment !== undefined) {
+    if (!config.deployment || typeof config.deployment !== 'object') {
+      errors.push('deployment must be an object when present.');
+    } else {
+      if (!['APP', 'WEBSITE'].includes(config.deployment.service)) errors.push('deployment.service must be APP or WEBSITE.');
+      if (!isNonEmptyString(config.deployment.name)) errors.push('deployment.name must be a non-empty string.');
+      if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(String(config.deployment.identifier || ''))) {
+        errors.push('deployment.identifier must be a QDN identifier.');
+      }
+    }
+  }
   if (!config.site || typeof config.site !== 'object') {
     errors.push('site is required.');
   } else {

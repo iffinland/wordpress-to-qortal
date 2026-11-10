@@ -66,4 +66,27 @@ describe('generic CMS repository', () => {
     expect(second.posts).toHaveLength(3);
     expect(second.notices.some((notice: { code: string }) => notice.code === 'catalog-cache-fallback')).toBe(true);
   });
+
+  it('rejects a legacy cache from another hosted QDN identity instead of showing its posts', async () => {
+    const developerConfig = structuredClone(cmsConfig);
+    developerConfig.site.ownerName = 'developer iffi';
+    const developer = createCmsRepository(developerConfig, { source: 'fixture', name: 'developer iffi' });
+    const developerDataset = await developer.loadDataset();
+    // This is the vulnerable v1 shape produced by the previous release: its
+    // key contains only site.id, so another deployment could consume it.
+    localStorage.setItem('qms-cms-dataset:' + cmsConfig.site.id, JSON.stringify({
+      schema: 'qms-cms-dataset-cache@1',
+      cachedAt: '2026-11-10T00:00:00.000Z',
+      dataset: developerDataset
+    }));
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('offline'); }));
+    const nasaConfig = structuredClone(cmsConfig);
+    nasaConfig.site.ownerName = 'NASA-Official';
+    nasaConfig.admin.qdnName = 'NASA-Official';
+    const nasa = createCmsRepository(nasaConfig, { source: 'fixture', name: 'NASA-Official' });
+    const dataset = await nasa.loadDataset();
+    expect(dataset.state).toBe('error');
+    expect(dataset.posts).toHaveLength(0);
+    expect(dataset.notices.some((notice: { code: string }) => notice.code === 'catalog-cache-fallback')).toBe(false);
+  });
 });

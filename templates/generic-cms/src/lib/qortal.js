@@ -284,6 +284,55 @@ export function discoverQdnResource(fallbackName = '', fallbackIdentifier = 'def
   return { name: safeDecodeQdnName(fallbackName), identifier: fallbackIdentifier };
 }
 
+/**
+ * Resolve the resource that is actually hosting this Q-App. Unlike the older
+ * discoverQdnResource helper, this deliberately never accepts query-string
+ * values: a visitor must not be able to change cache, catalog or owner scope.
+ */
+export function discoverHostedQdnResource({ name = '', service = 'APP', identifier = 'default' } = {}) {
+  const fallback = {
+    name: safeDecodeQdnName(name),
+    service: String(service || 'APP').toUpperCase() === 'WEBSITE' ? 'WEBSITE' : 'APP',
+    identifier: String(identifier || 'default')
+  };
+  if (typeof window === 'undefined') return fallback;
+  const qortalWindow = window;
+  const fromResource = qortalWindow._qdnResource && typeof qortalWindow._qdnResource === 'object'
+    ? qortalWindow._qdnResource
+    : {};
+  const globalName = safeDecodeQdnName(qortalWindow._qdnName || fromResource.name || qortalWindow._qdnResourceName || '');
+  const globalService = String(fromResource.service || qortalWindow._qdnService || '').toUpperCase();
+  const globalIdentifier = String(fromResource.identifier || qortalWindow._qdnIdentifier || '');
+  if (globalName && (globalService === 'APP' || globalService === 'WEBSITE')) {
+    return { name: globalName, service: globalService, identifier: globalIdentifier || fallback.identifier };
+  }
+  try {
+    const base = String(qortalWindow._qdnBase || '');
+    const match = base.match(/\/(APP|WEBSITE)\/([^/?#]+)(?:\/([^/?#]+))?/i);
+    if (match) {
+      return {
+        name: safeDecodeQdnName(match[2]) || fallback.name,
+        service: match[1].toUpperCase(),
+        identifier: safeDecodeQdnName(match[3] || '') || fallback.identifier
+      };
+    }
+  } catch {
+    // Fall through to the served path.
+  }
+  try {
+    const parts = window.location.pathname.split('/').filter(Boolean).map(safeDecodeQdnName);
+    for (let index = 0; index < parts.length; index += 1) {
+      const candidate = parts[index].toUpperCase();
+      if ((candidate === 'APP' || candidate === 'WEBSITE') && parts[index + 1]) {
+        return { name: parts[index + 1], service: candidate, identifier: parts[index + 2] || fallback.identifier };
+      }
+    }
+  } catch {
+    // The fallback remains deliberately conservative.
+  }
+  return { ...fallback, name: discoverHostedQdnName(fallback.name) || fallback.name };
+}
+
 export function discoverQdnName(fallback = '') {
   if (typeof window === 'undefined') return safeDecodeQdnName(fallback);
   // Never read ?name= / ?qdnName= here. Query parameters are visitor-controlled

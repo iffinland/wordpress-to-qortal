@@ -1,34 +1,34 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-rc.3",
+  "version": "0.8.0-rc.4",
   "channel": "rc",
-  "releaseTag": "v0.8.0-rc.3",
+  "releaseTag": "v0.8.0-rc.4",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
   "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-ALPHA.md",
   "changelog": {
-    "summary": "Cumulative same-site batch catalogs, explicit new-versus-continue workflow, verified revision authority and unchanged CMS deployment reuse."
+    "summary": "Fail-closed CMS identity isolation and explicit Generic CMS package delivery for the local beta candidate."
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-rc.3",
+      "version": "0.8.0-rc.4",
       "channel": "rc",
       "source": "desktop/package.json",
-      "changelog": "Merge each batch into the durable exact-verified catalog. Preserve native content and overlays, avoid unchanged content/media/APP republishing, distinguish new sites from continuation, reject stale handoffs and isolate verification by revision."
+      "changelog": "Read legacy desktop wizard CMS settings when canonical settings are absent, fail export when selected CMS generation cannot produce a deployment, and declare Content only versus Generic CMS delivery in every new handoff."
     },
     "publisher": {
-      "version": "0.8.0-alpha.2",
+      "version": "0.8.0-alpha.3",
       "channel": "alpha",
       "source": "viewer/package.json",
-      "changelog": "Unchanged in this release; the Publisher artifact is byte-identical to 0.8.0-alpha.2."
+      "changelog": "Validate CMS delivery metadata and the embedded qms-cms-config.json binding to the packaged APP/WEBSITE triple and catalog manifest; visibly distinguish Content only from Generic CMS delivery."
     },
     "cms": {
-      "version": "0.8.0-alpha.8",
+      "version": "0.8.0-alpha.9",
       "channel": "alpha",
       "source": "templates/generic-cms/package.json",
-      "changelog": "CMS 0.8.0-alpha.8: optional featured images with existing-QDN selection, device upload, preview, replace, remove and deterministic first-suitable-body-image fallback; explicit WordPress featured images preserved; persistence in the native index, qms-qdn-content@1 media.featured and the edit overlay; reuse by content hash; rendering on home cards, lists, detail and search; fee quote includes a new image resource. Adds visible template version and stale-deployment guidance, refuses an untouched one-character automatic slug from a longer title while preserving legitimate short and manual slugs, and fixes media-map array normalization. Includes all CMS 0.8.0-alpha.7/6/5 fixes. See docs/migration-studio/CMS-EDITING-AND-SLUGS.md."
+      "changelog": "Bind runtime configuration, catalog manifests, references and offline dataset caches to the authoritative hosted QDN APP/WEBSITE triple and site identity. Legacy or mismatched data fails closed instead of showing another site's posts."
     }
   },
   "versionMarkers": [

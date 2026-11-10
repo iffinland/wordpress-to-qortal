@@ -13,6 +13,18 @@ The Publisher and the Generic CMS can both live under the **same registered
 Qortal name**. Use APP for one and WEBSITE for the other; the service plus
 identifier makes each triple distinct. No second Qortal name is required.
 
+## CMS delivery declared by a handoff
+
+New handoffs carry a `cms` declaration. `generic-cms` means the package includes
+exactly one site APP/WEBSITE resource after its catalog manifest dependency (or
+explicitly records an already remote-verified identical deployment). `content-only`
+means the CMS was deliberately omitted. Publisher displays that choice before
+approval and validates that an included bundle contains `qms-cms-config.json`
+whose deployment triple and manifest identifier match the handoff. A selected
+Generic CMS that cannot be built is an export error; it must never silently
+become a content-only package. Publisher alpha.3 remains compatible with
+alpha.2 handoffs that do not carry this optional declaration.
+
 **Downloading the ZIP is not deployment.** The file at the release URL is only
 a package. It becomes a public Q-App only after an owner publishes it to QDN
 with wallet approval.

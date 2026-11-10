@@ -32,11 +32,19 @@ function isRef(value) {
   return Boolean(value && typeof value === 'object' && typeof value.service === 'string' && typeof value.identifier === 'string');
 }
 
-function copyRef(value, fallbackName) {
+function sameName(left, right) {
+  return normalizeName(left) === normalizeName(right);
+}
+
+function copyRef(value, fallbackName, expectedName = '') {
   if (!isRef(value)) return null;
+  const name = stringValue(value.name) || stringValue(fallbackName);
+  if (expectedName && name && !sameName(name, expectedName)) {
+    throw new CatalogError('manifest-reference-name-mismatch', 'The catalog references QDN name ' + name + ' instead of the hosted name ' + expectedName + '.');
+  }
   const ref = { service: value.service, identifier: value.identifier };
-  if (value.name) ref.name = value.name;
-  else if (fallbackName) ref.name = fallbackName;
+  if (expectedName) ref.name = expectedName;
+  else if (name) ref.name = name;
   return ref;
 }
 
@@ -83,6 +91,7 @@ export function normalizeManifest(raw, options = {}) {
   const kind = detectManifestKind(raw);
   assertSupportedVersion(raw, kind);
   const siteDefaults = options.siteDefaults || {};
+  const expectedName = stringValue(options.expectedName);
   const resources = raw.resources && typeof raw.resources === 'object' ? raw.resources : {};
   const byPath = resources.by_path && typeof resources.by_path === 'object' ? resources.by_path : {};
   const byIdentifier = resources.by_identifier && typeof resources.by_identifier === 'object' ? resources.by_identifier : {};
@@ -90,6 +99,10 @@ export function normalizeManifest(raw, options = {}) {
 
   if (kind === 'qms-cms') {
     const site = raw.site && typeof raw.site === 'object' ? raw.site : {};
+    const ownerName = stringValue(site.owner_name) || stringValue(site.ownerName) || stringValue(siteDefaults.ownerName);
+    if (expectedName && ownerName && !sameName(ownerName, expectedName)) {
+      throw new CatalogError('manifest-name-mismatch', 'The catalog belongs to QDN name ' + ownerName + ' instead of the hosted name ' + expectedName + '.');
+    }
     const entrypoints = raw.entrypoints && typeof raw.entrypoints === 'object' ? raw.entrypoints : {};
     return {
       kind,
@@ -103,18 +116,19 @@ export function normalizeManifest(raw, options = {}) {
         title: stringValue(site.title) || stringValue(siteDefaults.title) || 'Qortal Site',
         tagline: stringValue(site.tagline) || stringValue(siteDefaults.tagline) || '',
         description: stringValue(site.description) || stringValue(siteDefaults.description) || '',
-        ownerName: stringValue(site.owner_name) || stringValue(site.ownerName) || stringValue(siteDefaults.ownerName) || '',
+        ownerName: expectedName || ownerName || '',
         publicAuthor: stringValue(site.public_author) || stringValue(site.publicAuthor) || stringValue(siteDefaults.publicAuthor) || ''
       },
       entrypoints: {
-        posts: copyRef(entrypoints.posts),
-        pages: copyRef(entrypoints.pages),
-        categories: copyRef(entrypoints.categories),
-        tags: copyRef(entrypoints.tags),
-        media: copyRef(entrypoints.media),
-        search: copyRef(entrypoints.search),
-        urlMap: copyRef(entrypoints.url_map)
+        posts: copyRef(entrypoints.posts, expectedName, expectedName),
+        pages: copyRef(entrypoints.pages, expectedName, expectedName),
+        categories: copyRef(entrypoints.categories, expectedName, expectedName),
+        tags: copyRef(entrypoints.tags, expectedName, expectedName),
+        media: copyRef(entrypoints.media, expectedName, expectedName),
+        search: copyRef(entrypoints.search, expectedName, expectedName),
+        urlMap: copyRef(entrypoints.url_map, expectedName, expectedName)
       },
+      expectedName,
       resources: { byPath, byIdentifier, bySourceUrl },
       counts: {
         posts: numeric(raw.counts && raw.counts.posts),
@@ -128,10 +142,13 @@ export function normalizeManifest(raw, options = {}) {
   if (kind === 'qms-qdn') {
     const entrypoints = raw.entrypoints && typeof raw.entrypoints === 'object' ? raw.entrypoints : {};
     const target = stringValue(raw.target) || stringValue(raw.target && raw.target.qdnName);
+    if (expectedName && target && !sameName(target, expectedName)) {
+      throw new CatalogError('manifest-name-mismatch', 'The catalog targets QDN name ' + target + ' instead of the hosted name ' + expectedName + '.');
+    }
     const fromIdentifier = (identifier) => {
       if (!identifier) return null;
       const ref = byIdentifier[identifier];
-      return copyRef(ref, target) || (identifier ? { service: CONTENT_SERVICE, name: target || undefined, identifier } : null);
+      return copyRef(ref, expectedName || target, expectedName) || (identifier ? { service: CONTENT_SERVICE, name: expectedName || target || undefined, identifier } : null);
     };
     return {
       kind,
@@ -145,9 +162,10 @@ export function normalizeManifest(raw, options = {}) {
         title: stringValue(siteDefaults.title) || target || 'Qortal Site',
         tagline: stringValue(siteDefaults.tagline) || '',
         description: stringValue(siteDefaults.description) || '',
-        ownerName: target || stringValue(siteDefaults.ownerName) || '',
+        ownerName: expectedName || target || stringValue(siteDefaults.ownerName) || '',
         publicAuthor: stringValue(siteDefaults.publicAuthor) || ''
       },
+      expectedName,
       entrypoints: {
         posts: fromIdentifier(entrypoints.posts),
         pages: fromIdentifier(entrypoints.pages),
@@ -169,6 +187,9 @@ export function normalizeManifest(raw, options = {}) {
 
   const entrypoints = raw.entrypoints && typeof raw.entrypoints === 'object' ? raw.entrypoints : {};
   const ownerName = stringValue(raw.canonical_site_name) || stringValue(raw.qdn_name) || stringValue(siteDefaults.ownerName) || '';
+  if (expectedName && ownerName && !sameName(ownerName, expectedName)) {
+    throw new CatalogError('manifest-name-mismatch', 'The catalog belongs to QDN name ' + ownerName + ' instead of the hosted name ' + expectedName + '.');
+  }
   return {
     kind,
     schema: LEGACY_CMS_MANIFEST,
@@ -181,18 +202,19 @@ export function normalizeManifest(raw, options = {}) {
       title: stringValue(siteDefaults.title) || stringValue(raw.site_title) || ownerName || 'Qortal Site',
       tagline: stringValue(siteDefaults.tagline) || stringValue(raw.tagline) || '',
       description: stringValue(siteDefaults.description) || '',
-      ownerName,
+      ownerName: expectedName || ownerName,
       publicAuthor: stringValue(raw.public_author) || stringValue(siteDefaults.publicAuthor) || ''
     },
     entrypoints: {
-      posts: copyRef(entrypoints.posts_index, raw.qdn_content_name || ownerName),
-      pages: copyRef(entrypoints.pages_index, raw.qdn_content_name || ownerName),
-      categories: copyRef(entrypoints.categories, raw.qdn_content_name || ownerName),
-      tags: copyRef(entrypoints.tags, raw.qdn_content_name || ownerName),
-      media: copyRef(entrypoints.media_map, raw.qdn_content_name || ownerName),
-      search: copyRef(entrypoints.search_index, raw.qdn_content_name || ownerName),
-      urlMap: copyRef(entrypoints.url_map, raw.qdn_content_name || ownerName)
+      posts: copyRef(entrypoints.posts_index, expectedName || raw.qdn_content_name || ownerName, expectedName),
+      pages: copyRef(entrypoints.pages_index, expectedName || raw.qdn_content_name || ownerName, expectedName),
+      categories: copyRef(entrypoints.categories, expectedName || raw.qdn_content_name || ownerName, expectedName),
+      tags: copyRef(entrypoints.tags, expectedName || raw.qdn_content_name || ownerName, expectedName),
+      media: copyRef(entrypoints.media_map, expectedName || raw.qdn_content_name || ownerName, expectedName),
+      search: copyRef(entrypoints.search_index, expectedName || raw.qdn_content_name || ownerName, expectedName),
+      urlMap: copyRef(entrypoints.url_map, expectedName || raw.qdn_content_name || ownerName, expectedName)
     },
+    expectedName,
     resources: { byPath, byIdentifier, bySourceUrl },
     counts: {
       posts: numeric(raw.summary && raw.summary.posts),
@@ -218,8 +240,8 @@ function normalizeIndexEntry(entry, kind, manifest) {
     const sourceId = numeric(entry.source_id);
     const type = entry.type === 'page' ? 'page' : 'post';
     const file = stringValue(entry.file);
-    const contentRef = (file && copyRef(manifest.resources.byPath['converted/' + file], manifest.site.ownerName))
-      || (file ? { service: CONTENT_SERVICE, name: manifest.site.ownerName || undefined, identifier: file } : null);
+    const contentRef = (file && copyRef(manifest.resources.byPath['converted/' + file], manifest.expectedName || manifest.site.ownerName, manifest.expectedName))
+      || (file ? { service: CONTENT_SERVICE, name: manifest.expectedName || manifest.site.ownerName || undefined, identifier: file } : null);
     return {
       id: sourceId !== null ? 'wp-' + sourceId : 'wp-' + (stringValue(entry.slug) || kind),
       type,
@@ -247,7 +269,7 @@ function normalizeIndexEntry(entry, kind, manifest) {
     };
   }
 
-  const contentRef = copyRef(entry.content || entry.qdn || entry.resource, manifest.site.ownerName);
+  const contentRef = copyRef(entry.content || entry.qdn || entry.resource, manifest.expectedName || manifest.site.ownerName, manifest.expectedName);
   const type = entry.type === 'page' || entry.contentType === 'page' ? 'page' : 'post';
   return {
     id: stringValue(entry.id) || type + '-' + (stringValue(entry.slug) || 'item'),
@@ -262,7 +284,7 @@ function normalizeIndexEntry(entry, kind, manifest) {
     updatedAt: isoTime(entry.updated_at) || isoTime(entry.updatedAt),
     publishedAt: isoTime(entry.published_at) || isoTime(entry.publishedAt) || isoTime(entry.created_at),
     contentRef,
-    featuredImageRef: copyRef(entry.featured_image, manifest.site.ownerName),
+    featuredImageRef: copyRef(entry.featured_image, manifest.expectedName || manifest.site.ownerName, manifest.expectedName),
     featuredImageUrl: stringValue(entry.featured_image_url) || null,
     featuredImageAlt: stringValue(entry.featured_image_alt) || null,
     featuredImageSource: stringValue(entry.featured_image_source) || null,

@@ -4,6 +4,34 @@ All CMS resources are published under the exact site QDN name. They are
 additive: the QMS manifest and its indexes remain the source of imported
 content and are not rewritten.
 
+## Runtime host binding and offline cache isolation
+
+Every newly generated `qms-cms-config.json` carries a `deployment` binding:
+
+```json
+{
+  "deployment": {
+    "service": "APP",
+    "name": "NASA-Official",
+    "identifier": "qms-...-app-generic-cms-..."
+  }
+}
+```
+
+At runtime the CMS derives the current APP/WEBSITE triple from Qortal's hosted
+context, never from visitor query parameters. It accepts a runtime config only
+when its deployment, `site.ownerName`, and `admin.qdnName` agree with that
+context. Existing configs without `deployment` are accepted only when both
+name fields agree; they are still cached under the current host triple.
+
+The dataset cache format is `qms-cms-dataset-cache@2`. Its binding contains the
+source, hosted service/name/identifier, catalog manifest identifier and
+`site.id`. A fallback is available only when every binding value and the cached
+dataset site id match. Version-1 cache entries and mismatched manifests or
+references are ignored rather than displayed. This is intentionally fail-closed:
+an unavailable NASA catalog is an unavailable/empty state, never another
+site's cached posts.
+
 ## qms-cms-site-settings@1
 
 Resource: `DOCUMENT / <name> / qms-cms-site-settings`

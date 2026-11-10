@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { safeDecodeQdnName, createQdnResourcePath, discoverQdnName } from '../src/lib/qortal.js';
+import { safeDecodeQdnName, createQdnResourcePath, discoverHostedQdnResource, discoverQdnName } from '../src/lib/qortal.js';
 
 describe('QDN name decoding', () => {
   it('decodes single percent-encoding', () => {
@@ -36,5 +36,17 @@ describe('QDN name decoding', () => {
       _qdnName: 'developer%20iffi'
     };
     expect(discoverQdnName('Qortal')).toBe('developer iffi');
+  });
+
+  it('does not let a visitor query string override the hosted APP triple', () => {
+    (globalThis as any).window = {
+      location: { search: '?name=developer%20iffi&identifier=foreign', pathname: '/arbitrary/APP/NASA-Official/qms-nasa', hash: '' },
+      _qdnName: 'NASA-Official',
+      _qdnService: 'APP',
+      _qdnIdentifier: 'qms-nasa'
+    };
+    expect(discoverHostedQdnResource({ name: 'fallback', identifier: 'default' })).toEqual({
+      name: 'NASA-Official', service: 'APP', identifier: 'qms-nasa'
+    });
   });
 });

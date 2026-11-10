@@ -25,6 +25,12 @@ export interface CmsTheme {
 
 export interface CmsTemplateConfig {
   schema: 'qms-cms-template-config@1';
+  /** The exact QDN resource that hosts this runtime configuration. */
+  deployment?: {
+    service: 'APP' | 'WEBSITE';
+    name: string;
+    identifier: string;
+  };
   site: {
     id: string;
     title: string;

@@ -1,6 +1,27 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-rc.3 -->
+<!-- qms-release-version: 0.8.0-rc.4 -->
+
+## 0.8.0 rc.4 — local beta-blocker candidate (not published)
+
+This candidate is deliberately **not** a GitHub release, tag, auto-update or
+QDN deployment. It contains all three locally-built artifacts because all three
+components changed: Desktop/engine `0.8.0-rc.4`, Publisher `0.8.0-alpha.3`,
+and Generic CMS `0.8.0-alpha.9`.
+
+- **BUG-05:** a CMS dataset cache is now bound to the authoritative hosted
+  APP/WEBSITE service, name and identifier, plus manifest identifier and site
+  identity. Legacy or mismatched caches, runtime configuration, catalog
+  manifests and QDN references fail closed; another site's posts are never
+  shown as an offline fallback.
+- **BUG-04:** the engine recognizes the legacy `desktopWizard.website` setting
+  when canonical website settings are absent. Generic CMS selection now either
+  adds a site bundle after the manifest or aborts export. The handoff declares
+  `generic-cms` versus `content-only`, and Publisher validates the embedded
+  `qms-cms-config.json` against the precise APP/WEBSITE and manifest resources.
+- Existing project data, receipts and remote QDN state are not rewritten. The
+  owner must perform the controlled live retest described in the implementation
+  report; no automatic resubmission is permitted.
 
 ## 0.8.0 rc.3 — current (published GitHub prerelease)
 
