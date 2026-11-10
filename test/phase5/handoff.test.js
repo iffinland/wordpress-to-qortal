@@ -10,7 +10,7 @@ import {
   HANDOFF_SCHEMA
 } from '../../lib/engine/publication/index.js';
 import { assertReceipt, createReceipt } from '../../lib/engine/publication/receipts.js';
-import { startPhase3, makePost } from '../../test-support/phase3/helpers.js';
+import { startPhase3, makePost, dataWithPosts } from '../../test-support/phase3/helpers.js';
 
 async function prepareOne(t, options = {}) {
   const env = await startPhase3(t, { posts: [makePost(1), makePost(2), makePost(3)], ...options });
@@ -49,6 +49,67 @@ test('a handoff package carries exact validated bytes, ordering and no secrets o
   assert.equal(verified.verified.length, manifest.resources.length);
   assert.equal(verified.summary.projectId, env.project.id);
   assert.equal(manifest.resources.every((resource) => resource.name === 'SyntheticSite'), true);
+});
+
+test('a stale numeric srcset row is refreshed from stored HTML without discarding verified media', async (t) => {
+  const env = await startPhase3(t, {
+    mediaServer: true,
+    dataFactory: ({ mediaUrl }) => dataWithPosts([makePost(1, {
+        content: `<img src="${mediaUrl}/media/known/alpha.jpg?bytes=2048" srcset="${mediaUrl}/media/known/alpha.jpg?bytes=2048 1x">`
+      })]),
+    settings: { media: { allowExternalMedia: true } }
+  });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
+  const plan = await env.handle.planning.create({ batchSize: 1 });
+  assert.equal(plan.plan.media.length, 1, 'src and srcset duplicate one required URL');
+  const download = await env.handle.media.download({ planId: plan.planId });
+  assert.equal(download.counts.verified, 1);
+
+  // Simulate the persisted rc.3 plan row produced from a NASA-style `,683`
+  // resize component. The source document and verified receipt are unchanged.
+  const entry = plan.plan.entries.find((candidate) => candidate.status === 'new');
+  plan.plan.media.push({
+    url: env.wp.url + '/683',
+    items: [entry.id],
+    sourceKeys: [entry.sourceKey],
+    roles: ['responsive'],
+    mimeType: 'image/jpeg',
+    external: false,
+    status: 'missing',
+    bytes: null,
+    contentType: null,
+    finalUrl: null,
+    reason: 'HTTP_404',
+    code: 'MEDIA_NOT_FOUND',
+    message: 'not found'
+  });
+  await writeFile(plan.planFile, JSON.stringify(plan.plan, null, 2) + '\n');
+
+  const handoff = await env.handle.publication.prepare({ planId: plan.planId, selection: [entry.sourceKey] });
+  assert.equal(handoff.status, 'handoff_ready');
+  assert.equal(handoff.resources.filter((resource) => resource.kind === 'media').length, 1);
+  const payload = handoff.resources.find((resource) => resource.kind === 'content');
+  const handoffDir = path.join(env.handle.paths.root, handoff.handoffPath);
+  const body = await readFile(path.join(handoffDir, payload.relativePath), 'utf8');
+  assert.doesNotMatch(body, /\/683(?:\"|$)/);
+});
+
+test('a current missing srcset asset still blocks handoff preparation', async (t) => {
+  const env = await startPhase3(t, {
+    mediaServer: true,
+    dataFactory: ({ mediaUrl }) => dataWithPosts([makePost(1, {
+        content: `<img src="${mediaUrl}/media/known/alpha.jpg?bytes=2048" srcset="${mediaUrl}/media/known/alpha.jpg?bytes=2048 1x, ${mediaUrl}/media/missing 2x">`
+      })]),
+    settings: { media: { allowExternalMedia: true } }
+  });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
+  const plan = await env.handle.planning.create({ batchSize: 1 });
+  const entry = plan.plan.entries.find((candidate) => candidate.status === 'new');
+  assert.ok(plan.plan.media.some((media) => media.url.endsWith('/media/missing') && media.status === 'missing'));
+  await assert.rejects(
+    () => env.handle.publication.prepare({ planId: plan.planId, selection: [entry.sourceKey] }),
+    (error) => error.code === 'PUBLICATION_NOT_READY' && error.details.missing.some((media) => media.url.endsWith('/media/missing'))
+  );
 });
 
 test('tampered payloads, manifest identity, traversal paths and unsupported services fail safely', async (t) => {

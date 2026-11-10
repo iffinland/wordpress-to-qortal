@@ -1,18 +1,8 @@
 import * as cheerio from 'cheerio';
+import { parseSrcset } from '../../lib/source/wordpress/srcset.js';
 
 function unique(values) {
   return [...new Set(values.filter(Boolean))];
-}
-
-function splitSrcset(value) {
-  if (!value) {
-    return [];
-  }
-
-  return value
-    .split(',')
-    .map((entry) => entry.trim().split(/\s+/)[0])
-    .filter(Boolean);
 }
 
 export function isInternalUrl(url, wordpressBaseUrl) {
@@ -118,11 +108,11 @@ export function inspectPostHtml(contentHtml, wordpressBaseUrl) {
         .map((_, element) => $(element).attr('data-lazy-src'))
         .get(),
       ...$('img')
-        .map((_, element) => splitSrcset($(element).attr('srcset')))
+        .map((_, element) => parseSrcset($(element).attr('srcset')).map((entry) => entry.url))
         .get()
         .flat(),
       ...$('source')
-        .map((_, element) => splitSrcset($(element).attr('srcset')))
+        .map((_, element) => parseSrcset($(element).attr('srcset')).map((entry) => entry.url))
         .get()
         .flat()
     ]
