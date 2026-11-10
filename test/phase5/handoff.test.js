@@ -11,6 +11,7 @@ import {
 } from '../../lib/engine/publication/index.js';
 import { assertReceipt, createReceipt } from '../../lib/engine/publication/receipts.js';
 import { startPhase3, makePost, dataWithPosts } from '../../test-support/phase3/helpers.js';
+import { buildFolderMapFromZip, validateHandoffPackage as validatePublisherHandoff } from '../../viewer/src/publisher/handoff.ts';
 
 async function prepareOne(t, options = {}) {
   const env = await startPhase3(t, { posts: [makePost(1), makePost(2), makePost(3)], ...options });
@@ -201,4 +202,99 @@ test('receipts reject cross-project identity, mismatched resources and tampered 
     () => env.handle.publication.importReceipt({ handoffId: handoff.handoffId, receipt: changedIdentity }),
     (error) => ['PUBLICATION_PACKAGE_CORRUPT', 'PUBLICATION_RECEIPT_MISMATCH'].includes(error.code)
   );
+});
+
+test('an rc.3 content-only partial handoff blocks CMS continuation until exact reconciliation, then creates a CMS-only successor', async (t) => {
+  const env = await startPhase3(t, {
+    posts: [makePost(1), makePost(2), makePost(3), makePost(4)],
+    settings: { extra: { website: { cms: 'none' } } }
+  });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
+  const plan = await env.handle.planning.create({ batchSize: 4, estimateMedia: false });
+  const selection = plan.plan.entries.filter((entry) => entry.status === 'new').map((entry) => entry.sourceKey);
+  const original = await env.handle.publication.prepare({ planId: plan.planId, selection });
+  const originalDetail = await env.handle.publication.get(original.handoffId);
+  const originalDir = path.join(env.handle.paths.root, original.handoffPath);
+
+  // Model the persisted rc.3 package: it has no CMS declaration, and only a
+  // verified subset of resources. Its bytes and audit record remain in place.
+  const legacy = JSON.parse(await readFile(path.join(originalDir, 'handoff.json'), 'utf8'));
+  delete legacy.cms;
+  await writeFile(path.join(originalDir, 'handoff.json'), JSON.stringify(sealDocument(legacy), null, 2) + '\n');
+  const split = Math.floor(originalDetail.resources.length / 2);
+  await env.handle.store.transaction((draft) => {
+    const record = draft.publication.handoffs[original.handoffId];
+    record.resources = record.resources.map((resource, index) => ({
+      ...resource,
+      status: index < split ? 'remote_verified' : 'ambiguous',
+      state: index < split ? 'remote_verified' : 'ambiguous'
+    }));
+    record.status = 'partial';
+  });
+  await env.handle.update({ settings: { website: { cms: 'generic-cms', service: 'APP', tagline: 'Fixed CMS deployment' } } });
+
+  await assert.rejects(
+    () => env.handle.publication.prepare({ planId: plan.planId, selection }),
+    (error) => error.code === 'PUBLICATION_BLOCKED'
+      && /CMS-only continuation is blocked/.test(error.message)
+      && error.details.handoffId === original.handoffId
+      && error.details.unresolved === originalDetail.resources.length - split
+  );
+  const preserved = await env.handle.publication.get(original.handoffId);
+  assert.equal(preserved.handoff.status, 'partial');
+  assert.equal(preserved.resources.filter((resource) => resource.status === 'ambiguous').length, originalDetail.resources.length - split);
+
+  // This represents a successful read-only exact verification run, never a
+  // retry or resubmission. The successor must carry only that verified
+  // manifest and the new APP bundle, not the former content/media writes.
+  await env.handle.store.transaction((draft) => {
+    const record = draft.publication.handoffs[original.handoffId];
+    record.resources = record.resources.map((resource) => ({ ...resource, status: 'remote_verified', state: 'remote_verified' }));
+    record.status = 'remote_verified';
+  });
+  const successor = await env.handle.publication.prepare({ planId: plan.planId, selection });
+  assert.equal(successor.reused, false);
+  assert.equal(successor.resources.length, 2);
+  assert.deepEqual(successor.resources.map((resource) => resource.kind), ['manifest', 'site']);
+  assert.equal(successor.cms.selection, 'generic-cms');
+  assert.match(successor.cms.message, /CMS-only successor/);
+  const successorDetail = await env.handle.publication.get(successor.handoffId);
+  assert.equal(successorDetail.handoff.predecessorHandoffId, original.handoffId);
+  const [manifest, site] = successorDetail.resources;
+  assert.equal(manifest.id, originalDetail.resources.find((resource) => resource.kind === 'manifest').id);
+  assert.deepEqual(site.dependsOn, [manifest.id]);
+  assert.equal(successorDetail.resources.some((resource) => resource.kind === 'content' || resource.kind === 'media' || resource.kind === 'index'), false);
+  const exported = await env.handle.publication.exportBundle(successor.handoffId);
+  const publisherPackage = await buildFolderMapFromZip(new File([await readFile(exported.absolutePath)], 'cms-successor.zip'));
+  const publisherValidated = await validatePublisherHandoff(publisherPackage);
+  assert.deepEqual(publisherValidated.manifest.resources.map((resource) => resource.kind), ['manifest', 'site']);
+
+  const repeat = await env.handle.publication.prepare({ planId: plan.planId, selection });
+  assert.equal(repeat.reused, true);
+  assert.equal(repeat.handoffId, successor.handoffId);
+});
+
+test('same selected content with a changed CMS bundle is not treated as an equivalent handoff', async (t) => {
+  const env = await startPhase3(t, {
+    posts: [makePost(1)],
+    settings: { extra: { website: { cms: 'generic-cms', tagline: 'Initial deployment' } } }
+  });
+  await env.handle.source.discover({ mode: 'full', perPage: 50 });
+  const plan = await env.handle.planning.create({ batchSize: 1, estimateMedia: false });
+  const selection = plan.plan.entries.filter((entry) => entry.status === 'new').map((entry) => entry.sourceKey);
+  const original = await env.handle.publication.prepare({ planId: plan.planId, selection });
+  await env.handle.store.transaction((draft) => {
+    const record = draft.publication.handoffs[original.handoffId];
+    record.resources = record.resources.map((resource) => ({ ...resource, status: 'remote_verified', state: 'remote_verified' }));
+    record.status = 'remote_verified';
+  });
+  await env.handle.update({ settings: { website: { cms: 'generic-cms', tagline: 'Corrected deployment' } } });
+
+  const successor = await env.handle.publication.prepare({ planId: plan.planId, selection });
+  assert.equal(successor.reused, false);
+  assert.notEqual(successor.handoffId, original.handoffId);
+  assert.deepEqual(successor.resources.map((resource) => resource.kind), ['manifest', 'site']);
+  const originalSite = (await env.handle.publication.get(original.handoffId)).resources.find((resource) => resource.kind === 'site');
+  const successorSite = successor.resources.find((resource) => resource.kind === 'site');
+  assert.notEqual(successorSite.sha256, originalSite.sha256);
 });

@@ -4,6 +4,21 @@ These are release-gate facts, not a substitute for testing your own site. The
 0.8.0-alpha.9 release is published as a prerelease with all three artifacts.
 Downloading an artifact is not deployment or live validation.
 
+## 0.8.0 rc.5 BUG-06 continuation candidate
+
+1. **The NASA continuation is intentionally blocked until the 17 uncertain
+   writes are reconciled.** Select the original handoff in QMS Step 2 and run
+   exact, read-only QDN verification. Do not re-export or resubmit the old
+   34-resource package. Only if every original resource becomes remote
+   verified can QMS produce the two-resource CMS-only successor.
+2. **A CMS-only successor still requires owner approval in Publisher.** The
+   previously verified manifest is rechecked and skipped; the CMS APP/WEBSITE
+   bundle is the only potential new write. QMS does not sign, publish or
+   overwrite a deployment itself.
+3. **No owner live-QDN acceptance is claimed for rc.5.** The package and engine
+   smoke test prove local behavior. The owner must perform the controlled
+   reconciliation and Publisher review against the real project.
+
 ## 0.8.0 rc.4 beta-blocker candidate
 
 1. **No automatic recovery, signing or QDN resubmission is performed.** For the

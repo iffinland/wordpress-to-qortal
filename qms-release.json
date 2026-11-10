@@ -1,9 +1,9 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-rc.4",
+  "version": "0.8.0-rc.5",
   "channel": "rc",
-  "releaseTag": "v0.8.0-rc.4",
+  "releaseTag": "v0.8.0-rc.5",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
@@ -13,10 +13,10 @@
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-rc.4",
+      "version": "0.8.0-rc.5",
       "channel": "rc",
       "source": "desktop/package.json",
-      "changelog": "Read legacy desktop wizard CMS settings when canonical settings are absent, fail export when selected CMS generation cannot produce a deployment, and declare Content only versus Generic CMS delivery in every new handoff."
+      "changelog": "Keep partial handoffs immutable, distinguish CMS declaration and bundle changes from equivalent content, and permit a two-resource CMS-only successor only after every predecessor resource has exact remote verification."
     },
     "publisher": {
       "version": "0.8.0-alpha.3",

@@ -1,6 +1,32 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-rc.4 -->
+<!-- qms-release-version: 0.8.0-rc.5 -->
+
+## 0.8.0 rc.5 — BUG-06 handoff continuation candidate (not published)
+
+Desktop/engine `0.8.0-rc.5` fixes BUG-06 without changing the Publisher
+(`0.8.0-alpha.3`) or Generic CMS (`0.8.0-alpha.9`) artifacts. This candidate
+is not a GitHub release, tag, auto-update or QDN deployment.
+
+- A handoff is now equivalent only when its canonical selected content
+  identities/hashes **and** its CMS declaration and normalized bundle match.
+  A legacy rc.3 content-only handoff can never masquerade as an rc.5 Generic
+  CMS package.
+- A partial or ambiguous predecessor remains immutable. QMS gives the owner an
+  actionable read-only reconciliation instruction and never re-exports,
+  resubmits or deletes its receipts, cache or history.
+- Once every predecessor resource has exact remote verification, QMS may make a
+  CMS-only successor. It contains just the already verified manifest and the
+  CMS APP/WEBSITE bundle; no old content, media or index write is present. The
+  Publisher rechecks the manifest and skips it when the exact bytes are already
+  served before the CMS dependency can be submitted.
+- For the reported NASA handoff with 17 confirmed and 17 pending/ambiguous
+  records, this candidate remains correctly blocked until the 17 uncertain
+  resources are reconciled by exact read-back. It does not claim a complete
+  migration and does not bypass the guard.
+
+See [BUG-06-HANDOFF-CONTINUATION.md](BUG-06-HANDOFF-CONTINUATION.md) for the
+owner workflow and validation boundary.
 
 ## 0.8.0 rc.4 — local beta-blocker candidate (not published)
 
