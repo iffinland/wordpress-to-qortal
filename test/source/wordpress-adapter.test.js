@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startWordpressFixtureServer, createFixtureData } from '../../test-support/wordpress/fixtureServer.js';
 import { createWordPressAdapter } from '../../lib/source/wordpress/index.js';
+import { extractHtmlResources } from '../../lib/source/wordpress/extract.js';
+import { inspectPostHtml } from '../../src/utils/html.js';
 import { SourceAdapterRegistry } from '../../lib/source/registry.js';
 import { SourceError, SOURCE_ERROR_CODES } from '../../lib/source/errors.js';
 import { assertContentDocument } from '../../lib/model/content.js';
@@ -137,6 +139,24 @@ test('post normalization preserves entities, lazy/srcset media, relative URLs, l
   assert.ok(document.links.external_media.includes('https://cdn.example.net/remote.jpg'));
   assert.equal(document.media.attachments.length, 2);
   assertContentDocument(document);
+});
+
+test('srcset keeps NASA comma-bearing resize URLs intact and never promotes dimensions to media URLs', () => {
+  const html = [
+    '<img src="https://www.nasa.gov/wp-content/uploads/example.jpg?w=1024"',
+    ' srcset="https://www.nasa.gov/wp-content/uploads/example.jpg?resize=300,200 300w,',
+    ' https://www.nasa.gov/wp-content/uploads/example.jpg?resize=1024,683 1024w,',
+    ' https://www.nasa.gov/wp-content/uploads/example.jpg?resize=1536,1025 1536w">'
+  ].join('');
+  const urls = extractHtmlResources(html, 'https://nasa.gov').images.map((entry) => entry.resolved_url);
+  assert.deepEqual(urls, [
+    'https://www.nasa.gov/wp-content/uploads/example.jpg?w=1024',
+    'https://www.nasa.gov/wp-content/uploads/example.jpg?resize=300,200',
+    'https://www.nasa.gov/wp-content/uploads/example.jpg?resize=1024,683',
+    'https://www.nasa.gov/wp-content/uploads/example.jpg?resize=1536,1025'
+  ]);
+  assert.deepEqual(inspectPostHtml(html, 'https://nasa.gov').images, urls);
+  assert.equal(urls.some((url) => /^https:\/\/nasa\.gov\/\d+\/?$/.test(url)), false);
 });
 
 test('missing featured media is an explicit warning, not silent data loss', async (t) => {
