@@ -4,6 +4,14 @@ All release-facing changes to Qortal Migration Studio are recorded here. The
 release contract requires a heading entry for the exact released version before
 an artifact may be published.
 
+## 0.8.0-beta.1 — 2026-11-11
+
+Public unsigned beta release. Qortal Migration Studio Desktop, Migration
+Publisher and Generic CMS are each versioned `0.8.0-beta.1`. This delivery
+does not alter product behavior, interfaces, data contracts, or QDN workflow;
+it publishes refreshed package identities and separate practical end-user
+manuals for the Desktop, Publisher and Generic CMS.
+
 ## 0.8.0-rc.7 — 2026-11-11
 
 Unsigned amd64 release candidate. Imported WordPress post cards now project a

@@ -1,6 +1,6 @@
 {
   "name": "qortal-migration-publisher",
-  "version": "0.8.0-alpha.3",
+  "version": "0.8.0-beta.1",
   "description": "Migration preview and QDN publisher for converted WordPress content.",
   "type": "module",
   "private": true,
