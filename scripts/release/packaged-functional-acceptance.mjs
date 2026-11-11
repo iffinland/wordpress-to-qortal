@@ -457,8 +457,8 @@ async function click(connection, label) {
 async function openProject(connection, projectId) {
   const card = '[data-testid="project-' + projectId + '"]';
   await waitFor(connection, '!!document.querySelector(' + JSON.stringify(card) + ')', 'project card ' + projectId);
-  const opened = await connection.evaluate('(() => { const card = document.querySelector(' + JSON.stringify(card) + '); const button = [...card.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Open"); if (!button) return false; button.click(); return true; })()');
-  if (!opened) throw new Error('Open button missing for ' + projectId);
+  const opened = await connection.evaluate('(() => { const card = document.querySelector(' + JSON.stringify(card) + '); const button = [...card.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Continue this site"); if (!button) return false; button.click(); return true; })()');
+  if (!opened) throw new Error('Continue this site button missing for ' + projectId);
   await sleep(600);
   return connection.evaluate('({ text: document.body.innerText.slice(0, 400), dashboard: document.body.innerText.includes("Your migration projects") })');
 }

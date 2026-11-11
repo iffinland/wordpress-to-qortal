@@ -302,8 +302,8 @@ async function openPublishing(cdp, projectId) {
   await waitFor(cdp, "document.querySelector('[data-testid=app-shell]') !== null", 'app shell', 120000);
   const cardSelector = '[data-testid="project-' + projectId + '"]';
   await waitFor(cdp, '!!document.querySelector(' + JSON.stringify(cardSelector) + ')', 'project card');
-  const opened = await cdp.evaluate('(() => { const card = document.querySelector(' + JSON.stringify(cardSelector) + '); if (!card) return false; const button = [...card.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Open"); if (!button) return false; button.click(); return true; })()');
-  if (!opened) throw new Error('Open button missing');
+  const opened = await cdp.evaluate('(() => { const card = document.querySelector(' + JSON.stringify(cardSelector) + '); if (!card) return false; const button = [...card.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Continue this site"); if (!button) return false; button.click(); return true; })()');
+  if (!opened) throw new Error('Continue this site button missing');
   await waitFor(cdp, clickButton('Publishing'), 'Publishing navigation');
   await waitFor(cdp, "document.querySelector('[data-testid=publishing-view]') !== null", 'publishing view');
 }
@@ -393,9 +393,15 @@ async function handoffSnapshot(projectId) {
     handoffId: manifest.handoffId,
     schema: manifest.schema,
     resources: manifest.resources.length,
+    resourcesByService: Object.fromEntries(Object.entries(manifest.resources.reduce((counts, resource) => {
+      counts[resource.service] = (counts[resource.service] ?? 0) + 1;
+      return counts;
+    }, {})).sort(([left], [right]) => left.localeCompare(right))),
+    genericCmsSite: manifest.resources.some((resource) => resource.kind === 'site' && resource.service === 'APP' && resource.name === manifest.target.qdnName),
     verified,
     payloadBytes,
     zipFilesInsideHandoffDir: zips.length,
+    embeddedZipPaths: zips.map((file) => path.relative(dir, file).split(path.sep).join('/')).sort(),
     readmePresent: (await readdir(dir)).includes('README.txt')
   };
 }
@@ -521,18 +527,18 @@ async function main() {
     stage('publishing view open');
     evidence.stages.firstRun = await generateHandoff(cdp);
     evidence.stages.handoffDir = await handoffSnapshot(evidence.stages.seed.projectId);
-    if (evidence.stages.handoffDir.resources !== 29) {
-      throw new Error('expected 29 handoff resources, found ' + evidence.stages.handoffDir.resources);
+    if (evidence.stages.handoffDir.resources !== 30 || evidence.stages.handoffDir.resourcesByService.IMAGE !== 19 || evidence.stages.handoffDir.resourcesByService.DOCUMENT !== 10 || evidence.stages.handoffDir.resourcesByService.APP !== 1 || !evidence.stages.handoffDir.genericCmsSite) {
+      throw new Error('expected 19 IMAGE, 10 DOCUMENT and one Generic CMS APP resource, found ' + JSON.stringify(evidence.stages.handoffDir.resourcesByService));
     }
-    if (evidence.stages.handoffDir.zipFilesInsideHandoffDir !== 0) {
-      throw new Error('handoff directory unexpectedly contains a ZIP');
+    if (evidence.stages.handoffDir.zipFilesInsideHandoffDir !== 1 || evidence.stages.handoffDir.embeddedZipPaths[0] !== 'payload/site/default.zip') {
+      throw new Error('handoff must contain only the Generic CMS APP bundle at payload/site/default.zip, found ' + JSON.stringify(evidence.stages.handoffDir.embeddedZipPaths));
     }
     await exportPrepared(cdp);
     stage('zip exported');
     const firstZip = await newestZip(dataRoot);
     if (!firstZip) throw new Error('no exported ZIP found after export');
     evidence.stages.firstZip = { path: firstZip, ...(await verifyZip(firstZip)) };
-    if (evidence.stages.firstZip.resources !== 29) throw new Error('exported ZIP does not contain 29 resources');
+    if (evidence.stages.firstZip.resources !== 30) throw new Error('exported ZIP does not contain 30 resources');
     if (evidence.stages.firstZip.payloadBytes < 8.5 * 1024 * 1024) throw new Error('exported payload bytes are implausibly small');
 
     // Simulate the owner's state: the handoff directory is complete but the

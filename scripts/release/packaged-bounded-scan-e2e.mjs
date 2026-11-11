@@ -17,7 +17,7 @@
  * display changes). CDP is bound to 127.0.0.1 only for the duration of the run.
  */
 import { spawn } from 'node:child_process';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createEngine } from '../../lib/engine/index.js';
@@ -212,8 +212,8 @@ async function openProjectWizard(cdp, projectId) {
   await waitFor(cdp, 'document.querySelector("[data-testid=app-shell]") !== null', 'app shell', 180000);
   const card = '[data-testid="project-' + projectId + '"]';
   await waitFor(cdp, '!!document.querySelector(' + JSON.stringify(card) + ')', 'project card');
-  const opened = await cdp.evaluate('(() => { const card = document.querySelector(' + JSON.stringify(card) + '); const button = [...card.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Open"); if (!button) return false; button.click(); return true; })()');
-  if (!opened) throw new Error('Open button missing');
+  const opened = await cdp.evaluate('(() => { const card = document.querySelector(' + JSON.stringify(card) + '); const button = [...card.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Continue this site"); if (!button) return false; button.click(); return true; })()');
+  if (!opened) throw new Error('Continue this site button missing');
   await waitFor(cdp, 'document.body.innerText.includes("PROJECT SETUP") && !!document.querySelector("button")', 'project setup wizard', 180000);
 }
 
@@ -238,7 +238,7 @@ async function validateConnectionIfRequired(cdp) {
   // been tested. The fixture answers with a deliberate delay, so the harness
   // waits for the wizard to accept the test instead of clicking Continue too
   // early and reading the "test the connection" guard as a hard failure.
-  const needsTest = await cdp.evaluate('document.body.innerText.includes("Test the connection before continuing") || !!document.querySelector("button")').catch(() => false);
+  const needsTest = await cdp.evaluate('document.body.innerText.includes("Test the connection before continuing")').catch(() => false);
   if (!needsTest) return false;
   const clicked = await cdp.evaluate('(() => { const button = [...document.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Test connection"); if (!button || button.disabled) return false; button.click(); return true; })()').catch(() => false);
   if (!clicked) return false;
@@ -277,7 +277,7 @@ async function reachScanReview(cdp, server) {
   // five steps and each one gates Continue on its own validation (connection
   // test, tagline, identity), so the harness reacts to what the UI offers
   // instead of assuming a fixed number of clicks.
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  for (let attempt = 0; attempt < 16; attempt += 1) {
     const state = await cdp.evaluate(`(() => {
       const errs = [...document.querySelectorAll('*')]
         .filter((node) => node.children.length === 0 && /required|invalid|must|cannot|test the connection|error/i.test(node.textContent || ''))
@@ -301,13 +301,20 @@ async function reachScanReview(cdp, server) {
   await waitFor(cdp, 'document.querySelector("[data-testid=scan-confirmation]") !== null', 'scan confirmation panel');
 }
 
-async function waitForScanComplete(cdp) {
-  await waitFor(
-    cdp,
-    'document.body.innerText.includes("Quick scan complete within its request budget") || document.body.innerText.includes("Last completed quick scan")',
-    'bounded scan completion',
-    240000
-  );
+async function waitForScanComplete(cdp, projectId = null) {
+  const started = Date.now();
+  while (Date.now() - started < 240000) {
+    const rendered = await cdp.evaluate('document.body.innerText.includes("Quick scan complete within its request budget") || document.body.innerText.includes("Last completed quick scan") || document.body.innerText.includes("Approve local preparation")').catch(() => false);
+    if (rendered) return;
+    if (projectId) {
+      try {
+        const latest = JSON.parse(await readFile(path.join(dataRoot, 'projects', projectId, 'artifacts', 'source', 'wordpress', 'latest.json'), 'utf8'));
+        if (latest.status === 'completed' && latest.mode === 'quick') return;
+      } catch {}
+    }
+    await sleep(200);
+  }
+  throw new Error('timed out waiting for bounded scan completion');
 }
 
 async function scenarioBoundedScan(cdp, server) {
@@ -330,13 +337,30 @@ async function scenarioBoundedScan(cdp, server) {
   return { afterContinue, counts, telemetry, scopeText: scope };
 }
 
-async function scenarioPause(cdp, server) {
+async function hasDurableContentPage(projectId) {
+  const batches = await readdir(path.join(dataRoot, 'projects', projectId, 'artifacts', 'source', 'wordpress', 'batches'), { withFileTypes: true }).catch(() => []);
+  for (const batch of batches) {
+    if (!batch.isDirectory()) continue;
+    try {
+      const state = JSON.parse(await readFile(path.join(dataRoot, 'projects', projectId, 'artifacts', 'source', 'wordpress', 'batches', batch.name, 'quick-scan-state.json'), 'utf8'));
+      if (Number(state.pagesByType?.post) >= 1) return true;
+    } catch {}
+  }
+  return false;
+}
+
+async function scenarioPause(cdp, server, projectId) {
   await reachScanReview(cdp, server);
   await waitFor(cdp, clickButton('Confirm quick scan and continue'), 'confirm quick scan');
   await waitFor(cdp, '!![...document.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Pause")', 'pause button', 60000);
+  const started = Date.now();
+  while (!(await hasDurableContentPage(projectId))) {
+    if (Date.now() - started > 120000) throw new Error('quick scan did not persist its first content page before pause');
+    await sleep(100);
+  }
   const clicked = await waitFor(cdp, clickButton('Pause'), 'pause click');
   if (!clicked) throw new Error('Pause was not clickable');
-  await waitFor(cdp, 'document.body.innerText.toLowerCase().includes("pause")', 'pause acknowledgement', 120000);
+  await waitFor(cdp, 'document.querySelector("[data-testid=interrupted-scan]") !== null', 'durable paused checkpoint', 120000);
   return { paused: true, requestsAtPause: fixtureRequestCounts(server) };
 }
 
@@ -344,7 +368,7 @@ async function scenarioResume(cdp) {
   await openProjectWizard(cdp, scenarioResume.projectId);
   await waitFor(cdp, 'document.querySelector("[data-testid=interrupted-scan]") !== null', 'interrupted scan panel', 180000);
   await waitFor(cdp, clickButton('Resume interrupted scan from checkpoint'), 'resume click');
-  await waitForScanComplete(cdp);
+  await waitForScanComplete(cdp, scenarioResume.projectId);
 }
 
 async function stopApp(child) {
@@ -387,8 +411,10 @@ async function main() {
     evidence.stages.boundedScan = await scenarioBoundedScan(cdp, server);
 
     server.requests.length = 0;
+    await waitFor(cdp, clickButton('Dashboard'), 'return to dashboard after bounded scan');
+    await waitFor(cdp, 'document.body.innerText.includes("Your migration projects")', 'dashboard after bounded scan');
     await openProjectWizard(cdp, paused.projectId);
-    evidence.stages.pause = await scenarioPause(cdp, server);
+    evidence.stages.pause = await scenarioPause(cdp, server, paused.projectId);
     const postsBefore = server.requests.filter((request) => request.path.endsWith('/wp-json/wp/v2/posts')).length;
     await stopApp(child);
     cdp.close();
