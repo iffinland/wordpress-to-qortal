@@ -379,7 +379,7 @@ signing key in the release environment, so `apt` cannot verify a signature.
 Verify the published hash before installing:
 
 ```bash
-sha256sum qortal-migration-studio_0.8.0-rc.2_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-rc.7_amd64.deb
 # Compare the output with this artifact's line in SHA256SUMS
 # from the v0.8.0-alpha.13 release page.
 sha256sum -c SHA256SUMS
