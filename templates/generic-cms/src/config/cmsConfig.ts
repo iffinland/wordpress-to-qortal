@@ -41,6 +41,26 @@ export interface RuntimeCmsConfig {
   notice: string;
 }
 
+function configUnavailableForHostedSite(notice: string): RuntimeCmsConfig {
+  // The build config intentionally contains a generic fixture manifest so the
+  // template can be developed in isolation. It is never a safe catalog choice
+  // for a hosted per-site CMS: using it would make a missing deployment config
+  // look like a QDN catalog 404. Clear both identifiers before constructing the
+  // repository so it cannot read another project's defaults or cache.
+  return {
+    config: {
+      ...baseCmsConfig,
+      content: {
+        ...baseCmsConfig.content,
+        manifestIdentifier: '',
+        legacyManifestIdentifier: ''
+      }
+    },
+    source: 'build',
+    notice
+  };
+}
+
 /**
  * A single built CMS bundle serves every migrated site. The Publisher writes
  * qms-cms-config.json at the application-bundle root, and this loader applies the site
@@ -94,7 +114,11 @@ async function readRuntimeJson(): Promise<unknown | null> {
 export async function loadRuntimeCmsConfig(): Promise<RuntimeCmsConfig> {
   try {
     const parsed = await readRuntimeJson();
-    if (!parsed) return { config: baseCmsConfig, source: 'build', notice: '' };
+    if (!parsed) {
+      return configUnavailableForHostedSite(
+        'This QDN site requires its project-specific qms-cms-config.json, but it could not be read from the hosted APP/WEBSITE resource. Generic catalog defaults were not loaded.'
+      );
+    }
     const merged = merge(baseCmsConfig, parsed) as CmsTemplateConfig;
     const hosting = discoverHostedQdnResource({
       name: merged.deployment?.name || merged.admin.qdnName || '',
@@ -104,13 +128,13 @@ export async function loadRuntimeCmsConfig(): Promise<RuntimeCmsConfig> {
     merged.site = removeTemplatePlaceholders(merged.site, hosting.name || discoverHostedQdnName(merged.admin.qdnName || ''));
     const validation = validateCmsConfig(merged);
     if (!validation.ok) {
-      return { config: baseCmsConfig, source: 'build', notice: 'Runtime CMS configuration is invalid; using build defaults.' };
+      return configUnavailableForHostedSite('Runtime CMS configuration is invalid; generic catalog defaults were not loaded. ' + validation.errors.join(' '));
     }
     if (!runtimeConfigMatchesHosting(merged, hosting)) {
-      return { config: baseCmsConfig, source: 'build', notice: 'Runtime CMS configuration does not belong to this QDN host; catalog cache and content are unavailable.' };
+      return configUnavailableForHostedSite('Runtime CMS configuration does not belong to this QDN host; catalog cache and content are unavailable.');
     }
     return { config: ensureAdminNavigation(merged), source: 'runtime', notice: '' };
   } catch {
-    return { config: baseCmsConfig, source: 'build', notice: 'Runtime CMS configuration is unavailable; using build defaults.' };
+    return configUnavailableForHostedSite('Runtime CMS configuration is unavailable; generic catalog defaults were not loaded.');
   }
 }

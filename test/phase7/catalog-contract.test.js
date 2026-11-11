@@ -43,6 +43,45 @@ async function cmsConfig(env, handoff) {
   return JSON.parse(Buffer.from(unzipSync(bytes)['qms-cms-config.json']).toString());
 }
 
+test('canonical APP deployment carries the project config and loads its two-post catalog through the Publisher-compatible bundle', async (t) => {
+  const env = await startPhase3(t, {
+    posts: [makePost(1), makePost(2)],
+    settings: { extra: { website: { cms: 'generic-cms', tagline: 'Canonical APP catalog' } } }
+  });
+  const node = await startQdnServer();
+  t.after(() => node.close());
+  const handoff = await prepare(env, 2);
+  const site = handoff.resources.find((resource) => resource.kind === 'site');
+  const manifest = handoff.resources.find((resource) => resource.kind === 'manifest');
+  assert.equal(site.identifier, 'default', 'Qortal Hub resolves qortal://APP/<name>/ to default');
+  await publish(env, node, handoff);
+
+  // This is the same APP member path the hosted CMS uses for the generated
+  // runtime config. It proves the QMS ZIP, Publisher-compatible resource and
+  // project manifest stay bound together without a user-visible identifier.
+  const configResponse = await fetch(node.url + '/arbitrary/APP/' + encodeURIComponent(site.name)
+    + '/default?filepath=qms-cms-config.json');
+  assert.equal(configResponse.status, 200);
+  const hostedConfig = await configResponse.json();
+  assert.equal(hostedConfig.deployment.identifier, 'default');
+  assert.equal(hostedConfig.content.manifestIdentifier, manifest.identifier);
+  const manifestResponse = await fetch(node.url + '/arbitrary/DOCUMENT/' + encodeURIComponent(site.name)
+    + '/' + encodeURIComponent(hostedConfig.content.manifestIdentifier));
+  assert.equal(manifestResponse.status, 200);
+  const hostedManifest = await manifestResponse.json();
+  assert.equal(hostedManifest.site_id, hostedConfig.site.id);
+
+  const dom = new JSDOM('', { url: node.url + '/render/APP/' + encodeURIComponent(site.name) + '/' });
+  const previousWindow = globalThis.window;
+  globalThis.window = dom.window;
+  t.after(() => { globalThis.window = previousWindow; dom.window.close(); });
+  const repository = createCmsRepository(hostedConfig);
+  const dataset = await repository.loadDataset();
+  assert.equal(dataset.state, 'ready', JSON.stringify(dataset.notices));
+  assert.equal(dataset.posts.length, 2);
+  assert.deepEqual(dataset.posts.map((post) => post.slug).sort(), ['synthetic-post-1', 'synthetic-post-2']);
+});
+
 // This is also the bounded local catalog-contract smoke: real engine, locked
 // durable store, exact HTTP/base64 verification and the production CMS reader.
 test('same-site A(15) → B(15) → modified A3 preserves the public CMS across restart without APP/content/media republishing', async (t) => {

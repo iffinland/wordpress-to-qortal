@@ -29,7 +29,7 @@ test('a Generic CMS site is packaged as an exact APP bundle after the manifest',
   assert.ok(site, 'site resource exists');
   assert.equal(site.service, 'APP');
   assert.equal(site.name, 'SyntheticSite');
-  assert.match(site.identifier, /^[a-z0-9][a-z0-9_-]{0,63}$/);
+  assert.equal(site.identifier, 'default', 'canonical qortal://APP/<name>/ resolves this deployment');
   assert.equal(site.dependsOn.length, 1);
   const dependency = manifest.resources.find((resource) => resource.id === site.dependsOn[0]);
   assert.equal(dependency.kind, 'manifest');
@@ -141,7 +141,7 @@ test('APP and WEBSITE application bundles may share one registered name', async 
   const website = structuredClone(site);
   website.id = 'res_websitedemo0001';
   website.service = 'WEBSITE';
-  website.identifier = 'qms-nsaaaaaaaa-web-generic-cms-demo0001';
+  website.identifier = 'default';
   website.metadata = { ...website.metadata, service: 'WEBSITE' };
   clone.resources.push(website);
   clone.estimate.resourceCount = clone.resources.length;

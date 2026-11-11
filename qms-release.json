@@ -1,9 +1,9 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-rc.5",
+  "version": "0.8.0-rc.6",
   "channel": "rc",
-  "releaseTag": "v0.8.0-rc.5",
+  "releaseTag": "v0.8.0-rc.6",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
@@ -13,10 +13,10 @@
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-rc.5",
+      "version": "0.8.0-rc.6",
       "channel": "rc",
       "source": "desktop/package.json",
-      "changelog": "Keep partial handoffs immutable, distinguish CMS declaration and bundle changes from equivalent content, and permit a two-resource CMS-only successor only after every predecessor resource has exact remote verification."
+      "changelog": "Publish the generated CMS bundle at the canonical default APP/WEBSITE identifier so qortal://APP/<registered-name>/ reads its project configuration and catalog."
     },
     "publisher": {
       "version": "0.8.0-alpha.3",
@@ -25,10 +25,10 @@
       "changelog": "Validate CMS delivery metadata and the embedded qms-cms-config.json binding to the packaged APP/WEBSITE triple and catalog manifest; visibly distinguish Content only from Generic CMS delivery."
     },
     "cms": {
-      "version": "0.8.0-alpha.9",
+      "version": "0.8.0-alpha.10",
       "channel": "alpha",
       "source": "templates/generic-cms/package.json",
-      "changelog": "Bind runtime configuration, catalog manifests, references and offline dataset caches to the authoritative hosted QDN APP/WEBSITE triple and site identity. Legacy or mismatched data fails closed instead of showing another site's posts."
+      "changelog": "Fail closed with an explicit diagnostic when a hosted project configuration is missing, invalid or belongs to another APP/WEBSITE identity; never request generic manifest defaults."
     }
   },
   "versionMarkers": [

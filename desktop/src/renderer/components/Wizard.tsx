@@ -1108,7 +1108,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
             <div className="wide" data-testid="service-safety">
               <Alert tone={serviceChanged ? 'warn' : 'info'} title={serviceChanged ? 'Hosting service changed' : 'APP and WEBSITE are separate deployments'}>
                 <p>
-                  A Qortal name can host both an APP and a WEBSITE, but they are different deployments with different QDN identifiers.
+                  A Qortal name can host both an APP and a WEBSITE. Each canonical public deployment uses QDN identifier <code>default</code>.
                   QMS never overwrites an existing deployment: a resource is only updated when its exact service, name and identifier are republished by this project.
                 </p>
                 <p>
@@ -1125,7 +1125,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
               <code>{String(identity.namespace ?? project.siteNamespace ?? 'pending')}</code>
               <details>
                 <summary>Advanced details</summary>
-                <p className="small muted">QDN identifiers are derived from this site identity and a project namespace. Two projects can target the same Qortal name without colliding.</p>
+                <p className="small muted">Imported content identifiers are derived from this site identity and project namespace. The public CMS APP/WEBSITE shell is published at the canonical <code>default</code> identifier for this registered name.</p>
               </details>
             </div>
           </div>

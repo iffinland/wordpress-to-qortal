@@ -41,6 +41,7 @@ test('the Publisher imports an exported .zip, validates the CMS APP bundle and r
   assert.equal(validated.manifest.cms.selection, 'generic-cms');
   assert.equal(validated.manifest.cms.delivery, 'included');
   const site = validated.manifest.resources.find((resource) => resource.kind === 'site');
+  assert.equal(site.identifier, 'default', 'Publisher-compatible package deploys at the canonical Qortal address');
   assert.ok(site.metadata.bundle.files.some((file) => file.path === 'qms-cms-config.json'));
   assert.equal(validated.summary.counts.site, 1);
 

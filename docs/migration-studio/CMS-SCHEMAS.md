@@ -13,7 +13,7 @@ Every newly generated `qms-cms-config.json` carries a `deployment` binding:
   "deployment": {
     "service": "APP",
     "name": "NASA-Official",
-    "identifier": "qms-...-app-generic-cms-..."
+    "identifier": "default"
   }
 }
 ```
@@ -31,6 +31,14 @@ dataset site id match. Version-1 cache entries and mismatched manifests or
 references are ignored rather than displayed. This is intentionally fail-closed:
 an unavailable NASA catalog is an unavailable/empty state, never another
 site's cached posts.
+
+The canonical public application route is always
+`qortal://APP/<registered-name>/` (or `qortal://WEBSITE/<registered-name>/`).
+QMS therefore publishes its site shell at identifier `default`. A project
+manifest, content and media remain namespaced and bound in the generated
+runtime config; only the public APP/WEBSITE shell uses the canonical slot. A
+missing, invalid or mismatched `qms-cms-config.json` must clear the catalog
+identifiers and display a diagnostic instead of trying template defaults.
 
 ## qms-cms-site-settings@1
 

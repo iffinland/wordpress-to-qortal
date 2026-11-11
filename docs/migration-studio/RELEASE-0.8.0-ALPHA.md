@@ -1,6 +1,31 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-rc.5 -->
+<!-- qms-release-version: 0.8.0-rc.6 -->
+
+## 0.8.0 rc.6 — canonical CMS catalog loading candidate (not published)
+
+Desktop/engine `0.8.0-rc.6` and Generic CMS `0.8.0-alpha.10` correct the
+canonical Qortal APP/WEBSITE deployment contract. Publisher remains
+`0.8.0-alpha.3`. This candidate is not a GitHub release, tag, auto-update or
+QDN deployment.
+
+- QMS now packages each site shell at identifier `default`. Qortal Hub resolves
+  `qortal://APP/<registered-name>/` (and the WEBSITE equivalent) to that
+  canonical resource, so no internal identifier belongs in the public address.
+- The generated `qms-cms-config.json` remains bound to that exact hosting
+  triple, site identity and project-specific manifest. Existing content,
+  indexes, media, manifests, receipts and cache data are not rewritten.
+- Generic CMS now fails closed with a visible diagnostic when its project
+  configuration is missing, malformed or for a different host. It never falls
+  back to `qms-cms-manifest` or `cr-qdn-manifest` for a hosted site.
+- Explicit diagnostics retain support for the correct Hub selector form,
+  `qortal://APP/<registered-name>/?identifier=<identifier>`; a slash followed
+  by an identifier is an application path, not an APP resource selector.
+
+The Telegram.EE live read-only check confirmed its existing custom APP ZIP,
+embedded config and project manifest are intact. The required owner action is
+one new APP-only publication to `default`; do not republish its 25 verified
+content resources.
 
 ## 0.8.0 rc.5 — BUG-06 handoff continuation candidate (not published)
 

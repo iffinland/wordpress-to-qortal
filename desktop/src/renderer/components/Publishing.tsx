@@ -411,7 +411,7 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
             <Alert tone="warn" title="Before preparing a publication">
               <p>
                 Target Qortal name: <strong>{String(plan.target.qdnName)}</strong>. APP and WEBSITE are separate deployments,
-                and a different project identity always derives a different QDN identifier.
+                and its canonical public CMS APP/WEBSITE deployment uses identifier <code>default</code>.
               </p>
               <p className="small">
                 QMS never overwrites an existing deployment. A resource is updated only when this project republishes the exact
