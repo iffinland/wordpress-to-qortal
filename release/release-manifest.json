@@ -1,0 +1,80 @@
+{
+  "schema": "qms-release-artifacts@1",
+  "product": "Qortal Migration Studio",
+  "version": "0.8.0-beta.1",
+  "channel": "beta",
+  "tag": "v0.8.0-beta.1",
+  "signing": "unsigned",
+  "architecture": "amd64",
+  "source": {
+    "commit": "6abec6f610658eba7175c952528f23344bf9107c",
+    "tree": "bec777ea03631ce40c56b240c79d10cd8b7ea076",
+    "branch": "main",
+    "dirty": false
+  },
+  "artifacts": [
+    {
+      "kind": "deb",
+      "component": "desktop",
+      "label": "Qortal Migration Studio (Linux .deb)",
+      "name": "qortal-migration-studio_0.8.0-beta.1_amd64.deb",
+      "bytes": 108544408,
+      "uncompressedBytes": null,
+      "sha256": "0c08d899e2993aaaaceeb04ca4b8713535faf68cd881b7d3d6e271f7d1a63872",
+      "entrypoint": null,
+      "files": 1,
+      "componentVersion": "0.8.0-beta.1",
+      "version": "0.8.0-beta.1",
+      "layout": "debian-package"
+    },
+    {
+      "kind": "publisher",
+      "component": "publisher",
+      "label": "Migration Publisher (Q-App ZIP)",
+      "name": "qortal-migration-publisher-v0.8.0-beta.1.zip",
+      "bytes": 77101,
+      "uncompressedBytes": 230289,
+      "sha256": "41c9665559cc74a59bca07121251988297d9fdc8d55eb9620d2ff33621b18a82",
+      "entrypoint": "/index.html",
+      "files": 4,
+      "componentVersion": "0.8.0-beta.1",
+      "version": "0.8.0-beta.1",
+      "layout": "qapp-root"
+    },
+    {
+      "kind": "cms",
+      "component": "cms",
+      "label": "Generic CMS (Q-App ZIP)",
+      "name": "qortal-migration-generic-cms-v0.8.0-beta.1.zip",
+      "bytes": 250620,
+      "uncompressedBytes": 781772,
+      "sha256": "787912ee7e3aa3381e6a8ad614919dfccd5f25605a32a1c7ec62672cbd3d9d7c",
+      "entrypoint": "/index.html",
+      "files": 3,
+      "componentVersion": "0.8.0-beta.1",
+      "version": "0.8.0-beta.1",
+      "layout": "qapp-root"
+    }
+  ],
+  "compatibility": {
+    "versionedManifests": [
+      "qms-cms-template-config@1",
+      "qms-cms-manifest@1",
+      "qms-qdn-manifest@1",
+      "qms-publication-handoff@1",
+      "qms-publication-receipt@1",
+      "qms-cms-bundle@1"
+    ],
+    "publisherHandoff": "compatible",
+    "cmsRuntimeConfig": "compatible"
+  },
+  "sha256sums": [
+    "qortal-migration-generic-cms-v0.8.0-beta.1.zip",
+    "qortal-migration-publisher-v0.8.0-beta.1.zip",
+    "qortal-migration-studio_0.8.0-beta.1_amd64.deb"
+  ],
+  "failures": [],
+  "ok": true,
+  "generatedAt": "2026-11-11T12:53:00.000Z"
+}
+
