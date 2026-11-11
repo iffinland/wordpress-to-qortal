@@ -46,7 +46,7 @@
       "component": "cms",
       "label": "Generic CMS (Q-App ZIP)",
       "name": "qortal-migration-generic-cms-v0.8.0-beta.1.zip",
-      "bytes": 250620,
+      "bytes": 250667,
       "uncompressedBytes": 781772,
       "sha256": "787912ee7e3aa3381e6a8ad614919dfccd5f25605a32a1c7ec62672cbd3d9d7c",
       "entrypoint": "/index.html",

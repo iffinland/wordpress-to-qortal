@@ -12,7 +12,7 @@ Bundle: `0.8.0-beta.1` (`v0.8.0-beta.1`). Components: desktop 0.8.0-beta.1, publ
 | --- | --- | --- | --- |
 | Qortal Migration Studio (Linux .deb) | `qortal-migration-studio_0.8.0-beta.1_amd64.deb` | 108544408 | `0c08d899e2993aaaaceeb04ca4b8713535faf68cd881b7d3d6e271f7d1a63872` |
 | Migration Publisher (Q-App ZIP) | `qortal-migration-publisher-v0.8.0-beta.1.zip` | 77101 | `41c9665559cc74a59bca07121251988297d9fdc8d55eb9620d2ff33621b18a82` |
-| Generic CMS (Q-App ZIP) | `qortal-migration-generic-cms-v0.8.0-beta.1.zip` | 250620 | `787912ee7e3aa3381e6a8ad614919dfccd5f25605a32a1c7ec62672cbd3d9d7c` |
+| Generic CMS (Q-App ZIP) | `qortal-migration-generic-cms-v0.8.0-beta.1.zip` | 250667 | `787912ee7e3aa3381e6a8ad614919dfccd5f25605a32a1c7ec62672cbd3d9d7c` |
 
 `SHA256SUMS` covers every required artifact. This delivery updates version and
 package labels and publishes end-user manuals; it does not change product
