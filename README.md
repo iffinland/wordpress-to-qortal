@@ -6,24 +6,26 @@ normalizes the content, downloads and de-duplicates supported media, prepares
 deterministic QDN batches, hands them to a separate Qortal Hub publishing app,
 and verifies the resulting QDN resources byte-for-byte.
 
-## Download Qortal Migration Studio 0.8.0 rc.3
+## Download Qortal Migration Studio 0.8.0 rc.7
 
-Most people need the desktop application. The rc.3 desktop fixes cumulative
-batch catalogs and site continuation. The unchanged Publisher and Generic CMS
-Q-App ZIPs remain available from their existing rc.2 release.
+Most people need the desktop application. The rc.7 desktop projects each
+imported post's verified QDN image into the Generic CMS post index, so its card
+image renders consistently on both Home and Posts. The Publisher and Generic
+CMS package bytes are unchanged, but all three verified assets are available
+from this one release page.
 
 | What you need | Download | What it does |
 | --- | --- | --- |
-| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0-rc.3_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.3/qortal-migration-studio_0.8.0-rc.3_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
-| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-alpha.2.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.2/qortal-migration-publisher-v0.8.0-alpha.2.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
-| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.8.0-alpha.8.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.2/qortal-migration-generic-cms-v0.8.0-alpha.8.zip) | The neutral website/APP Q-App that renders a published QDN catalog and now supports owner editing of imported and CMS-authored content. It is the site runtime, not the migration tool. |
+| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0-rc.7_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.7/qortal-migration-studio_0.8.0-rc.7_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. Install this on the Linux machine that prepares migrations. |
+| **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-alpha.3.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.7/qortal-migration-publisher-v0.8.0-alpha.3.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. One shared deployment can serve every user — see below. |
+| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.8.0-alpha.10.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.7/qortal-migration-generic-cms-v0.8.0-alpha.10.zip) | The neutral website/APP Q-App that renders a published QDN catalog and now supports owner editing of imported and CMS-authored content. It is the site runtime, not the migration tool. |
 
-Verify the rc.3 desktop package with
-[SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.3/SHA256SUMS).
-Read the [release notes](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.3/RELEASE-NOTES.md)
-or open the [rc.3 prerelease](https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-rc.3).
-The Publisher and Generic CMS links above intentionally retain their existing
-rc.2 assets and checksums; neither component was rebuilt for this desktop fix.
+Verify all three assets with
+[SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.7/SHA256SUMS).
+Read the [release notes](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.7/RELEASE-NOTES.md)
+or open the [rc.7 prerelease](https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-rc.7).
+Publisher alpha.3 and Generic CMS alpha.10 are included as byte-identical
+packages; neither component version changed for this desktop/index fix.
 
 **Who needs what**
 
@@ -41,9 +43,9 @@ rc.2 assets and checksums; neither component was rebuilt for this desktop fix.
   Download it separately only when you want to inspect or run the neutral site
   template yourself.
 
-The rc.3 desktop passed the focused catalog regressions, package checks and
-actual packaged-engine catalog contract. Publisher and CMS are unchanged rc.2
-artifacts. The desktop package is **unsigned** and amd64-only;
+The rc.7 desktop passed the focused card-index regression, package checks and
+the required packaged release gates. Publisher alpha.3 and CMS alpha.10 are
+unchanged component artifacts. The desktop package is **unsigned** and amd64-only;
 see [Alpha status](#alpha-status) and
 [docs/migration-studio/INSTALL-LINUX.md](docs/migration-studio/INSTALL-LINUX.md).
 
@@ -60,9 +62,10 @@ migrate, or by the Qortal project.
 
 ## Alpha status
 
-Version **0.8.0 rc.3** is the latest published prerelease. It repairs cumulative
-same-site batch catalogs, distinguishes new-site creation from continuation and
-preserves CMS-native content and owner overlays. See
+Version **0.8.0 rc.7** is the latest published prerelease. It retains the
+cumulative same-site catalog and continuation safeguards, and additionally
+includes verified imported-image metadata in the catalog cards used by both
+Home and Posts. See
 [site continuation and cumulative catalogs](docs/migration-studio/CUMULATIVE-CATALOG.md)
 and the [validation evidence](docs/migration-studio/evidence/rc3-catalog-validation.md).
 
@@ -145,14 +148,14 @@ or any development tools.
 ## Download, install and launch
 
 1. Download
-   [qortal-migration-studio_0.8.0-rc.2_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.2/qortal-migration-studio_0.8.0-rc.2_amd64.deb)
+   [qortal-migration-studio_0.8.0-rc.7_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.7/qortal-migration-studio_0.8.0-rc.7_amd64.deb)
    and the release assets `SHA256SUMS`, `sbom.cdx.json` and
    `provenance.intoto.json`.
 2. Verify the checksum (see [Security](#security-and-checksums)).
 3. Install and launch:
 
 ```bash
-sudo apt install ./qortal-migration-studio_0.8.0-rc.2_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-rc.7_amd64.deb
 qortal-migration-studio
 ```
 

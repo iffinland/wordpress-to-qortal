@@ -1,6 +1,31 @@
 # Qortal Migration Studio 0.8.0 alpha
 
-<!-- qms-release-version: 0.8.0-rc.6 -->
+<!-- qms-release-version: 0.8.0-rc.7 -->
+
+## 0.8.0 rc.7 — imported CMS card images
+
+Desktop/engine `0.8.0-rc.7` repairs the imported-post index projection used by
+the Generic CMS. The release bundle also includes the unchanged, reproducible
+Migration Publisher `0.8.0-alpha.3` and Generic CMS `0.8.0-alpha.10` ZIPs.
+The desktop package is unsigned and amd64-only.
+
+- When a WordPress post has a featured image that was already resolved to a
+  QDN `IMAGE` resource, the posts index preserves that exact service, name and
+  identifier plus its alt text.
+- If it has no resolved WordPress featured image, the index uses the first
+  resolved QDN `IMAGE` from the article body. Posts with no verified QDN image
+  retain no card image; QMS never substitutes an external source URL or writes
+  duplicate media for this listing field.
+- Generic CMS Home and Posts consume the same posts index, so the existing
+  card renderer receives the same per-site QDN image URL on both surfaces.
+- This release does not publish, sign, replace or retry any QDN resource. A
+  downloaded CMS ZIP is still only a package: an owner must manually approve
+  its APP/WEBSITE publication in Qortal Hub when deploying a site.
+
+The release `SHA256SUMS`, CycloneDX SBOM and in-toto provenance files describe
+the exact downloadable artifacts. The next required acceptance is the owner's
+one clean new-site migration and deployment; no live-QDN end-to-end claim is
+made by this source release.
 
 ## 0.8.0 rc.6 — canonical CMS catalog loading candidate (not published)
 

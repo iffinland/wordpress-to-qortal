@@ -4,6 +4,19 @@ All release-facing changes to Qortal Migration Studio are recorded here. The
 release contract requires a heading entry for the exact released version before
 an artifact may be published.
 
+## 0.8.0-rc.7 — 2026-11-11
+
+Unsigned amd64 release candidate. Imported WordPress post cards now project a
+verified QDN image into the shared Generic CMS posts index: the explicit
+WordPress featured image wins, otherwise the first resolved article-body image
+is used, otherwise the card has no image. The index never falls back to an
+external source URL and does not create another media resource. This shared
+index drives both the Home and Posts card surfaces.
+
+Desktop/engine is `0.8.0-rc.7`; the bundled Migration Publisher remains
+`0.8.0-alpha.3` and Generic CMS remains `0.8.0-alpha.10`. Exact release asset
+hashes, provenance and SBOM are published with tag `v0.8.0-rc.7`.
+
 ## 0.8.0-rc.2 — 2026-11-08
 
 Private unsigned release candidate. Fixes:

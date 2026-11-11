@@ -1,9 +1,9 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-rc.6",
+  "version": "0.8.0-rc.7",
   "channel": "rc",
-  "releaseTag": "v0.8.0-rc.6",
+  "releaseTag": "v0.8.0-rc.7",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
@@ -13,10 +13,10 @@
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-rc.6",
+      "version": "0.8.0-rc.7",
       "channel": "rc",
       "source": "desktop/package.json",
-      "changelog": "Publish the generated CMS bundle at the canonical default APP/WEBSITE identifier so qortal://APP/<registered-name>/ reads its project configuration and catalog."
+      "changelog": "Project each imported post's already verified QDN IMAGE into the CMS index so Home and Posts cards render the WordPress featured image or first suitable body image without an external-media fallback."
     },
     "publisher": {
       "version": "0.8.0-alpha.3",

@@ -3,8 +3,8 @@
 This guide installs the self-contained Debian package. The target machine does
 not need Node.js, npm, Git or development tools.
 
-This is the **0.8.0 alpha.5** release. It is unsigned and amd64 only. Read
-[alpha/RELEASE-NOTES.md](alpha/RELEASE-NOTES.md) and
+This is the **0.8.0 rc.7** release. It is unsigned and amd64 only. Read
+[RELEASE-0.8.0-ALPHA.md](RELEASE-0.8.0-ALPHA.md) and
 [alpha/KNOWN-ISSUES.md](alpha/KNOWN-ISSUES.md) before installing.
 
 The beginner path needs **no Node.js, npm, Git, compiler or terminal build step**.
@@ -25,7 +25,7 @@ The package is amd64 only in this release.
 ## Verify the download
 
 ~~~bash
-sha256sum qortal-migration-studio_0.8.0-alpha.5_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-rc.7_amd64.deb
 cat SHA256SUMS
 ~~~
 
@@ -36,7 +36,7 @@ installing. Do not install an artifact whose hash does not match.
 ## Install
 
 ~~~bash
-sudo apt install ./qortal-migration-studio_0.8.0-alpha.5_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-rc.7_amd64.deb
 ~~~
 
 apt resolves the GTK, NSS, libsecret and audio dependencies. Launch **Qortal
@@ -50,22 +50,22 @@ Verify the installed version:
 
 ~~~bash
 dpkg-query -W -f='${Version}\n' qortal-migration-studio
-# expected: 0.8.0~alpha.5
+# expected: 0.8.0~rc.7
 ~~~
 
 Downloading the .deb installs the migration tool. It does **not** publish
 anything to QDN. Publishing is a separate, explicit action in a later step; a
 downloaded Q-App ZIP is likewise not deployed until an owner publishes it.
 
-## Upgrading from 0.8.0-alpha.3 (startup failure fix)
+## Upgrading to 0.8.0-rc.7
 
 0.8.0-alpha.3 could install but abort with
 `QMS_STARTUP_FAILED: Engine host connection closed.` because its engine bundle
-referenced `fflate` without shipping it. 0.8.0-alpha.5 ships and verifies the
-complete engine runtime. Replace the package in place:
+referenced `fflate` without shipping it. 0.8.0-rc.7 ships and verifies the
+complete engine runtime and the imported-card image fix. Replace the package in place:
 
 ~~~bash
-sudo apt install ./qortal-migration-studio_0.8.0-alpha.5_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-rc.7_amd64.deb
 qortal-migration-studio
 ~~~
 
@@ -120,7 +120,7 @@ the normal unlock prompt.
   check the error. On a headless machine, use a real graphical session; the app
   needs an X11/Wayland display.
 - **Engine host connection closed**: this was the alpha.3 packaging defect.
-  Install 0.8.0-alpha.5 or newer. Do not install npm packages on the host.
+  Install 0.8.0-rc.7 or newer. Do not install npm packages on the host.
 - **Missing libraries**: sudo apt install -f completes dependency resolution.
 - **Credentials are not remembered**: confirm secret-tool --version works in
   your session and that a keyring is unlocked.
