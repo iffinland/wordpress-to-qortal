@@ -133,6 +133,8 @@ export function EditorPage(props: {
   const [showMedia, setShowMedia] = useState(false);
   const [showFeaturedPicker, setShowFeaturedPicker] = useState(false);
   const [featuredFile, setFeaturedFile] = useState<File | null>(null);
+  const [featuredBytes, setFeaturedBytes] = useState<Uint8Array | null>(null);
+  const [featuredMeta, setFeaturedMeta] = useState<{ name: string; type: string; size: number } | null>(null);
   const [preview, setPreview] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [fee, setFee] = useState('Checking node fee...');
@@ -171,11 +173,11 @@ export function EditorPage(props: {
   // a fourth resource in the same authorized plan.
   useEffect(() => {
     let cancelled = false;
-    quotePublication(featuredFile ? 4 : 3)
+    quotePublication(featuredBytes || featuredFile ? 4 : 3)
       .then((quote) => { if (!cancelled) setFee(quote.label); })
       .catch(() => { if (!cancelled) setFee('Fee unavailable.'); });
     return () => { cancelled = true; };
-  }, [featuredFile]);
+  }, [featuredBytes, featuredFile]);
 
   // Detect changed WordPress sources for every local edit. This is a read-only
   // comparison; it never publishes and never renames anything.
@@ -231,6 +233,8 @@ export function EditorPage(props: {
     setSlugConfirmChecked(false);
     setShowFeaturedPicker(false);
     setFeaturedFile(null);
+    setFeaturedBytes(null);
+    setFeaturedMeta(null);
     setDraft(next);
   };
 
@@ -401,17 +405,26 @@ export function EditorPage(props: {
       source: view.source || fallbackSource
     };
   };
+  const featuredPreviewUrl = useMemo(
+    () => featuredBytes
+      ? URL.createObjectURL(new Blob([featuredBytes.buffer.slice(featuredBytes.byteOffset, featuredBytes.byteOffset + featuredBytes.byteLength) as ArrayBuffer], { type: (featuredMeta && featuredMeta.type) || 'image/*' }))
+      : '',
+    [featuredBytes, featuredMeta]
+  );
+  useEffect(() => () => {
+    if (featuredPreviewUrl && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(featuredPreviewUrl);
+  }, [featuredPreviewUrl]);
   const featuredChoice = useMemo(() => {
-    if (featuredFile) {
+    if (featuredBytes) {
       return {
         ref: null,
-        url: URL.createObjectURL(featuredFile),
-        alt: featuredFile.name.replace(/\.[^.]+$/, ''),
+        url: featuredPreviewUrl,
+        alt: ((featuredMeta && featuredMeta.name) || '').replace(/\.[^.]+$/, ''),
         source: 'local-file'
       } as FeaturedImageChoice;
     }
     return asChoice(draft ? resolveFeaturedImage(draft, props.dataset, { name: props.name, createUrl: mediaUrl }) : null);
-  }, [draft, props.dataset, props.name, featuredFile]);
+  }, [draft, props.dataset, props.name, featuredBytes, featuredMeta, featuredPreviewUrl]);
   const automaticChoice = useMemo(
     () => asChoice(draft ? autoFeaturedImage(draft.html, props.dataset, { name: props.name, createUrl: mediaUrl }) : null, 'body'),
     [draft, props.dataset, props.name]
@@ -419,6 +432,8 @@ export function EditorPage(props: {
 
   const selectFeaturedRef = (ref: QdnRefLike) => {
     setFeaturedFile(null);
+    setFeaturedBytes(null);
+    setFeaturedMeta(null);
     persist({
       ...draft,
       featuredImage: normalizeFeaturedImage(ref),
@@ -432,8 +447,10 @@ export function EditorPage(props: {
     setShowFeaturedPicker(false);
   };
 
-  const selectFeaturedFile = (file: File) => {
+  const selectFeaturedFile = (file: File, bytes: Uint8Array) => {
     setFeaturedFile(file);
+    setFeaturedBytes(bytes);
+    setFeaturedMeta({ name: file.name, type: file.type || '', size: bytes.length });
     persist({
       ...draft,
       featuredImage: null,
@@ -448,6 +465,8 @@ export function EditorPage(props: {
 
   const useAutomaticFeatured = () => {
     setFeaturedFile(null);
+    setFeaturedBytes(null);
+    setFeaturedMeta(null);
     persist({
       ...draft,
       featuredImage: null,
@@ -463,6 +482,8 @@ export function EditorPage(props: {
 
   const publishWithoutFeatured = () => {
     setFeaturedFile(null);
+    setFeaturedBytes(null);
+    setFeaturedMeta(null);
     persist({
       ...draft,
       featuredImage: null,
@@ -552,29 +573,34 @@ export function EditorPage(props: {
     // media plan (fee, collision check and byte-exact read-back). The post is
     // only published after the image is confirmed or safely reused.
     let featuredResolved = resolveFeaturedImage(draft, props.dataset, { name: props.name, createUrl: mediaUrl });
-    if (featuredFile) {
+    if (featuredBytes) {
       setMessage('Publishing the featured image and waiting for Qortal Hub approval...');
+      const localName = (featuredMeta && featuredMeta.name) || (featuredFile && featuredFile.name) || 'featured-image';
       const mediaResult = await publishMediaFile({
         identity: props.identity,
         name: props.name,
-        file: featuredFile,
+        bytes: featuredBytes,
+        filename: localName,
+        mimeType: (featuredMeta && featuredMeta.type) || (featuredFile && featuredFile.type) || '',
         title: draft.title,
         description: 'Featured image for ' + draft.title + ' on ' + props.name + '.',
         storage: localStorage as any
       });
       if (!mediaResult.ok || !mediaResult.ref) {
         setState('failed');
-        setMessage('The featured image was not published: ' + (mediaResult.message || 'unknown error') + ' The post was not published.');
+        setMessage('The featured image was not published: ' + (mediaResult.message || 'unknown error') + ' The post was not published. Your draft is unchanged.');
         return;
       }
       const uploaded = normalizeFeaturedImage(mediaResult.ref);
       featuredResolved = {
         ref: uploaded,
         url: uploaded ? mediaUrl(uploaded.service, uploaded.name || props.name, uploaded.identifier) : '',
-        alt: draft.featuredImageAlt || featuredFile.name.replace(/\.[^.]+$/, ''),
+        alt: draft.featuredImageAlt || localName.replace(/\.[^.]+$/, ''),
         source: 'explicit'
       };
       setFeaturedFile(null);
+      setFeaturedBytes(null);
+      setFeaturedMeta(null);
       persist({
         ...draft,
         featuredImage: uploaded,
@@ -1063,7 +1089,7 @@ export function EditorPage(props: {
             <div><dt>Final slug</dt><dd><code>{finalizeSlug(draft.slug)}</code></dd></div>
             <div><dt>Content</dt><dd>DOCUMENT / {props.name} / {draft.contentIdentifier || 'stable slug identifier'}</dd></div>
             <div><dt>Index</dt><dd>{draft.sourceKind === 'wordpress-overlay' ? 'DOCUMENT / ' + props.name + ' / qms-cms-edit-overlay (revision ' + (overlayRevision + 1) + ')' : 'DOCUMENT / ' + props.name + ' / qms-cms-native-index (revision ' + (revision + 1) + ')'}</dd></div>
-            <div><dt>Featured image</dt><dd>{featuredFile ? 'New local image / ' + featuredFile.name : featuredChoice.url ? (featuredChoice.ref ? 'QDN IMAGE / ' + (featuredChoice.ref.name || props.name) + ' / ' + featuredChoice.ref.identifier : featuredChoice.url) : 'None'}{featuredFile ? ' (fee includes one image resource)' : ''}</dd></div>
+            <div><dt>Featured image</dt><dd>{featuredBytes ? 'New local image / ' + ((featuredMeta && featuredMeta.name) || (featuredFile && featuredFile.name) || 'selected image') : featuredChoice.url ? (featuredChoice.ref ? 'QDN IMAGE / ' + (featuredChoice.ref.name || props.name) + ' / ' + featuredChoice.ref.identifier : featuredChoice.url) : 'None'}{featuredBytes ? ' (fee includes one image resource)' : ''}</dd></div>
             <div><dt>Fee</dt><dd>{fee}</dd></div>
             <div><dt>Signer</dt><dd>{props.identity.address}</dd></div>
             {slugChanged ? <div><dt>Slug change</dt><dd>Old slug /{publishedSlug} becomes an alias; old content resource is kept.</dd></div> : null}

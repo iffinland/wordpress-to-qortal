@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import type { CmsMediaRef, Gallery, QdnRef, ViewerIdentity } from '../../types';
 import { createQdnResourceUrl, searchQdnResources } from '../../lib/qortal.js';
+import { readFileBytes } from '../../lib/mediaBytes.js';
 import { FEATURED_IMAGE_HELP } from '../../lib/featuredImage.js';
 import { StateNotice } from '../../components/StateNotice';
 
@@ -30,7 +31,7 @@ export function FeaturedImagePicker(props: {
   automatic: FeaturedImageChoice | null;
   pendingFile: File | null;
   onSelectRef: (ref: QdnRef) => void;
-  onSelectFile: (file: File) => void;
+  onSelectFile: (file: File, bytes: Uint8Array) => void;
   onUseAutomatic: () => void;
   onPublishWithout: () => void;
   onClose: () => void;
@@ -40,6 +41,11 @@ export function FeaturedImagePicker(props: {
   const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState('');
   const [previewFile, setPreviewFile] = useState<File | null>(props.pendingFile);
+  const [previewSrc, setPreviewSrc] = useState('');
+
+  useEffect(() => () => {
+    if (previewSrc && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(previewSrc);
+  }, [previewSrc]);
 
   const existing = useMemo(() => {
     const list: Array<{ service: string; name: string; identifier: string; label: string; mimeType?: string | null }> = [];
@@ -98,19 +104,36 @@ export function FeaturedImagePicker(props: {
     setSearching(false);
   };
 
-  const chooseFile = (event: ChangeEvent<HTMLInputElement>) => {
+  const chooseFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = (event.target.files || [])[0];
     if (!file) return;
     if (!String(file.type || '').startsWith('image/')) {
       setMessage('Choose an image file (JPEG, PNG, WebP, GIF or AVIF). Video files and documents cannot be a featured image.');
       return;
     }
+    // Capture the bytes while the picker still owns the file reference. Android
+    // Qortal Hub can revoke access to the picked file after this event returns,
+    // so publication must never need a second read of the original File.
+    let bytes: Uint8Array;
+    try {
+      bytes = await readFileBytes(file);
+    } catch {
+      setMessage('The image could not be read from this device. Re-select the file and try again.');
+      return;
+    }
+    if (!bytes.length) {
+      setMessage('The selected image is empty. Choose another file.');
+      return;
+    }
     setMessage('');
+    if (previewSrc) URL.revokeObjectURL(previewSrc);
+    const previewBytes = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
+    setPreviewSrc(URL.createObjectURL(new Blob([previewBytes], { type: file.type || 'image/*' })));
     setPreviewFile(file);
-    props.onSelectFile(file);
+    props.onSelectFile(file, bytes);
   };
 
-  const previewUrl = previewFile ? URL.createObjectURL(previewFile) : '';
+  const previewUrl = previewFile ? previewSrc : '';
   const currentUrl = previewUrl || props.current.url;
   const automaticUrl = props.automatic ? props.automatic.url : '';
   const isAutomaticCurrent = props.current.source === 'body' && !props.current.ref;

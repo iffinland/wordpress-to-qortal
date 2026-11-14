@@ -15,6 +15,7 @@ import {
   verifyPublishedBytes
 } from './qortal.js';
 import { stableStringify } from './settings.js';
+import { readFileBytes } from './mediaBytes.js';
 
 const inFlight = new Map();
 export const PENDING_SCHEMA = 'qms-cms-publish-pending@1';
@@ -194,30 +195,106 @@ export async function publishJsonResource({
   }
 }
 
-export function serviceForFile(file) {
-  const mime = String(file && file.type || '').toLowerCase();
+function mediaBytes(value) {
+  if (value instanceof Uint8Array) return value;
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  return new Uint8Array(value || []);
+}
+
+function extensionFor(mime) {
+  const map = {
+    'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif',
+    'image/avif': 'avif', 'video/mp4': 'mp4', 'audio/mpeg': 'mp3', 'application/pdf': 'pdf'
+  };
+  return map[String(mime || '').toLowerCase()] || '';
+}
+
+export function serviceForMime(mimeType, filename = '') {
+  const mime = String(mimeType || '').toLowerCase();
   if (mime.startsWith('image/')) return 'IMAGE';
   if (mime.startsWith('video/')) return 'VIDEO';
   if (mime.startsWith('audio/')) return 'AUDIO';
-  if (mime === 'application/pdf' || mime.startsWith('application/')) return 'FILE';
+  const extension = String(filename || '').toLowerCase().split('.').pop();
+  if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp'].includes(extension)) return 'IMAGE';
+  if (['mp4', 'webm', 'mov', 'mkv'].includes(extension)) return 'VIDEO';
+  if (['mp3', 'ogg', 'wav', 'm4a'].includes(extension)) return 'AUDIO';
   return 'FILE';
 }
 
-export async function publishMediaFile({ identity, name, file, title = '', description = '', storage = undefined, maxExactVerifyBytes = 25 * 1024 * 1024 }) {
-  const key = 'media|' + name + '|' + (file && file.name) + '|' + (file && file.size);
+export function serviceForFile(file) {
+  return serviceForMime(file && file.type, file && file.name);
+}
+
+/**
+ * @typedef {Object} PublishMediaOptions
+ * @property {any} identity
+ * @property {string} name
+ * @property {File|null} [file]
+ * @property {Uint8Array|ArrayBuffer|null} [bytes]
+ * @property {string} [filename]
+ * @property {string} [mimeType]
+ * @property {string} [title]
+ * @property {string} [description]
+ * @property {Storage|null} [storage]
+ * @property {number} [maxExactVerifyBytes]
+ */
+
+/**
+ * Publish a local image or other media resource.
+ *
+ * Android Qortal Hub can revoke the picked file's content URI after the
+ * selection event returns, so the original File reference must never be read
+ * after an await. Callers that can capture bytes at selection pass them here;
+ * otherwise the bytes are read once at the very start of this function, before
+ * ownership verification or any network wait. The publication payload always
+ * carries the captured bytes as base64 (Hub uploadType: base64), never the
+ * original File object.
+ *
+ * @param {PublishMediaOptions} options
+ */
+export async function publishMediaFile(options = {}) {
+  const {
+    identity, name, file = null, bytes = null, filename = '', mimeType = '',
+    title = '', description = '', storage = undefined,
+    maxExactVerifyBytes = 25 * 1024 * 1024
+  } = options;
+  const sourceName = filename || (file && file.name) || 'media';
+  const sourceType = mimeType || (file && file.type) || '';
+  const key = 'media|' + name + '|' + sourceName + '|' + (bytes ? mediaBytes(bytes).length : (file && file.size) || 0);
   if (inFlight.has(key)) return { ok: false, state: 'in-flight', message: 'This file is already being published.' };
   inFlight.set(key, true);
   try {
-    const owner = await guardOwner(identity);
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const sha256 = await sha256Hex(bytes);
-    const service = serviceForFile(file);
+    // Capture first, before guardOwner and before any other await.
+    let captured;
+    if (bytes) {
+      captured = mediaBytes(bytes);
+    } else if (file) {
+      try {
+        captured = await readFileBytes(file);
+      } catch (readError) {
+        return {
+          ok: false, state: 'failed',
+          message: 'The selected image could not be read from this device. Re-select it and try again. ' + (readError && readError.message ? readError.message : '')
+        };
+      }
+    } else {
+      return { ok: false, state: 'failed', message: 'No image bytes were captured. Re-select the featured image.' };
+    }
+    if (!captured.length) return { ok: false, state: 'failed', message: 'The selected image is empty. Choose another file.' };
+
+    const sha256 = await sha256Hex(captured);
+    const service = serviceForMime(sourceType, sourceName);
+    const payloadName = extensionFor(sourceType) && !/\.[a-z0-9]+$/i.test(sourceName)
+      ? sourceName + '.' + extensionFor(sourceType)
+      : sourceName;
     const identifier = ('qms-cms-media-' + sha256.slice(0, 32)).slice(0, 64);
+    const owner = await guardOwner(identity);
     const status = await getQdnResourceStatus(service, name, identifier);
     if (status && status.status === 'READY') {
       return {
         ok: true, state: 'reused',
-        ref: { service, name, identifier, mimeType: file.type || null, bytes: bytes.length, sha256 },
+        ref: { service, name, identifier, mimeType: sourceType || null, bytes: captured.length, sha256 },
         message: 'Reused an existing QDN resource with identical bytes.'
       };
     }
@@ -227,12 +304,13 @@ export async function publishMediaFile({ identity, name, file, title = '', descr
       return { ok: false, state: 'ambiguous', message: 'A different file submission is unconfirmed for this identifier. Resolve it before publishing.' };
     }
     if (!pending) {
-      recordPending(storage, { key: pendingKey, service, name, identifier, sha256, bytes: bytes.length, submittedAt: new Date().toISOString(), owner: owner.address });
+      recordPending(storage, { key: pendingKey, service, name, identifier, sha256, bytes: captured.length, submittedAt: new Date().toISOString(), owner: owner.address });
       try {
         await publishQdnResource({
-          service, name, identifier, file,
-          filename: file.name,
-          title: title || file.name,
+          service, name, identifier,
+          data64: bytesToBase64Bytes(captured),
+          filename: payloadName,
+          title: title || payloadName,
           description: description || 'Media published from the Qortal Migration Studio CMS.'
         });
       } catch (error) {
@@ -243,21 +321,21 @@ export async function publishMediaFile({ identity, name, file, title = '', descr
         return { ok: false, state: 'ambiguous', message: 'The media publish request was not confirmed. It was NOT resent. Verify the resource before retrying. ' + (error && error.message ? error.message : '') };
       }
     }
-    if (bytes.length <= maxExactVerifyBytes) {
-      const verification = await verifyPublishedBytes({ service, name, identifier, expectedBytes: bytes, timeoutMs: 60000 });
+    if (captured.length <= maxExactVerifyBytes) {
+      const verification = await verifyPublishedBytes({ service, name, identifier, expectedBytes: captured, timeoutMs: 60000 });
       if (!verification.ok) {
-        return { ok: false, state: 'ambiguous', message: 'Media submitted but exact read-back is not confirmed yet. It was NOT resent.', ref: { service, name, identifier, mimeType: file.type || null, bytes: bytes.length, sha256 } };
+        return { ok: false, state: 'ambiguous', message: 'Media submitted but exact read-back is not confirmed yet. It was NOT resent.', ref: { service, name, identifier, mimeType: sourceType || null, bytes: captured.length, sha256 } };
       }
     } else {
       const check = await getQdnResourceStatus(service, name, identifier);
       if (!check || check.status !== 'READY') {
-        return { ok: false, state: 'ambiguous', message: 'Large media submitted but is not confirmed READY yet. Retry verification later; it was NOT resent.', ref: { service, name, identifier, mimeType: file.type || null, bytes: bytes.length, sha256 } };
+        return { ok: false, state: 'ambiguous', message: 'Large media submitted but is not confirmed READY yet. Retry verification later; it was NOT resent.', ref: { service, name, identifier, mimeType: sourceType || null, bytes: captured.length, sha256 } };
       }
     }
     clearPending(storage, pendingKey);
     return {
       ok: true, state: 'remote-verified',
-      ref: { service, name, identifier, mimeType: file.type || null, bytes: bytes.length, sha256 },
+      ref: { service, name, identifier, mimeType: sourceType || null, bytes: captured.length, sha256 },
       message: 'Media published and verified.'
     };
   } catch (error) {
