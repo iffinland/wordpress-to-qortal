@@ -1,27 +1,18 @@
-import { useState } from 'react';
 import { StateNotice } from '../components/StateNotice';
 import { AccessDeniedPage } from './AccessDeniedPage';
 import { formatDate } from '../lib/text.js';
 import { adminHref } from '../lib/routes.js';
-import type { AdminSection, AdoptionRecord, CmsContentItem, CmsDataset, ViewerIdentity } from '../types';
+import type { AdminSection, CmsDataset, ViewerIdentity } from '../types';
 import { SettingsPanel } from './admin/SettingsPanel';
 import { EditorPage } from './admin/EditorPage';
 import { GalleryAdmin } from './admin/GalleryAdmin';
-
-function safeId(value: string) {
-  return String(value || '').replace(/[^a-zA-Z0-9_-]+/g, '-');
-}
 
 function OwnerAdmin(props: {
   dataset: CmsDataset | null;
   loading?: boolean;
   identity: ViewerIdentity;
-  adoptionQueue: AdoptionRecord[];
   section: AdminSection;
-  onAdopt: (items: CmsContentItem[]) => Promise<{ ok: boolean; message: string }> | { ok: boolean; message: string };
-  onRemove: (key: string) => void;
   onRefresh: () => void;
-  onAuthorize: () => Promise<{ ok: boolean; message: string }>;
   settingsConfig: any;
   qdnName: string;
   siteId: string;
@@ -33,35 +24,12 @@ function OwnerAdmin(props: {
   loadContent: any;
   initialEditorId?: string;
 }) {
-  const [selected, setSelected] = useState<string[]>([]);
-  const [message, setMessage] = useState('');
-  const items = props.dataset ? [...props.dataset.posts, ...props.dataset.pages] : [];
-  const selectedItems = items.filter((item) => selected.includes(item.id));
-  const catalogReady = Boolean(props.dataset && props.dataset.state !== 'error');
-
-  const toggle = (id: string) => setSelected((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]);
-
-  const adopt = async () => {
-    if (!props.dataset) { setMessage('Import requires a published catalog. Publish the site with Qortal Migration Studio first.'); return; }
-    const authorized = await props.onAuthorize();
-    if (!authorized.ok) { setMessage(authorized.message); return; }
-    const result = await props.onAdopt(selectedItems);
-    setMessage(result.message);
-    if (result.ok) setSelected([]);
-  };
-
-  const remove = async (key: string) => {
-    const authorized = await props.onAuthorize();
-    if (!authorized.ok) { setMessage(authorized.message); return; }
-    props.onRemove(key);
-  };
-
   return (
     <div className="page">
       <p className="eyebrow">Owner administration</p>
       <h1>Admin</h1>
       <nav className="admin-tabs" aria-label="Admin sections">
-        <a href={adminHref('overview')} aria-current={props.section === 'overview' ? 'page' : undefined}>Overview and import</a>
+        <a href={adminHref('overview')} aria-current={props.section === 'overview' ? 'page' : undefined}>Overview</a>
         <a href={adminHref('settings')} aria-current={props.section === 'settings' ? 'page' : undefined}>Site settings</a>
         <a href={adminHref('editor')} aria-current={props.section === 'editor' ? 'page' : undefined}>Posts</a>
         <a href={adminHref('galleries')} aria-current={props.section === 'galleries' ? 'page' : undefined}>Galleries</a>
@@ -106,8 +74,8 @@ function OwnerAdmin(props: {
       {props.section === 'overview' ? (
         <>
           <p className="muted">
-            This view inspects the published catalog and stages imported items in a local adoption queue. Publishing is
-            explicit and owner-only; the queue itself never signs or modifies QDN resources.
+            This view inspects the published catalog. Publishing is explicit and owner-only; nothing here modifies
+            QDN resources without an owner-approved action.
           </p>
 
           <section className="admin-section" aria-labelledby="access-title">
@@ -146,45 +114,6 @@ function OwnerAdmin(props: {
             ) : null}
           </section>
 
-          <section className="admin-section" aria-labelledby="import-title">
-            <h2 id="import-title">Import and adoption</h2>
-            <p className="muted">
-              {!catalogReady ? 'Import is unavailable until a published catalog exists.' : 'Select catalog items to stage in the local adoption queue. Nothing is published from this page.'}
-            </p>
-            <fieldset className="admin-fieldset" disabled={!catalogReady}>
-              <legend>Catalog items</legend>
-              {items.length === 0 ? <p className="muted">No catalog items are available to adopt.</p> : (
-                <ul className="admin-list">
-                  {items.map((item) => {
-                    const id = 'adopt-' + safeId(item.id);
-                    return (
-                      <li key={item.id} className="admin-list__item">
-                        <label htmlFor={id}>
-                          <input id={id} type="checkbox" checked={selected.includes(item.id)} onChange={() => toggle(item.id)} />
-                          <span>{item.title}</span>
-                          <span className="admin-list__meta">{item.type} / {item.slug}{item.native ? ' / CMS' : ''}</span>
-                        </label>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-              <button type="button" className="button" onClick={adopt} disabled={!catalogReady || selectedItems.length === 0}>Adopt selected ({selectedItems.length})</button>
-            </fieldset>
-            <p className="admin-message" role="status" aria-live="polite">{message}</p>
-            <h3>Adopted items</h3>
-            {props.adoptionQueue.length === 0 ? <p className="muted">No items have been adopted locally.</p> : (
-              <ul className="adopted-list">
-                {props.adoptionQueue.map((record) => (
-                  <li key={record.key}>
-                    <span>{record.title}</span>
-                    <span className="admin-list__meta">{record.type} / {record.slug}{record.sourceId !== null ? ' / source ' + record.sourceId : ''}</span>
-                    <button type="button" className="button button--ghost" onClick={() => remove(record.key)}>Remove</button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
         </>
       ) : null}
     </div>
@@ -197,11 +126,15 @@ export function AdminPage(props: {
   identity: ViewerIdentity | null;
   identityLoading: boolean;
   identityNotice: string;
-  adoptionQueue: AdoptionRecord[];
   section?: AdminSection;
-  onAdopt: (items: CmsContentItem[]) => any;
-  onRemove: (key: string) => void;
   onRefresh: () => void;
+  /** @deprecated Adoption was removed; kept optional for old embeddings only. */
+  adoptionQueue?: any[];
+  /** @deprecated */
+  onAdopt?: (items: any[]) => any;
+  /** @deprecated */
+  onRemove?: (key: string) => void;
+  /** @deprecated */
   onAuthorize?: () => Promise<{ ok: boolean; message: string }>;
   settingsConfig?: any;
   qdnName?: string;
@@ -236,12 +169,8 @@ export function AdminPage(props: {
       dataset={props.dataset}
       loading={props.loading}
       identity={props.identity as ViewerIdentity}
-      adoptionQueue={props.adoptionQueue}
       section={props.section || 'overview'}
-      onAdopt={props.onAdopt}
-      onRemove={props.onRemove}
       onRefresh={props.onRefresh}
-      onAuthorize={props.onAuthorize || (async () => ({ ok: true, message: '' }))}
       settingsConfig={props.settingsConfig || { site: {}, navigation: [], theme: { colors: {} } }}
       qdnName={props.qdnName || (props.identity ? props.identity.qdnName : '')}
       siteId={props.siteId || (props.dataset ? props.dataset.site.id : 'site')}

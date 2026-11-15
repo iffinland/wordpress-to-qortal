@@ -14,25 +14,13 @@ Use public cards/titles to open posts and pages. Category, tag, and archive link
 
 Open **Admin** (the #/admin route). During lookup, the app shows **Checking QDN name ownership...**. If it cannot verify, it stays read-only: use **Connect owner account** or **Retry verification** and correct the Hub/name condition.
 
-A verified owner sees four tabs: **Overview and import**, **Site settings**, **Posts**, and **Galleries**. Publication actions revalidate owner identity immediately before Hub signing.
+A verified owner sees four tabs: **Overview**, **Site settings**, **Posts**, and **Galleries**. Publication actions revalidate owner identity immediately before Hub signing.
 
-## 3. Overview, catalog, and Adoption
+## 3. Overview and catalog
 
 **Access** shows evidence fields: **QDN name**, **Account**, **Name record**, and **Verification**. Read them before making an owner change.
 
 **Catalog** shows catalog state, source, generation time, counts for posts/pages/CMS-authored items/categories/tags, and **Refresh catalog**. Refresh reads the published catalog again. If it says no published catalog exists, publish the site through QMS and Migration Publisher first.
-
-### Adoption: exact scope and procedure
-
-**Adoption** stages selected published catalog items in a local browser queue. It is not a WordPress import, content editing, QDN publication, Generic CMS deployment, or a catalog change. It requires:
-
-1. A readable, published catalog (not loading/error).
-2. The verified on-chain owner of the hosted name.
-3. One or more selected catalog post/page rows.
-
-In **Import and adoption**, each **Catalog items** row has a checkbox, title, and type/slug (and /CMS for native CMS content). Tick the desired rows and click **Adopt selected (N)**. The status message confirms the local queue. **Adopted items** lists each reference with title/type/slug/source. Click **Remove** to remove it from this local queue.
-
-Adoption neither signs nor modifies QDN resources. Removing an adopted record does not delete, withdraw, edit, or unpublish remote content. The queue is browser-local to this site identity. This distinction is intentional: use editing/publishing controls described below to change content, and QMS/Publisher to deploy a CMS.
 
 ## 4. Site settings
 

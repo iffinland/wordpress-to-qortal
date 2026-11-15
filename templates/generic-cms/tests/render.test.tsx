@@ -178,7 +178,8 @@ describe('generic CMS routes render from the fixture manifest', () => {
       ownerIdentity
     );
     expect(owner).toContain('Owner mode');
-    expect(owner).toContain('Import and adoption');
+    expect(owner).not.toContain('Import and adoption');
+    expect(owner).toContain('Catalog');
     expect(owner).not.toMatch(/<fieldset class="admin-fieldset" disabled/);
     const reader = render(
       <AdminPage dataset={dataset} identity={readerIdentity} identityLoading={false} identityNotice="" adoptionQueue={[]} onAdopt={() => ({ ok: false, message: 'read-only' })} onRemove={() => undefined} onRefresh={() => undefined} />,
@@ -206,7 +207,7 @@ describe('admin preconditions stay visible without a published catalog', () => {
     );
     expect(html).toContain('No published catalog is available yet');
     expect(html).toContain('Publish the site with the Migration Publisher first');
-    expect(html).toContain('Import is unavailable until a published catalog exists');
+    expect(html).not.toContain('Import and adoption');
   });
 
   it('keeps the admin page reachable while the catalog is loading', () => {
@@ -237,7 +238,8 @@ describe('admin preconditions stay visible without a published catalog', () => {
     );
     expect(html).toContain('Catalog unavailable');
     expect(html).toContain('The qms-cms-manifest could not be read.');
-    expect(html).toMatch(/<fieldset class="admin-fieldset" disabled/);
+    expect(html).not.toContain('Import and adoption');
+    expect(html).not.toContain('admin-fieldset');
   });
 
   it('renders the admin route directly instead of the global catalog error', () => {

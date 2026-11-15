@@ -15,7 +15,6 @@ import { baseCmsConfig, loadRuntimeCmsConfig, templateVersion } from './config/c
 import { UpdateDialog } from './components/UpdateDialog';
 import { useCmsUpdate } from './lib/useCmsUpdate';
 import { useHashRoute } from './hooks/useHashRoute';
-import { applyAdoption, readAdoptionQueue, removeAdoption, writeAdoptionQueue } from './lib/adoption.js';
 import { previousAndNext } from './lib/archive.js';
 import { createCmsRepository } from './lib/repository.js';
 import { routeKey } from './lib/routes.js';
@@ -25,7 +24,7 @@ import { connectOwnerAccount, discoverHostedQdnName, revalidateViewerIdentity, r
 import { applyThemeToDocument, readStoredTheme, resolveThemeMode, writeStoredTheme } from './lib/theme.js';
 import { loadPublishedSettings, applyPublishedSettings } from './lib/authoring.js';
 import { removeTemplatePlaceholders } from './lib/settings.js';
-import type { AdoptionRecord, AppRoute, CmsContentItem, CmsDataset, Gallery, LoadedContent, ViewerIdentity } from './types';
+import type { AppRoute, CmsContentItem, CmsDataset, Gallery, LoadedContent, ViewerIdentity } from './types';
 
 function titleForRoute(route: AppRoute): string {
   if (route.kind === 'home') return '';
@@ -58,7 +57,6 @@ export function App() {
   const [reloadToken, setReloadToken] = useState(0);
   const [galleries, setGalleries] = useState<Gallery[]>([]);
   const [galleriesLoading, setGalleriesLoading] = useState(true);
-  const [adoptionQueue, setAdoptionQueue] = useState<AdoptionRecord[]>([]);
   const [detailItem, setDetailItem] = useState<CmsContentItem | null>(null);
   const [detailContent, setDetailContent] = useState<LoadedContent | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -152,11 +150,6 @@ export function App() {
   }, [hostedName]);
 
   useEffect(() => {
-    const siteId = dataset ? dataset.site.id : cmsConfig.site.id;
-    setAdoptionQueue(readAdoptionQueue(typeof localStorage === 'undefined' ? null : localStorage, siteId));
-  }, [dataset?.site.id]);
-
-  useEffect(() => {
     if (!dataset || (route.kind !== 'post' && route.kind !== 'page')) {
       setDetailItem(null); setDetailContent(null); setDetailLoading(false); setDetailError('');
       return;
@@ -224,28 +217,6 @@ export function App() {
       setIdentityNotice(error instanceof Error ? error.message : String(error));
     } finally {
       setIdentityLoading(false);
-    }
-  };
-
-  const adopt = async (items: CmsContentItem[]) => {
-    const authorized = await authorize();
-    if (!authorized.ok) return { ok: false, message: authorized.message };
-    const siteId = dataset ? dataset.site.id : cmsConfig.site.id;
-    const result = applyAdoption(adoptionQueue, { siteId, items, identity });
-    if (result.ok) {
-      setAdoptionQueue(result.queue);
-      writeAdoptionQueue(typeof localStorage === 'undefined' ? null : localStorage, siteId, result.queue);
-      return { ok: true, message: 'Adopted ' + result.adopted.length + ' item(s) into the local queue.' };
-    }
-    return { ok: false, message: result.message };
-  };
-
-  const remove = (key: string) => {
-    const siteId = dataset ? dataset.site.id : cmsConfig.site.id;
-    const result = removeAdoption(adoptionQueue, key, identity);
-    if (result.ok) {
-      setAdoptionQueue(result.queue);
-      writeAdoptionQueue(typeof localStorage === 'undefined' ? null : localStorage, siteId, result.queue);
     }
   };
 
@@ -319,13 +290,9 @@ export function App() {
           identity={identity}
           identityLoading={identityLoading}
           identityNotice={identityNotice}
-          adoptionQueue={adoptionQueue}
           section={route.section}
           initialEditorId={route.id}
-          onAdopt={adopt}
-          onRemove={remove}
           onRefresh={refresh}
-          onAuthorize={authorize}
           settingsConfig={effectiveConfig}
           qdnName={hostedName}
           siteId={dataset ? dataset.site.id : effectiveConfig.site.id}

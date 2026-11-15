@@ -1,34 +1,34 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-beta.1",
+  "version": "0.8.0-beta.2",
   "channel": "beta",
-  "releaseTag": "v0.8.0-beta.1",
+  "releaseTag": "v0.8.0-beta.2",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
-  "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-BETA.1.md",
+  "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-BETA.2.md",
   "changelog": {
-    "summary": "0.8.0-beta.1 publishes the three independently versioned QMS components and their source-grounded end-user manuals."
+    "summary": "0.8.0-beta.2 publishes Generic CMS 0.8.0-beta.2 with the approved BUG-01 to BUG-04 fixes and removes the unused Adoption interface. Desktop and Publisher remain 0.8.0-beta.1."
   },
   "components": {
     "desktop": {
       "version": "0.8.0-beta.1",
       "channel": "beta",
       "source": "desktop/package.json",
-      "changelog": "Beta package and user-manual release; application behavior is unchanged from the owner-accepted release."
+      "changelog": "Unchanged from the approved beta.1 desktop package."
     },
     "publisher": {
       "version": "0.8.0-beta.1",
       "channel": "beta",
       "source": "viewer/package.json",
-      "changelog": "Beta package and user-manual release; Q-App behavior is unchanged from the owner-accepted release."
+      "changelog": "Unchanged from the approved beta.1 Publisher Q-App."
     },
     "cms": {
-      "version": "0.8.0-beta.1",
+      "version": "0.8.0-beta.2",
       "channel": "beta",
       "source": "templates/generic-cms/package.json",
-      "changelog": "Beta package and user-manual release; Q-App behavior is unchanged from the owner-accepted release."
+      "changelog": "Generic CMS beta.2: Android featured-image publication, native catalog loading, public navigation during catalog errors, warning-banner cleanup and removal of the unused Adoption interface."
     }
   },
   "versionMarkers": [
@@ -37,6 +37,6 @@
     "viewer/package.json",
     "templates/generic-cms/package.json",
     "lib/engine/index.js",
-    "docs/migration-studio/RELEASE-0.8.0-BETA.1.md"
+    "docs/migration-studio/RELEASE-0.8.0-BETA.2.md"
   ]
 }
