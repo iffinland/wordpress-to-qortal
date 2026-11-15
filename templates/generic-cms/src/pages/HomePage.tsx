@@ -9,9 +9,8 @@ export function HomePage(props: { dataset: CmsDataset }) {
   const posts = publishedPosts(dataset.posts).slice(0, 6);
   return (
     <div className="page">
-      <section className="hero" aria-labelledby="home-title">
-        <h1 id="home-title">{dataset.site.title}</h1>
-        {dataset.site.tagline ? <p className="hero__tagline">{dataset.site.tagline}</p> : null}
+      <section className="hero" aria-label="Home">
+        <h1 className="visually-hidden">Home</h1>
         <p className="hero__actions">
           <a className="button" href="#/posts">Browse posts</a>
           <a className="button button--ghost" href="#/search">Search the site</a>

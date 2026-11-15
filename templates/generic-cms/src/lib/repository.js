@@ -170,10 +170,68 @@ export function createCmsRepository(config, options = {}) {
     );
   }
 
+  /**
+   * Read the CMS-native index once, independently of the imported QMS
+   * manifest. A site may contain CMS-authored posts with no WordPress import at
+   * all; that must not require a migration manifest.
+   */
+  async function readNativeSupplement() {
+    try {
+      const raw = await fetchQdnResource(
+        { service: 'DOCUMENT', name: manifestName, identifier: NATIVE_INDEX_IDENTIFIER },
+        MANIFEST_TIMEOUT_MS
+      );
+      const read = readNativeIndex(raw);
+      if (!read.ok) return { ok: false, state: 'invalid', errors: read.errors };
+      const nativeSiteId = raw && raw.site_id ? String(raw.site_id) : '';
+      if (nativeSiteId && String(config.site.id || '') && nativeSiteId !== String(config.site.id)) {
+        return { ok: false, state: 'invalid', errors: ['Native index site identity does not match this CMS configuration.'] };
+      }
+      return { ok: true, state: 'ready', index: raw };
+    } catch (error) {
+      const message = error && error.message ? error.message : String(error);
+      const missing = /404|not found|couldn't find/i.test(message);
+      return { ok: false, state: missing ? 'missing' : 'unavailable', errors: [message] };
+    }
+  }
+
+  /**
+   * Render a valid native index without inventing imported content. The
+   * partial state and warning keep an unavailable import visible to the reader.
+   */
+  function createNativeOnlyDataset(nativeIndex, importedError) {
+    const reason = importedError && importedError.message ? importedError.message : 'The imported catalog could not be read.';
+    const base = {
+      state: 'partial',
+      source,
+      site: { ...siteDefaults },
+      manifest: null,
+      generatedAt: null,
+      loadedAt: new Date().toISOString(),
+      message: 'Showing CMS-authored content only. ' + reason,
+      notices: [{
+        code: 'catalog-import-unavailable',
+        level: 'warning',
+        message: 'The imported WordPress catalog is unavailable (' + reason + '). CMS-authored content is shown from the published native index.'
+      }],
+      availability: { posts: true, pages: true, categories: true, tags: true },
+      posts: [],
+      pages: [],
+      categories: [],
+      tags: [],
+      media: [],
+      urls: { bySourceUrl: {} }
+    };
+    return mergeNativeCatalog(base, nativeIndex);
+  }
+
   async function load() {
     const cached = cacheBindings
       .map((binding) => readCache(cacheKey(binding), binding))
       .find(Boolean) || null;
+    // Read the CMS supplement before the imported manifest. A valid native
+    // index is sufficient for the homepage even when no QMS import exists.
+    const nativeAttempt = source === 'fixture' ? null : await readNativeSupplement();
     try {
       let raw;
       let identifier;
@@ -198,22 +256,19 @@ export function createCmsRepository(config, options = {}) {
         staleAfterMs,
         cache: cached ? { ...cached.dataset, cachedAt: cached.cachedAt } : null
       });
+      if (source !== 'fixture' && dataset.state === 'error'
+        && nativeAttempt && nativeAttempt.ok && nativeAttempt.index.entries.length > 0) {
+        // The imported dataset is unusable, but the CMS supplement is valid.
+        dataset = createNativeOnlyDataset(nativeAttempt.index, new CatalogError('manifest-unavailable', dataset.message || 'The imported catalog could not be read.'));
+        return dataset;
+      }
       if (source !== 'fixture' && dataset.state !== 'error') {
-        try {
-          const nativeRaw = await fetchQdnResource(
-            { service: 'DOCUMENT', name: manifestName, identifier: NATIVE_INDEX_IDENTIFIER },
-            MANIFEST_TIMEOUT_MS
-          );
-          const native = readNativeIndex(nativeRaw);
-          if (native.ok) dataset = mergeNativeCatalog(dataset, native.index);
-          else {
-            dataset = {
-              ...dataset,
-              notices: [...dataset.notices, { code: 'cms-native-index-invalid', level: 'warning', message: 'CMS-authored content could not be merged: ' + native.errors.join(' ') }]
-            };
-          }
-        } catch {
-          // No CMS supplement is normal for an imported-only site.
+        if (nativeAttempt && nativeAttempt.ok) dataset = mergeNativeCatalog(dataset, nativeAttempt.index);
+        else if (nativeAttempt && nativeAttempt.state === 'invalid') {
+          dataset = {
+            ...dataset,
+            notices: [...dataset.notices, { code: 'cms-native-index-invalid', level: 'warning', message: 'CMS-authored content could not be merged: ' + nativeAttempt.errors.join(' ') }]
+          };
         }
         // Owner edits of imported content are a separate versioned overlay.
         // Imported resources are never modified; a sync rebuild cannot erase
@@ -248,6 +303,34 @@ export function createCmsRepository(config, options = {}) {
       }
       return dataset;
     } catch (error) {
+      if (nativeAttempt && nativeAttempt.ok && Array.isArray(nativeAttempt.index.entries) && nativeAttempt.index.entries.length > 0) {
+        if (cached) {
+          const notices = [
+            ...(cached.dataset.notices || []),
+            {
+              code: 'catalog-cache-fallback',
+              level: 'warning',
+              message: 'Live QDN catalogs are unavailable. Showing the last cached catalog plus CMS-authored content.'
+            },
+            {
+              code: 'catalog-import-unavailable',
+              level: 'warning',
+              message: 'The imported WordPress catalog is unavailable (' + (error && error.message ? error.message : String(error)) + '). CMS-authored content is still shown.'
+            }
+          ];
+          dataset = mergeNativeCatalog({
+            ...cached.dataset,
+            state: 'partial',
+            fromCache: true,
+            cachedAt: cached.cachedAt,
+            loadedAt: new Date().toISOString(),
+            notices
+          }, nativeAttempt.index);
+          return dataset;
+        }
+        dataset = createNativeOnlyDataset(nativeAttempt.index, error);
+        return dataset;
+      }
       if (cached) {
         dataset = {
           ...cached.dataset,
@@ -261,15 +344,21 @@ export function createCmsRepository(config, options = {}) {
               code: 'catalog-cache-fallback',
               level: 'warning',
               message: 'Live QDN catalogs are unavailable. Showing the last successfully cached catalog.'
-            }
+            },
+            ...(nativeAttempt && nativeAttempt.state === 'invalid'
+              ? [{ code: 'cms-native-index-invalid', level: 'warning', message: 'CMS-authored content could not be merged: ' + nativeAttempt.errors.join(' ') }]
+              : [])
           ]
         };
         return dataset;
       }
+      const nativeDetail = nativeAttempt && nativeAttempt.state === 'invalid'
+        ? ' CMS native index is invalid: ' + nativeAttempt.errors.join(' ')
+        : '';
       dataset = createErrorDataset({
         site: config.site,
         source: 'error',
-        message: error && error.message ? error.message : String(error)
+        message: (error && error.message ? error.message : String(error)) + nativeDetail
       });
       return dataset;
     }

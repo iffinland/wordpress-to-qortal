@@ -53,7 +53,8 @@ describe('runtime site configuration', () => {
         <HomePage dataset={runtimeDataset} />
       </Layout>
     );
-    expect(html).toContain('<h1 id="home-title">Runtime Site</h1>');
+    expect(html).not.toContain('id="home-title"');
+    expect(html).toContain('Runtime Site');
     expect(html).toContain('Runtime tagline');
     expect(html).toContain('href="#/posts"');
     expect(html).toContain('>Journal<');
@@ -62,10 +63,11 @@ describe('runtime site configuration', () => {
 });
 
 describe('generic CMS routes render from the fixture manifest', () => {
-  it('renders home with title, tagline, latest posts and primary navigation', () => {
+  it('renders home actions, latest posts and primary navigation without a duplicate site title', () => {
     const html = render(<HomePage dataset={dataset} />, { kind: 'home' });
-    expect(html).toContain('<h1 id="home-title">Fixture Site</h1>');
-    expect(html).toContain('A neutral fixture publication');
+    expect(html).not.toContain('id="home-title"');
+    expect(html).not.toContain('hero__tagline');
+    expect(html).toContain('Browse posts');
     expect(html).toContain('Hello Qortal');
     expect(html).toContain('Designing for Qortal');
     expect(html).toContain('aria-label="Primary"');

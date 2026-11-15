@@ -330,7 +330,7 @@ export function App() {
       ) : loading && !dataset ? (
         <div className="page" aria-busy="true"><StateNotice state="loading" title="Loading the QDN catalog..." message="Reading the manifest and indexes from QDN." /></div>
       ) : dataset && dataset.state === 'error' ? (
-        <div className="page"><h1>{site.title}</h1><StateNotice state="error" title="The catalog could not be loaded" message={dataset.message} notices={dataset.notices} /><button type="button" className="button" onClick={refresh}>Retry</button></div>
+        <div className="page"><h1 className="visually-hidden">The catalog could not be loaded</h1><StateNotice state="error" title="The catalog could not be loaded" message={dataset.message} notices={dataset.notices} /><button type="button" className="button" onClick={refresh}>Retry</button></div>
       ) : (
         <>
           {showGlobalNotice ? <StateNotice state={dataset.state === 'partial' ? 'partial' : 'stale'} notices={dataset.notices} compact /> : null}
