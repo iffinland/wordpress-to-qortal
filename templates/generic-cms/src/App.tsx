@@ -278,6 +278,14 @@ export function App() {
 
   const showGlobalNotice = dataset && (dataset.state === 'partial' || dataset.state === 'stale');
   const adminRequested = route.kind === 'admin';
+  // A native-only site legitimately has no WordPress import. That diagnostic is
+  // kept in the dataset for Admin, but it must not occupy public pages.
+  const publicCatalogNotices = dataset
+    ? (dataset.notices || []).filter((notice) => notice.code !== 'catalog-import-unavailable')
+    : [];
+  const showPublicGlobalNotice = Boolean(!adminRequested && dataset
+    && (dataset.state === 'partial' || dataset.state === 'stale')
+    && publicCatalogNotices.length > 0);
   const resolvedTheme = resolveThemeMode(themeMode, prefersDark);
 
   return (
@@ -302,7 +310,10 @@ export function App() {
       onCheckUpdates={updates.openPanel}
     >
       {adminRequested ? (
-        <AdminPage
+        <>
+          {showGlobalNotice ? <StateNotice state={dataset.state === 'partial' ? 'partial' : 'stale'} notices={dataset.notices} compact /> : null}
+          {configNotice ? <StateNotice state="partial" compact message={configNotice} /> : null}
+          <AdminPage
           dataset={dataset}
           loading={loading}
           identity={identity}
@@ -326,7 +337,8 @@ export function App() {
           loadContent={loadContent}
           onConnectOwner={connectOwner}
           onRetryIdentity={retryIdentity}
-        />
+          />
+        </>
       ) : loading && !dataset ? (
         <div className="page" aria-busy="true"><StateNotice state="loading" title="Loading the QDN catalog..." message="Reading the manifest and indexes from QDN." /></div>
       ) : (
@@ -337,10 +349,9 @@ export function App() {
               <StateNotice state="error" title="The catalog could not be loaded" message={dataset.message} notices={dataset.notices} />
               <button type="button" className="button" onClick={refresh}>Retry</button>
             </div>
-          ) : showGlobalNotice ? (
-            <StateNotice state={dataset.state === 'partial' ? 'partial' : 'stale'} notices={dataset.notices} compact />
+          ) : showPublicGlobalNotice && dataset ? (
+            <StateNotice state={dataset.state === 'partial' ? 'partial' : 'stale'} notices={publicCatalogNotices} compact />
           ) : null}
-          {configNotice ? <StateNotice state="partial" compact message={configNotice} /> : null}
           {renderPage()}
         </>
       )}

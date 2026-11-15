@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 const state = vi.hoisted(() => {
-  function make(kind: 'ready' | 'error') {
+  function make(kind: 'ready' | 'error' | 'partial') {
     const post = {
       id: 'cms-first', type: 'post', title: 'First post', slug: 'first-post', status: 'published',
       excerpt: 'First CMS post', categoryIds: [], tagIds: [],
@@ -27,10 +27,14 @@ const state = vi.hoisted(() => {
       generatedAt: null,
       loadedAt: '2026-11-15T00:00:00.000Z',
       message: kind === 'error' ? 'CMS native index is invalid: Native index site identity does not match this CMS configuration.' : '',
-      notices: kind === 'error' ? [{ code: 'catalog-unavailable', level: 'error', message: 'CMS native index is invalid.' }] : [],
-      availability: { posts: kind === 'ready', pages: kind === 'ready', categories: kind === 'ready', tags: kind === 'ready' },
-      posts: kind === 'ready' ? [post] : [],
-      pages: kind === 'ready' ? [page] : [],
+      notices: kind === 'error'
+        ? [{ code: 'catalog-unavailable', level: 'error', message: 'CMS native index is invalid.' }]
+        : kind === 'partial'
+          ? [{ code: 'catalog-import-unavailable', level: 'warning', message: 'The imported WordPress catalog is unavailable (No CMS catalog manifest could be read). CMS-authored content is shown from the published native index.' }]
+          : [],
+      availability: { posts: kind !== 'error', pages: kind !== 'error', categories: kind !== 'error', tags: kind !== 'error' },
+      posts: kind !== 'error' ? [post] : [],
+      pages: kind !== 'error' ? [page] : [],
       categories: [],
       tags: [],
       media: [],
@@ -106,10 +110,37 @@ describe('public navigation through the rendered application', () => {
     expect(screen.getByRole('link', { name: 'Home' })).toBeTruthy();
   });
 
+  it('hides the global catalog and config warnings on working public pages', async () => {
+    state.dataset = state.make('partial');
+    render(<App />);
+    await screen.findByText('Browse posts');
+    expect(screen.getByText('First post')).toBeTruthy();
+    expect(screen.queryByText('Part of the catalog is unavailable')).toBeNull();
+    expect(screen.queryByText(/Runtime CMS configuration is unavailable/)).toBeNull();
+
+    navigate('#/posts');
+    await screen.findByRole('heading', { name: 'Posts' });
+    expect(screen.queryByText('Part of the catalog is unavailable')).toBeNull();
+
+    navigate('#/posts/first-post');
+    await screen.findByRole('heading', { name: 'First post' });
+    expect(screen.queryByText('Part of the catalog is unavailable')).toBeNull();
+
+    navigate('#/pages/files');
+    await screen.findByRole('heading', { name: 'Files' });
+    expect(screen.queryByText('Part of the catalog is unavailable')).toBeNull();
+
+    // Diagnostics stay available in Admin instead of occupying public pages.
+    navigate('#/admin');
+    await screen.findByText('Access denied');
+    await waitFor(() => expect(screen.getByText(/requires its project-specific qms-cms-config\.json/)).toBeTruthy());
+  });
+
   it('keeps navigation usable and shows honest route states when the catalog fails', async () => {
     state.dataset = state.make('error');
     render(<App />);
     await screen.findByText(/Native index site identity does not match/);
+    expect(screen.getAllByText('The catalog could not be loaded').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('link', { name: 'Posts' }));
     navigate('#/posts');
