@@ -184,7 +184,12 @@ export function createCmsRepository(config, options = {}) {
       const read = readNativeIndex(raw);
       if (!read.ok) return { ok: false, state: 'invalid', errors: read.errors };
       const nativeSiteId = raw && raw.site_id ? String(raw.site_id) : '';
-      if (nativeSiteId && String(config.site.id || '') && nativeSiteId !== String(config.site.id)) {
+      // The legacy placeholder was written by older CMS versions before the
+      // canonical site id was threaded through. It is accepted only because
+      // this resource was read from the exact hosted QDN name; every other
+      // non-matching identity is still rejected.
+      const legacyPlaceholder = nativeSiteId === 'site';
+      if (nativeSiteId && !legacyPlaceholder && String(config.site.id || '') && nativeSiteId !== String(config.site.id)) {
         return { ok: false, state: 'invalid', errors: ['Native index site identity does not match this CMS configuration.'] };
       }
       return { ok: true, state: 'ready', index: raw };

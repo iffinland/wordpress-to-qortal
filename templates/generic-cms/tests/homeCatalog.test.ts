@@ -159,6 +159,16 @@ describe('CMS catalog loading without a QMS import manifest', () => {
     expect(dataset.message).toContain('CMS native index is invalid');
   });
 
+  it('accepts the legacy site placeholder written by older CMS versions', async () => {
+    vi.stubGlobal('fetch', qdnFetch({ native: nativeIndex({ site_id: 'site' }) }));
+    const repository = createCmsRepository(configFor(), { source: 'qdn' });
+    const dataset = await repository.loadDataset();
+
+    expect(dataset.state).toBe('partial');
+    expect(dataset.posts).toHaveLength(1);
+    expect(dataset.posts[0].title).toBe('CMS only post');
+  });
+
   it('rejects a native index belonging to another site identity', async () => {
     vi.stubGlobal('fetch', qdnFetch({ native: nativeIndex({ site_id: 'other-site' }) }));
     const repository = createCmsRepository(configFor(), { source: 'qdn' });

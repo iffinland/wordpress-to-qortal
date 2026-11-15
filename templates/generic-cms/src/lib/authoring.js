@@ -74,14 +74,14 @@ export async function publishSettingsDraft({ identity, name, draft, baseRevision
   return { ...result, document };
 }
 
-export async function loadNativeIndex(name) {
+export async function loadNativeIndex(name, siteId = '') {
   const payload = await readRemoteJson('DOCUMENT', name, 'qms-cms-native-index');
-  if (!payload) return { ok: true, index: emptyNativeIndex(), errors: [] };
+  if (!payload) return { ok: true, index: emptyNativeIndex(siteId), errors: [] };
   return readNativeIndex(payload);
 }
 
 export async function publishNativePostDraft({ identity, name, siteId, draft, baseRevision, storage, author, timestamp }) {
-  const remote = await loadNativeIndex(name);
+  const remote = await loadNativeIndex(name, siteId);
   if (!remote.ok) return { ok: false, state: 'invalid-remote', message: remote.errors.join(' ') };
   const index = remote.index;
   const conflict = Number(index.revision) > Number(baseRevision || 0);

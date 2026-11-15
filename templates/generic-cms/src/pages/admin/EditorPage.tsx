@@ -156,7 +156,7 @@ export function EditorPage(props: {
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([loadNativeIndex(props.name), loadOverlay(props.name)]).then(([native, overlayResult]) => {
+    Promise.all([loadNativeIndex(props.name, props.siteId), loadOverlay(props.name)]).then(([native, overlayResult]) => {
       if (cancelled) return;
       setRevision(native.ok ? Number(native.index.revision) || 0 : 0);
       if (overlayResult.ok) {
