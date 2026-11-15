@@ -11,6 +11,7 @@ import { FeaturedImagePanel } from './editor/FeaturedImagePanel';
 import { PreviewModal } from './editor/PreviewModal';
 import { LeavePrompt } from './editor/LeavePrompt';
 import { ConfirmPublishPanel } from './editor/ConfirmPublishPanel';
+import type { PublishPhase } from '../../components/ConfirmPublishDialog';
 import { draftFromItem, fingerprintSource, resolveTerms, termNames, type QdnRefLike } from './editor/editorUtils';
 import {
   createDraft,
@@ -483,7 +484,7 @@ export function EditorPage(props: {
   };
 
   const publish = async () => {
-    setConfirming(false);
+    // The dialog stays open: progress and the result are shown inside it.
     setState('publishing');
     persist({ ...draft, publicationState: 'pending-confirmation' });
     setMessage('Sanitizing and waiting for Qortal Hub approval...');
@@ -687,6 +688,15 @@ export function EditorPage(props: {
         locked: draft.slugLocked
       })
     : '';
+  const publishPhase: PublishPhase = state === 'publishing' ? 'publishing'
+    : state === 'verified' ? 'success'
+    : state === 'partial' ? 'partial'
+    : state === 'ambiguous' ? 'ambiguous'
+    : state === 'failed' ? 'error'
+    : 'confirm';
+  const publishStatusMessage = state === 'ambiguous'
+    ? message + ' It was not resent automatically. Retry to verify the pending submission.'
+    : message;
   const importedConflict = draft && draft.sourceKind === 'wordpress-overlay' ? conflicts[String(draft.sourceItemId)] : null;
   const sourceKindLabel = draft
     ? draft.sourceKind === 'wordpress-overlay'
@@ -738,6 +748,7 @@ export function EditorPage(props: {
             message={message}
             dirty={dirty}
             sourceKindLabel={sourceKindLabel}
+            dialogOpen={confirming}
             onLeave={requestLeave}
             onSaveDraft={saveLocalDraft}
             onPreview={() => setPreview(true)}
@@ -847,8 +858,11 @@ export function EditorPage(props: {
           fee={fee}
           slugChanged={slugChanged}
           publishedSlug={publishedSlug}
+          phase={publishPhase}
+          statusMessage={publishStatusMessage}
           onConfirm={publish}
           onCancel={() => setConfirming(false)}
+          onClose={() => setConfirming(false)}
         />
       ) : null}
     </section>

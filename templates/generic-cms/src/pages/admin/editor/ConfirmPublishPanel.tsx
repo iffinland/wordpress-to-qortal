@@ -1,3 +1,4 @@
+import { ConfirmPublishDialog, type PublishPhase } from '../../../components/ConfirmPublishDialog';
 import { finalizeSlug } from '../../../lib/slug.js';
 import type { ViewerIdentity } from '../../../types';
 import type { FeaturedImageChoice } from '../FeaturedImagePicker';
@@ -15,12 +16,21 @@ export function ConfirmPublishPanel(props: {
   fee: string;
   slugChanged: boolean;
   publishedSlug: string;
+  phase: PublishPhase;
+  statusMessage: string;
   onConfirm: () => void;
   onCancel: () => void;
+  onClose: () => void;
 }) {
   return (
-    <div className="publish-confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-post-title">
-      <h3 id="confirm-post-title">Confirm post publication</h3>
+    <ConfirmPublishDialog
+      title="Confirm post publication"
+      phase={props.phase}
+      statusMessage={props.statusMessage}
+      onConfirm={props.onConfirm}
+      onCancel={props.onCancel}
+      onClose={props.onClose}
+    >
       <dl className="meta-grid">
         <div><dt>Title</dt><dd>{props.draft.title}</dd></div>
         <div><dt>Final slug</dt><dd><code>{finalizeSlug(props.draft.slug)}</code></dd></div>
@@ -32,10 +42,6 @@ export function ConfirmPublishPanel(props: {
         {props.slugChanged ? <div><dt>Slug change</dt><dd>Old slug /{props.publishedSlug} becomes an alias; old content resource is kept.</dd></div> : null}
       </dl>
       <p className="muted">HTML is sanitized before publication. Ownership is revalidated immediately before each signature.</p>
-      <div className="admin-toolbar">
-        <button type="button" className="button" onClick={props.onConfirm}>Confirm publish</button>
-        <button type="button" className="button button--ghost" onClick={props.onCancel}>Cancel</button>
-      </div>
-    </div>
+    </ConfirmPublishDialog>
   );
 }
