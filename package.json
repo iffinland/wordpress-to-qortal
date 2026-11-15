@@ -95,6 +95,7 @@
     "desktop:build": "npm --prefix desktop run build",
     "desktop:deb": "node scripts/release/build-deb.mjs",
     "release:readme-links": "node scripts/release/verify-readme-links.mjs",
+    "docs:verify": "node scripts/release/verify-active-docs.mjs",
     "release:readme-sync": "node scripts/release/sync-readme-links.mjs",
     "release:verify-packaged-scan": "node scripts/release/verify-packaged-scan-evidence.mjs",
     "release:verify-functional": "node scripts/release/verify-functional-acceptance-evidence.mjs",

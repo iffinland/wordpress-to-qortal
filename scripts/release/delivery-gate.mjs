@@ -22,6 +22,7 @@ import { REPO_ROOT, readJson, sha256File } from './lib.mjs';
 import { REQUIRED_ARTIFACT_KINDS, releaseArtifactPaths } from './artifact-set.mjs';
 import { releaseTag } from './three-artifact-gate.mjs';
 import { checkVersions } from '../qms-release.mjs';
+import { evaluateActiveDocs } from './docs-consistency.mjs';
 
 const REPO = 'iffinland/wordpress-to-qortal';
 const GH = process.env.GH_BIN || '/home/iffi/.local/bin/gh';
@@ -129,6 +130,17 @@ export async function checkReleaseDocs({ repoRoot = REPO_ROOT, release }) {
   } else if (!changelog.split('\n').some((line) => /^#{1,3}\s/.test(line) && line.includes(release.version))) {
     errors.push('CHANGELOG.md has no heading entry for ' + release.version + '.');
   }
+  const readmeDoc = await readFile(path.join(repoRoot, 'README.md'), 'utf8').catch(() => '');
+  const quickstartDoc = await readFile(path.join(repoRoot, 'QUICKSTART.md'), 'utf8').catch(() => '');
+  const manifestDoc = await readJson(path.join(repoRoot, 'release/release-manifest.json')).catch(() => null);
+  const activeDocs = evaluateActiveDocs({
+    release,
+    changelog,
+    readme: readmeDoc,
+    quickstart: quickstartDoc,
+    manifest: manifestDoc
+  });
+  errors.push(...activeDocs.errors);
   for (const relative of REQUIRED_DOCS) {
     const file = path.join(repoRoot, relative);
     if (!(await exists(file))) {

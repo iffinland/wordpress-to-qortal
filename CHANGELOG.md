@@ -4,6 +4,19 @@ All release-facing changes to Qortal Migration Studio are recorded here. The
 release contract requires a heading entry for the exact released version before
 an artifact may be published.
 
+## 0.8.0-beta.2 — 2026-11-15
+
+Generic CMS **0.8.0-beta.2**. Desktop and Migration Publisher remain
+**0.8.0-beta.1** (unchanged). This release includes the approved cumulative CMS
+fixes: Android featured-image publication (BUG-01), native catalog loading and
+duplicate homepage title removal (BUG-02), canonical/legacy native-index
+identity and public navigation during catalog errors (BUG-03), removal of
+non-blocking public warning banners (BUG-04), and removal of the unused
+Adoption interface from Admin Overview. Existing browser-local adoption records
+and QDN content are untouched.
+
+Release assets and hashes are published with tag `v0.8.0-beta.2`.
+
 ## 0.8.0-beta.1 — 2026-11-11
 
 Public unsigned beta release. Qortal Migration Studio Desktop, Migration
