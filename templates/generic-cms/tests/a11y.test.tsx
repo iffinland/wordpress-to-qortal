@@ -101,7 +101,13 @@ describe('accessibility of primary user workflows', () => {
   });
 
   it('stylesheet contains focus-visible and reduced-motion support', () => {
-    const css = readFileSync(path.resolve(HERE, '..', 'src', 'styles', 'index.css'), 'utf8');
+    // index.css is an entry file that @imports the partial stylesheets, so read
+    // the entry plus every imported part.
+    const stylesDir = path.resolve(HERE, '..', 'src', 'styles');
+    const entry = readFileSync(path.join(stylesDir, 'index.css'), 'utf8');
+    const parts = Array.from(entry.matchAll(/@import\s+'\.\/([^']+)'/g)).map((match) => readFileSync(path.join(stylesDir, match[1]), 'utf8'));
+    expect(parts.length).toBeGreaterThan(0);
+    const css = [entry, ...parts].join('\n');
     expect(css).toContain(':focus-visible');
     expect(css).toContain('@media (prefers-reduced-motion: reduce)');
     expect(css).toContain('@media (forced-colors: active)');

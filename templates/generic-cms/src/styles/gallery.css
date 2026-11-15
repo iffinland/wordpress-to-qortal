@@ -1,0 +1,231 @@
+/* ---------- Gallery ---------- */
+.gallery-list,
+.gallery-grid {
+  list-style: none;
+  padding: 0;
+  margin: 1.2rem 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.gallery-list {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.gallery-grid {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+
+.gallery-list__item a {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  text-decoration: none;
+  color: var(--qms-text);
+  background: var(--qms-surface);
+  border: 1px solid var(--qms-border);
+  border-radius: var(--qms-radius);
+  overflow: hidden;
+}
+
+.gallery-list__item img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+}
+
+.gallery-list__item span {
+  padding: 0 0.7rem;
+}
+
+.gallery-card {
+  margin: 0;
+}
+
+.gallery-card__button {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--qms-border);
+  border-radius: var(--qms-radius);
+  overflow: hidden;
+  background: var(--qms-surface);
+  cursor: zoom-in;
+}
+
+.gallery-card__button img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  transition: transform 180ms ease;
+}
+
+.gallery-card__button:hover img,
+.gallery-card__button:focus-visible img {
+  transform: scale(1.03);
+}
+
+.gallery-card__caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1.4rem 0.6rem 0.5rem;
+  color: #fff;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.82), rgba(0, 0, 0, 0));
+  font-size: 0.8rem;
+  text-align: left;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.gallery-card__button:hover .gallery-card__caption,
+.gallery-card__button:focus-visible .gallery-card__caption,
+.gallery-card__button:focus-within .gallery-card__caption {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (hover: none) {
+  .gallery-card__caption {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(4, 8, 14, 0.96);
+  color: #f4f7fb;
+  display: flex;
+  flex-direction: column;
+  padding: 0.8rem;
+  overscroll-behavior: contain;
+}
+
+.lightbox__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.lightbox__count {
+  margin: 0;
+  font-weight: 700;
+}
+
+.lightbox__stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lightbox__figure {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  max-height: 100%;
+}
+
+.lightbox__figure img {
+  max-width: 100%;
+  max-height: calc(100vh - 10rem);
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.lightbox__figure figcaption {
+  max-width: 70ch;
+  text-align: center;
+  color: #d8e2ee;
+  font-size: 0.92rem;
+}
+
+.lightbox__nav {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-radius: 999px;
+  width: 2.6rem;
+  height: 2.6rem;
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lightbox .button--ghost {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+body.lightbox-open {
+  overflow: hidden;
+}
+
+.gallery-admin-grid li {
+  border: 1px solid var(--qms-border);
+  border-radius: 8px;
+  padding: 0.4rem;
+  background: var(--qms-surface-alt);
+}
+
+.gallery-admin-grid span {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--qms-muted);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .site-header__tools {
+    margin-left: auto;
+  }
+
+  .theme-toggle__button {
+    padding: 0.3rem 0.45rem;
+  }
+
+  .preview-modal,
+  .media-picker {
+    inset: 0;
+    border-radius: 0;
+  }
+
+  .lightbox {
+    padding: 0.5rem;
+  }
+
+  .lightbox__nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+  }
+
+  .lightbox__nav:first-of-type {
+    left: 0.35rem;
+  }
+
+  .lightbox__nav:last-of-type {
+    right: 0.35rem;
+  }
+}
+
+
+
