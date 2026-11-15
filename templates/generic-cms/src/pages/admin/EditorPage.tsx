@@ -3,11 +3,17 @@ import type { CmsContentItem, CmsDataset, Gallery, LoadedContent, ViewerIdentity
 import { RichTextEditor } from './RichTextEditor';
 import { MediaPicker, type InsertedMedia } from './MediaPicker';
 import { FeaturedImagePicker, type FeaturedImageChoice } from './FeaturedImagePicker';
-import { StateNotice } from '../../components/StateNotice';
+import { DraftLists } from './editor/DraftLists';
+import { PublishBar } from './editor/PublishBar';
+import { ConflictPanel } from './editor/ConflictPanel';
+import { EditorFields } from './editor/EditorFields';
+import { FeaturedImagePanel } from './editor/FeaturedImagePanel';
+import { PreviewModal } from './editor/PreviewModal';
+import { LeavePrompt } from './editor/LeavePrompt';
+import { ConfirmPublishPanel } from './editor/ConfirmPublishPanel';
+import { draftFromItem, fingerprintSource, resolveTerms, termNames, type QdnRefLike } from './editor/editorUtils';
 import {
-  PUBLICATION_STATE_LABELS,
   createDraft,
-  parseTerms,
   publicationStateForResult,
   readDrafts,
   removeDraft,
@@ -27,92 +33,19 @@ import {
   slugSetFromItems
 } from '../../lib/slug.js';
 import {
-  FEATURED_IMAGE_HELP,
   autoFeaturedImage,
   normalizeFeaturedImage,
   resolveFeaturedImage
 } from '../../lib/featuredImage.js';
 import { templateVersion } from '../../config/cmsConfig';
 import { createSlugState, reduceSlugState } from '../../lib/slugField.js';
-import { findOverlayEntry, overlayContentIdentifier, sourceFingerprint } from '../../lib/overlay.js';
-import { createQdnResourceUrl, sha256Hex } from '../../lib/qortal.js';
+import { findOverlayEntry, overlayContentIdentifier } from '../../lib/overlay.js';
+import { createQdnResourceUrl } from '../../lib/qortal.js';
 import { stripHtml } from '../../lib/text.js';
 import { sanitizeHtml } from '../../lib/sanitize.js';
 import { useUnsavedGuard } from '../../hooks/useUnsavedGuard';
 
-type QdnRefLike = { service: string; name?: string; identifier: string };
 
-function termNames(dataset: CmsDataset | null, ids: string[] | undefined, kind: 'categories' | 'tags') {
-  if (!dataset) return '';
-  const terms = kind === 'categories' ? dataset.categories : dataset.tags;
-  return (ids || [])
-    .map((id) => {
-      const term = terms.find((entry) => entry.id === id);
-      return term ? term.name : id;
-    })
-    .join(', ');
-}
-
-function resolveTerms(dataset: CmsDataset | null, text: string, kind: 'categories' | 'tags') {
-  const terms = dataset ? (kind === 'categories' ? dataset.categories : dataset.tags) : [];
-  return parseTerms(text).map((name) => {
-    const key = name.toLowerCase();
-    const existing = terms.find((term) => term.name.toLowerCase() === key || term.id.toLowerCase() === key);
-    if (existing) return { id: existing.id, name: existing.name, slug: existing.slug };
-    return {
-      id: (kind === 'categories' ? 'cms-category-' : 'cms-tag-') + slugify(name),
-      name,
-      slug: slugify(name)
-    };
-  });
-}
-
-function draftFromItem(item: CmsContentItem, content: LoadedContent, revision: number, dataset: CmsDataset | null) {
-  return createDraft({
-    id: item.id,
-    type: item.type,
-    title: content.title || item.title,
-    slug: item.slug,
-    html: content.html,
-    excerpt: item.excerpt,
-    categoriesText: termNames(dataset, item.categoryIds, 'categories'),
-    tagsText: termNames(dataset, item.tagIds, 'tags'),
-    author: content.author,
-    status: item.status,
-    createdAt: item.createdAt || undefined,
-    publishedAt: item.publishedAt,
-    baseRevision: revision,
-    remoteId: item.id,
-    contentIdentifier: item.contentRef ? item.contentRef.identifier : null,
-    // Published identity: a title edit must never change the slug.
-    slugTouched: true,
-    slugLocked: true,
-    originalSlug: item.slug,
-    slugAliases: item.slugAliases || [],
-    sourceKind: 'cms-native',
-    featuredImage: item.featuredImageRef || null,
-    featuredImageUrl: item.featuredImageUrl || '',
-    featuredImageAlt: item.featuredImageAlt || '',
-    featuredImageManual: Boolean(item.featuredImageRef) && item.featuredImageSource !== 'body',
-    featuredImageOrigin: item.featuredImageSource || (item.featuredImageRef ? 'published' : null),
-    featuredImageSuppressed: false
-  });
-}
-
-async function fingerprintSource(content: LoadedContent, item: CmsContentItem) {
-  const text = sourceFingerprint({
-    title: content.title,
-    html: content.html,
-    excerpt: stripHtml(content.excerptHtml),
-    modifiedAt: content.modifiedAt,
-    sourceId: item.legacy ? item.legacy.sourceId : null
-  });
-  return 'sha256:' + await sha256Hex(new TextEncoder().encode(text));
-}
-
-function publicationLabel(state: string) {
-  return (PUBLICATION_STATE_LABELS as Record<string, string>)[state] || state;
-}
 
 export function EditorPage(props: {
   identity: ViewerIdentity;
@@ -783,234 +716,69 @@ export function EditorPage(props: {
 
       {!draft ? (
         <>
-          <h3>Local drafts</h3>
-          <p className="muted">Saved only in this browser. A local draft is not a published update.</p>
-          {drafts.length === 0 ? <p className="muted">No local drafts yet.</p> : (
-            <ul className="admin-list">
-              {drafts.map((item) => (
-                <li key={item.id} className="admin-list__item">
-                  <button type="button" className="button button--ghost" onClick={() => editDraft(item.id)}>
-                    {item.title || '(untitled)'}
-                    <span className="admin-list__meta">{publicationLabel(item.publicationState || 'draft')} · /{item.slug || 'no-slug'}</span>
-                  </button>
-                  <button type="button" className="button button--ghost" onClick={() => {
-                    const next = removeDraft(drafts, item.id);
-                    setDrafts(next);
-                    writeDrafts(localStorage, props.siteId, next);
-                  }}>Delete draft</button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <h3>CMS-authored posts and pages</h3>
-          {nativePosts.length === 0 ? <p className="muted">No CMS-authored content published yet.</p> : (
-            <ul className="admin-list">
-              {nativePosts.map((item) => (
-                <li key={item.id} className="admin-list__item">
-                  <span>{item.title} <span className="admin-list__meta">{item.type} · /{item.slug} · {item.status} · CMS-authored</span></span>
-                  <button type="button" className="button button--ghost" aria-label={'Edit ' + item.title} onClick={() => editPublished(item.id)}>Edit</button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <h3>Imported WordPress posts and pages</h3>
-          <p className="muted">
-            Edits are stored locally in QDN as an overlay. The WordPress source metadata, original URL and QDN identity
-            are preserved; the imported resources stay byte-for-byte unchanged.
-          </p>
-          {importedItems.length === 0 ? <p className="muted">No imported content in the catalog.</p> : (
-            <ul className="admin-list">
-              {importedItems.map((item) => (
-                <li key={item.id} className="admin-list__item">
-                  <span>
-                    {item.title}{' '}
-                    <span className="admin-list__meta">
-                      {item.type} · /{item.slug}
-                      {item.legacy && item.legacy.sourceId != null ? ' · WP source #' + item.legacy.sourceId : ' · WordPress-imported'}
-                      {item.edited ? ' · local edit published' : ''}
-                    </span>
-                  </span>
-                  <button type="button" className="button button--ghost" aria-label={'Edit ' + item.title} onClick={() => editImported(item.id)}>Edit</button>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <h3>Slug health and repair</h3>
-          <p className="muted">
-            Detection only. Published resources are never renamed automatically; a published slug change requires the
-            explicit advanced workflow and preserves the old URL as an alias.
-          </p>
-          {anomalies.length === 0 ? <p className="muted">No suspicious one-character slugs detected.</p> : (
-            <ul className="admin-list">
-              {anomalies.map((finding) => (
-                <li key={finding.kind + finding.id} className="admin-list__item">
-                  <span>
-                    {finding.title || '(untitled)'}{' '}
-                    <span className="admin-list__meta">{finding.published ? 'published' : 'draft'} · /{finding.slug} → expected /{finding.expected || '(none)'}</span>
-                  </span>
-                  <span className="admin-list__meta">{finding.safeAction}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <DraftLists
+            drafts={drafts}
+            nativePosts={nativePosts}
+            importedItems={importedItems}
+            anomalies={anomalies}
+            onEditDraft={editDraft}
+            onDeleteDraft={(id) => {
+              const next = removeDraft(drafts, id);
+              setDrafts(next);
+              writeDrafts(localStorage, props.siteId, next);
+            }}
+            onEditPublished={editPublished}
+            onEditImported={editImported}
+          />
         </>
       ) : (
         <>
-          <div className="admin-toolbar">
-            <button type="button" className="button button--ghost" onClick={requestLeave}>← All posts</button>
-            <button type="button" className="button button--ghost" onClick={saveLocalDraft}>Save draft</button>
-            <button type="button" className="button button--ghost" onClick={() => setPreview(true)}>Preview</button>
-            <button type="button" className="button" onClick={requestPublish} disabled={state === 'publishing'}>Publish post…</button>
-          </div>
-          <p className="editor-source-kind" role="status">{sourceKindLabel}</p>
-          {message ? <p className="admin-message" role="status" aria-live="polite">{message}</p> : null}
-          {dirty ? <p className="preview-banner" role="status">Unsaved changes — save a local draft or publish. A local draft is not a published update.</p> : null}
-
-          {state === 'ambiguous' ? <StateNotice state="partial" title="Publication unconfirmed" message={message + ' It was not resent automatically. Retry to verify the pending submission.'} /> : null}
-          {state === 'partial' ? <StateNotice state="partial" title="Published, search index pending" message={message} /> : null}
-          {state === 'failed' ? <StateNotice state="error" title="Not published" message={message} /> : null}
-          {state === 'verified' ? <StateNotice state="partial" title="Published and verified" message={message} /> : null}
+          <PublishBar
+            state={state}
+            message={message}
+            dirty={dirty}
+            sourceKindLabel={sourceKindLabel}
+            onLeave={requestLeave}
+            onSaveDraft={saveLocalDraft}
+            onPreview={() => setPreview(true)}
+            onPublish={requestPublish}
+          />
 
           {importedConflict && importedConflict.open && !draft.conflictResolved ? (
-            <section className="conflict-panel" aria-labelledby="conflict-title" role="alert">
-              <h3 id="conflict-title">The WordPress source changed after your edit</h3>
-              <p className="muted">
-                Your local edit is still published and visible. Choose what to keep. Nothing is overwritten
-                automatically and the imported resource is never modified.
-              </p>
-              <dl className="meta-grid">
-                <div><dt>Your published title</dt><dd>{draft.title}</dd></div>
-                <div><dt>Upstream title now</dt><dd>{importedConflict.upstream ? importedConflict.upstream.title : '(unavailable)'}</dd></div>
-                <div><dt>Your excerpt</dt><dd>{draft.excerpt || '(none)'}</dd></div>
-                <div><dt>Upstream excerpt</dt><dd>{importedConflict.upstream ? stripHtml(importedConflict.upstream.excerptHtml) : '(unavailable)'}</dd></div>
-              </dl>
-              <div className="admin-toolbar">
-                <button type="button" className="button" onClick={() => resolveConflict('keep-local')}>Keep my edits</button>
-                <button type="button" className="button button--ghost" onClick={() => resolveConflict('accept-upstream')}>Accept upstream</button>
-              </div>
-            </section>
+            <ConflictPanel draft={draft} conflict={importedConflict} onResolve={resolveConflict} />
           ) : null}
 
-          <div className="editor-fields">
-            <label>Title<input value={draft.title} maxLength={200} onChange={(event) => updateTitle(event.target.value)} /></label>
-            <label>
-              Slug
-              <input
-                value={draft.slug}
-                onChange={(event) => updateSlug(event.target.value)}
-                disabled={draft.slugLocked}
-                aria-describedby="slug-help"
-                inputMode="url"
-                spellCheck={false}
-              />
-            </label>
-            <p id="slug-help" className="muted">
-              {draft.slugLocked
-                ? 'Locked because this item is published. Editing the title never changes a published slug.'
-                : draft.slugTouched
-                  ? 'Manual slug. Further title changes will not overwrite it.'
-                  : 'Generated from the complete title; keeps updating until you edit it.'}
-              {' '}
-              {draft.slug ? <span>Final slug: <code>{finalizeSlug(draft.slug)}</code></span> : null}
-            </p>
-            {autoSlugWarning ? (
-              <p className="slug-warning" role="alert">
-                {autoSlugWarning}{' '}
-                <button type="button" className="button button--ghost" onClick={regenerateSlug}>Regenerate slug now</button>
-              </p>
-            ) : null}
-            <div className="admin-toolbar">
-              <button type="button" className="button button--ghost" onClick={regenerateSlug} disabled={draft.slugLocked}>Regenerate slug</button>
-              {draft.slug && !draft.slugLocked ? (
-                <button type="button" className="button button--ghost" onClick={() => {
-                  const suggestion = slugAvailable(props.dataset, draft.slug, { exceptIds: [draft.remoteId, draft.sourceItemId].filter(Boolean) });
-                  setMessage(suggestion.ok ? 'This slug is available.' : suggestion.message);
-                }}>Check availability</button>
-              ) : null}
-              {draft.slugLocked ? (
-                <button type="button" className="button button--ghost" onClick={() => setAdvancedSlug(true)}>Change slug (advanced)…</button>
-              ) : null}
-            </div>
+          <EditorFields
+            draft={draft}
+            autoSlugWarning={autoSlugWarning}
+            slugChanged={slugChanged}
+            publishedSlug={publishedSlug}
+            advancedSlug={advancedSlug}
+            slugConfirmChecked={slugConfirmChecked}
+            onTitle={updateTitle}
+            onSlug={updateSlug}
+            onRegenerate={regenerateSlug}
+            onCheckAvailability={() => {
+              const suggestion = slugAvailable(props.dataset, draft.slug, { exceptIds: [draft.remoteId, draft.sourceItemId].filter(Boolean) });
+              setMessage(suggestion.ok ? 'This slug is available.' : suggestion.message);
+            }}
+            onOpenAdvanced={() => setAdvancedSlug(true)}
+            onCancelAdvanced={() => { setAdvancedSlug(false); setSlugConfirmChecked(false); }}
+            onConfirmChecked={setSlugConfirmChecked}
+            onUnlock={unlockSlug}
+            onCancelSlugChange={cancelSlugChange}
+            onUpdate={update}
+          />
 
-            {advancedSlug && draft.slugLocked ? (
-              <section className="advanced-slug" aria-labelledby="advanced-slug-title">
-                <h3 id="advanced-slug-title">Change a published slug</h3>
-                <p>
-                  The old URL stays valid as an alias in this CMS. The old QDN content resource is kept, never
-                  overwritten or deleted. External links that use the QDN resource identifier keep working. The new
-                  version is published under a new identifier and needs its own Hub approval and fee.
-                </p>
-                <label className="check-row">
-                  <input type="checkbox" checked={slugConfirmChecked} onChange={(event) => setSlugConfirmChecked(event.target.checked)} />
-                  I understand the consequences and want to change this published slug.
-                </label>
-                <div className="admin-toolbar">
-                  <button type="button" className="button" disabled={!slugConfirmChecked} onClick={unlockSlug}>Unlock slug field</button>
-                  <button type="button" className="button button--ghost" onClick={() => { setAdvancedSlug(false); setSlugConfirmChecked(false); }}>Cancel</button>
-                </div>
-              </section>
-            ) : null}
-
-            {slugChanged && !draft.slugLocked ? (
-              <p className="preview-banner" role="status">
-                Slug will change from <code>{publishedSlug}</code> to <code>{finalizeSlug(draft.slug)}</code>. The old
-                URL will resolve through an alias.
-                <button type="button" className="button button--ghost" onClick={cancelSlugChange}>Cancel slug change</button>
-              </p>
-            ) : null}
-
-            <label>Excerpt<textarea rows={2} value={draft.excerpt} onChange={(event) => update('excerpt', event.target.value)} /></label>
-            <label>Categories (comma separated)<input value={draft.categoriesText} onChange={(event) => update('categoriesText', event.target.value)} /></label>
-            <label>Tags (comma separated)<input value={draft.tagsText} onChange={(event) => update('tagsText', event.target.value)} /></label>
-            <label>Author<input value={draft.author} onChange={(event) => update('author', event.target.value)} /></label>
-            {!draft.remoteId && !draft.sourceItemId ? (
-              <label>Content type
-                <select value={draft.type} onChange={(event) => update('type', event.target.value)}>
-                  <option value="post">Post</option>
-                  <option value="page">Page</option>
-                </select>
-              </label>
-            ) : null}
-          </div>
-
-          <section className="featured-editor" aria-labelledby="featured-editor-title">
-            <h3 id="featured-editor-title">Featured image</h3>
-            <p className="muted">{FEATURED_IMAGE_HELP}</p>
-            <div className="featured-editor__row">
-              {featuredChoice.url ? (
-                <img className="featured-editor__preview" src={featuredChoice.url} alt={featuredChoice.alt || 'Featured image preview'} />
-              ) : (
-                <div className="featured-editor__preview featured-editor__preview--empty" aria-hidden="true">No image</div>
-              )}
-              <div className="featured-editor__body">
-                <p className="featured-editor__source" role="status">
-                  {featuredChoice.source === 'explicit' ? 'Selected by you' : null}
-                  {featuredChoice.source === 'wordpress' ? 'Preserved WordPress featured image' : null}
-                  {featuredChoice.source === 'body' ? 'Automatic: first suitable image in the post body' : null}
-                  {featuredChoice.source === 'published' ? 'Published featured image' : null}
-                  {featuredChoice.source === 'local-file' ? 'New local image, published when you confirm' : null}
-                  {featuredChoice.source === 'none' ? 'No featured image will be published' : null}
-                  {draft.featuredImagePending && !featuredFile ? ' · re-select ' + draft.featuredImagePending.name : ''}
-                </p>
-                <div className="admin-toolbar">
-                  <button type="button" className="button" onClick={() => setShowFeaturedPicker(true)}>
-                    {featuredChoice.url ? 'Replace featured image' : 'Choose featured image'}
-                  </button>
-                  {automaticChoice.url ? (
-                    <button type="button" className="button button--ghost" onClick={useAutomaticFeatured} disabled={featuredChoice.source === 'body'}>
-                      Use automatic image
-                    </button>
-                  ) : null}
-                  <button type="button" className="button button--ghost" onClick={publishWithoutFeatured} disabled={!featuredChoice.url && featuredChoice.source === 'none'}>
-                    Remove featured image
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
+          <FeaturedImagePanel
+            draft={draft}
+            featuredChoice={featuredChoice}
+            automaticChoice={automaticChoice}
+            featuredFile={featuredFile}
+            onChoose={() => setShowFeaturedPicker(true)}
+            onUseAutomatic={useAutomaticFeatured}
+            onRemove={publishWithoutFeatured}
+          />
 
           {draft.remoteId && draft.sourceKind !== 'wordpress-overlay' ? <p className="muted">Editing a published CMS post. Its QDN identity is stable; a title edit does not change the slug.</p> : null}
           {draft.sourceKind === 'wordpress-overlay' ? (
@@ -1054,52 +822,34 @@ export function EditorPage(props: {
       ) : null}
 
       {preview && draft ? (
-        <div className="preview-modal" role="dialog" aria-modal="true" aria-labelledby="preview-title">
-          <div className="preview-modal__bar">
-            <h3 id="preview-title">Preview: {draft.title || '(untitled)'}</h3>
-            <button type="button" className="button button--ghost" onClick={() => setPreview(false)}>Close preview</button>
-          </div>
-          <p className="muted">Slug: /{finalizeSlug(draft.slug)} · Preview only, not published.</p>
-          <article className="post-body">
-            <h1>{draft.title}</h1>
-            {featuredChoice.url ? <img className="article-image" src={featuredChoice.url} alt={featuredChoice.alt || draft.title} /> : null}
-            {draft.excerpt ? <p className="post-card__excerpt">{draft.excerpt}</p> : null}
-            <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(draft.html) }} />
-          </article>
-        </div>
+        <PreviewModal draft={draft} featuredChoice={featuredChoice} onClose={() => setPreview(false)} />
       ) : null}
 
       {leavePrompt ? (
-        <div className="publish-confirm" role="dialog" aria-modal="true" aria-labelledby="leave-title">
-          <h3 id="leave-title">Unsaved changes</h3>
-          <p>Save a local draft before leaving? A local draft is not a published update.</p>
-          <div className="admin-toolbar">
-            <button type="button" className="button" onClick={() => { saveLocalDraft(); setLeavePrompt(false); setDraft(null); }}>Save draft and leave</button>
-            <button type="button" className="button button--ghost" onClick={() => { setLeavePrompt(false); setDraft(null); setDirty(false); }}>Discard changes</button>
-            <button type="button" className="button button--ghost" onClick={() => setLeavePrompt(false)}>Stay</button>
-          </div>
-        </div>
+        <LeavePrompt
+          onSaveAndLeave={() => { saveLocalDraft(); setLeavePrompt(false); setDraft(null); }}
+          onDiscard={() => { setLeavePrompt(false); setDraft(null); setDirty(false); }}
+          onStay={() => setLeavePrompt(false)}
+        />
       ) : null}
 
       {confirming ? (
-        <div className="publish-confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-post-title">
-          <h3 id="confirm-post-title">Confirm post publication</h3>
-          <dl className="meta-grid">
-            <div><dt>Title</dt><dd>{draft.title}</dd></div>
-            <div><dt>Final slug</dt><dd><code>{finalizeSlug(draft.slug)}</code></dd></div>
-            <div><dt>Content</dt><dd>DOCUMENT / {props.name} / {draft.contentIdentifier || 'stable slug identifier'}</dd></div>
-            <div><dt>Index</dt><dd>{draft.sourceKind === 'wordpress-overlay' ? 'DOCUMENT / ' + props.name + ' / qms-cms-edit-overlay (revision ' + (overlayRevision + 1) + ')' : 'DOCUMENT / ' + props.name + ' / qms-cms-native-index (revision ' + (revision + 1) + ')'}</dd></div>
-            <div><dt>Featured image</dt><dd>{featuredBytes ? 'New local image / ' + ((featuredMeta && featuredMeta.name) || (featuredFile && featuredFile.name) || 'selected image') : featuredChoice.url ? (featuredChoice.ref ? 'QDN IMAGE / ' + (featuredChoice.ref.name || props.name) + ' / ' + featuredChoice.ref.identifier : featuredChoice.url) : 'None'}{featuredBytes ? ' (fee includes one image resource)' : ''}</dd></div>
-            <div><dt>Fee</dt><dd>{fee}</dd></div>
-            <div><dt>Signer</dt><dd>{props.identity.address}</dd></div>
-            {slugChanged ? <div><dt>Slug change</dt><dd>Old slug /{publishedSlug} becomes an alias; old content resource is kept.</dd></div> : null}
-          </dl>
-          <p className="muted">HTML is sanitized before publication. Ownership is revalidated immediately before each signature.</p>
-          <div className="admin-toolbar">
-            <button type="button" className="button" onClick={publish}>Confirm publish</button>
-            <button type="button" className="button button--ghost" onClick={() => setConfirming(false)}>Cancel</button>
-          </div>
-        </div>
+        <ConfirmPublishPanel
+          draft={draft}
+          name={props.name}
+          identity={props.identity}
+          revision={revision}
+          overlayRevision={overlayRevision}
+          featuredBytes={featuredBytes}
+          featuredMeta={featuredMeta}
+          featuredFile={featuredFile}
+          featuredChoice={featuredChoice}
+          fee={fee}
+          slugChanged={slugChanged}
+          publishedSlug={publishedSlug}
+          onConfirm={publish}
+          onCancel={() => setConfirming(false)}
+        />
       ) : null}
     </section>
   );
