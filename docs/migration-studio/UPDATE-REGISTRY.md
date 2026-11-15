@@ -229,31 +229,26 @@ settings and warns explicitly: do not overwrite a customized CMS with the
 generic ZIP. Republish template files only, preserving site configuration and
 custom assets.
 
-## Current pending publication (2026-11-08, alpha.12)
+## Current pending publication (2026-11-15, beta.2)
 
 - Resource: `DOCUMENT/developer iffi/qms-update-registry`
-- Published baseline: sequence 4 from release `v0.8.0-alpha.11` (SHA-256
-  `45aa9e8e25068cdd2fb3e77cc82f3782aa89751508c2286a7433eb83157f9f84`).
-- Next document: **sequence 5**, generated from release `v0.8.0-alpha.12`.
-- Components: desktop 0.8.0-alpha.12, CMS 0.8.0-alpha.8, Publisher
-  0.8.0-alpha.2 (unchanged; the registry keeps its original verified URL).
-- Handoff ZIP: `release/qms-update-registry-handoff.zip` (not committed),
-  3,029 bytes, SHA-256
-  `7e0a64c6f760d7d918fe47e3707c54a8a46f61a6c6ba3220989e6b8813a5b4d6`.
-- Payload: `release/qms-update-registry.json`, 5,442 bytes, SHA-256
-  `9567571d8cfd158717947a13c44bed6734bea073409fec0ad8ca5c8c7a807a5f`.
+- Published baseline: **sequence 4** (owner-confirmed).
+- Next document: **sequence 5**, generated for release `v0.8.0-beta.2`.
+- Components: Desktop `0.8.0-beta.1`, Publisher `0.8.0-beta.1`, Generic CMS
+  `0.8.0-beta.2`.
+- Artifacts: the verified `v0.8.0-beta.2` GitHub release assets (Desktop and
+  Publisher are byte-identical to their beta.1 builds).
+- Handoff ZIP: `qms-update-registry-handoff.zip`, 2,256 bytes, SHA-256
+  `d1ba6a9558f77f5edd8a13b6aa6c79b6bb3241f3dc64efa4cca190f116fd0403`.
+- Payload: 3,995 bytes, SHA-256
+  `e9a95431c00867799b7eb730a908ca24ff0c03e45c80e367af910c079bd1f39e`.
 - One DOCUMENT resource (`DOCUMENT/developer iffi/qms-update-registry`);
-  estimated fee 0.01 QORT at the read-only node unit fee.
-- Validated with the released Publisher handoff validator (1 manifest resource).
-- alpha.12 is the owner-diagnostics follow-up: adds "Package existing handoff
-  (.zip)" for complete handoff directories without a ZIP and reproduces the
-  29-resource handoff shape in the packaged app.
-- Public artifact download verification: GitHub's release edge again returned
-  transient HTTP 504 for some direct paths; the assets were independently
-  downloaded without authentication (HTTP 200, exact size and SHA-256) and the
-  registry was generated with `--skip-public-check`.
-- Status: **awaiting owner approval in Qortal Hub**. Nothing was signed or
-  published by the agent.
+  estimated fee 0.01 QORT per ARBITRARY resource; Hub's approval fee is
+  authoritative.
+- Validated with the existing Publisher handoff validator (1 manifest resource).
+- Status: **handoff prepared and downloadable; awaiting owner confirmation that
+  the live registry is still sequence 4, then manual approval in Qortal Hub**.
+  Nothing was signed or published by the agent.
 
 ## Failure handling
 
