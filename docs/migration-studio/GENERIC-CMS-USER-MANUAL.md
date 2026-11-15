@@ -36,7 +36,7 @@ Open **Site settings** and use these **Identity** controls:
 
 Under **Navigation**, each item has **Label** (up to 40 characters) and **Link** (for example #/posts). **Remove** deletes an item while at least one remains; **Add navigation item** adds an item up to the visible limit of 12. **Branding colors** exposes the actual color-key text fields used for the saved theme; light mode derives an accessible palette while preserving the accent.
 
-**Save local draft** stores settings only in the browser. **Revert to published** abandons that working draft. **Preview draft** and **Stop preview** start/end local preview. **Publish settings…** opens confirmation: inspect it, then choose **Confirm publish** to request owner publication or **Cancel**. Drafts/previews are never public.
+**Save local draft** stores settings only in the browser. **Revert to published** abandons that working draft. **Preview draft** and **Stop preview** start/end local preview. **Publish settings…** opens the **Confirm settings publication** window (a modal dialog, a full-width sheet on narrow phone screens): inspect the destination, revision, fee and signer, then choose **Confirm publish** to request owner publication, or **Cancel** / **Escape**. The same window then shows the progress and the result (**Published and verified**, **Publication unconfirmed**, **Not published** including a revision conflict); use **Close** to dismiss it. Focus returns to **Publish settings…**. Drafts/previews are never public.
 
 ## 5. Posts and pages
 

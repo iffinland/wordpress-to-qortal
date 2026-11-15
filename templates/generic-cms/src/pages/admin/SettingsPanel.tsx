@@ -5,6 +5,7 @@ import { publishSettingsDraft } from '../../lib/authoring.js';
 import { useUnsavedGuard } from '../../hooks/useUnsavedGuard';
 import { quotePublication } from '../../lib/publish.js';
 import { StateNotice } from '../../components/StateNotice';
+import { ConfirmPublishDialog, type PublishPhase } from '../../components/ConfirmPublishDialog';
 
 const DRAFT_KEY = 'qms-cms-settings-draft@1';
 
@@ -102,7 +103,7 @@ export function SettingsPanel(props: {
   };
 
   const publish = async () => {
-    setConfirming(false);
+    // The dialog stays open: progress and the result are shown inside it.
     setState('publishing');
     setMessage('Waiting for Qortal Hub approval...');
     const timestamp = publishTimestamp || Date.now();
@@ -130,6 +131,12 @@ export function SettingsPanel(props: {
     setMessage(result.message || 'Publishing failed.');
   };
 
+  const publishPhase: PublishPhase = state === 'publishing' ? 'publishing'
+    : state === 'verified' ? 'success'
+    : state === 'ambiguous' ? 'ambiguous'
+    : state === 'conflict' || state === 'failed' ? 'error'
+    : 'confirm';
+
   return (
     <section className="admin-section" aria-labelledby="settings-title">
       <h2 id="settings-title">Site settings</h2>
@@ -138,10 +145,10 @@ export function SettingsPanel(props: {
         Drafts stay local; nothing changes on QDN until you confirm publication.
       </p>
       <p className="muted">Published revision: <strong>{remoteRevision}</strong>{remote.ok ? '' : ' (published settings are invalid: ' + remote.errors.join(' ') + ')'}</p>
-      {state === 'ambiguous' ? <StateNotice state="partial" title="Publication is unconfirmed" message={message + ' Publishing was not retried automatically.'} /> : null}
-      {state === 'conflict' ? <StateNotice state="partial" title="Revision conflict" message={message} /> : null}
-      {state === 'failed' ? <StateNotice state="error" title="Settings were not published" message={message} /> : null}
-      {state === 'verified' ? <StateNotice state="partial" title="Settings published" message={message} /> : null}
+      {!confirming && state === 'ambiguous' ? <StateNotice state="partial" title="Publication is unconfirmed" message={message + ' Publishing was not retried automatically.'} /> : null}
+      {!confirming && state === 'conflict' ? <StateNotice state="partial" title="Revision conflict" message={message} /> : null}
+      {!confirming && state === 'failed' ? <StateNotice state="error" title="Settings were not published" message={message} /> : null}
+      {!confirming && state === 'verified' ? <StateNotice state="partial" title="Settings published" message={message} /> : null}
 
       <fieldset className="admin-fieldset">
         <legend>Identity</legend>
@@ -176,7 +183,7 @@ export function SettingsPanel(props: {
       </fieldset>
 
       {dirty ? <p className="preview-banner" role="status">Unsaved settings changes. A local draft is not a published update.</p> : null}
-      {message ? <p className="admin-message" role="status" aria-live="polite">{message}</p> : null}
+      {message && !confirming ? <p className="admin-message" role="status" aria-live="polite">{message}</p> : null}
       <div className="admin-toolbar">
         <button type="button" className="button button--ghost" onClick={() => persistDraft(draft)}>Save local draft</button>
         <button type="button" className="button button--ghost" onClick={revertToPublished}>Revert to published</button>
@@ -186,8 +193,14 @@ export function SettingsPanel(props: {
       {previewing ? <p className="preview-banner" role="status">Preview only — visitors do not see these settings.</p> : null}
 
       {confirming ? (
-        <div className="publish-confirm" role="dialog" aria-modal="true" aria-labelledby="confirm-settings-title">
-          <h3 id="confirm-settings-title">Confirm settings publication</h3>
+        <ConfirmPublishDialog
+          title="Confirm settings publication"
+          phase={publishPhase}
+          statusMessage={state === 'ambiguous' ? message + ' Publishing was not retried automatically.' : message}
+          onConfirm={publish}
+          onCancel={() => setConfirming(false)}
+          onClose={() => setConfirming(false)}
+        >
           <dl className="meta-grid">
             <div><dt>Destination</dt><dd>DOCUMENT / {props.qdnName} / {SITE_SETTINGS_IDENTIFIER}</dd></div>
             <div><dt>New revision</dt><dd>{remoteRevision + 1}</dd></div>
@@ -195,11 +208,7 @@ export function SettingsPanel(props: {
             <div><dt>Signer</dt><dd>{props.identity.address}</dd></div>
           </dl>
           <p className="muted">Ownership is revalidated against the live name record immediately before signing. Qortal Hub asks for approval.</p>
-          <div className="admin-toolbar">
-            <button type="button" className="button" onClick={publish}>Confirm publish</button>
-            <button type="button" className="button button--ghost" onClick={() => setConfirming(false)}>Cancel</button>
-          </div>
-        </div>
+        </ConfirmPublishDialog>
       ) : null}
     </section>
   );
