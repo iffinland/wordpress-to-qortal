@@ -110,7 +110,7 @@ export async function checkUniqueVersion({ repoRoot = REPO_ROOT, release, tag = 
   return { ok: errors.length === 0, errors, tag };
 }
 
-export async function checkReleaseDocs({ repoRoot = REPO_ROOT, release }) {
+export async function checkReleaseDocs({ repoRoot = REPO_ROOT, release, stage = 'prepublish' }) {
   const errors = [];
   const notesFile = path.join(repoRoot, release.releaseNotes);
   if (!(await exists(notesFile))) {
@@ -132,13 +132,16 @@ export async function checkReleaseDocs({ repoRoot = REPO_ROOT, release }) {
   }
   const readmeDoc = await readFile(path.join(repoRoot, 'README.md'), 'utf8').catch(() => '');
   const quickstartDoc = await readFile(path.join(repoRoot, 'QUICKSTART.md'), 'utf8').catch(() => '');
+  const installDoc = await readFile(path.join(repoRoot, 'docs/migration-studio/INSTALL-LINUX.md'), 'utf8').catch(() => '');
   const manifestDoc = await readJson(path.join(repoRoot, 'release/release-manifest.json')).catch(() => null);
   const activeDocs = evaluateActiveDocs({
     release,
     changelog,
     readme: readmeDoc,
     quickstart: quickstartDoc,
-    manifest: manifestDoc
+    install: installDoc,
+    manifest: manifestDoc,
+    strictManifest: stage === 'prepublish'
   });
   errors.push(...activeDocs.errors);
   for (const relative of REQUIRED_DOCS) {
@@ -237,7 +240,7 @@ export async function runDeliveryGates({ repoRoot = REPO_ROOT, stage = 'prepubli
   const resolvedTag = tag ?? releaseTag(release);
   const checks = {};
   checks.uniqueVersion = await checkUniqueVersion({ repoRoot, release, tag: resolvedTag, stage });
-  checks.docs = await checkReleaseDocs({ repoRoot, release });
+  checks.docs = await checkReleaseDocs({ repoRoot, release, stage });
   if (stage === 'prepublish') {
     checks.installableArtifacts = await checkInstallableArtifacts({ repoRoot, release, tag: resolvedTag });
     checks.packagedAcceptance = await checkPackagedAcceptance({ repoRoot });

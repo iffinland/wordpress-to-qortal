@@ -22,7 +22,7 @@ at the unchanged, approved 0.8.0-beta.1.
 Verify all three assets with
 [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.2/SHA256SUMS).
 Read the [release notes](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.2/RELEASE-NOTES.md)
-or open the [beta.1 prerelease](https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-beta.2).
+or open the [beta.2 prerelease](https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-beta.2).
 
 Read the field-by-field operational manuals: [Qortal Migration Studio](docs/migration-studio/QORTAL-MIGRATION-STUDIO-USER-MANUAL.md), [Migration Publisher](docs/migration-studio/MIGRATION-PUBLISHER-USER-MANUAL.md), and [Generic CMS](docs/migration-studio/GENERIC-CMS-USER-MANUAL.md).
 

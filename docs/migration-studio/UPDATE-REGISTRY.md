@@ -229,11 +229,10 @@ settings and warns explicitly: do not overwrite a customized CMS with the
 generic ZIP. Republish template files only, preserving site configuration and
 custom assets.
 
-## Current pending publication (2026-11-15, beta.2)
+## Current registry status (2026-11-15, beta.2)
 
 - Resource: `DOCUMENT/developer iffi/qms-update-registry`
-- Published baseline: **sequence 4** (owner-confirmed).
-- Next document: **sequence 5**, generated for release `v0.8.0-beta.2`.
+- Sequence 5 handoff prepared for release `v0.8.0-beta.2`.
 - Components: Desktop `0.8.0-beta.1`, Publisher `0.8.0-beta.1`, Generic CMS
   `0.8.0-beta.2`.
 - Artifacts: the verified `v0.8.0-beta.2` GitHub release assets (Desktop and
@@ -246,9 +245,11 @@ custom assets.
   estimated fee 0.01 QORT per ARBITRARY resource; Hub's approval fee is
   authoritative.
 - Validated with the existing Publisher handoff validator (1 manifest resource).
-- Status: **handoff prepared and downloadable; awaiting owner confirmation that
-  the live registry is still sequence 4, then manual approval in Qortal Hub**.
-  Nothing was signed or published by the agent.
+- The owner reports working Generic CMS beta.2 and Publisher beta.1 update
+  notifications in Qortal Hub.
+- The precise published QDN payload hash was **not independently verified by
+  this task**; the notification evidence is owner-reported.
+- No registry transaction was signed or published by the agent.
 
 ## Failure handling
 

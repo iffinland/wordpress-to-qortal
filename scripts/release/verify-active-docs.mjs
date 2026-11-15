@@ -12,7 +12,9 @@ const result = evaluateActiveDocs({
   changelog: await read('CHANGELOG.md'),
   readme: await read('README.md'),
   quickstart: await read('QUICKSTART.md'),
-  manifest
+  install: await read('docs/migration-studio/INSTALL-LINUX.md'),
+  manifest,
+  strictManifest: true
 });
 if (!result.ok) {
   console.error('ACTIVE_DOCS_FAILED:');

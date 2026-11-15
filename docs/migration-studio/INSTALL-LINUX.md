@@ -3,8 +3,9 @@
 This guide installs the self-contained Debian package. The target machine does
 not need Node.js, npm, Git or development tools.
 
-This is the **0.8.0 rc.7** release. It is unsigned and amd64 only. Read
-[RELEASE-0.8.0-ALPHA.md](RELEASE-0.8.0-ALPHA.md) and
+This is the **0.8.0-beta.1** Desktop package in the **v0.8.0-beta.2** GitHub
+bundle release. It is unsigned and amd64 only. Read
+[RELEASE-0.8.0-BETA.2.md](RELEASE-0.8.0-BETA.2.md) and
 [alpha/KNOWN-ISSUES.md](alpha/KNOWN-ISSUES.md) before installing.
 
 The beginner path needs **no Node.js, npm, Git, compiler or terminal build step**.
@@ -29,7 +30,7 @@ sha256sum qortal-migration-studio_0.8.0-beta.1_amd64.deb
 cat SHA256SUMS
 ~~~
 
-The artifact is **unsigned** in this alpha release. Compare the SHA-256 with the
+The artifact is **unsigned** in this beta.1 package. Compare the SHA-256 with the
 published value and inspect sbom.cdx.json and provenance.intoto.json before
 installing. Do not install an artifact whose hash does not match.
 

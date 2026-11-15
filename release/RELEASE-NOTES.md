@@ -21,3 +21,7 @@ Generic CMS is **0.8.0-beta.2**. Desktop and Migration Publisher remain **0.8.0-
 | Generic CMS (Q-App ZIP) | `qortal-migration-generic-cms-v0.8.0-beta.2.zip` | 251005 | `d539e0d4535b7151318d67c27c50bd3515a95e91087c7462e250783908fcb4af` |
 
 The release is unsigned. Verify every asset against `SHA256SUMS`.
+
+Historical release notes remain available in the versioned
+`docs/migration-studio/RELEASE-0.8.0-*.md` documents and in the immutable GitHub
+releases; this file intentionally describes beta.2 only.
