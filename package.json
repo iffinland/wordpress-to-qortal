@@ -99,7 +99,14 @@
     "release:readme-sync": "node scripts/release/sync-readme-links.mjs",
     "release:verify-packaged-scan": "node scripts/release/verify-packaged-scan-evidence.mjs",
     "release:verify-functional": "node scripts/release/verify-functional-acceptance-evidence.mjs",
-    "release:delivery-gate": "node scripts/release/delivery-gate.mjs"
+    "release:delivery-gate": "node scripts/release/delivery-gate.mjs",
+    "worktree:register": "node scripts/worktree/lifecycle.mjs register",
+    "worktree:release": "node scripts/worktree/lifecycle.mjs release",
+    "worktree:status": "node scripts/worktree/lifecycle.mjs status",
+    "worktree:cleanup": "node scripts/worktree/lifecycle.mjs cleanup",
+    "worktree:verify": "node scripts/worktree/lifecycle.mjs verify",
+    "worktree:complete": "node scripts/worktree/lifecycle.mjs complete",
+    "test:worktree": "node --test test/worktree/*.test.js"
   },
   "engines": {
     "node": ">=20.0.0"

@@ -26,6 +26,30 @@ Desktop, Migration Publisher and the Generic CMS template.
 - After pushing, read back `git ls-remote origin refs/heads/main` and confirm the SHA.
 - Preserve owner changes and unrelated work.
 
+## Worktree lifecycle (enforced)
+
+Temporary development worktrees are cleaned automatically only through
+`scripts/worktree/lifecycle.mjs`. The executable rules are documented in
+`docs/migration-studio/WORKTREE-LIFECYCLE.md`.
+
+- When a task creates a worktree, register ownership from inside it:
+  `npm run worktree:register -- --task <task-id>`.
+- After the integration commit is on GitHub and its SHA is read back, release it:
+  `npm run worktree:release`.
+- Finish every development task with
+  `npm run worktree:complete -- --expected-sha <remote-main-sha>` from the
+  canonical worktree. A blocked run exits 3; report the blocker, do not claim
+  full cleanup.
+- Cleanup uses `git worktree remove` without `--force`, and local branches are
+  deleted only after an explicit ancestor check against the verified remote
+  commit. Remote branches are never deleted by the tool.
+- Never auto-delete a worktree without an ownership record, a dirty worktree, a
+  worktree with unmerged commits, an active task worktree, the primary
+  worktree, the main worktree or a locked worktree.
+- The completion report must state the remote commit SHA, the worktree cleanup
+  status (`CLEANED` / `RETAINED` / `BLOCKED` / `NOT_APPLICABLE`), the reason, and
+  the final worktree count.
+
 ## Build, test and packaging
 
 - Follow `docs/migration-studio/RELEASE-WORKFLOW.md` and `RELEASE-DELIVERY-CHECKLIST.md`.
@@ -57,4 +81,6 @@ Desktop, Migration Publisher and the Generic CMS template.
 
 - Irreversible actions, QDN writes and releases require explicit task authorization.
 - Report completion only after the remote SHA, artifacts, checksums and focused checks are verified.
-- Final evidence must include changed files, commands/tests run, remote SHA and any unresolved blocker.
+- Final evidence must include changed files, commands/tests run, remote SHA, worktree lifecycle status and any unresolved blocker.
+- Run `npm run test:worktree` when the lifecycle mechanism changes and include
+  `npm run worktree:complete -- --expected-sha <sha>` output in the task summary.
