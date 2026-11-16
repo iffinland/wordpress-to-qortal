@@ -10,6 +10,7 @@ import { rewriteMediaUrls } from './media.js';
 import { mergeNativeCatalog, readNativeIndex, NATIVE_INDEX_IDENTIFIER } from './nativeCatalog.js';
 import { readSearchIndex, SEARCH_INDEX_IDENTIFIER } from './search.js';
 import { readGalleryCatalog, GALLERY_CATALOG_IDENTIFIER } from './gallery.js';
+import { readSections, SECTIONS_IDENTIFIER } from './sections.js';
 import { mergeOverlayCatalog, readOverlay, OVERLAY_IDENTIFIER } from './overlay.js';
 import { resolveBySlug } from './slug.js';
 
@@ -486,6 +487,19 @@ export function createCmsRepository(config, options = {}) {
         return readGalleryCatalog(raw);
       } catch {
         return { ok: true, catalog: { schema: 'qms-cms-gallery@1', version: 1, revision: 0, galleries: [] }, errors: [] };
+      }
+    },
+    async loadSections() {
+      const empty = readSections(null, config.site.id);
+      if (source === 'fixture') return empty;
+      try {
+        const raw = await fetchQdnResource(
+          { service: 'DOCUMENT', name: manifestName, identifier: SECTIONS_IDENTIFIER },
+          MANIFEST_TIMEOUT_MS
+        );
+        return readSections(raw, config.site.id);
+      } catch {
+        return empty;
       }
     },
     async loadContent(item) {

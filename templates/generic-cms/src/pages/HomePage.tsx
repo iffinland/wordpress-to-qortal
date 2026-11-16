@@ -2,11 +2,12 @@ import { StateNotice } from '../components/StateNotice';
 import { PostCard } from '../components/PostCard';
 import { publishedPosts } from '../lib/archive.js';
 import { categoryHref, tagHref, archiveHref } from '../lib/routes.js';
-import type { CmsDataset } from '../types';
+import { homePostsFilter } from '../lib/sections.js';
+import type { CmsContentItem, CmsDataset, SectionsDocument } from '../types';
 
-export function HomePage(props: { dataset: CmsDataset }) {
+export function HomePage(props: { dataset: CmsDataset; sections?: SectionsDocument | null }) {
   const dataset = props.dataset;
-  const posts = publishedPosts(dataset.posts).slice(0, 6);
+  const posts = homePostsFilter(publishedPosts(dataset.posts), props.sections || null).slice(0, 6);
   return (
     <div className="page">
       <h1 className="visually-hidden">Home</h1>
@@ -22,7 +23,7 @@ export function HomePage(props: { dataset: CmsDataset }) {
           <StateNotice state="empty" title="No published posts yet" message="The catalog loaded successfully and currently contains no published posts." />
         ) : (
           <div className="card-grid">
-            {posts.map((item) => <PostCard key={item.id} item={item} dataset={dataset} headingLevel={3} />)}
+            {posts.map((item: CmsContentItem) => <PostCard key={item.id} item={item} dataset={dataset} headingLevel={3} />)}
           </div>
         )}
       </section>

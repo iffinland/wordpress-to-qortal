@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { CmsContentItem, CmsDataset, Gallery, LoadedContent, ViewerIdentity } from '../../types';
+import type { CmsContentItem, CmsDataset, Gallery, LoadedContent, SectionsDocument, ViewerIdentity } from '../../types';
 import { RichTextEditor } from './RichTextEditor';
 import { MediaPicker, type InsertedMedia } from './MediaPicker';
 import { FeaturedImagePicker, type FeaturedImageChoice } from './FeaturedImagePicker';
@@ -21,7 +21,9 @@ import {
   upsertDraft,
   writeDrafts
 } from '../../lib/drafts.js';
-import { loadNativeIndex, loadOverlay, publishNativePostDraft, publishOverlayDraft, resolveOverlayConflict } from '../../lib/authoring.js';
+import { loadNativeIndex, loadOverlay, publishNativePostDraft, publishOverlayDraft, publishSectionsAssignment, resolveOverlayConflict } from '../../lib/authoring.js';
+import { SectionsPicker } from './editor/SectionsPicker';
+import { assignmentFor, sameAssignment } from '../../lib/sections.js';
 import { publishMediaFile, quotePublication } from '../../lib/publish.js';
 import { slugAvailable } from '../../lib/nativeCatalog.js';
 import {
@@ -54,6 +56,7 @@ export function EditorPage(props: {
   siteId: string;
   dataset: CmsDataset | null;
   galleries: Gallery[];
+  sections?: SectionsDocument | null;
   loadContent: (item: CmsContentItem) => Promise<LoadedContent>;
   onRefresh: () => void;
   initialId?: string;
@@ -79,11 +82,14 @@ export function EditorPage(props: {
   const [slugConfirmChecked, setSlugConfirmChecked] = useState(false);
   const [conflicts, setConflicts] = useState<Record<string, { open: boolean; upstream?: LoadedContent; local?: LoadedContent }>>({});
   const [leavePrompt, setLeavePrompt] = useState(false);
+  const [assignment, setAssignment] = useState<{ slugs: string[]; hideFromHome: boolean }>({ slugs: [], hideFromHome: false });
+  const initialAssignmentRef = useRef<{ slugs: string[]; hideFromHome: boolean }>({ slugs: [], hideFromHome: false });
   const savedRef = useRef<string>('');
   const openedInitialRef = useRef(false);
 
   useUnsavedGuard(dirty);
 
+  const sectionsChanged = Boolean(draft && draft.type !== 'page' && !sameAssignment(assignment, initialAssignmentRef.current));
   const items = useMemo(() => (props.dataset ? [...props.dataset.posts, ...props.dataset.pages] : []), [props.dataset]);
   const nativePosts = useMemo(() => items.filter((item) => item.native), [items]);
   const importedItems = useMemo(() => items.filter((item) => !item.native), [items]);
@@ -107,11 +113,11 @@ export function EditorPage(props: {
   // a fourth resource in the same authorized plan.
   useEffect(() => {
     let cancelled = false;
-    quotePublication(featuredBytes || featuredFile ? 4 : 3)
+    quotePublication((featuredBytes || featuredFile ? 4 : 3) + (sectionsChanged ? 1 : 0))
       .then((quote) => { if (!cancelled) setFee(quote.label); })
       .catch(() => { if (!cancelled) setFee('Fee unavailable.'); });
     return () => { cancelled = true; };
-  }, [featuredBytes, featuredFile]);
+  }, [featuredBytes, featuredFile, sectionsChanged]);
 
   // Detect changed WordPress sources for every local edit. This is a read-only
   // comparison; it never publishes and never renames anything.
@@ -157,7 +163,13 @@ export function EditorPage(props: {
     featuredImageSuppressed: value.featuredImageSuppressed === true
   });
 
+  const postIdOf = (value: any) => String(value.sourceKind === 'wordpress-overlay' ? value.sourceItemId : (value.remoteId || value.id));
+  const sectionPages = useMemo(() => (props.dataset ? props.dataset.pages.filter((page) => page.native && page.status === 'published') : []), [props.dataset]);
+
   const openDraftState = (next: any) => {
+    const initial = assignmentFor(props.sections || null, postIdOf(next));
+    initialAssignmentRef.current = initial;
+    setAssignment(initial);
     savedRef.current = savedSnapshot(next);
     setDirty(false);
     setState('idle');
@@ -585,6 +597,27 @@ export function EditorPage(props: {
           author,
           timestamp
         });
+    let sectionsWarning = '';
+    if (result.ok && draft.type !== 'page' && !sameAssignment(assignment, initialAssignmentRef.current)) {
+      setMessage('Post published. Publishing page assignments and waiting for Qortal Hub approval...');
+      const sectionsResult: any = await publishSectionsAssignment({
+        identity: props.identity,
+        name: props.name,
+        siteId: props.siteId,
+        assignment: { postId: result.entry ? result.entry.id : postIdOf(draft), slugs: assignment.slugs, hideFromHome: assignment.hideFromHome },
+        baseRevision: props.sections ? props.sections.revision : 0,
+        storage: localStorage,
+        now: Date.now()
+      });
+      if (sectionsResult.ok) initialAssignmentRef.current = { ...assignment };
+      else sectionsWarning = ' The post is published, but the page assignments were not: ' + (sectionsResult.message || 'unknown error') + ' Publish again to retry the assignments.';
+    }
+    if (result.ok && sectionsWarning) {
+      setState(/ambiguous/.test(sectionsWarning) ? 'ambiguous' : 'partial');
+      setMessage(sectionsWarning.trim());
+      props.onRefresh();
+      return;
+    }
     if (result.ok) {
       const published = {
         ...draft,
@@ -781,6 +814,15 @@ export function EditorPage(props: {
             onUpdate={update}
           />
 
+          {draft.type !== 'page' ? (
+            <SectionsPicker
+              pages={sectionPages}
+              slugs={assignment.slugs}
+              hideFromHome={assignment.hideFromHome}
+              onChange={(next) => { setAssignment(next); setDirty(true); }}
+            />
+          ) : null}
+
           <FeaturedImagePanel
             draft={draft}
             featuredChoice={featuredChoice}
@@ -856,6 +898,7 @@ export function EditorPage(props: {
           featuredFile={featuredFile}
           featuredChoice={featuredChoice}
           fee={fee}
+          sectionsChange={sectionsChanged ? { slugs: assignment.slugs, hideFromHome: assignment.hideFromHome, revision: (props.sections ? props.sections.revision : 0) + 1 } : null}
           slugChanged={slugChanged}
           publishedSlug={publishedSlug}
           phase={publishPhase}

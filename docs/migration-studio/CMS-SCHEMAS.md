@@ -241,6 +241,23 @@ Rules:
 Native index entries additionally accept `slug_aliases` and `original_slug`
 for the published slug-change workflow.
 
+## qms-cms-sections@1
+
+Optional resource `DOCUMENT / <name> / qms-cms-sections`. Assigns posts to user-created pages and hides posts from the home page.
+
+```json
+{
+  "schema": "qms-cms-sections@1", "version": 1, "revision": 3,
+  "site_id": "site", "updated_at": "2026-01-01T00:00:00.000Z",
+  "sections": [{ "slug": "files", "post_ids": ["cms-newest", "cms-older"] }],
+  "home_hidden_ids": ["cms-older"]
+}
+```
+
+- `sections[].slug` is a page slug; `post_ids` is the display order (newly assigned posts go first). Imported WordPress post ids and CMS post ids are both valid.
+- Missing, unreadable or invalid documents are harmless: the reader logs a warning, every published post stays on the home page and no page shows posts. CMS versions without this feature ignore the resource.
+- Publishing uses a revision check (`revision` must not exceed the editor's base revision) and an invalid remote document is never overwritten.
+
 ## Resources deliberately not used
 
 - No localStorage-only ownership or settings.

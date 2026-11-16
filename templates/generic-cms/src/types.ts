@@ -222,7 +222,7 @@ export type AppRoute =
   | { kind: 'home' }
   | { kind: 'posts'; page: number }
   | { kind: 'post'; slug: string; q?: string }
-  | { kind: 'page'; slug: string; q?: string }
+  | { kind: 'page'; slug: string; q?: string; page?: number }
   | { kind: 'category'; slug: string; page: number }
   | { kind: 'tag'; slug: string; page: number }
   | ArchiveRoute
@@ -261,4 +261,14 @@ export interface GalleryCatalog {
   site_id: string;
   updated_at: string | null;
   galleries: Gallery[];
+}
+
+export interface SectionsDocument {
+  schema: string;
+  version: number;
+  revision: number;
+  site_id: string;
+  updated_at: string | null;
+  sections: Array<{ slug: string; post_ids: string[] }>;
+  home_hidden_ids: string[];
 }

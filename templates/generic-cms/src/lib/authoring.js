@@ -47,6 +47,7 @@ import {
   removeOverlayEntry,
   upsertOverlayEntry
 } from './overlay.js';
+import { applyAssignment, readSections, SECTIONS_IDENTIFIER } from './sections.js';
 import { assertSlugChangeAllowed } from './slugField.js';
 import { mergeAliases, slugify } from './slug.js';
 import { featuredMediaEntry, resolveFeaturedImage } from './featuredImage.js';
@@ -453,3 +454,30 @@ export async function resolveOverlayConflict(options) {
 }
 
 export { serialiseJsonDocument };
+
+export async function loadSectionsDocument(name, siteId = 'site') {
+  try {
+    const payload = await readRemoteJson('DOCUMENT', name, SECTIONS_IDENTIFIER);
+    return readSections(payload, siteId);
+  } catch (error) {
+    return { ok: false, errors: [error && error.message ? error.message : String(error)], doc: readSections(null, siteId).doc };
+  }
+}
+
+/**
+ * Publish the optional page-assignment document for one post. An invalid remote
+ * document is never overwritten silently: the owner gets a clear error.
+ */
+export async function publishSectionsAssignment({ identity, name, siteId, assignment, baseRevision, storage, now }) {
+  const remote = await loadSectionsDocument(name, siteId);
+  if (!remote.ok) return { ok: false, state: 'invalid-remote', message: 'The published sections document is invalid and was not overwritten: ' + remote.errors.join(' ') };
+  const updated = applyAssignment(remote.doc, assignment, { baseRevision, siteId, now: now || Date.now() });
+  if (!updated.ok) return { ok: false, state: 'conflict', message: updated.message };
+  const result = await publishJsonResource({
+    identity, name, identifier: SECTIONS_IDENTIFIER, document: updated.doc,
+    title: 'CMS sections revision ' + updated.doc.revision,
+    description: 'Owner-published page assignments for ' + name + '.',
+    storage
+  });
+  return { ...result, sections: updated.doc };
+}

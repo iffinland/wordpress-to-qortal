@@ -14,6 +14,7 @@ export function ConfirmPublishPanel(props: {
   featuredFile: File | null;
   featuredChoice: FeaturedImageChoice;
   fee: string;
+  sectionsChange?: { slugs: string[]; hideFromHome: boolean; revision: number } | null;
   slugChanged: boolean;
   publishedSlug: string;
   phase: PublishPhase;
@@ -37,6 +38,7 @@ export function ConfirmPublishPanel(props: {
         <div><dt>Content</dt><dd>DOCUMENT / {props.name} / {props.draft.contentIdentifier || 'stable slug identifier'}</dd></div>
         <div><dt>Index</dt><dd>{props.draft.sourceKind === 'wordpress-overlay' ? 'DOCUMENT / ' + props.name + ' / qms-cms-edit-overlay (revision ' + (props.overlayRevision + 1) + ')' : 'DOCUMENT / ' + props.name + ' / qms-cms-native-index (revision ' + (props.revision + 1) + ')'}</dd></div>
         <div><dt>Featured image</dt><dd>{props.featuredBytes ? 'New local image / ' + ((props.featuredMeta && props.featuredMeta.name) || (props.featuredFile && props.featuredFile.name) || 'selected image') : props.featuredChoice.url ? (props.featuredChoice.ref ? 'QDN IMAGE / ' + (props.featuredChoice.ref.name || props.name) + ' / ' + props.featuredChoice.ref.identifier : props.featuredChoice.url) : 'None'}{props.featuredBytes ? ' (fee includes one image resource)' : ''}</dd></div>
+        {props.sectionsChange ? <div><dt>Page assignments</dt><dd>DOCUMENT / {props.name} / qms-cms-sections (revision {props.sectionsChange.revision}): {props.sectionsChange.slugs.length ? props.sectionsChange.slugs.join(', ') : 'no pages'}{props.sectionsChange.hideFromHome ? '; hidden from home' : ''}</dd></div> : null}
         <div><dt>Fee</dt><dd>{props.fee}</dd></div>
         <div><dt>Signer</dt><dd>{props.identity.address}</dd></div>
         {props.slugChanged ? <div><dt>Slug change</dt><dd>Old slug /{props.publishedSlug} becomes an alias; old content resource is kept.</dd></div> : null}

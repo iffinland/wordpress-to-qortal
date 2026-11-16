@@ -24,7 +24,7 @@ import { connectOwnerAccount, discoverHostedQdnName, revalidateViewerIdentity, r
 import { applyThemeToDocument, readStoredTheme, resolveThemeMode, writeStoredTheme } from './lib/theme.js';
 import { loadPublishedSettings, applyPublishedSettings } from './lib/authoring.js';
 import { removeTemplatePlaceholders } from './lib/settings.js';
-import type { AppRoute, CmsContentItem, CmsDataset, Gallery, LoadedContent, ViewerIdentity } from './types';
+import type { AppRoute, CmsContentItem, CmsDataset, Gallery, LoadedContent, SectionsDocument, ViewerIdentity } from './types';
 
 function titleForRoute(route: AppRoute): string {
   if (route.kind === 'home') return '';
@@ -57,6 +57,7 @@ export function App() {
   const [reloadToken, setReloadToken] = useState(0);
   const [galleries, setGalleries] = useState<Gallery[]>([]);
   const [galleriesLoading, setGalleriesLoading] = useState(true);
+  const [sections, setSections] = useState<SectionsDocument | null>(null);
   const [detailItem, setDetailItem] = useState<CmsContentItem | null>(null);
   const [detailContent, setDetailContent] = useState<LoadedContent | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -134,6 +135,16 @@ export function App() {
         setGalleriesLoading(false);
       }
     }).catch(() => { if (!cancelled) { setGalleries([]); setGalleriesLoading(false); } });
+    return () => { cancelled = true; };
+  }, [repository, reloadToken]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.resolve(typeof repository.loadSections === 'function' ? repository.loadSections() : { ok: true, doc: null, errors: [] as string[] }).then((result: { ok: boolean; doc: SectionsDocument | null; errors: string[] }) => {
+      if (cancelled) return;
+      if (!result.ok) console.warn('[qms-cms] Ignoring invalid sections document: ' + result.errors.join(' '));
+      setSections(result.ok ? (result.doc as SectionsDocument | null) : null);
+    }).catch(() => { if (!cancelled) setSections(null); });
     return () => { cancelled = true; };
   }, [repository, reloadToken]);
 
@@ -226,7 +237,7 @@ export function App() {
 
   function renderPage() {
     if (!dataset) return null;
-    if (route.kind === 'home') return <HomePage dataset={dataset} />;
+    if (route.kind === 'home') return <HomePage dataset={dataset} sections={sections} />;
     if (route.kind === 'posts') return <PostsPage dataset={dataset} page={route.page} />;
     if (route.kind === 'category') return <TermPage dataset={dataset} kind="category" slug={route.slug} page={route.page} />;
     if (route.kind === 'tag') return <TermPage dataset={dataset} kind="tag" slug={route.slug} page={route.page} />;
@@ -242,7 +253,7 @@ export function App() {
     if (route.kind === 'page') {
       const item = resolveBySlug(dataset.pages, route.slug);
       const highlightTerms = route.q ? tokenizeQuery(route.q).all : [];
-      return <PageView dataset={dataset} item={item} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} highlightTerms={highlightTerms} />;
+      return <PageView dataset={dataset} item={item} sections={sections} pageNumber={route.page || 1} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} highlightTerms={highlightTerms} />;
     }
     return <NotFoundPage />;
   }
@@ -299,6 +310,7 @@ export function App() {
           remoteSettings={publishedSettings}
           onSettingsPreview={(draft) => setPreviewSettings(draft)}
           onSettingsPublished={(settings) => setPublishedSettings(settings)}
+          sections={sections}
           galleries={galleries}
           galleriesLoading={galleriesLoading}
           loadContent={loadContent}

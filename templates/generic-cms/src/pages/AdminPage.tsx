@@ -2,7 +2,7 @@ import { StateNotice } from '../components/StateNotice';
 import { AccessDeniedPage } from './AccessDeniedPage';
 import { formatDate } from '../lib/text.js';
 import { adminHref } from '../lib/routes.js';
-import type { AdminSection, CmsDataset, ViewerIdentity } from '../types';
+import type { AdminSection, CmsDataset, SectionsDocument, ViewerIdentity } from '../types';
 import { SettingsPanel } from './admin/SettingsPanel';
 import { EditorPage } from './admin/EditorPage';
 import { GalleryAdmin } from './admin/GalleryAdmin';
@@ -20,6 +20,7 @@ function OwnerAdmin(props: {
   onSettingsPreview: (draft: unknown | null) => void;
   onSettingsPublished: (settings: unknown) => void;
   galleries: any[];
+  sections?: SectionsDocument | null;
   galleriesLoading: boolean;
   loadContent: any;
   initialEditorId?: string;
@@ -55,6 +56,7 @@ function OwnerAdmin(props: {
           siteId={props.siteId}
           dataset={props.dataset}
           galleries={props.galleries}
+          sections={props.sections || null}
           loadContent={props.loadContent}
           onRefresh={props.onRefresh}
           initialId={props.initialEditorId}
@@ -143,6 +145,7 @@ export function AdminPage(props: {
   onSettingsPreview?: (draft: unknown | null) => void;
   onSettingsPublished?: (settings: unknown) => void;
   galleries?: any[];
+  sections?: SectionsDocument | null;
   galleriesLoading?: boolean;
   loadContent?: any;
   initialEditorId?: string;
@@ -178,6 +181,7 @@ export function AdminPage(props: {
       onSettingsPreview={props.onSettingsPreview || (() => undefined)}
       onSettingsPublished={props.onSettingsPublished || (() => undefined)}
       galleries={props.galleries || []}
+      sections={props.sections || null}
       galleriesLoading={Boolean(props.galleriesLoading)}
       loadContent={props.loadContent || (async () => { throw new Error('Content loading is unavailable.'); })}
       initialEditorId={props.initialEditorId}
