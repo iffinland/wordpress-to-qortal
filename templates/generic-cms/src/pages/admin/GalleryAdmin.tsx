@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CmsDataset, Gallery, GalleryImage, ViewerIdentity } from '../../types';
 import { StateNotice } from '../../components/StateNotice';
 import { loadGalleryCatalog, publishGalleryDraft } from '../../lib/authoring.js';
-import { publishMediaFile, quotePublication } from '../../lib/publish.js';
+import { prepareMediaResource, quotePublication } from '../../lib/publish.js';
+import { readFileBytes } from '../../lib/mediaBytes.js';
+import { ConfirmPublishDialog, type PublishPhase } from '../../components/ConfirmPublishDialog';
 import { MAX_BATCH_IMAGES, gallerySlug, validateGalleryDraft } from '../../lib/gallery.js';
 import { createQdnResourceUrl } from '../../lib/qortal.js';
 import { sanitizeSlugTyping, slugify, uniqueSlug } from '../../lib/slug.js';
@@ -26,9 +28,11 @@ export function GalleryAdmin(props: {
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [editing, setEditing] = useState<any>(null);
   const [locals, setLocals] = useState<LocalImage[]>([]);
-  const [state, setState] = useState<'idle' | 'publishing' | 'verified' | 'failed' | 'ambiguous'>('idle');
+  const [state, setState] = useState<'idle' | 'publishing' | 'verified' | 'failed' | 'ambiguous' | 'partial'>('idle');
   const [message, setMessage] = useState('');
   const [fee, setFee] = useState('Checking node fee...');
+  const [plan, setPlan] = useState<{ merged: any; resources: any[]; added: number; timestamp: number } | null>(null);
+  const [planFee, setPlanFee] = useState('Checking node fee...');
 
   const existingMedia = useMemo(() => {
     const list: GalleryImage[] = [];
@@ -126,31 +130,33 @@ export function GalleryAdmin(props: {
 
   const removeImage = (index: number) => setEditing({ ...editing, images: editing.images.filter((_: unknown, itemIndex: number) => itemIndex !== index) });
 
-  const publish = async () => {
+  // Step 1: capture bytes (before any await that could outlive an Android
+  // content URI), compute every resource and open the confirmation dialog.
+  const startPublish = async () => {
     if (!editing) return;
     if (locals.length > MAX_BATCH_IMAGES) { setState('failed'); setMessage('A batch can publish at most ' + MAX_BATCH_IMAGES + ' images.'); return; }
-    setState('publishing');
-    setMessage('Publishing ' + locals.length + ' new image(s) through Qortal Hub, then the gallery manifest...');
-    const added: GalleryImage[] = [];
-    for (const local of locals) {
-      const result = await publishMediaFile({ identity: props.identity, name: props.name, file: local.file, title: local.caption || local.file.name, storage: localStorage as any });
-      if (!result.ok || !result.ref) {
-        setState(result.state === 'ambiguous' ? 'ambiguous' : 'failed');
-        setMessage('Stopped after ' + added.length + ' image(s): ' + result.message);
-        return;
-      }
-      added.push({
-        service: result.ref.service,
-        name: result.ref.name,
-        identifier: result.ref.identifier,
-        mimeType: result.ref.mimeType,
-        bytes: result.ref.bytes,
-        sha256: result.ref.sha256,
-        caption: local.caption,
-        alt: local.caption || local.file.name
-      });
-    }
     const timestamp = Number(editing.publishTimestamp) || Date.now();
+    const added: GalleryImage[] = [];
+    const resources: any[] = [];
+    try {
+      for (const local of locals) {
+        const bytes = await readFileBytes(local.file);
+        const prepared = await prepareMediaResource({
+          name: props.name, bytes, filename: local.file.name, mimeType: local.file.type,
+          title: local.caption || local.file.name
+        });
+        if (!resources.some((item) => item.identifier === prepared.resource.identifier)) resources.push(prepared.resource);
+        added.push({
+          service: prepared.ref.service, name: prepared.ref.name, identifier: prepared.ref.identifier,
+          mimeType: prepared.ref.mimeType, bytes: prepared.ref.bytes, sha256: prepared.ref.sha256,
+          caption: local.caption, alt: local.caption || local.file.name
+        });
+      }
+    } catch (error) {
+      setState('failed');
+      setMessage('An image could not be read from this device. Re-select it and try again. ' + (error instanceof Error ? error.message : String(error)));
+      return;
+    }
     const seen = new Set<string>();
     const mergedImages = [...editing.images, ...added].filter((image) => {
       const key = image.service + '/' + image.identifier;
@@ -160,36 +166,54 @@ export function GalleryAdmin(props: {
     });
     const merged = { ...editing, images: mergedImages, updatedAt: new Date(timestamp).toISOString(), publishTimestamp: timestamp };
     merged.slug = merged.slug || gallerySlug(merged.title, props.galleries);
-    setEditing(merged);
-    setLocals([]);
     const validation = validateGalleryDraft(merged, { newImages: locals });
     if (!validation.ok) {
       setState('failed');
       setMessage(validation.errors.join(' '));
       return;
     }
-    const result = await publishGalleryDraft({
+    setState('idle');
+    setMessage('');
+    setPlan({ merged, resources, added: added.length, timestamp });
+    quotePublication(resources.length + 1).then((quote) => setPlanFee(quote.label)).catch(() => setPlanFee('Fee unavailable.'));
+  };
+
+  // Step 2: one Hub approval for all images plus the catalog.
+  const confirmPublish = async () => {
+    if (!plan) return;
+    setState('publishing');
+    setMessage('Waiting for Qortal Hub approval of the combined publication...');
+    const result: any = await publishGalleryDraft({
       identity: props.identity,
       name: props.name,
       siteId: props.siteId,
-      gallery: merged,
-      newImageCount: locals.length,
+      gallery: plan.merged,
+      newImageCount: plan.added,
       baseRevision: revision,
       storage: localStorage,
-      now: timestamp
+      now: plan.timestamp,
+      extraResources: plan.resources
     });
     if (!result.ok) {
-      setState(result.state === 'ambiguous' ? 'ambiguous' : 'failed');
+      setState(result.state === 'ambiguous' ? 'ambiguous' : result.state === 'partial' ? 'partial' : 'failed');
       setMessage(result.message || 'Gallery publication failed.');
       return;
     }
-    setRevision((result as any).catalog.revision);
+    setRevision(result.catalog.revision);
     setState('verified');
-    setMessage('Gallery published and verified. ' + added.length + ' new image(s).');
+    setMessage('Gallery published and verified. ' + plan.added + ' new image(s).');
     setEditing(null);
     setLocals([]);
     props.onRefresh();
   };
+
+  const dialogPhase: PublishPhase = !plan ? 'confirm'
+    : state === 'publishing' ? 'publishing'
+    : state === 'verified' ? 'success'
+    : state === 'partial' ? 'partial'
+    : state === 'ambiguous' ? 'ambiguous'
+    : state === 'failed' ? 'error'
+    : 'confirm';
 
   if (catalogLoading) return <p className="muted">Reading the gallery catalog...</p>;
 
@@ -224,7 +248,7 @@ export function GalleryAdmin(props: {
         <>
           <div className="admin-toolbar">
             <button type="button" className="button button--ghost" onClick={() => { setEditing(null); setLocals([]); }}>← All galleries</button>
-            <button type="button" className="button" onClick={publish} disabled={state === 'publishing'}>Publish gallery…</button>
+            <button type="button" className="button" onClick={startPublish} disabled={state === 'publishing'}>Publish gallery…</button>
           </div>
           <div className="editor-fields">
             <label>Gallery title<input value={editing.title} onChange={(event) => changeGalleryTitle(event.target.value)} /></label>
@@ -284,6 +308,28 @@ export function GalleryAdmin(props: {
           )}
         </>
       )}
+      {plan ? (
+        <ConfirmPublishDialog
+          title="Confirm gallery publication"
+          phase={dialogPhase}
+          statusMessage={message}
+          onConfirm={confirmPublish}
+          onCancel={() => setPlan(null)}
+          onClose={() => { setPlan(null); if (state === 'verified') setState('idle'); }}
+        >
+          <p className="muted">One Qortal Hub approval publishes every resource below. Publishing is sequential and not atomic; each resource is verified afterwards.</p>
+          <ul>
+            {plan.resources.map((item) => <li key={item.identifier}>{item.service} / {props.name} / {item.identifier}</li>)}
+            <li>DOCUMENT / {props.name} / qms-cms-galleries (revision {revision + 1})</li>
+          </ul>
+          <dl className="meta-grid">
+            <div><dt>Gallery</dt><dd>{plan.merged.title}</dd></div>
+            <div><dt>Resources</dt><dd>{plan.resources.length + 1}</dd></div>
+            <div><dt>Total fee</dt><dd>{planFee}</dd></div>
+            <div><dt>Signer</dt><dd>{props.identity.address}</dd></div>
+          </dl>
+        </ConfirmPublishDialog>
+      ) : null}
     </section>
   );
 }

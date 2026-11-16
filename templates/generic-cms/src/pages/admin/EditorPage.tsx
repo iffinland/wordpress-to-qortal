@@ -21,10 +21,10 @@ import {
   upsertDraft,
   writeDrafts
 } from '../../lib/drafts.js';
-import { loadNativeIndex, loadOverlay, publishNativePostDraft, publishOverlayDraft, publishSectionsAssignment, resolveOverlayConflict } from '../../lib/authoring.js';
+import { loadNativeIndex, loadOverlay, publishNativePostDraft, publishOverlayDraft, resolveOverlayConflict } from '../../lib/authoring.js';
 import { SectionsPicker } from './editor/SectionsPicker';
 import { assignmentFor, sameAssignment } from '../../lib/sections.js';
-import { publishMediaFile, quotePublication } from '../../lib/publish.js';
+import { prepareMediaResource, quotePublication } from '../../lib/publish.js';
 import { slugAvailable } from '../../lib/nativeCatalog.js';
 import {
   finalizeSlug,
@@ -515,48 +515,37 @@ export function EditorPage(props: {
     persist({ ...draft, slug: finalSlug, publishTimestamp: timestamp });
     const author = (props.dataset && props.dataset.site.publicAuthor) || props.identity.name;
 
-    // A local featured image is published first, through the same owner-guarded
-    // media plan (fee, collision check and byte-exact read-back). The post is
-    // only published after the image is confirmed or safely reused.
+    // A local featured image joins the single batch: its identifier and
+    // reference come from the captured bytes, nothing is published yet.
     let featuredResolved = resolveFeaturedImage(draft, props.dataset, { name: props.name, createUrl: mediaUrl });
+    let mediaResources: any[] = [];
+    let uploaded: any = null;
     if (featuredBytes) {
-      setMessage('Publishing the featured image and waiting for Qortal Hub approval...');
       const localName = (featuredMeta && featuredMeta.name) || (featuredFile && featuredFile.name) || 'featured-image';
-      const mediaResult = await publishMediaFile({
-        identity: props.identity,
-        name: props.name,
-        bytes: featuredBytes,
-        filename: localName,
-        mimeType: (featuredMeta && featuredMeta.type) || (featuredFile && featuredFile.type) || '',
-        title: draft.title,
-        description: 'Featured image for ' + draft.title + ' on ' + props.name + '.',
-        storage: localStorage as any
-      });
-      if (!mediaResult.ok || !mediaResult.ref) {
+      try {
+        const prepared = await prepareMediaResource({
+          name: props.name,
+          bytes: featuredBytes,
+          filename: localName,
+          mimeType: (featuredMeta && featuredMeta.type) || (featuredFile && featuredFile.type) || '',
+          title: draft.title,
+          description: 'Featured image for ' + draft.title + ' on ' + props.name + '.'
+        });
+        mediaResources = [prepared.resource];
+        uploaded = normalizeFeaturedImage(prepared.ref);
+      } catch (error) {
         setState('failed');
-        setMessage('The featured image was not published: ' + (mediaResult.message || 'unknown error') + ' The post was not published. Your draft is unchanged.');
+        setMessage('The featured image could not be prepared: ' + (error instanceof Error ? error.message : String(error)) + ' The post was not published. Your draft is unchanged.');
         return;
       }
-      const uploaded = normalizeFeaturedImage(mediaResult.ref);
       featuredResolved = {
         ref: uploaded,
         url: uploaded ? mediaUrl(uploaded.service, uploaded.name || props.name, uploaded.identifier) : '',
         alt: draft.featuredImageAlt || localName.replace(/\.[^.]+$/, ''),
         source: 'explicit'
       };
-      setFeaturedFile(null);
-      setFeaturedBytes(null);
-      setFeaturedMeta(null);
-      persist({
-        ...draft,
-        featuredImage: uploaded,
-        featuredImageOrigin: 'explicit',
-        featuredImageManual: true,
-        featuredImageSuppressed: false,
-        featuredImagePending: null
-      });
-      setMessage('Featured image published and verified. Publishing the post now...');
     }
+    setMessage('Waiting for Qortal Hub approval of the combined publication...');
 
     const publicationDraft = {
       ...draft,
@@ -570,6 +559,9 @@ export function EditorPage(props: {
       publishTimestamp: timestamp,
       featuredImageResolved: featuredResolved
     };
+    const sectionsPayload = draft.type !== 'page' && !sameAssignment(assignment, initialAssignmentRef.current)
+      ? { slugs: assignment.slugs, hideFromHome: assignment.hideFromHome, baseRevision: props.sections ? props.sections.revision : 0 }
+      : undefined;
     const result: any = draft.sourceKind === 'wordpress-overlay'
       ? await publishOverlayDraft({
           identity: props.identity,
@@ -582,7 +574,9 @@ export function EditorPage(props: {
           baseRevision: overlayRevision,
           storage: localStorage,
           author,
-          timestamp
+          timestamp,
+          extraResources: mediaResources,
+          sectionsAssignment: sectionsPayload
         })
       : await publishNativePostDraft({
           identity: props.identity,
@@ -595,28 +589,15 @@ export function EditorPage(props: {
           baseRevision: revision,
           storage: localStorage,
           author,
-          timestamp
+          timestamp,
+          extraResources: mediaResources,
+          sectionsAssignment: sectionsPayload
         });
-    let sectionsWarning = '';
-    if (result.ok && draft.type !== 'page' && !sameAssignment(assignment, initialAssignmentRef.current)) {
-      setMessage('Post published. Publishing page assignments and waiting for Qortal Hub approval...');
-      const sectionsResult: any = await publishSectionsAssignment({
-        identity: props.identity,
-        name: props.name,
-        siteId: props.siteId,
-        assignment: { postId: result.entry ? result.entry.id : postIdOf(draft), slugs: assignment.slugs, hideFromHome: assignment.hideFromHome },
-        baseRevision: props.sections ? props.sections.revision : 0,
-        storage: localStorage,
-        now: Date.now()
-      });
-      if (sectionsResult.ok) initialAssignmentRef.current = { ...assignment };
-      else sectionsWarning = ' The post is published, but the page assignments were not: ' + (sectionsResult.message || 'unknown error') + ' Publish again to retry the assignments.';
-    }
-    if (result.ok && sectionsWarning) {
-      setState(/ambiguous/.test(sectionsWarning) ? 'ambiguous' : 'partial');
-      setMessage(sectionsWarning.trim());
-      props.onRefresh();
-      return;
+    if (result.ok && sectionsPayload) initialAssignmentRef.current = { slugs: [...assignment.slugs], hideFromHome: assignment.hideFromHome };
+    if (result.ok && uploaded) {
+      setFeaturedFile(null);
+      setFeaturedBytes(null);
+      setFeaturedMeta(null);
     }
     if (result.ok) {
       const published = {

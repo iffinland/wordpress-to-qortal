@@ -569,6 +569,65 @@ export async function publishQdnResource(payload) {
   }, payload.timeoutMs || 180000);
 }
 
+const UNSUPPORTED_PATTERN = /unknown action|unsupported action|action (is )?not (supported|implemented|recognized|recognised|allowed)|not implemented|invalid action|unrecognized action|unrecognised action/i;
+const DECLINED_PATTERN = /declin|reject|cancel|denied/i;
+
+function failedIdentifiers(source) {
+  const list = source && (source.unsuccessfulPublishes || source.failedPublishes || source.failedPublishesIdentifiers);
+  if (!Array.isArray(list)) return null;
+  return list.map((entry) => (entry && typeof entry === 'object' ? String(entry.identifier || entry.id || '') : String(entry))).filter(Boolean);
+}
+
+/**
+ * Publish several QDN resources behind ONE Qortal Hub approval
+ * (PUBLISH_MULTIPLE_QDN_RESOURCES). Hub then publishes them sequentially and
+ * non-atomically. Resolves with { unsuccessful: string[] } (identifiers Hub
+ * reports as not published). Rejects with an Error whose `code` is one of
+ * 'declined' | 'unsupported' | 'partial' | 'failed'; a partial rejection
+ * carries `unsuccessful`. Timeouts reject with code 'failed' and must be
+ * treated as ambiguous by callers.
+ */
+export async function publishQdnResources(resources, options = {}) {
+  const payload = {
+    action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
+    resources: resources.map((item) => ({
+      service: item.service,
+      name: item.name,
+      identifier: item.identifier,
+      data64: item.data64,
+      filename: item.filename,
+      title: item.title,
+      description: item.description
+    }))
+  };
+  let response;
+  try {
+    response = await requestQortal(payload, options.timeoutMs || 300000);
+  } catch (error) {
+    const message = String(error && error.message ? error.message : error || '');
+    const unsuccessful = failedIdentifiers(error) || failedIdentifiers(error && error.error) || failedIdentifiers(error && error.data);
+    const wrapped = new Error(message || 'The batch publish request failed.');
+    if (unsuccessful && unsuccessful.length) {
+      wrapped.code = 'partial';
+      wrapped.unsuccessful = unsuccessful;
+    } else if (DECLINED_PATTERN.test(message)) {
+      wrapped.code = 'declined';
+    } else if (UNSUPPORTED_PATTERN.test(message)) {
+      wrapped.code = 'unsupported';
+    } else {
+      wrapped.code = 'failed';
+    }
+    throw wrapped;
+  }
+  const unsuccessful = failedIdentifiers(response) || failedIdentifiers(response && response.error) || [];
+  if (response && response.error && typeof response.error === 'string' && !unsuccessful.length) {
+    const wrapped = new Error(response.error);
+    wrapped.code = DECLINED_PATTERN.test(response.error) ? 'declined' : 'failed';
+    throw wrapped;
+  }
+  return { unsuccessful, response };
+}
+
 export async function fetchQdnBytes(service, name, identifier) {
   const result = await requestQortal({
     action: 'FETCH_QDN_RESOURCE',

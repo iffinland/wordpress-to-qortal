@@ -33,7 +33,7 @@ export const PUBLICATION_STATE_LABELS = Object.freeze({
 export function publicationStateForResult(result) {
   if (!result || typeof result !== 'object') return 'failed';
   if (result.ok) return 'published';
-  if (result.searchPending) return 'partial';
+  if (result.searchPending || result.state === 'partial') return 'partial';
   if (result.state === 'ambiguous' || result.state === 'in-flight') return 'ambiguous';
   return 'failed';
 }

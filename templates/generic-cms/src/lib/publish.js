@@ -10,6 +10,7 @@ import {
   fetchUnitFee,
   getQdnResourceStatus,
   publishQdnResource,
+  publishQdnResources,
   revalidateViewerIdentity,
   sha256Hex,
   verifyPublishedBytes
@@ -193,6 +194,207 @@ export async function publishJsonResource({
   } finally {
     inFlight.delete(key);
   }
+}
+
+/**
+ * @typedef {Object} BatchResource
+ * @property {string} [service]   default DOCUMENT
+ * @property {string} identifier
+ * @property {any} [document]     JSON document (serialised deterministically)
+ * @property {Uint8Array} [bytes] raw bytes (media)
+ * @property {string} [filename]
+ * @property {string} [title]
+ * @property {string} [description]
+ * @property {boolean} [reuseIfReady] skip when identical bytes are already READY
+ * @property {string} [stage]     caller label, echoed back
+ */
+
+/**
+ * Publish many resources with ONE Hub approval and verify each one.
+ *
+ * Caller contract: every document is already computed. This function
+ * revalidates the owner once, records all pending entries, sends exactly one
+ * batch request, maps Hub's unsuccessfulPublishes to per-resource states and
+ * read-back verifies each resource. It never resends. The sequential
+ * single-resource path is used ONLY when the Hub clearly does not support the
+ * batch action (error before any approval or publish). It is never used after
+ * a decline, a partial success or an ambiguous result.
+ *
+ * Per-resource states: remote-verified | reused | declined | failed | ambiguous
+ * | not-sent.
+ */
+export async function publishBatch({ identity, name, resources, storage, verifyTimeoutMs = 60000 }) {
+  const keys = resources.map((item) => resourceKey(item.service || 'DOCUMENT', name, item.identifier));
+  const held = [];
+  for (const key of keys) {
+    if (inFlight.has(key)) {
+      held.forEach((entry) => inFlight.delete(entry));
+      return { ok: false, state: 'in-flight', message: 'A resource in this batch is already being published in another action.', results: [] };
+    }
+    inFlight.set(key, true);
+    held.push(key);
+  }
+  const results = resources.map((item, index) => ({
+    stage: item.stage || item.identifier, service: item.service || 'DOCUMENT', identifier: item.identifier,
+    key: keys[index], ok: false, state: 'not-sent', message: ''
+  }));
+  try {
+    const owner = await guardOwner(identity);
+    const prepared = [];
+    for (let index = 0; index < resources.length; index += 1) {
+      const item = resources[index];
+      const service = item.service || 'DOCUMENT';
+      const bytes = item.bytes ? mediaBytes(item.bytes) : serialiseJsonDocument(item.document);
+      const sha256 = await sha256Hex(bytes);
+      const entry = { index, item, service, bytes, sha256, key: keys[index] };
+      results[index].sha256 = sha256;
+      if (item.reuseIfReady) {
+        const status = await getQdnResourceStatus(service, name, item.identifier);
+        if (status && status.status === 'READY') {
+          Object.assign(results[index], { ok: true, state: 'reused', message: 'Reused an existing QDN resource with identical bytes.' });
+          continue;
+        }
+      }
+      const pending = readPending(storage).find((candidate) => candidate.key === entry.key);
+      if (pending) {
+        if (pending.sha256 !== sha256) {
+          return {
+            ok: false, state: 'ambiguous', identity: owner, results,
+            message: 'A different submission for ' + item.identifier + ' is unconfirmed. Resolve or discard it before publishing new bytes. Nothing was sent.'
+          };
+        }
+        const verification = await verifyPublishedBytes({ service, name, identifier: item.identifier, expectedBytes: bytes, timeoutMs: verifyTimeoutMs });
+        if (verification.ok) {
+          clearPending(storage, entry.key);
+          Object.assign(results[index], { ok: true, state: 'remote-verified', message: 'The earlier submission is confirmed on QDN.' });
+          continue;
+        }
+        return {
+          ok: false, state: 'ambiguous', identity: owner, results,
+          message: 'An earlier submission for ' + item.identifier + ' is still unconfirmed. It was NOT resent. Check Qortal Hub, then retry verification.'
+        };
+      }
+      prepared.push(entry);
+    }
+
+    const finish = () => {
+      const failed = results.filter((entry) => !entry.ok);
+      const verifiedCount = results.length - failed.length;
+      if (failed.length === 0) return { ok: true, state: 'remote-verified', identity: owner, results, message: 'Published and verified byte-for-byte.' };
+      const first = failed[0];
+      const state = failed.some((entry) => entry.state === 'ambiguous') ? 'ambiguous'
+        : verifiedCount > 0 ? 'partial'
+        : first.state;
+      return { ok: false, state, identity: owner, results, message: first.message };
+    };
+    if (prepared.length === 0) return finish();
+
+    prepared.forEach((entry) => recordPending(storage, {
+      key: entry.key, service: entry.service, name, identifier: entry.item.identifier, sha256: entry.sha256, bytes: entry.bytes.length,
+      submittedAt: new Date().toISOString(), owner: owner.address, title: entry.item.title || ''
+    }));
+    const toPayload = (entry) => ({
+      service: entry.service, name, identifier: entry.item.identifier,
+      data64: bytesToBase64Bytes(entry.bytes),
+      filename: entry.item.filename || (entry.item.bytes ? entry.item.identifier : entry.item.identifier + '.json'),
+      title: entry.item.title || entry.item.identifier,
+      description: entry.item.description || 'Published from the Qortal Migration Studio CMS.'
+    });
+
+    let sent = null;
+    let fallbackUsed = false;
+    try {
+      sent = await publishQdnResources(prepared.map(toPayload));
+    } catch (error) {
+      if (error && error.code === 'declined') {
+        prepared.forEach((entry) => { clearPending(storage, entry.key); results[entry.index].state = 'declined'; results[entry.index].message = error.message || 'The signature request was declined.'; });
+        return { ...finish(), state: 'declined', message: error.message || 'The signature request was declined.' };
+      }
+      if (error && error.code === 'unsupported') {
+        fallbackUsed = true;
+      } else if (error && error.code === 'partial') {
+        sent = { unsuccessful: error.unsuccessful || [] };
+      } else {
+        prepared.forEach((entry) => {
+          results[entry.index].state = 'ambiguous';
+          results[entry.index].message = 'The batch request ended without a confirmed result. It was NOT resent. Verify the resource before retrying. ' + (error && error.message ? error.message : '');
+        });
+        return { ...finish(), state: 'ambiguous', message: 'The batch publish request ended without a confirmed result. Nothing was resent. Verify the resources before retrying. ' + (error && error.message ? error.message : '') };
+      }
+    }
+
+    if (fallbackUsed) {
+      // The Hub rejected the action itself, so nothing was approved or published.
+      for (const entry of prepared) {
+        try {
+          await publishQdnResource(toPayload(entry));
+        } catch (error) {
+          if (isDeclinedError(error)) {
+            clearPending(storage, entry.key);
+            results[entry.index].state = 'declined';
+            results[entry.index].message = error.message || 'The signature request was declined.';
+          } else {
+            results[entry.index].state = 'ambiguous';
+            results[entry.index].message = 'The publish request ended without a confirmed result. It was NOT resent. ' + (error && error.message ? error.message : '');
+          }
+          prepared.filter((rest) => rest.index > entry.index).forEach((rest) => { clearPending(storage, rest.key); });
+          return { ...finish(), fallbackUsed: true };
+        }
+        // Verify each fallback resource before asking Hub to sign the next one.
+        const verification = await verifyPublishedBytes({ service: entry.service, name, identifier: entry.item.identifier, expectedBytes: entry.bytes, timeoutMs: verifyTimeoutMs });
+        if (verification.ok) {
+          clearPending(storage, entry.key);
+          Object.assign(results[entry.index], { ok: true, state: 'remote-verified', message: 'Published and verified byte-for-byte.', verification });
+        } else {
+          results[entry.index].state = 'ambiguous';
+          results[entry.index].message = 'Submitted, but exact QDN read-back did not match yet. It was NOT resent.';
+          prepared.filter((rest) => rest.index > entry.index).forEach((rest) => { clearPending(storage, rest.key); });
+          return { ...finish(), fallbackUsed: true };
+        }
+      }
+      return { ...finish(), fallbackUsed: true };
+    }
+
+    const unsuccessful = new Set(sent.unsuccessful || []);
+    for (const entry of prepared) {
+      if (unsuccessful.has(entry.item.identifier)) {
+        clearPending(storage, entry.key);
+        results[entry.index].state = 'failed';
+        results[entry.index].message = 'Qortal Hub reported that ' + entry.item.identifier + ' was not published.';
+        continue;
+      }
+      const verification = await verifyPublishedBytes({ service: entry.service, name, identifier: entry.item.identifier, expectedBytes: entry.bytes, timeoutMs: verifyTimeoutMs });
+      if (verification.ok) {
+        clearPending(storage, entry.key);
+        Object.assign(results[entry.index], { ok: true, state: 'remote-verified', message: 'Published and verified byte-for-byte.', verification });
+      } else {
+        results[entry.index].state = 'ambiguous';
+        results[entry.index].message = 'Submitted, but exact QDN read-back of ' + entry.item.identifier + ' did not match yet. It was NOT resent.';
+      }
+    }
+    return finish();
+  } catch (error) {
+    return { ok: false, state: error.code === 'not-owner' ? 'denied' : 'failed', message: error.message || String(error), results };
+  } finally {
+    held.forEach((entry) => inFlight.delete(entry));
+  }
+}
+
+/**
+ * Prepare a local media file for a batch: computes its stable identifier and
+ * reference from the captured bytes without publishing anything.
+ */
+export async function prepareMediaResource({ name, bytes, filename = 'media', mimeType = '', title = '', description = '' }) {
+  const captured = mediaBytes(bytes);
+  if (!captured.length) throw new Error('The selected image is empty. Choose another file.');
+  const sha256 = await sha256Hex(captured);
+  const service = serviceForMime(mimeType, filename);
+  const identifier = ('qms-cms-media-' + sha256.slice(0, 32)).slice(0, 64);
+  const payloadName = extensionFor(mimeType) && !/\.[a-z0-9]+$/i.test(filename) ? filename + '.' + extensionFor(mimeType) : filename;
+  return {
+    resource: { stage: 'media', service, identifier, bytes: captured, filename: payloadName, title: title || payloadName, description: description || 'Media published from the Qortal Migration Studio CMS.', reuseIfReady: true },
+    ref: { service, name, identifier, mimeType: mimeType || null, bytes: captured.length, sha256 }
+  };
 }
 
 function mediaBytes(value) {
