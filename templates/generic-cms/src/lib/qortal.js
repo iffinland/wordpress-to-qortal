@@ -565,6 +565,7 @@ export async function publishQdnResource(payload) {
     filename: payload.filename,
     title: payload.title,
     description: payload.description,
+    ...(payload.tag1 ? { tag1: payload.tag1 } : {}),
     ...(payload.file ? { file: payload.file } : {})
   }, payload.timeoutMs || 180000);
 }
@@ -597,7 +598,8 @@ export async function publishQdnResources(resources, options = {}) {
       ...(item.file ? { file: item.file } : { data64: item.data64 }),
       filename: item.filename,
       title: item.title,
-      description: item.description
+      description: item.description,
+      ...(item.tag1 ? { tag1: item.tag1 } : {})
     }))
   };
   let response;

@@ -4,6 +4,36 @@ import { finalizeSlug } from '../../../lib/slug.js';
 import type { ViewerIdentity } from '../../../types';
 import type { FeaturedImageChoice } from '../FeaturedImagePicker';
 
+export type CrossPublishPlanView = {
+  entries: Array<{
+    id: string;
+    label: string;
+    service: string;
+    identifier: string;
+    reused: boolean;
+    summary: string;
+  }>;
+  resources: unknown[];
+  announcement?: string;
+  warnings?: string[];
+};
+
+export type CrossPublishResultView = {
+  id: string;
+  label: string;
+  state: 'success' | 'reused' | 'failed' | 'ambiguous' | 'declined' | 'not-sent';
+  message: string;
+};
+
+const RESULT_TEXT: Record<CrossPublishResultView['state'], string> = {
+  success: 'published and verified',
+  reused: 'already published with identical content (no fee)',
+  failed: 'not published',
+  ambiguous: 'unconfirmed — nothing was resent',
+  declined: 'declined in Qortal Hub',
+  'not-sent': 'not sent'
+};
+
 export function ConfirmPublishPanel(props: {
   draft: any;
   name: string;
@@ -18,6 +48,8 @@ export function ConfirmPublishPanel(props: {
   attachments?: Array<{ service: string; identifier: string; filename: string; size: number; poster: boolean }>;
   progress?: Array<{ stage: string; identifier: string; state: string }>;
   sectionsChange?: { slugs: string[]; hideFromHome: boolean; revision: number } | null;
+  crossPlan?: CrossPublishPlanView | null;
+  crossResults?: CrossPublishResultView[] | null;
   slugChanged: boolean;
   publishedSlug: string;
   phase: PublishPhase;
@@ -26,6 +58,7 @@ export function ConfirmPublishPanel(props: {
   onCancel: () => void;
   onClose: () => void;
 }) {
+  const crossPlan = props.crossPlan || null;
   return (
     <ConfirmPublishDialog
       title="Confirm post publication"
@@ -47,6 +80,23 @@ export function ConfirmPublishPanel(props: {
             <ul>{props.attachments.map((item) => <li key={item.identifier}>{item.service} / {props.name} / {item.identifier} — {item.filename} ({formatBytes(item.size)}){item.poster ? ' + IMAGE poster' : ''}</li>)}</ul>
           </dd></div>
         ) : null}
+        {crossPlan && crossPlan.entries.length ? (
+          <div><dt>Also publishing</dt><dd>
+            <ul className="cross-publish-resources" aria-label="Destination resources">
+              {crossPlan.entries.map((entry) => (
+                <li key={entry.id} data-destination={entry.id}>
+                  <strong>{entry.label}</strong>: {entry.service} / {props.name} / <code>{entry.identifier}</code>
+                  {entry.reused ? ' — already published with identical content (no fee)' : ''}
+                  {entry.summary ? <span className="muted"> {entry.summary}</span> : null}
+                </li>
+              ))}
+            </ul>
+            {crossPlan.announcement ? <p className="muted">Quitter announcement: “{crossPlan.announcement}”</p> : null}
+            {crossPlan.warnings && crossPlan.warnings.length ? (
+              <p className="muted" role="status">{crossPlan.warnings.join(' ')}</p>
+            ) : null}
+          </dd></div>
+        ) : null}
         <div><dt>Fee</dt><dd>{props.fee}</dd></div>
         <div><dt>Signer</dt><dd>{props.identity.address}</dd></div>
         {props.slugChanged ? <div><dt>Slug change</dt><dd>Old slug /{props.publishedSlug} becomes an alias; old content resource is kept.</dd></div> : null}
@@ -55,6 +105,18 @@ export function ConfirmPublishPanel(props: {
         <ul className="publish-progress" aria-label="Progress per resource">
           {props.progress.map((item) => <li key={item.stage + item.identifier}>{item.stage}: {item.state}</li>)}
         </ul>
+      ) : null}
+      {props.crossResults && props.crossResults.length && props.phase !== 'confirm' ? (
+        <section className="destination-results" aria-labelledby="destination-results-title">
+          <h4 id="destination-results-title">Results per destination</h4>
+          <ul aria-label="Results per destination">
+            {props.crossResults.map((entry) => (
+              <li key={entry.id} data-state={entry.state}>
+                <strong>{entry.label}</strong>: {RESULT_TEXT[entry.state]}{entry.message ? ' — ' + entry.message : ''}
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
       <p className="muted">HTML is sanitized before publication. Ownership is revalidated immediately before each signature.</p>
     </ConfirmPublishDialog>

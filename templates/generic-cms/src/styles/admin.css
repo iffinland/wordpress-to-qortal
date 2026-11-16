@@ -261,3 +261,74 @@ input[type="file"] {
   outline: 2px dashed var(--qms-focus);
   opacity: 0.8;
 }
+
+/* ---------- Optional cross-publication destinations ---------- */
+.cross-publish-panel {
+  border: 1px solid var(--qms-border);
+  border-radius: var(--qms-radius);
+  background: var(--qms-surface-alt);
+  padding: 0.9rem 1rem;
+  margin: 1rem 0;
+}
+
+.cross-publish-panel h3 {
+  margin-top: 0;
+}
+
+.cross-publish-hint {
+  margin: 0.15rem 0 0.8rem;
+  color: var(--qms-muted);
+  font-size: 0.88rem;
+}
+
+.cross-publish-panel textarea {
+  width: 100%;
+  min-height: 6.5rem;
+  font: inherit;
+  resize: vertical;
+}
+
+.cross-publish-counter {
+  margin: 0.3rem 0 0;
+  color: var(--qms-muted);
+  font-size: 0.85rem;
+}
+
+.cross-publish-counter[data-over="true"] {
+  color: var(--qms-danger);
+  font-weight: 600;
+}
+
+.cross-publish-resources,
+.destination-results ul {
+  margin: 0.3rem 0;
+  padding-left: 1.1rem;
+}
+
+.cross-publish-resources code {
+  overflow-wrap: anywhere;
+}
+
+.destination-results {
+  margin-top: 0.9rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--qms-border);
+  border-radius: 8px;
+  background: var(--qms-surface-alt);
+}
+
+.destination-results h4 {
+  margin: 0 0 0.4rem;
+}
+
+.destination-results li[data-state="failed"],
+.destination-results li[data-state="ambiguous"],
+.destination-results li[data-state="declined"],
+.destination-results li[data-state="not-sent"] {
+  color: var(--qms-warning);
+}
+
+.destination-results li[data-state="success"],
+.destination-results li[data-state="reused"] {
+  color: var(--qms-text);
+}

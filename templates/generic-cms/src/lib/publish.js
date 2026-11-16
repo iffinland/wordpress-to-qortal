@@ -207,6 +207,7 @@ export async function publishJsonResource({
  * @property {string} [filename]
  * @property {string} [title]
  * @property {string} [description]
+ * @property {string} [tag1]      first Core metadata tag (Q-Tube uses 'qtube_vid_')
  * @property {boolean} [reuseIfReady] skip when identical bytes are already READY
  * @property {string} [stage]     caller label, echoed back
  */
@@ -317,7 +318,8 @@ export async function publishBatch({ identity, name, resources, storage, verifyT
       ...(entry.item.file ? { file: entry.item.file } : { data64: bytesToBase64Bytes(entry.bytes) }),
       filename: entry.item.filename || (entry.item.bytes ? entry.item.identifier : entry.item.identifier + '.json'),
       title: entry.item.title || entry.item.identifier,
-      description: entry.item.description || 'Published from the Qortal Migration Studio CMS.'
+      description: entry.item.description || 'Published from the Qortal Migration Studio CMS.',
+      ...(entry.item.tag1 ? { tag1: entry.item.tag1 } : {})
     });
 
     prepared.forEach((entry) => { results[entry.index].state = 'queued'; });

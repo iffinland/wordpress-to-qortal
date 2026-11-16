@@ -43,7 +43,18 @@ import {
   normalizeFeaturedImage,
   resolveFeaturedImage
 } from '../../lib/featuredImage.js';
-import { templateVersion } from '../../config/cmsConfig';
+import { cmsConfig, templateVersion } from '../../config/cmsConfig';
+import {
+  CrossPublishPanel,
+  emptyCrossPublishSelections,
+  type CrossPublishDestination,
+  type CrossPublishSelections
+} from './editor/CrossPublishPanel';
+import type { CrossPublishPlanView, CrossPublishResultView } from './editor/ConfirmPublishPanel';
+import { buildCrossPublishPlan, buildSitePostUrl } from '../../lib/crossPublish/plan.js';
+import { isQTubeEligibleVideo, QTUBE_PLAYABLE_EXTENSIONS } from '../../lib/crossPublish/qtube.js';
+import { resolveSubwireCover } from '../../lib/crossPublish/subwire.js';
+import { buildQuitterAnnouncement, QUITTER_TEXT_LIMIT } from '../../lib/crossPublish/quitter.js';
 import { createSlugState, reduceSlugState } from '../../lib/slugField.js';
 import { findOverlayEntry, overlayContentIdentifier } from '../../lib/overlay.js';
 import { createQdnResourceUrl } from '../../lib/qortal.js';
@@ -60,6 +71,8 @@ export function EditorPage(props: {
   dataset: CmsDataset | null;
   galleries: Gallery[];
   sections?: SectionsDocument | null;
+  /** Effective runtime configuration (site identity, theme, deployment). */
+  config?: any;
   loadContent: (item: CmsContentItem) => Promise<LoadedContent>;
   onRefresh: () => void;
   initialId?: string;
@@ -67,6 +80,7 @@ export function EditorPage(props: {
   contentType?: 'post' | 'page';
 }) {
   const [drafts, setDrafts] = useState<any[]>(() => readDrafts(localStorage, props.siteId));
+  const siteConfig = props.config || cmsConfig;
   const [draft, setDraft] = useState<any>(null);
   const [revision, setRevision] = useState(0);
   const [overlay, setOverlay] = useState<any>(null);
@@ -91,6 +105,13 @@ export function EditorPage(props: {
   const initialAssignmentRef = useRef<{ slugs: string[]; hideFromHome: boolean }>({ slugs: [], hideFromHome: false });
   const attachmentStoreRef = useRef<AttachmentStore>(new Map());
   const [progress, setProgress] = useState<Array<{ stage: string; identifier: string; state: string }>>([]);
+  const [crossSelections, setCrossSelections] = useState<CrossPublishSelections>(() => emptyCrossPublishSelections());
+  const [quitterText, setQuitterText] = useState('');
+  const [quitterTouched, setQuitterTouched] = useState(false);
+  const [crossPlan, setCrossPlan] = useState<CrossPublishPlanView | null>(null);
+  const [crossResults, setCrossResults] = useState<CrossPublishResultView[] | null>(null);
+  const [planFee, setPlanFee] = useState('');
+  const [subwireCoverKind, setSubwireCoverKind] = useState<'featured' | 'generated' | null>(null);
   const savedRef = useRef<string>('');
   const openedInitialRef = useRef(false);
 
@@ -105,6 +126,21 @@ export function EditorPage(props: {
     const capture = attachmentStoreRef.current.get(meta.identifier);
     return Boolean(capture && capture.poster && capture.posterIdentifier !== undefined && meta.poster);
   }).length;
+  const qtubeVideo = useMemo(() => {
+    if (!draft || !draft.html) return null;
+    return attachmentsInHtml(draft.html).find(isQTubeEligibleVideo) || null;
+  }, [draft && draft.html]);
+  const effectiveSelections = {
+    qtube: Boolean(qtubeVideo) && crossSelections.qtube,
+    subwire: crossSelections.subwire,
+    quitter: crossSelections.quitter
+  };
+  const basePublicationResources = (featuredBytes || featuredFile ? 4 : 3)
+    + (sectionsChanged ? 1 : 0)
+    + attachmentResourceCount;
+  const destinationResourceCount = (effectiveSelections.qtube ? 1 : 0)
+    + (effectiveSelections.subwire ? 1 : 0)
+    + (effectiveSelections.quitter ? 1 : 0);
   const items = useMemo(() => (props.dataset ? [...props.dataset.posts, ...props.dataset.pages] : []), [props.dataset]);
   const nativePosts = useMemo(() => items.filter((item) => item.native), [items]);
   const importedItems = useMemo(() => items.filter((item) => !item.native), [items]);
@@ -128,11 +164,32 @@ export function EditorPage(props: {
   // a fourth resource in the same authorized plan.
   useEffect(() => {
     let cancelled = false;
-    quotePublication((featuredBytes || featuredFile ? 4 : 3) + (sectionsChanged ? 1 : 0) + attachmentResourceCount)
+    quotePublication(basePublicationResources + destinationResourceCount)
       .then((quote) => { if (!cancelled) setFee(quote.label); })
       .catch(() => { if (!cancelled) setFee('Fee unavailable.'); });
     return () => { cancelled = true; };
-  }, [featuredBytes, featuredFile, sectionsChanged, attachmentResourceCount]);
+  }, [featuredBytes, featuredFile, sectionsChanged, attachmentResourceCount, destinationResourceCount]);
+
+  // Keep the prefilled Quitter announcement in sync with the post until the
+  // owner edits it. The site post link is the product-truth reference.
+  useEffect(() => {
+    if (!draft || !crossSelections.quitter || quitterTouched) return;
+    try {
+      setQuitterText(buildQuitterAnnouncement({
+        title: draft.title || 'Untitled post',
+        excerpt: stripHtml(draft.excerpt || ''),
+        postUrl: buildSitePostUrl({
+          deployment: siteConfig.deployment,
+          name: props.name,
+          slug: finalizeSlug(draft.slug || draft.title || '')
+        }),
+        limit: QUITTER_TEXT_LIMIT
+      }));
+    } catch {
+      setQuitterText('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft && draft.title, draft && draft.excerpt, draft && draft.slug, crossSelections.quitter, quitterTouched, props.name]);
 
   // Detect changed WordPress sources for every local edit. This is a read-only
   // comparison; it never publishes and never renames anything.
@@ -196,6 +253,13 @@ export function EditorPage(props: {
     setFeaturedFile(null);
     setFeaturedBytes(null);
     setFeaturedMeta(null);
+    setCrossSelections(emptyCrossPublishSelections());
+    setQuitterText('');
+    setQuitterTouched(false);
+    setCrossPlan(null);
+    setCrossResults(null);
+    setPlanFee('');
+    setSubwireCoverKind(null);
     setDraft(next);
   };
 
@@ -478,7 +542,80 @@ export function EditorPage(props: {
     setMessage('Local draft saved. This is not a published update; visitors still see the last published version.');
   };
 
-  const requestPublish = () => {
+  const toggleCrossPublish = (destination: CrossPublishDestination, checked: boolean) => {
+    setCrossSelections((previous) => ({ ...previous, [destination]: checked }));
+    if (destination === 'quitter' && checked) setQuitterTouched(false);
+    setCrossPlan(null);
+    setCrossResults(null);
+    setPlanFee('');
+  };
+
+  /**
+   * Build the optional destination resources before the single confirmation.
+   * Anything that would make a destination invalid aborts here, so the owner
+   * never signs a batch that cannot produce a compatible resource.
+   */
+  const prepareCrossPublishPlan = async (finalSlug: string, selected: CrossPublishSelections) => {
+    const html = sanitizeHtml(draft.html);
+    const timestamp = Number(draft.publishTimestamp) || Date.now();
+    let video: any = null;
+    if (selected.qtube) {
+      if (!qtubeVideo) {
+        throw new Error('Q-Tube publication needs an eligible video attachment (' + QTUBE_PLAYABLE_EXTENSIONS.join(', ') + ').');
+      }
+      const capture = attachmentStoreRef.current.get(qtubeVideo.identifier);
+      let ready = Boolean(capture);
+      if (!ready) {
+        const status: any = await getQdnResourceStatus('VIDEO', props.name, qtubeVideo.identifier);
+        ready = Boolean(status && status.status === 'READY');
+      }
+      if (!ready) {
+        throw new Error('The video attachment "' + qtubeVideo.filename + '" is no longer available on this device and is not READY on QDN. Re-attach it or clear the Q-Tube option.');
+      }
+      video = {
+        service: 'VIDEO',
+        name: props.name,
+        identifier: qtubeVideo.identifier,
+        filename: qtubeVideo.filename,
+        mime: qtubeVideo.mime || '',
+        size: Number(qtubeVideo.size) || (capture && capture.size) || 0
+      };
+    }
+    let cover: any = null;
+    if (selected.subwire) {
+      const accent = (siteConfig.theme && siteConfig.theme.colors && siteConfig.theme.colors.accent) || '#1f2937';
+      const resolved = await resolveSubwireCover({
+        bytes: featuredBytes,
+        meta: featuredMeta,
+        featured: featuredChoice,
+        name: props.name,
+        title: draft.title,
+        siteTitle: siteConfig.site.title,
+        accent
+      });
+      cover = resolved;
+      setSubwireCoverKind(resolved.kind === 'generated' ? 'generated' : 'featured');
+    } else {
+      setSubwireCoverKind(null);
+    }
+    const accent = (siteConfig.theme && siteConfig.theme.colors && siteConfig.theme.colors.accent) || '#1f2937';
+    return await buildCrossPublishPlan({
+      draft: { ...draft, html, slug: finalSlug },
+      name: props.name,
+      siteId: props.siteId,
+      siteTitle: siteConfig.site.title,
+      publisherName: props.name,
+      postUrl: buildSitePostUrl({ deployment: siteConfig.deployment, name: props.name, slug: finalSlug }),
+      video,
+      cover,
+      selections: selected,
+      quitterText,
+      timestamp,
+      accent
+    });
+  };
+
+  const requestPublish = async () => {
     if (!draft.title.trim()) { setState('failed'); setMessage('A title is required.'); return; }
     const finalSlug = finalizeSlug(draft.slug || slugify(draft.title));
     const truncated = prematureAutoSlugProblem({
@@ -504,6 +641,33 @@ export function EditorPage(props: {
       setMessage('The slug of a published item can only change through the advanced slug action.');
       return;
     }
+
+    const selected: CrossPublishSelections = {
+      qtube: Boolean(qtubeVideo) && crossSelections.qtube,
+      subwire: crossSelections.subwire,
+      quitter: crossSelections.quitter
+    };
+    let plan: CrossPublishPlanView | null = null;
+    let exactFee = '';
+    if (selected.qtube || selected.subwire || selected.quitter) {
+      setState('publishing');
+      setMessage('Preparing the optional Q-Tube, Subwire and Quitter resources...');
+      try {
+        plan = await prepareCrossPublishPlan(finalSlug, selected) as CrossPublishPlanView;
+        const quote = await quotePublication(basePublicationResources + plan.resources.length);
+        exactFee = quote.label;
+      } catch (error) {
+        setState('failed');
+        setMessage((error instanceof Error ? error.message : String(error)) + ' Nothing was published.');
+        return;
+      }
+      setCrossPlan(plan);
+      setPlanFee(exactFee);
+    } else {
+      setCrossPlan(null);
+      setPlanFee('');
+    }
+    setCrossResults(null);
     setMessage('');
     setState('idle');
     setDraft({ ...draft, slug: finalSlug, publicationState: 'pending-approval' });
@@ -591,6 +755,9 @@ export function EditorPage(props: {
         });
       }
     }
+    // Optional destination resources join the same owner-approved batch.
+    const destinationResources = crossPlan ? (crossPlan.resources as any[]) : [];
+    if (destinationResources.length) mediaResources.push(...destinationResources);
     setProgress([]);
     setMessage('Waiting for Qortal Hub approval of the combined publication...');
 
@@ -642,16 +809,54 @@ export function EditorPage(props: {
           sectionsAssignment: sectionsPayload,
           onProgress: setProgress
         });
-    if (result.ok && sectionsPayload) initialAssignmentRef.current = { slugs: [...assignment.slugs], hideFromHome: assignment.hideFromHome };
-    if (result.ok) {
+    // Per-destination outcomes come from the batch's per-resource states. The
+    // CMS post is judged separately: a failed optional destination must never
+    // hide a verified CMS publication.
+    const batchResults = Array.isArray((result as any).batchResults) ? (result as any).batchResults : [];
+    const destinationStages = ['qtube', 'subwire', 'quitter'];
+    const destinationRows: CrossPublishResultView[] = (crossPlan ? crossPlan.entries : []).map((entry) => {
+      if (entry.reused) {
+        return { id: entry.id, label: entry.label, state: 'reused', message: 'Already published with identical content.' };
+      }
+      const row = batchResults.find((candidate: any) => candidate.stage === entry.id);
+      if (!row) {
+        return { id: entry.id, label: entry.label, state: 'not-sent', message: 'The batch ended before this resource was sent.' };
+      }
+      if (row.ok) {
+        return { id: entry.id, label: entry.label, state: 'success', message: row.state === 'reused' ? 'Already present on QDN.' : 'Published and verified.' };
+      }
+      const state = row.state === 'ambiguous' ? 'ambiguous' : row.state === 'declined' ? 'declined' : 'failed';
+      return { id: entry.id, label: entry.label, state, message: row.message || '' };
+    });
+    const cmsBatchRows = batchResults.filter((row: any) => !destinationStages.includes(String(row.stage)));
+    const cmsVerified = batchResults.length > 0
+      ? cmsBatchRows.length > 0 && cmsBatchRows.every((row: any) => row.ok)
+      : Boolean(result.ok);
+    const destinationProblems = destinationRows.filter((row) => row.state !== 'success' && row.state !== 'reused');
+    if (crossPlan) {
+      setCrossResults([
+        {
+          id: 'cms',
+          label: 'CMS post',
+          state: cmsVerified ? 'success' : (result.state === 'ambiguous' ? 'ambiguous' : result.state === 'declined' ? 'declined' : 'failed'),
+          message: cmsVerified ? 'Published and verified.' : (result.message || '')
+        },
+        ...destinationRows
+      ]);
+    } else {
+      setCrossResults(null);
+    }
+
+    if (cmsVerified && sectionsPayload) initialAssignmentRef.current = { slugs: [...assignment.slugs], hideFromHome: assignment.hideFromHome };
+    if (cmsVerified) {
       for (const meta of attachmentsInHtml(html) as any[]) attachmentStoreRef.current.delete(meta.identifier);
     }
-    if (result.ok && uploaded) {
+    if (cmsVerified && uploaded) {
       setFeaturedFile(null);
       setFeaturedBytes(null);
       setFeaturedMeta(null);
     }
-    if (result.ok) {
+    if (cmsVerified) {
       const published = {
         ...draft,
         html,
@@ -686,12 +891,17 @@ export function EditorPage(props: {
         setOverlayRevision(Number(result.overlay.revision) || 0);
       }
       if (result.index) setRevision(result.index.revision);
-      setState('verified');
-      setMessage(
-        draft.sourceKind === 'wordpress-overlay'
-          ? 'Your edit is published and verified. The imported WordPress resource is unchanged; an incremental sync will not remove this edit.'
-          : 'Published and verified byte-for-byte. A WordPress incremental sync will not remove this post.'
-      );
+      setState(destinationProblems.length === 0
+        ? 'verified'
+        : destinationProblems.some((row) => row.state === 'ambiguous') ? 'ambiguous' : 'partial');
+      const baseMessage = draft.sourceKind === 'wordpress-overlay'
+        ? 'Your edit is published and verified. The imported WordPress resource is unchanged; an incremental sync will not remove this edit.'
+        : 'Published and verified byte-for-byte. A WordPress incremental sync will not remove this post.';
+      const destinationMessage = destinationProblems.length === 0
+        ? ''
+        : ' Destination results — ' + destinationRows.map((row) => row.label + ': ' + row.state).join('; ')
+          + '. The CMS post is published; a retry targets the same destination coordinates and will not duplicate publications.';
+      setMessage(baseMessage + destinationMessage);
       props.onRefresh();
       return;
     }
@@ -866,6 +1076,23 @@ export function EditorPage(props: {
             onRemove={publishWithoutFeatured}
           />
 
+          <CrossPublishPanel
+            video={qtubeVideo ? { filename: qtubeVideo.filename, size: qtubeVideo.size } : null}
+            selections={crossSelections}
+            quitterText={quitterText}
+            quitterLimit={QUITTER_TEXT_LIMIT}
+            subwireCoverKind={subwireCoverKind}
+            onToggle={toggleCrossPublish}
+            onQuitterText={(value) => {
+              setQuitterText(value);
+              setQuitterTouched(true);
+              setCrossPlan(null);
+              setCrossResults(null);
+              setPlanFee('');
+            }}
+            onRegenerateQuitter={() => setQuitterTouched(false)}
+          />
+
           {draft.remoteId && draft.sourceKind !== 'wordpress-overlay' ? <p className="muted">Editing a published CMS post. Its QDN identity is stable; a title edit does not change the slug.</p> : null}
           {draft.sourceKind === 'wordpress-overlay' ? (
             <p className="muted">
@@ -930,7 +1157,9 @@ export function EditorPage(props: {
           featuredMeta={featuredMeta}
           featuredFile={featuredFile}
           featuredChoice={featuredChoice}
-          fee={fee}
+          fee={planFee || fee}
+          crossPlan={crossPlan}
+          crossResults={crossResults}
           attachments={attachmentPlan.map((meta: any) => ({ service: meta.service, identifier: meta.identifier, filename: meta.filename, size: meta.size, poster: Boolean(meta.poster) }))}
           progress={progress}
           sectionsChange={sectionsChanged ? { slugs: assignment.slugs, hideFromHome: assignment.hideFromHome, revision: (props.sections ? props.sections.revision : 0) + 1 } : null}
@@ -939,7 +1168,7 @@ export function EditorPage(props: {
           phase={publishPhase}
           statusMessage={publishStatusMessage}
           onConfirm={publish}
-          onCancel={() => setConfirming(false)}
+          onCancel={() => { setConfirming(false); setCrossPlan(null); setPlanFee(''); }}
           onClose={() => setConfirming(false)}
         />
       ) : null}

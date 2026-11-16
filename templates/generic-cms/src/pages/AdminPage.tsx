@@ -69,6 +69,7 @@ function OwnerAdmin(props: {
           dataset={props.dataset}
           galleries={props.galleries}
           sections={props.sections || null}
+          config={props.settingsConfig}
           loadContent={props.loadContent}
           onRefresh={props.onRefresh}
           initialId={props.initialEditorId}

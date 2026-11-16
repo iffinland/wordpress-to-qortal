@@ -71,6 +71,7 @@ function batchOutcome(batch, extras) {
     searchResult: byStage.search,
     sectionsResult: byStage.sections,
     mediaResult: byStage.media,
+    batchResults: batch.results || [],
     fallbackUsed: Boolean(batch.fallbackUsed)
   };
   if (batch.ok) return { ok: true, state: 'remote-verified', ...stageResults, ...extras };
