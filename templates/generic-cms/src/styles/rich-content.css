@@ -1,0 +1,83 @@
+/* Text colours (class based, theme aware) and rich-content blocks. */
+.qms-app {
+  --qms-c-red: #b42318;
+  --qms-c-orange: #b54708;
+  --qms-c-yellow: #8a5a00;
+  --qms-c-green: #1a7f37;
+  --qms-c-teal: #0b7285;
+  --qms-c-blue: #0a58ca;
+  --qms-c-purple: #6f42c1;
+  --qms-c-pink: #b0307a;
+  --qms-c-gray: #4b5563;
+}
+
+.qms-app[data-theme="dark"] {
+  --qms-c-red: #ff7b72;
+  --qms-c-orange: #ffa657;
+  --qms-c-yellow: #e3b341;
+  --qms-c-green: #56d364;
+  --qms-c-teal: #39c5cf;
+  --qms-c-blue: #79c0ff;
+  --qms-c-purple: #d2a8ff;
+  --qms-c-pink: #ff9bce;
+  --qms-c-gray: #b1bac4;
+}
+
+.qms-color-red { color: var(--qms-c-red); }
+.qms-color-orange { color: var(--qms-c-orange); }
+.qms-color-yellow { color: var(--qms-c-yellow); }
+.qms-color-green { color: var(--qms-c-green); }
+.qms-color-teal { color: var(--qms-c-teal); }
+.qms-color-blue { color: var(--qms-c-blue); }
+.qms-color-purple { color: var(--qms-c-purple); }
+.qms-color-pink { color: var(--qms-c-pink); }
+.qms-color-gray { color: var(--qms-c-gray); }
+
+.color-picker { position: relative; display: inline-block; }
+
+.color-picker__panel {
+  position: absolute;
+  z-index: 30;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  display: grid;
+  grid-template-columns: repeat(5, 44px);
+  gap: 4px;
+  padding: 8px;
+  background: var(--qms-surface);
+  border: 1px solid var(--qms-border);
+  border-radius: var(--qms-radius);
+  box-shadow: var(--qms-shadow);
+}
+
+.color-picker__swatch {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--qms-border);
+  border-radius: 8px;
+  background: var(--qms-surface-alt);
+  font-weight: 800;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.color-picker__swatch[aria-pressed="true"] { outline: 2px solid var(--qms-focus); }
+.color-picker__reset {
+  grid-column: 1 / -1;
+  min-height: 44px;
+  border: 1px solid var(--qms-border);
+  border-radius: 8px;
+  background: var(--qms-surface);
+  color: var(--qms-text);
+  cursor: pointer;
+}
+.qms-swatch-red { color: var(--qms-c-red); }
+.qms-swatch-orange { color: var(--qms-c-orange); }
+.qms-swatch-yellow { color: var(--qms-c-yellow); }
+.qms-swatch-green { color: var(--qms-c-green); }
+.qms-swatch-teal { color: var(--qms-c-teal); }
+.qms-swatch-blue { color: var(--qms-c-blue); }
+.qms-swatch-purple { color: var(--qms-c-purple); }
+.qms-swatch-pink { color: var(--qms-c-pink); }
+.qms-swatch-gray { color: var(--qms-c-gray); }

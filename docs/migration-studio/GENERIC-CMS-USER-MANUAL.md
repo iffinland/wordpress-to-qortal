@@ -52,7 +52,7 @@ In the editor use each visible control:
 | **Categories (comma separated)** / **Tags (comma separated)** | Comma-delimited public terms. |
 | **Author** | Public author metadata. |
 | **Content type** | Post/page where the editor offers the selection. |
-| Body toolbar | **H2**, **H3**, **Bold**, **Italic**, **Bullets**, **Numbers**, **Quote**, **Link**, **Image**, **Undo**, and **Redo** format or change the rich-text body. **Link** requests a target; **Image** opens media selection. |
+| Body toolbar | **H2**, **H3**, **Bold**, **Italic**, **Bullets**, **Numbers**, **Quote**, **Color** (a palette of nine theme-aware text colors plus **Reset color**; the colors adapt to light and dark mode), **Link**, **Image**, **Undo**, and **Redo** format or change the rich-text body. **Link** requests a target; **Image** opens media selection. |
 
 For published content, **Change slug (advanced)…** opens an explicit safeguard. Tick its confirmation checkbox, click **Unlock slug field**, then type the new slug. **Cancel** keeps it locked; **Cancel slug change** abandons the change. Use **Regenerate slug** when offered. A title change does not change a published slug.
 

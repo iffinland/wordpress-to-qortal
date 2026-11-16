@@ -4,6 +4,8 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
+import { ColorMark } from './editor/ColorMark';
+import { ColorPicker } from './editor/ColorPicker';
 import { parseQortalLink } from '../../lib/links.js';
 
 export function RichTextEditor(props: {
@@ -17,6 +19,7 @@ export function RichTextEditor(props: {
       StarterKit.configure({ heading: { levels: [2, 3] } }),
       Link.configure({ openOnClick: false, autolink: true, protocols: ['http', 'https', 'qortal'], HTMLAttributes: { rel: 'noopener noreferrer' } }),
       Image.configure({ inline: false, allowBase64: false }),
+      ColorMark,
       Placeholder.configure({ placeholder: 'Write the post…' })
     ],
     content: props.value || '',
@@ -77,6 +80,11 @@ export function RichTextEditor(props: {
         {button('Bullets', () => editor.chain().focus().toggleBulletList().run(), editor.isActive('bulletList'))}
         {button('Numbers', () => editor.chain().focus().toggleOrderedList().run(), editor.isActive('orderedList'))}
         {button('Quote', () => editor.chain().focus().toggleBlockquote().run(), editor.isActive('blockquote'))}
+        <ColorPicker
+          active={(editor.getAttributes('textColor').color as string) || null}
+          onPick={(key) => editor.chain().focus().setTextColor(key).run()}
+          onReset={() => editor.chain().focus().unsetTextColor().run()}
+        />
         {button('Link', setLink, editor.isActive('link'))}
         {button('Image', props.onInsertMedia)}
         {button('Undo', () => editor.chain().focus().undo().run(), false, !editor.can().undo())}
