@@ -30,10 +30,20 @@ function OwnerAdmin(props: {
       <p className="eyebrow">Owner administration</p>
       <h1>Admin</h1>
       <nav className="admin-tabs" aria-label="Admin sections">
-        <a href={adminHref('overview')} aria-current={props.section === 'overview' ? 'page' : undefined}>Overview</a>
-        <a href={adminHref('settings')} aria-current={props.section === 'settings' ? 'page' : undefined}>Site settings</a>
-        <a href={adminHref('editor')} aria-current={props.section === 'editor' ? 'page' : undefined}>Posts</a>
-        <a href={adminHref('galleries')} aria-current={props.section === 'galleries' ? 'page' : undefined}>Galleries</a>
+        <div className="admin-tabs__group" role="group" aria-label="Site">
+          <span className="admin-tabs__label" aria-hidden="true">Site</span>
+          <a href={adminHref('overview')} aria-current={props.section === 'overview' ? 'page' : undefined}>Overview</a>
+          <a href={adminHref('settings')} aria-current={props.section === 'settings' ? 'page' : undefined}>Site settings</a>
+        </div>
+        <div className="admin-tabs__group" role="group" aria-label="Content">
+          <span className="admin-tabs__label" aria-hidden="true">Content</span>
+          <a href={adminHref('editor')} aria-current={props.section === 'editor' ? 'page' : undefined}>Posts</a>
+          <a href={adminHref('pages')} aria-current={props.section === 'pages' ? 'page' : undefined}>Pages</a>
+        </div>
+        <div className="admin-tabs__group" role="group" aria-label="Media">
+          <span className="admin-tabs__label" aria-hidden="true">Media</span>
+          <a href={adminHref('galleries')} aria-current={props.section === 'galleries' ? 'page' : undefined}>Galleries</a>
+        </div>
       </nav>
 
       {props.section === 'settings' ? (
@@ -49,8 +59,10 @@ function OwnerAdmin(props: {
         />
       ) : null}
 
-      {props.section === 'editor' ? (
+      {props.section === 'editor' || props.section === 'pages' ? (
         <EditorPage
+          key={props.section}
+          contentType={props.section === 'pages' ? 'page' : 'post'}
           identity={props.identity}
           name={props.qdnName}
           siteId={props.siteId}

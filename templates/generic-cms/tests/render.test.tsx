@@ -244,11 +244,15 @@ describe('admin preconditions stay visible without a published catalog', () => {
     expect(html).not.toContain('admin-fieldset');
   });
 
-  it('renders the admin route directly instead of the global catalog error', () => {
+  it('renders the admin route directly (lazy chunk) instead of the global catalog error', async () => {
     window.location.hash = '#/admin';
     const html = renderToStaticMarkup(<App />);
-    expect(html).toContain('Checking QDN name ownership...');
-    expect(html).not.toContain('Import and adoption');
+    expect(html).not.toContain('The catalog could not be loaded');
+    const { render: domRender, screen, cleanup } = await import('@testing-library/react');
+    domRender(<App />);
+    expect(await screen.findByText('Checking QDN name ownership...')).toBeTruthy();
+    expect(screen.queryByText('Import and adoption')).toBeNull();
+    cleanup();
     window.location.hash = '';
   });
 });

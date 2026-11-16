@@ -60,6 +60,8 @@ export function EditorPage(props: {
   loadContent: (item: CmsContentItem) => Promise<LoadedContent>;
   onRefresh: () => void;
   initialId?: string;
+  /** Admin section focus: only list and create this content type. */
+  contentType?: 'post' | 'page';
 }) {
   const [drafts, setDrafts] = useState<any[]>(() => readDrafts(localStorage, props.siteId));
   const [draft, setDraft] = useState<any>(null);
@@ -722,15 +724,15 @@ export function EditorPage(props: {
 
   return (
     <section className="admin-section" aria-labelledby="editor-title">
-      <h2 id="editor-title">Posts and pages</h2>
+      <h2 id="editor-title">{props.contentType === 'page' ? 'Pages' : props.contentType === 'post' ? 'Posts' : 'Posts and pages'}</h2>
       <p className="muted">
         CMS-authored content lives in a versioned supplement (<code>qms-cms-native-index</code>). WordPress-imported
         posts are edited through a separate versioned overlay (<code>qms-cms-edit-overlay</code>); imported resources
         are never overwritten or deleted. Both use <code>qms-qdn-content@1</code>.
       </p>
       <div className="admin-toolbar">
-        <button type="button" className="button" onClick={() => startNew('post')}>New post</button>
-        <button type="button" className="button button--ghost" onClick={() => startNew('page')}>New page</button>
+        {props.contentType !== 'page' ? <button type="button" className="button" onClick={() => startNew('post')}>New post</button> : null}
+        {props.contentType !== 'post' ? <button type="button" className={'button' + (props.contentType ? '' : ' button--ghost')} onClick={() => startNew('page')}>New page</button> : null}
         <span className="muted">CMS revision: {revision} · Edit overlay revision: {overlayRevision}</span>
         <span className="muted cms-build-version" role="status">Template v{templateVersion}</span>
       </div>
@@ -741,9 +743,9 @@ export function EditorPage(props: {
       {!draft ? (
         <>
           <DraftLists
-            drafts={drafts}
-            nativePosts={nativePosts}
-            importedItems={importedItems}
+            drafts={props.contentType ? drafts.filter((item) => (item.type || 'post') === props.contentType) : drafts}
+            nativePosts={props.contentType ? nativePosts.filter((item) => item.type === props.contentType) : nativePosts}
+            importedItems={props.contentType ? importedItems.filter((item) => item.type === props.contentType) : importedItems}
             anomalies={anomalies}
             onEditDraft={editDraft}
             onDeleteDraft={(id) => {

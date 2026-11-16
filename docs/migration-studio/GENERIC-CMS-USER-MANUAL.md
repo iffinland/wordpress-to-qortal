@@ -14,7 +14,7 @@ Use public cards/titles to open posts and pages. Category, tag, and archive link
 
 Open **Admin** (the #/admin route). During lookup, the app shows **Checking QDN name ownership...**. If it cannot verify, it stays read-only: use **Connect owner account** or **Retry verification** and correct the Hub/name condition.
 
-A verified owner sees four tabs: **Overview**, **Site settings**, **Posts**, and **Galleries**. Publication actions revalidate owner identity immediately before Hub signing.
+A verified owner sees five tabs in three groups: **Site** (**Overview**, **Site settings**), **Content** (**Posts**, **Pages**) and **Media** (**Galleries**). **Posts** lists and creates posts; **Pages** lists and creates pages. The admin code loads only when you open Admin, so public visitors never download the editor. Publication actions revalidate owner identity immediately before Hub signing.
 
 ## 3. Overview and catalog
 

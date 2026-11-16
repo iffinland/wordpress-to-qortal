@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Layout } from './components/Layout';
 import { StateNotice } from './components/StateNotice';
-import { AdminPage } from './pages/AdminPage';
+// Admin code (TipTap editor, publishing UI) is a separate chunk so public
+// visitors never download it.
+const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
 import { ArchivePage } from './pages/ArchivePage';
 import { GalleryPage } from './pages/GalleryPage';
 import { HomePage } from './pages/HomePage';
@@ -295,6 +297,7 @@ export function App() {
         <>
           {showGlobalNotice ? <StateNotice state={dataset.state === 'partial' ? 'partial' : 'stale'} notices={dataset.notices} compact /> : null}
           {configNotice ? <StateNotice state="partial" compact message={configNotice} /> : null}
+          <Suspense fallback={<div className="page" aria-busy="true"><StateNotice state="loading" title="Loading administration..." /></div>}>
           <AdminPage
           dataset={dataset}
           loading={loading}
@@ -317,6 +320,7 @@ export function App() {
           onConnectOwner={connectOwner}
           onRetryIdentity={retryIdentity}
           />
+          </Suspense>
         </>
       ) : loading && !dataset ? (
         <div className="page" aria-busy="true"><StateNotice state="loading" title="Loading the QDN catalog..." message="Reading the manifest and indexes from QDN." /></div>

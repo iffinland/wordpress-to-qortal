@@ -216,7 +216,7 @@ export type ArchiveRoute = {
   page: number;
 };
 
-export type AdminSection = 'overview' | 'settings' | 'editor' | 'galleries';
+export type AdminSection = 'overview' | 'settings' | 'editor' | 'pages' | 'galleries';
 
 export type AppRoute =
   | { kind: 'home' }

@@ -1,0 +1,99 @@
+/*
+ * Shared design tokens and consistency layer for public and admin UI.
+ * Loaded last: it only unifies spacing, type scale, controls, cards and focus
+ * using the existing theme variables, so both themes keep working.
+ */
+:root {
+  --qms-space-1: 0.25rem;
+  --qms-space-2: 0.5rem;
+  --qms-space-3: 0.75rem;
+  --qms-space-4: 1rem;
+  --qms-space-5: 1.5rem;
+  --qms-space-6: 2.5rem;
+  --qms-text-sm: 0.875rem;
+  --qms-text-md: 1rem;
+  --qms-text-lg: 1.25rem;
+  --qms-text-xl: 1.75rem;
+  --qms-control-height: 44px;
+  --qms-focus-ring: 0 0 0 3px color-mix(in srgb, var(--qms-focus) 55%, transparent);
+}
+
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--qms-focus);
+  outline-offset: 2px;
+  box-shadow: var(--qms-focus-ring);
+}
+
+.button,
+.button--ghost,
+input:not([type="checkbox"]):not([type="radio"]),
+select,
+.theme-toggle__button {
+  min-height: var(--qms-control-height);
+}
+
+.button {
+  padding: var(--qms-space-2) var(--qms-space-4);
+  font-size: var(--qms-text-md);
+}
+
+input,
+textarea,
+select {
+  font-size: var(--qms-text-md);
+  padding: var(--qms-space-2) var(--qms-space-3);
+}
+
+.post-card,
+.admin-section,
+.access-card {
+  border-radius: var(--qms-radius);
+}
+
+.section h2,
+.admin-section h2 {
+  font-size: var(--qms-text-lg);
+  margin: 0 0 var(--qms-space-3);
+}
+
+.page h1 {
+  font-size: var(--qms-text-xl);
+  margin: 0 0 var(--qms-space-3);
+}
+
+/* Admin structure: grouped navigation and calmer sections. */
+.admin-tabs {
+  gap: var(--qms-space-4);
+  align-items: flex-start;
+}
+
+.admin-tabs__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--qms-space-1);
+}
+
+.admin-tabs__label {
+  font-size: var(--qms-text-sm);
+  color: var(--qms-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-right: var(--qms-space-1);
+}
+
+.admin-tabs a {
+  min-height: var(--qms-control-height);
+  display: inline-flex;
+  align-items: center;
+}
+
+.admin-section {
+  margin-bottom: var(--qms-space-5);
+}
+
+@media (max-width: 720px) {
+  .admin-tabs__group {
+    width: 100%;
+  }
+}
