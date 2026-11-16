@@ -245,3 +245,19 @@ input[type="file"] {
   }
 }
 
+
+.nav-editor__row {
+  align-items: end;
+}
+
+.nav-editor__handle {
+  cursor: grab;
+  touch-action: none;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.nav-editor__row.is-dragging {
+  outline: 2px dashed var(--qms-focus);
+  opacity: 0.8;
+}

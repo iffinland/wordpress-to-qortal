@@ -37,6 +37,7 @@ function OwnerAdmin(props: {
 
       {props.section === 'settings' ? (
         <SettingsPanel
+          pages={props.dataset ? props.dataset.pages : []}
           config={props.settingsConfig}
           identity={props.identity}
           qdnName={props.qdnName}

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { CmsTemplateConfig, ViewerIdentity } from '../../types';
+import type { CmsContentItem, CmsTemplateConfig, ViewerIdentity } from '../../types';
 import { defaultSettingsDraft, mergeSettingsIntoConfig, readSettingsDocument, validateSettingsDraft, SITE_SETTINGS_IDENTIFIER } from '../../lib/settings.js';
 import { publishSettingsDraft } from '../../lib/authoring.js';
 import { useUnsavedGuard } from '../../hooks/useUnsavedGuard';
 import { quotePublication } from '../../lib/publish.js';
+import { NavigationEditor } from './NavigationEditor';
 import { StateNotice } from '../../components/StateNotice';
 import { ConfirmPublishDialog, type PublishPhase } from '../../components/ConfirmPublishDialog';
 
@@ -29,6 +30,7 @@ function saveDraft(siteId: string, draft: unknown) {
 }
 
 export function SettingsPanel(props: {
+  pages?: CmsContentItem[];
   config: CmsTemplateConfig;
   identity: ViewerIdentity;
   qdnName: string;
@@ -64,13 +66,6 @@ export function SettingsPanel(props: {
 
   const updateSite = (key: string, value: string) => { setDirty(true); setDraft((current: any) => ({ ...current, site: { ...current.site, [key]: value } })); };
   const updateColor = (key: string, value: string) => { setDirty(true); setDraft((current: any) => ({ ...current, colors: { ...current.colors, [key]: value } })); };
-  const updateNav = (index: number, key: 'label' | 'href', value: string) => { setDirty(true); setDraft((current: any) => {
-    const navigation = current.navigation.map((item: any, itemIndex: number) => itemIndex === index ? { ...item, [key]: value } : item);
-    return { ...current, navigation };
-  }); };
-  const addNav = () => { setDirty(true); setDraft((current: any) => ({ ...current, navigation: [...current.navigation, { label: 'New link', href: '#/' }] })); };
-  const removeNav = (index: number) => { setDirty(true); setDraft((current: any) => ({ ...current, navigation: current.navigation.filter((_: unknown, itemIndex: number) => itemIndex !== index) })); };
-
   const persistDraft = (next: unknown) => { setDirty(false); setDraft(next as any); saveDraft(props.siteId, next); };
 
   const revertToPublished = () => {
@@ -161,14 +156,7 @@ export function SettingsPanel(props: {
 
       <fieldset className="admin-fieldset">
         <legend>Navigation</legend>
-        {draft.navigation.map((item: any, index: number) => (
-          <div className="admin-row" key={index}>
-            <label>Label<input value={item.label} maxLength={40} onChange={(event) => updateNav(index, 'label', event.target.value)} /></label>
-            <label>Link<input value={item.href} onChange={(event) => updateNav(index, 'href', event.target.value)} placeholder="#/posts" /></label>
-            <button type="button" className="button button--ghost" onClick={() => removeNav(index)} disabled={draft.navigation.length <= 1}>Remove</button>
-          </div>
-        ))}
-        <button type="button" className="button button--ghost" onClick={addNav} disabled={draft.navigation.length >= 12}>Add navigation item</button>
+        <NavigationEditor items={draft.navigation} pages={props.pages || []} onChange={(navigation) => { setDirty(true); setDraft((current: any) => ({ ...current, navigation })); }} />
         <p className="muted">The Admin link is never shown to visitors; it appears only after owner verification.</p>
       </fieldset>
 
