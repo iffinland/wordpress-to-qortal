@@ -594,7 +594,7 @@ export async function publishQdnResources(resources, options = {}) {
       service: item.service,
       name: item.name,
       identifier: item.identifier,
-      data64: item.data64,
+      ...(item.file ? { file: item.file } : { data64: item.data64 }),
       filename: item.filename,
       title: item.title,
       description: item.description

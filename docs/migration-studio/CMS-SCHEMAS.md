@@ -258,6 +258,21 @@ Optional resource `DOCUMENT / <name> / qms-cms-sections`. Assigns posts to user-
 - Missing, unreadable or invalid documents are harmless: the reader logs a warning, every published post stays on the home page and no page shows posts. CMS versions without this feature ignore the resource.
 - Publishing uses a revision check (`revision` must not exceed the editor's base revision) and an invalid remote document is never overwritten.
 
+## Attachment resources and the attachment block
+
+Attachments are ordinary QDN resources published in the same batch as the post, never inside the content document:
+
+| Kind | QDN service | Identifier |
+| --- | --- | --- |
+| audio | `AUDIO` | `qms-cms-att-<first 32 hex of SHA-256>` |
+| video | `VIDEO` | `qms-cms-att-<first 32 hex of SHA-256>` |
+| text, archive, document | `FILE` | `qms-cms-att-<first 32 hex of SHA-256>` |
+| video poster | `IMAGE` | `qms-cms-media-<first 32 hex of SHA-256>` |
+
+Inside `qms-qdn-content@1` HTML an attachment is a block `<div class="qms-attachment qms-attachment--<kind>" data-qms-attachment="1" data-kind data-service data-name data-identifier data-filename data-title [data-mime data-size data-sha256 data-poster]>Title</div>`. The sanitizer keeps these data attributes only on a div whose metadata validates (known kind and service, identifier `[A-Za-z0-9_-]{1,64}`, QDN name, safe file name, denied extensions rejected) and rebuilds it from the validated values; every other `data-*` attribute is stripped. The viewer hydrates the block into a player or download card.
+
+Text colors are class-only spans: `<span class="qms-color qms-color-<red|orange|yellow|green|teal|blue|purple|pink|gray>">`.
+
 ## Resources deliberately not used
 
 - No localStorage-only ownership or settings.

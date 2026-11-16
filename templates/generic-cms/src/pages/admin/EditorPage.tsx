@@ -25,6 +25,9 @@ import { loadNativeIndex, loadOverlay, publishNativePostDraft, publishOverlayDra
 import { SectionsPicker } from './editor/SectionsPicker';
 import { assignmentFor, sameAssignment } from '../../lib/sections.js';
 import { prepareMediaResource, quotePublication } from '../../lib/publish.js';
+import { attachmentsInHtml, isPublicGatewayUrl, validateAttachment, formatBytes } from '../../lib/attachments.js';
+import { getQdnResourceStatus, getTrustedNodeUrl } from '../../lib/qortal.js';
+import type { AttachmentStore } from './editor/AttachmentTools';
 import { slugAvailable } from '../../lib/nativeCatalog.js';
 import {
   finalizeSlug,
@@ -86,12 +89,22 @@ export function EditorPage(props: {
   const [leavePrompt, setLeavePrompt] = useState(false);
   const [assignment, setAssignment] = useState<{ slugs: string[]; hideFromHome: boolean }>({ slugs: [], hideFromHome: false });
   const initialAssignmentRef = useRef<{ slugs: string[]; hideFromHome: boolean }>({ slugs: [], hideFromHome: false });
+  const attachmentStoreRef = useRef<AttachmentStore>(new Map());
+  const [progress, setProgress] = useState<Array<{ stage: string; identifier: string; state: string }>>([]);
   const savedRef = useRef<string>('');
   const openedInitialRef = useRef(false);
 
   useUnsavedGuard(dirty);
 
   const sectionsChanged = Boolean(draft && draft.type !== 'page' && !sameAssignment(assignment, initialAssignmentRef.current));
+  const attachmentPlan = useMemo(() => {
+    if (!draft || !draft.html) return [] as ReturnType<typeof attachmentsInHtml>;
+    return attachmentsInHtml(draft.html).filter((meta: any) => attachmentStoreRef.current.has(meta.identifier));
+  }, [draft && draft.html]);
+  const attachmentResourceCount = attachmentPlan.length + attachmentPlan.filter((meta: any) => {
+    const capture = attachmentStoreRef.current.get(meta.identifier);
+    return Boolean(capture && capture.poster && capture.posterIdentifier !== undefined && meta.poster);
+  }).length;
   const items = useMemo(() => (props.dataset ? [...props.dataset.posts, ...props.dataset.pages] : []), [props.dataset]);
   const nativePosts = useMemo(() => items.filter((item) => item.native), [items]);
   const importedItems = useMemo(() => items.filter((item) => !item.native), [items]);
@@ -115,11 +128,11 @@ export function EditorPage(props: {
   // a fourth resource in the same authorized plan.
   useEffect(() => {
     let cancelled = false;
-    quotePublication((featuredBytes || featuredFile ? 4 : 3) + (sectionsChanged ? 1 : 0))
+    quotePublication((featuredBytes || featuredFile ? 4 : 3) + (sectionsChanged ? 1 : 0) + attachmentResourceCount)
       .then((quote) => { if (!cancelled) setFee(quote.label); })
       .catch(() => { if (!cancelled) setFee('Fee unavailable.'); });
     return () => { cancelled = true; };
-  }, [featuredBytes, featuredFile, sectionsChanged]);
+  }, [featuredBytes, featuredFile, sectionsChanged, attachmentResourceCount]);
 
   // Detect changed WordPress sources for every local edit. This is a read-only
   // comparison; it never publishes and never renames anything.
@@ -547,6 +560,38 @@ export function EditorPage(props: {
         source: 'explicit'
       };
     }
+    // Attachments: each is its own content-addressed resource in the same batch.
+    const publicNode = isPublicGatewayUrl(getTrustedNodeUrl());
+    for (const meta of attachmentsInHtml(html) as any[]) {
+      if (meta.name !== props.name) {
+        setState('failed');
+        setMessage('The attachment "' + meta.filename + '" belongs to a different QDN name and was not published.');
+        return;
+      }
+      const capture = attachmentStoreRef.current.get(meta.identifier);
+      if (!capture) {
+        const status: any = await getQdnResourceStatus(meta.service, props.name, meta.identifier);
+        if (status && status.status === 'READY') continue;
+        setState('failed');
+        setMessage('The attachment "' + meta.filename + '" is no longer available on this device. Remove it and attach it again. Nothing was published.');
+        return;
+      }
+      const check: any = validateAttachment({ name: capture.filename, size: capture.size, type: capture.mime }, { publicNode });
+      if (!check.ok) { setState('failed'); setMessage(check.message + ' Nothing was published.'); return; }
+      mediaResources.push({
+        stage: 'attachment', service: capture.service, identifier: capture.identifier, file: capture.blob, sha256: capture.sha256,
+        filename: capture.filename, title: meta.title || capture.title,
+        description: 'Attachment for ' + draft.title + ' on ' + props.name + '.', reuseIfReady: true
+      });
+      if (meta.poster && capture.poster) {
+        mediaResources.push({
+          stage: 'poster', service: 'IMAGE', identifier: meta.poster, bytes: capture.poster.bytes,
+          filename: capture.poster.filename, title: 'Poster for ' + (meta.title || capture.title),
+          description: 'Video poster for ' + draft.title + ' on ' + props.name + '.', reuseIfReady: true
+        });
+      }
+    }
+    setProgress([]);
     setMessage('Waiting for Qortal Hub approval of the combined publication...');
 
     const publicationDraft = {
@@ -578,7 +623,8 @@ export function EditorPage(props: {
           author,
           timestamp,
           extraResources: mediaResources,
-          sectionsAssignment: sectionsPayload
+          sectionsAssignment: sectionsPayload,
+          onProgress: setProgress
         })
       : await publishNativePostDraft({
           identity: props.identity,
@@ -593,9 +639,13 @@ export function EditorPage(props: {
           author,
           timestamp,
           extraResources: mediaResources,
-          sectionsAssignment: sectionsPayload
+          sectionsAssignment: sectionsPayload,
+          onProgress: setProgress
         });
     if (result.ok && sectionsPayload) initialAssignmentRef.current = { slugs: [...assignment.slugs], hideFromHome: assignment.hideFromHome };
+    if (result.ok) {
+      for (const meta of attachmentsInHtml(html) as any[]) attachmentStoreRef.current.delete(meta.identifier);
+    }
     if (result.ok && uploaded) {
       setFeaturedFile(null);
       setFeaturedBytes(null);
@@ -825,7 +875,7 @@ export function EditorPage(props: {
             </p>
           ) : null}
 
-          <RichTextEditor value={draft.html} onChange={(html) => persist({ ...draft, html })} onInsertMedia={() => setShowMedia(true)} />
+          <RichTextEditor value={draft.html} onChange={(html) => persist({ ...draft, html })} onInsertMedia={() => setShowMedia(true)} qdnName={props.name} attachmentStore={attachmentStoreRef.current} publicNode={isPublicGatewayUrl(getTrustedNodeUrl())} />
         </>
       )}
 
@@ -881,6 +931,8 @@ export function EditorPage(props: {
           featuredFile={featuredFile}
           featuredChoice={featuredChoice}
           fee={fee}
+          attachments={attachmentPlan.map((meta: any) => ({ service: meta.service, identifier: meta.identifier, filename: meta.filename, size: meta.size, poster: Boolean(meta.poster) }))}
+          progress={progress}
           sectionsChange={sectionsChanged ? { slugs: assignment.slugs, hideFromHome: assignment.hideFromHome, revision: (props.sections ? props.sections.revision : 0) + 1 } : null}
           slugChanged={slugChanged}
           publishedSlug={publishedSlug}

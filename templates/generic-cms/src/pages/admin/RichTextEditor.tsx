@@ -1,9 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
+import { AttachmentNode } from './editor/AttachmentNode';
+import { AttachButton, AttachmentsPanel, type AttachmentStore } from './editor/AttachmentTools';
 import { ColorMark } from './editor/ColorMark';
 import { ColorPicker } from './editor/ColorPicker';
 import { parseQortalLink } from '../../lib/links.js';
@@ -12,7 +14,13 @@ export function RichTextEditor(props: {
   value: string;
   onChange: (html: string) => void;
   onInsertMedia: () => void;
+  qdnName?: string;
+  attachmentStore?: AttachmentStore;
+  publicNode?: boolean;
 }) {
+  const [attachNotice, setAttachNotice] = useState<{ message: string; error: boolean }>({ message: '', error: false });
+  const [fallbackStore] = useState<AttachmentStore>(() => new Map());
+  const store = props.attachmentStore || fallbackStore;
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
@@ -20,6 +28,7 @@ export function RichTextEditor(props: {
       Link.configure({ openOnClick: false, autolink: true, protocols: ['http', 'https', 'qortal'], HTMLAttributes: { rel: 'noopener noreferrer' } }),
       Image.configure({ inline: false, allowBase64: false }),
       ColorMark,
+      AttachmentNode,
       Placeholder.configure({ placeholder: 'Write the post…' })
     ],
     content: props.value || '',
@@ -87,10 +96,13 @@ export function RichTextEditor(props: {
         />
         {button('Link', setLink, editor.isActive('link'))}
         {button('Image', props.onInsertMedia)}
+        <AttachButton editor={editor} qdnName={props.qdnName || ''} store={store} publicNode={Boolean(props.publicNode)} onStatus={(message, error) => setAttachNotice({ message, error: Boolean(error) })} />
         {button('Undo', () => editor.chain().focus().undo().run(), false, !editor.can().undo())}
         {button('Redo', () => editor.chain().focus().redo().run(), false, !editor.can().redo())}
       </div>
+      <p className={'muted attach-notice' + (attachNotice.error ? ' attach-notice--error' : '')} role={attachNotice.error ? 'alert' : 'status'} aria-live="polite">{attachNotice.message}</p>
       <EditorContent editor={editor} className="editor__content" />
+      <AttachmentsPanel editor={editor} store={store} onStatus={(message, error) => setAttachNotice({ message, error: Boolean(error) })} />
     </div>
   );
 }

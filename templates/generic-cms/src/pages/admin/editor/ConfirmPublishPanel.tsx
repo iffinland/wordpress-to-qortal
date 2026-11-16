@@ -1,4 +1,5 @@
 import { ConfirmPublishDialog, type PublishPhase } from '../../../components/ConfirmPublishDialog';
+import { formatBytes } from '../../../lib/attachments.js';
 import { finalizeSlug } from '../../../lib/slug.js';
 import type { ViewerIdentity } from '../../../types';
 import type { FeaturedImageChoice } from '../FeaturedImagePicker';
@@ -14,6 +15,8 @@ export function ConfirmPublishPanel(props: {
   featuredFile: File | null;
   featuredChoice: FeaturedImageChoice;
   fee: string;
+  attachments?: Array<{ service: string; identifier: string; filename: string; size: number; poster: boolean }>;
+  progress?: Array<{ stage: string; identifier: string; state: string }>;
   sectionsChange?: { slugs: string[]; hideFromHome: boolean; revision: number } | null;
   slugChanged: boolean;
   publishedSlug: string;
@@ -39,10 +42,20 @@ export function ConfirmPublishPanel(props: {
         <div><dt>Index</dt><dd>{props.draft.sourceKind === 'wordpress-overlay' ? 'DOCUMENT / ' + props.name + ' / qms-cms-edit-overlay (revision ' + (props.overlayRevision + 1) + ')' : 'DOCUMENT / ' + props.name + ' / qms-cms-native-index (revision ' + (props.revision + 1) + ')'}</dd></div>
         <div><dt>Featured image</dt><dd>{props.featuredBytes ? 'New local image / ' + ((props.featuredMeta && props.featuredMeta.name) || (props.featuredFile && props.featuredFile.name) || 'selected image') : props.featuredChoice.url ? (props.featuredChoice.ref ? 'QDN IMAGE / ' + (props.featuredChoice.ref.name || props.name) + ' / ' + props.featuredChoice.ref.identifier : props.featuredChoice.url) : 'None'}{props.featuredBytes ? ' (fee includes one image resource)' : ''}</dd></div>
         {props.sectionsChange ? <div><dt>Page assignments</dt><dd>DOCUMENT / {props.name} / qms-cms-sections (revision {props.sectionsChange.revision}): {props.sectionsChange.slugs.length ? props.sectionsChange.slugs.join(', ') : 'no pages'}{props.sectionsChange.hideFromHome ? '; hidden from home' : ''}</dd></div> : null}
+        {props.attachments && props.attachments.length ? (
+          <div><dt>Attachments</dt><dd>
+            <ul>{props.attachments.map((item) => <li key={item.identifier}>{item.service} / {props.name} / {item.identifier} — {item.filename} ({formatBytes(item.size)}){item.poster ? ' + IMAGE poster' : ''}</li>)}</ul>
+          </dd></div>
+        ) : null}
         <div><dt>Fee</dt><dd>{props.fee}</dd></div>
         <div><dt>Signer</dt><dd>{props.identity.address}</dd></div>
         {props.slugChanged ? <div><dt>Slug change</dt><dd>Old slug /{props.publishedSlug} becomes an alias; old content resource is kept.</dd></div> : null}
       </dl>
+      {props.progress && props.progress.length && props.phase !== 'confirm' ? (
+        <ul className="publish-progress" aria-label="Progress per resource">
+          {props.progress.map((item) => <li key={item.stage + item.identifier}>{item.stage}: {item.state}</li>)}
+        </ul>
+      ) : null}
       <p className="muted">HTML is sanitized before publication. Ownership is revalidated immediately before each signature.</p>
     </ConfirmPublishDialog>
   );

@@ -202,6 +202,8 @@ export async function publishJsonResource({
  * @property {string} identifier
  * @property {any} [document]     JSON document (serialised deterministically)
  * @property {Uint8Array} [bytes] raw bytes (media)
+ * @property {Blob} [file]        large resource published through the Hub file path (no base64 in memory)
+ * @property {string} [sha256]    required with `file`: precomputed content hash
  * @property {string} [filename]
  * @property {string} [title]
  * @property {string} [description]
@@ -223,7 +225,22 @@ export async function publishJsonResource({
  * Per-resource states: remote-verified | reused | declined | failed | ambiguous
  * | not-sent.
  */
-export async function publishBatch({ identity, name, resources, storage, verifyTimeoutMs = 60000 }) {
+async function verifyReady({ service, name, identifier, timeoutMs }) {
+  const deadline = Date.now() + timeoutMs;
+  for (;;) {
+    const status = await getQdnResourceStatus(service, name, identifier);
+    if (status && status.status === 'READY') return { ok: true };
+    if (Date.now() >= deadline) return { ok: false };
+    await new Promise((resolve) => setTimeout(resolve, Math.min(3000, Math.max(50, timeoutMs / 20))));
+  }
+}
+
+async function verifyEntry(entry, name, timeoutMs) {
+  if (entry.item.file) return verifyReady({ service: entry.service, name, identifier: entry.item.identifier, timeoutMs: Math.max(timeoutMs, 120000) });
+  return verifyPublishedBytes({ service: entry.service, name, identifier: entry.item.identifier, expectedBytes: entry.bytes, timeoutMs });
+}
+
+export async function publishBatch({ identity, name, resources, storage, verifyTimeoutMs = 60000, onProgress = undefined }) {
   const keys = resources.map((item) => resourceKey(item.service || 'DOCUMENT', name, item.identifier));
   const held = [];
   for (const key of keys) {
@@ -234,6 +251,7 @@ export async function publishBatch({ identity, name, resources, storage, verifyT
     inFlight.set(key, true);
     held.push(key);
   }
+  const notify = () => { if (onProgress) { try { onProgress(results.map((entry) => ({ stage: entry.stage, identifier: entry.identifier, state: entry.state }))); } catch { /* UI callback only */ } } };
   const results = resources.map((item, index) => ({
     stage: item.stage || item.identifier, service: item.service || 'DOCUMENT', identifier: item.identifier,
     key: keys[index], ok: false, state: 'not-sent', message: ''
@@ -244,9 +262,10 @@ export async function publishBatch({ identity, name, resources, storage, verifyT
     for (let index = 0; index < resources.length; index += 1) {
       const item = resources[index];
       const service = item.service || 'DOCUMENT';
-      const bytes = item.bytes ? mediaBytes(item.bytes) : serialiseJsonDocument(item.document);
-      const sha256 = await sha256Hex(bytes);
-      const entry = { index, item, service, bytes, sha256, key: keys[index] };
+      const bytes = item.file ? null : (item.bytes ? mediaBytes(item.bytes) : serialiseJsonDocument(item.document));
+      const sha256 = item.file ? String(item.sha256 || '') : await sha256Hex(bytes);
+      if (item.file && !sha256) throw new Error('A precomputed SHA-256 is required for file resources.');
+      const entry = { index, item, service, bytes, size: item.file ? item.file.size : bytes.length, sha256, key: keys[index] };
       results[index].sha256 = sha256;
       if (item.reuseIfReady) {
         const status = await getQdnResourceStatus(service, name, item.identifier);
@@ -263,7 +282,7 @@ export async function publishBatch({ identity, name, resources, storage, verifyT
             message: 'A different submission for ' + item.identifier + ' is unconfirmed. Resolve or discard it before publishing new bytes. Nothing was sent.'
           };
         }
-        const verification = await verifyPublishedBytes({ service, name, identifier: item.identifier, expectedBytes: bytes, timeoutMs: verifyTimeoutMs });
+        const verification = await verifyEntry(entry, name, verifyTimeoutMs);
         if (verification.ok) {
           clearPending(storage, entry.key);
           Object.assign(results[index], { ok: true, state: 'remote-verified', message: 'The earlier submission is confirmed on QDN.' });
@@ -290,21 +309,26 @@ export async function publishBatch({ identity, name, resources, storage, verifyT
     if (prepared.length === 0) return finish();
 
     prepared.forEach((entry) => recordPending(storage, {
-      key: entry.key, service: entry.service, name, identifier: entry.item.identifier, sha256: entry.sha256, bytes: entry.bytes.length,
+      key: entry.key, service: entry.service, name, identifier: entry.item.identifier, sha256: entry.sha256, bytes: entry.size,
       submittedAt: new Date().toISOString(), owner: owner.address, title: entry.item.title || ''
     }));
     const toPayload = (entry) => ({
       service: entry.service, name, identifier: entry.item.identifier,
-      data64: bytesToBase64Bytes(entry.bytes),
+      ...(entry.item.file ? { file: entry.item.file } : { data64: bytesToBase64Bytes(entry.bytes) }),
       filename: entry.item.filename || (entry.item.bytes ? entry.item.identifier : entry.item.identifier + '.json'),
       title: entry.item.title || entry.item.identifier,
       description: entry.item.description || 'Published from the Qortal Migration Studio CMS.'
     });
 
+    prepared.forEach((entry) => { results[entry.index].state = 'queued'; });
+    notify();
+    const totalFileBytes = prepared.reduce((sum, entry) => sum + (entry.item.file ? entry.size : 0), 0);
     let sent = null;
     let fallbackUsed = false;
     try {
-      sent = await publishQdnResources(prepared.map(toPayload));
+      // Hub publishes sequentially (about 1 s between resources) after one approval;
+      // large files need a longer request window than the default.
+      sent = await publishQdnResources(prepared.map(toPayload), { timeoutMs: 300000 + Math.ceil(totalFileBytes / (1024 * 1024)) * 2000 });
     } catch (error) {
       if (error && error.code === 'declined') {
         prepared.forEach((entry) => { clearPending(storage, entry.key); results[entry.index].state = 'declined'; results[entry.index].message = error.message || 'The signature request was declined.'; });
@@ -341,7 +365,7 @@ export async function publishBatch({ identity, name, resources, storage, verifyT
           return { ...finish(), fallbackUsed: true };
         }
         // Verify each fallback resource before asking Hub to sign the next one.
-        const verification = await verifyPublishedBytes({ service: entry.service, name, identifier: entry.item.identifier, expectedBytes: entry.bytes, timeoutMs: verifyTimeoutMs });
+        const verification = await verifyEntry(entry, name, verifyTimeoutMs);
         if (verification.ok) {
           clearPending(storage, entry.key);
           Object.assign(results[entry.index], { ok: true, state: 'remote-verified', message: 'Published and verified byte-for-byte.', verification });
@@ -356,6 +380,8 @@ export async function publishBatch({ identity, name, resources, storage, verifyT
     }
 
     const unsuccessful = new Set(sent.unsuccessful || []);
+    prepared.forEach((entry) => { results[entry.index].state = unsuccessful.has(entry.item.identifier) ? 'failed' : 'verifying'; });
+    notify();
     for (const entry of prepared) {
       if (unsuccessful.has(entry.item.identifier)) {
         clearPending(storage, entry.key);
@@ -363,7 +389,7 @@ export async function publishBatch({ identity, name, resources, storage, verifyT
         results[entry.index].message = 'Qortal Hub reported that ' + entry.item.identifier + ' was not published.';
         continue;
       }
-      const verification = await verifyPublishedBytes({ service: entry.service, name, identifier: entry.item.identifier, expectedBytes: entry.bytes, timeoutMs: verifyTimeoutMs });
+      const verification = await verifyEntry(entry, name, verifyTimeoutMs);
       if (verification.ok) {
         clearPending(storage, entry.key);
         Object.assign(results[entry.index], { ok: true, state: 'remote-verified', message: 'Published and verified byte-for-byte.', verification });
@@ -371,6 +397,7 @@ export async function publishBatch({ identity, name, resources, storage, verifyT
         results[entry.index].state = 'ambiguous';
         results[entry.index].message = 'Submitted, but exact QDN read-back of ' + entry.item.identifier + ' did not match yet. It was NOT resent.';
       }
+      notify();
     }
     return finish();
   } catch (error) {

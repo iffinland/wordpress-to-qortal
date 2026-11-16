@@ -138,7 +138,7 @@ export async function loadNativeIndex(name, siteId = '') {
   return readNativeIndex(payload);
 }
 
-export async function publishNativePostDraft({ identity, name, siteId, draft, baseRevision, storage, author, timestamp, extraResources = /** @type {any[]} */ ([]), sectionsAssignment = /** @type {any} */ (null) }) {
+export async function publishNativePostDraft({ identity, name, siteId, draft, baseRevision, storage, author, timestamp, extraResources = /** @type {any[]} */ ([]), sectionsAssignment = /** @type {any} */ (null), onProgress = /** @type {any} */ (undefined) }) {
   const remote = await loadNativeIndex(name, siteId);
   if (!remote.ok) return { ok: false, state: 'invalid-remote', message: remote.errors.join(' ') };
   const index = remote.index;
@@ -228,7 +228,7 @@ export async function publishNativePostDraft({ identity, name, siteId, draft, ba
   if (sectionsStage.error) return sectionsStage.error;
   if (sectionsStage.resource) stages.push(sectionsStage.resource);
 
-  const batch = await publishBatch({ identity, name, resources: stages, storage });
+  const batch = await publishBatch({ identity, name, resources: stages, storage, onProgress });
   return batchOutcome(batch, {
     index: updated.index,
     sections: sectionsStage.doc || null,
@@ -401,7 +401,7 @@ export async function publishOverlayDraft(options) {
   if (sectionsStage.error) return sectionsStage.error;
   if (sectionsStage.resource) stages.push(sectionsStage.resource);
 
-  const batch = await publishBatch({ identity, name, resources: stages, storage });
+  const batch = await publishBatch({ identity, name, resources: stages, storage, onProgress: options.onProgress });
   return batchOutcome(batch, {
     overlay: updated.overlay,
     sections: sectionsStage.doc || null,

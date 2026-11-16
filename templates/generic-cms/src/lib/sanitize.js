@@ -1,5 +1,6 @@
 import createDOMPurify from 'dompurify';
 import { sanitizeQortalHref } from './links.js';
+import { ATTACHMENT_DATA_ATTRIBUTES, metaFromElement } from './attachments.js';
 
 const ALLOWED_TAGS = [
   'a', 'abbr', 'b', 'blockquote', 'br', 'caption', 'cite', 'code', 'col', 'colgroup',
@@ -15,7 +16,10 @@ const ALLOWED_ATTR = [
   'colspan', 'rowspan', 'scope', 'datetime', 'cite', 'start', 'reversed', 'type',
   'controls', 'poster', 'preload', 'loop', 'muted', 'playsinline', 'kind', 'srclang',
   'label', 'loading', 'decoding', 'rel', 'target', 'role', 'aria-label',
-  'aria-labelledby', 'aria-describedby', 'aria-hidden'
+  'aria-labelledby', 'aria-describedby', 'aria-hidden',
+  // Attachment block metadata; postProcess keeps these only on a validated
+  // div[data-qms-attachment] and strips every other data-* attribute.
+  ...ATTACHMENT_DATA_ATTRIBUTES
 ];
 
 const FORBID_TAGS = [
@@ -73,6 +77,30 @@ function postProcess(html, windowLike) {
   for (const element of Array.from(body.querySelectorAll('*'))) {
     if (FORBID_TAGS.includes(element.tagName.toLowerCase())) {
       element.remove();
+      continue;
+    }
+    const isAttachment = element.tagName.toLowerCase() === 'div' && element.hasAttribute('data-qms-attachment');
+    if (isAttachment) {
+      const meta = metaFromElement(element);
+      if (!meta) {
+        element.remove();
+        continue;
+      }
+      // Rebuild from validated metadata so nothing unexpected survives.
+      for (const attribute of Array.from(element.attributes)) element.removeAttribute(attribute.name);
+      element.setAttribute('class', 'qms-attachment qms-attachment--' + meta.kind);
+      element.setAttribute('data-qms-attachment', '1');
+      element.setAttribute('data-kind', meta.kind);
+      element.setAttribute('data-service', meta.service);
+      element.setAttribute('data-name', meta.name);
+      element.setAttribute('data-identifier', meta.identifier);
+      element.setAttribute('data-filename', meta.filename);
+      element.setAttribute('data-title', meta.title);
+      if (meta.mime) element.setAttribute('data-mime', meta.mime);
+      if (meta.size) element.setAttribute('data-size', String(meta.size));
+      if (meta.sha256) element.setAttribute('data-sha256', meta.sha256);
+      if (meta.poster) element.setAttribute('data-poster', meta.poster);
+      element.textContent = meta.title;
       continue;
     }
     for (const attribute of Array.from(element.attributes)) {
