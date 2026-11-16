@@ -4,11 +4,11 @@ Generic CMS is the public QDN site runtime plus an owner-only admin area. It is 
 
 ## 1. Public pages, navigation, and search
 
-The header brand returns to **Home**. Configured navigation links open their public routes: posts, archive, search, pages, categories, tags, or gallery. **Gallery** is added when published galleries exist. **Admin** is hidden from visitors and appears only for a verified owner.
+The header brand returns to **Home**. On narrow screens (720 px and below) the navigation is behind a hamburger **menu** button in a compact header (Escape closes it and returns focus to the button; it also closes when you open a page). Posts and Search are always in the menu. Configured navigation links open their public routes: posts, archive, search, pages, categories, tags, or gallery. **Gallery** is added when published galleries exist. **Admin** is hidden from visitors and appears only for a verified owner.
 
-The theme control changes light, dark, or system appearance. The status badge says **Read-only**, **Checking access**, or **Owner mode**. A non-owner can use **Connect owner account** to ask Hub for identity/ownership verification, or **Retry verification** when the lookup must be repeated. A public site does not prove ownership.
+The theme control (inside the menu on phones) changes light, dark, or system appearance. There is no owner/read-only badge. When ownership can be checked, a non-owner can use **Connect owner account** to ask Hub for identity/ownership verification, or **Retry verification** when the lookup must be repeated. A public site does not prove ownership.
 
-Use public cards/titles to open posts and pages. Category, tag, and archive links filter listings. On search, type terms in **Search the site**; quote a phrase to search that phrase. Use pagination where offered, post previous/next links when available, and the gallery's image previous/next controls. **Check for updates** only checks for a verified newer CMS release; it does not download or install anything.
+Use public cards/titles to open posts and pages. Category, tag, and archive links filter listings. On search, type terms in the search box; quote a phrase to search that phrase. Use pagination where offered, post previous/next links when available, and the gallery's image previous/next controls. **Check for updates** only checks for a verified newer CMS release; it does not download or install anything.
 
 ## 2. Enter owner administration
 

@@ -81,7 +81,6 @@ function OwnerAdmin(props: {
           <section className="admin-section" aria-labelledby="access-title">
             <h2 id="access-title">Access</h2>
             <div className="access-card access-card--owner">
-              <p className="access-card__role">Owner mode</p>
               <p>{props.identity.message}</p>
               <dl className="meta-grid">
                 <div><dt>QDN name</dt><dd>{props.identity.qdnName || '(not configured)'}</dd></div>

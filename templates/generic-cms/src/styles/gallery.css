@@ -194,11 +194,13 @@ body.lightbox-open {
 
 @media (max-width: 720px) {
   .site-header__tools {
-    margin-left: auto;
+    margin-left: 0;
+    flex-wrap: wrap;
   }
 
   .theme-toggle__button {
-    padding: 0.3rem 0.45rem;
+    padding: 0.6rem 0.9rem;
+    min-height: 44px;
   }
 
   .preview-modal,

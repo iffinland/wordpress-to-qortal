@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { AppRoute, CmsTemplateConfig, ViewerIdentity } from '../types';
 import { themeStyle } from '../lib/config.js';
@@ -27,6 +28,14 @@ function publicNavigation(config: CmsTemplateConfig, owner: boolean, hasGallerie
   return items;
 }
 
+function withCoreLinks(items: Array<{ label: string; href: string; adminOnly?: boolean }>) {
+  const has = (prefix: string) => items.some((item) => String(item.href || '').indexOf(prefix) === 0);
+  const extra = [];
+  if (!has('#/posts')) extra.push({ label: 'Posts', href: '#/posts' });
+  if (!has('#/search')) extra.push({ label: 'Search', href: '#/search' });
+  return extra.length ? [...items, ...extra] : items;
+}
+
 export function Layout(props: {
   children: ReactNode;
   config: CmsTemplateConfig;
@@ -44,7 +53,22 @@ export function Layout(props: {
   onRetryIdentity?: () => void;
 }) {
   const owner = Boolean(props.viewer && props.viewer.owner && props.viewer.nameRecordStatus === 'verified');
-  const navigation = publicNavigation(props.config, owner, Boolean(props.hasGalleries));
+  const navigation = withCoreLinks(publicNavigation(props.config, owner, Boolean(props.hasGalleries)));
+  const [menuOpen, setMenuOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const routeKey = JSON.stringify(props.route);
+  useEffect(() => { setMenuOpen(false); }, [routeKey]);
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMenuOpen(false);
+        if (buttonRef.current) buttonRef.current.focus();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [menuOpen]);
   const resolved = props.resolvedTheme || 'dark';
   const canConnect = Boolean(!owner && !props.viewerLoading && props.viewer && props.viewer.action === 'connect' && props.onConnectOwner);
   const canRetry = Boolean(!owner && !props.viewerLoading && props.viewer && props.viewer.action === 'retry' && props.onRetryIdentity);
@@ -57,37 +81,47 @@ export function Layout(props: {
             <span className="brand__title">{props.config.site.title}</span>
             {props.config.site.tagline ? <span className="brand__tagline">{props.config.site.tagline}</span> : null}
           </a>
-          <nav className="site-nav" aria-label="Primary">
-            <ul className="site-nav__list">
-              {navigation.map((item) => (
-                <li key={item.label + item.href}>
-                  <a
-                    className="site-nav__link"
-                    href={item.href}
-                    aria-current={isActive(item.href, props.route) ? 'page' : undefined}
-                  >
-                    {item.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-          <div className="site-header__tools">
-            {props.updateBadge}
-            <ThemeToggle mode={props.themeMode || 'system'} onChange={props.onThemeChange} />
-            <p className={'viewer-badge ' + (owner ? 'viewer-badge--owner' : '')}>
-              {props.viewer ? (owner ? 'Owner mode' : 'Read-only') : props.viewerLoading ? 'Checking access' : 'Read-only'}
-            </p>
-            {canConnect ? (
-              <button type="button" className="button button--ghost viewer-connect" onClick={props.onConnectOwner}>
-                Connect owner account
-              </button>
-            ) : null}
-            {canRetry ? (
-              <button type="button" className="button button--ghost viewer-connect" onClick={props.onRetryIdentity}>
-                Retry verification
-              </button>
-            ) : null}
+          <button
+            ref={buttonRef}
+            type="button"
+            className="menu-button"
+            aria-expanded={menuOpen}
+            aria-controls="site-menu"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <span className="menu-button__icon" aria-hidden="true" />
+            <span className="visually-hidden">{menuOpen ? 'Close menu' : 'Open menu'}</span>
+          </button>
+          <div id="site-menu" className={'site-menu' + (menuOpen ? ' is-open' : '')}>
+            <nav className="site-nav" aria-label="Primary">
+              <ul className="site-nav__list">
+                {navigation.map((item) => (
+                  <li key={item.label + item.href}>
+                    <a
+                      className="site-nav__link"
+                      href={item.href}
+                      aria-current={isActive(item.href, props.route) ? 'page' : undefined}
+                    >
+                      {item.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+            <div className="site-header__tools">
+              {props.updateBadge}
+              <ThemeToggle mode={props.themeMode || 'system'} onChange={props.onThemeChange} />
+              {canConnect ? (
+                <button type="button" className="button button--ghost viewer-connect" onClick={props.onConnectOwner}>
+                  Connect owner account
+                </button>
+              ) : null}
+              {canRetry ? (
+                <button type="button" className="button button--ghost viewer-connect" onClick={props.onRetryIdentity}>
+                  Retry verification
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       </header>

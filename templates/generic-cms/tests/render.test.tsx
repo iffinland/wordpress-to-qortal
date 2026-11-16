@@ -67,7 +67,9 @@ describe('generic CMS routes render from the fixture manifest', () => {
     const html = render(<HomePage dataset={dataset} />, { kind: 'home' });
     expect(html).not.toContain('id="home-title"');
     expect(html).not.toContain('hero__tagline');
-    expect(html).toContain('Browse posts');
+    expect(html).not.toContain('Browse posts');
+    expect(html).not.toContain('Search the site');
+    expect(html).toContain('All posts');
     expect(html).toContain('Hello Qortal');
     expect(html).toContain('Designing for Qortal');
     expect(html).toContain('aria-label="Primary"');
@@ -177,7 +179,7 @@ describe('generic CMS routes render from the fixture manifest', () => {
       { kind: 'admin' },
       ownerIdentity
     );
-    expect(owner).toContain('Owner mode');
+    expect(owner).not.toContain('access-card__role');
     expect(owner).not.toContain('Import and adoption');
     expect(owner).toContain('Catalog');
     expect(owner).not.toMatch(/<fieldset class="admin-fieldset" disabled/);

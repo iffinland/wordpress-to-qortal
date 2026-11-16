@@ -82,7 +82,7 @@ afterEach(() => {
 describe('public navigation through the rendered application', () => {
   it('opens Home, Posts, Archive, Search, Files and Admin with valid CMS data', async () => {
     render(<App />);
-    await screen.findByText('Browse posts');
+    await screen.findByText('Latest posts');
 
     const postsLink = screen.getByRole('link', { name: 'Posts' });
     expect(postsLink.getAttribute('href')).toBe('#/posts');
@@ -103,7 +103,7 @@ describe('public navigation through the rendered application', () => {
     expect(screen.getByText(/Files body/)).toBeTruthy();
 
     navigate('#/');
-    await screen.findByText('Browse posts');
+    await screen.findByText('Latest posts');
 
     navigate('#/admin');
     await screen.findByText('Access denied');
@@ -113,7 +113,7 @@ describe('public navigation through the rendered application', () => {
   it('hides the global catalog and config warnings on working public pages', async () => {
     state.dataset = state.make('partial');
     render(<App />);
-    await screen.findByText('Browse posts');
+    await screen.findByText('Latest posts');
     expect(screen.getByText('First post')).toBeTruthy();
     expect(screen.queryByText('Part of the catalog is unavailable')).toBeNull();
     expect(screen.queryByText(/Runtime CMS configuration is unavailable/)).toBeNull();

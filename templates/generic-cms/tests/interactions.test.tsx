@@ -117,3 +117,21 @@ describe('owner-only administration interaction', () => {
   });
 });
 
+
+describe('mobile menu', () => {
+  it('toggles aria-expanded, closes on Escape and returns focus to the button', async () => {
+    const { Layout } = await import('../src/components/Layout');
+    const { default: config } = await import('../cms.config.json');
+    render(<Layout config={config as never} route={{ kind: 'home' } as never} viewer={null} templateVersion="0"><p>x</p></Layout>);
+    const button = screen.getByRole('button', { name: 'Open menu' });
+    expect(button.getAttribute('aria-controls')).toBe('site-menu');
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(button);
+    expect(button.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(button);
+    expect(screen.queryByText('Owner mode')).toBeNull();
+    expect(screen.queryByText('Read-only')).toBeNull();
+  });
+});
