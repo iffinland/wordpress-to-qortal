@@ -20,6 +20,7 @@
     "@tiptap/react": "^2.27.3",
     "@tiptap/starter-kit": "^2.27.3",
     "dompurify": "^3.2.4",
+    "pdfjs-dist": "^5.7.284",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

@@ -70,7 +70,7 @@ export function classifyFile(name, mime = '') {
   }
   if (AUDIO.includes(ext)) return { ok: true, kind: 'audio', service: 'AUDIO', ext, preview: null };
   if (VIDEO.includes(ext)) return { ok: true, kind: 'video', service: 'VIDEO', ext, preview: null };
-  if (TEXT.includes(ext)) return { ok: true, kind: 'text', service: 'FILE', ext, preview: ext === 'pdf' ? null : (ext === 'txt' ? 'txt' : 'md') };
+  if (TEXT.includes(ext)) return { ok: true, kind: 'text', service: 'FILE', ext, preview: ext === 'pdf' ? 'pdf' : (ext === 'txt' ? 'txt' : 'md') };
   if (ARCHIVE.includes(ext)) return { ok: true, kind: 'archive', service: 'FILE', ext, preview: null };
   if (DOCUMENT.includes(ext)) return { ok: true, kind: 'document', service: 'FILE', ext, preview: null };
   return { ok: false, message: 'The file type .' + ext + ' is not supported. Allowed: text (txt, md, pdf), audio, video, archives (zip, 7z, rar, tar, gz, tgz, bz2, xz) and documents (doc, docx, xls, xlsx, odt, csv, json).' };
@@ -144,7 +144,7 @@ export function normalizeAttachmentMeta(raw) {
     size: Number.isSafeInteger(size) && size >= 0 ? size : 0,
     sha256: /^[a-f0-9]{64}$/i.test(String(raw.sha256 || '')) ? String(raw.sha256).toLowerCase() : '',
     poster,
-    preview: kind === 'text' ? (ext === 'txt' ? 'txt' : (ext === 'md' || ext === 'markdown') ? 'md' : null) : null
+    preview: kind === 'text' ? (ext === 'txt' ? 'txt' : ext === 'pdf' ? 'pdf' : (ext === 'md' || ext === 'markdown') ? 'md' : null) : null
   };
 }
 

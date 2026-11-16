@@ -90,3 +90,38 @@
 .attachments-panel__item p { margin: 0 0 var(--qms-space-2); overflow-wrap: anywhere; }
 .publish-progress { margin: var(--qms-space-2) 0; padding-left: var(--qms-space-4); font-size: var(--qms-text-sm); }
 .qms-attachment { border: 1px dashed var(--qms-border); border-radius: var(--qms-radius); padding: var(--qms-space-3); margin: var(--qms-space-3) 0; overflow-wrap: anywhere; }
+
+/* Hydrated attachments (viewer). */
+.attachment { border: 1px solid var(--qms-border); background: var(--qms-surface); border-radius: var(--qms-radius); padding: var(--qms-space-3); margin: var(--qms-space-4) 0; display: grid; gap: var(--qms-space-3); max-width: 100%; }
+.attachment__head { display: flex; align-items: center; gap: var(--qms-space-3); min-width: 0; color: var(--qms-text); }
+.attachment__head svg { flex: none; color: var(--qms-accent); }
+.attachment__info { display: grid; min-width: 0; }
+.attachment__title { font-weight: 700; overflow-wrap: anywhere; }
+.attachment__meta { font-size: var(--qms-text-sm); color: var(--qms-muted); overflow-wrap: anywhere; }
+.attachment__actions { display: flex; flex-wrap: wrap; gap: var(--qms-space-2); }
+.attachment__audio { width: 100%; min-height: 44px; }
+.attachment--video { padding: 0; overflow: hidden; gap: 0; }
+.attachment--video > .attachment__title { padding: var(--qms-space-2) var(--qms-space-3) var(--qms-space-3); margin: 0; }
+.attachment__media { position: relative; aspect-ratio: 16 / 9; background: #000; }
+.attachment__video { width: 100%; height: 100%; display: block; background: #000; }
+.attachment__poster { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; padding: 0; margin: 0; cursor: pointer; background: var(--qms-surface-alt); display: block; }
+.attachment__poster img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.attachment__placeholder { position: absolute; inset: 0; display: grid; place-items: center; color: var(--qms-muted); }
+.attachment__placeholder svg { width: 56px; height: 56px; }
+.attachment__play { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.attachment__download, .attachment .button { min-height: 44px; }
+
+.attachment-dialog__backdrop { position: fixed; inset: 0; z-index: 60; background: rgba(0, 0, 0, 0.6); display: grid; place-items: center; padding: var(--qms-space-4); }
+.attachment-dialog { background: var(--qms-surface); color: var(--qms-text); border: 1px solid var(--qms-border); border-radius: var(--qms-radius); width: min(860px, 100%); max-height: 90vh; display: flex; flex-direction: column; box-shadow: var(--qms-shadow); }
+.attachment-dialog__header, .attachment-dialog__footer { display: flex; align-items: center; justify-content: space-between; gap: var(--qms-space-3); padding: var(--qms-space-3) var(--qms-space-4); }
+.attachment-dialog__header { border-bottom: 1px solid var(--qms-border); }
+.attachment-dialog__header h2 { margin: 0; font-size: var(--qms-text-lg); overflow-wrap: anywhere; }
+.attachment-dialog__footer { border-top: 1px solid var(--qms-border); justify-content: flex-end; }
+.attachment-dialog__body { padding: var(--qms-space-4); overflow: auto; flex: 1; }
+.attachment-preview--text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; font-size: var(--qms-text-sm); }
+.attachment-preview--md img { max-width: 100%; }
+
+@media (max-width: 640px) {
+  .attachment-dialog__backdrop { padding: 0; place-items: end stretch; }
+  .attachment-dialog { width: 100%; max-height: 100vh; height: 100%; border-radius: 0; }
+}

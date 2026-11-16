@@ -4,6 +4,9 @@ import { sanitizeHtml } from '../lib/sanitize.js';
 import { copyText } from '../lib/clipboard.js';
 import { openQortalLink } from '../lib/qortal.js';
 import { parseQortalLink } from '../lib/links.js';
+import { createPortal } from 'react-dom';
+import { AttachmentView, type AttachmentMeta } from './AttachmentView';
+import { metaFromElement } from '../lib/attachments.js';
 import { highlightTextParts, normalizeSearchText } from '../lib/search.js';
 
 const COPY_TITLE = 'Copy this link to the clipboard';
@@ -109,7 +112,22 @@ export function ContentHtml(props: { html: string; className?: string; highlight
   const clean = useMemo(() => sanitizeHtml(props.html || ''), [props.html]);
   const preparedHtml = useMemo(() => prepareContentLinks(clean), [clean]);
   const [badge, setBadge] = useState<Badge | null>(null);
+  const [slots, setSlots] = useState<Array<{ element: HTMLElement; meta: AttachmentMeta }>>([]);
   useSearchHighlights(ref, props.highlightTerms || []);
+
+  // Hydrate sanitized attachment blocks into players and download cards.
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) { setSlots([]); return; }
+    const next: Array<{ element: HTMLElement; meta: AttachmentMeta }> = [];
+    for (const element of Array.from(root.querySelectorAll<HTMLElement>('div[data-qms-attachment]'))) {
+      const meta = metaFromElement(element);
+      if (!meta) continue;
+      element.textContent = '';
+      next.push({ element, meta: meta as AttachmentMeta });
+    }
+    setSlots(next);
+  }, [preparedHtml]);
 
   useEffect(() => {
     if (!badge) return;
@@ -186,6 +204,7 @@ export function ContentHtml(props: { html: string; className?: string; highlight
         onKeyDown={handleKeyDown}
         dangerouslySetInnerHTML={{ __html: preparedHtml }}
       />
+      {slots.map((slot) => createPortal(<AttachmentView meta={slot.meta} />, slot.element))}
       {badge ? (
         <span
           key={badge.id}

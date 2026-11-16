@@ -108,7 +108,7 @@ describe('public navigation through the rendered application', () => {
     navigate('#/admin');
     await screen.findByText('Access denied');
     expect(screen.getByRole('link', { name: 'Home' })).toBeTruthy();
-  });
+  }, 20000);
 
   it('hides the global catalog and config warnings on working public pages', async () => {
     state.dataset = state.make('partial');

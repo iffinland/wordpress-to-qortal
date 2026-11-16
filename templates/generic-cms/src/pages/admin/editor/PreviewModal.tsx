@@ -1,5 +1,5 @@
 import { finalizeSlug } from '../../../lib/slug.js';
-import { sanitizeHtml } from '../../../lib/sanitize.js';
+import { ContentHtml } from '../../../components/ContentHtml';
 import type { FeaturedImageChoice } from '../FeaturedImagePicker';
 
 export function PreviewModal(props: {
@@ -18,7 +18,7 @@ export function PreviewModal(props: {
         <h1>{props.draft.title}</h1>
         {props.featuredChoice.url ? <img className="article-image" src={props.featuredChoice.url} alt={props.featuredChoice.alt || props.draft.title} /> : null}
         {props.draft.excerpt ? <p className="post-card__excerpt">{props.draft.excerpt}</p> : null}
-        <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(props.draft.html) }} />
+        <ContentHtml html={props.draft.html || ''} />
       </article>
     </div>
   );
