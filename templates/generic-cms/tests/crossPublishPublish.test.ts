@@ -103,7 +103,7 @@ describe('cross-publication through the single publish batch', () => {
     expect(sent.map((item: any) => item.identifier)).toContain('qtube-metadata-id');
     const qtube = sent.find((item: any) => item.identifier === 'qtube-metadata-id');
     expect(qtube.tag1).toBe('qtube_vid_');
-    expect(result.results.map((entry: any) => entry.stage)).toEqual(['qtube', 'subwire', 'quitter', 'content']);
+    expect(result.results.map((entry: any) => entry.stage)).toEqual(['qtube', 'subwire', 'quitter', 'crosspost-record', 'content']);
     expect(result.results.every((entry: any) => entry.ok)).toBe(true);
     expect(readPending(localStorage)).toHaveLength(0);
   });

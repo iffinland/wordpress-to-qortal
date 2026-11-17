@@ -23,9 +23,16 @@ import { stripHtml } from '../text.js';
 import { stableToken } from './ids.js';
 import {
   buildQTubeResource,
-  qtubeMetadataIdentifier,
+  qtubeMetadataIdentifierForVideo,
+  qtubeVideoIdentifier,
   QTUBE_PLAYABLE_EXTENSIONS
 } from './qtube.js';
+import {
+  CROSSPOST_RECORD_IDENTIFIER,
+  crossPostEntry,
+  mergeCrossPostRecord,
+  readCrossPostRecord
+} from './record.js';
 import {
   buildSubwireArticle,
   buildSubwireResource,
@@ -152,45 +159,58 @@ export async function buildCrossPublishPlan(input) {
   if (!slug) throw new Error('A final slug is required before cross-publishing.');
   const html = String(draft.html || '');
   const now = Number(timestamp) || Date.now();
-  const seedBase = String(siteId || '') + '|slug:' + slug;
+  const postKey = String(draft.id || slug);
+  const seedBase = String(siteId || '') + '|post:' + postKey;
+  const rawRecord = await readRemote('DOCUMENT', name, CROSSPOST_RECORD_IDENTIFIER);
+  const parsedRecord = readCrossPostRecord(rawRecord, siteId);
+  const record = parsedRecord.record;
   const entries = [];
   const resources = [];
   const warnings = [];
   let announcement = '';
 
+  const videoList = Array.isArray(input.videos) && input.videos.length ? input.videos : (video ? [video] : []);
+  const videoMoves = [];
   if (selections.qtube) {
-    if (!video) {
+    if (!videoList.length) {
       throw new Error('Q-Tube publication needs an eligible video attachment (' + QTUBE_PLAYABLE_EXTENSIONS.join(', ') + '). Attach a video to the post or clear the Q-Tube option.');
     }
     const token = await stableToken(seedBase + '|qtube');
-    const identifier = qtubeMetadataIdentifier(token);
-    const plainDescription = excerptFor(draft);
-    const resource = buildQTubeResource({
-      title: draft.title,
-      plainDescription,
-      htmlDescription: html,
-      video: { ...video, name: video.name || name, service: 'VIDEO' },
-      token
-    });
-    const reused = await destinationReused({
-      service: resource.service, name, identifier: resource.identifier, document: resource.document, readRemote
-    });
-    entries.push({
-      id: 'qtube',
-      label: CROSS_PUBLISH_LABELS.qtube,
-      service: 'DOCUMENT',
-      identifier,
-      document: resource.document,
-      reused,
-      summary: reused
-        ? 'Q-Tube metadata is already published with identical content; the video is reused.'
-        : 'Q-Tube video metadata references the existing VIDEO resource at ' + video.service + ' / ' + (video.name || name) + ' / ' + video.identifier + '.'
-    });
-    if (!reused) resources.push(resource);
+    for (let index = 0; index < videoList.length; index += 1) {
+      const current = videoList[index];
+      const videoIdentifier = qtubeVideoIdentifier(token, videoList.length > 1 ? index + 1 : 0);
+      const identifier = qtubeMetadataIdentifierForVideo(videoIdentifier);
+      const resource = buildQTubeResource({
+        title: draft.title,
+        plainDescription: excerptFor(draft),
+        htmlDescription: html,
+        video: { ...current, name: current.name || name, service: 'VIDEO' },
+        token,
+        videoIdentifier
+      });
+      // The VIDEO bytes stay at the CMS attachment coordinate and are uploaded
+      // exactly once. Only the derived Q-Tube metadata gets a Q-Tube identifier.
+      // Re-keying the media coordinate would upload the same bytes a second time.
+      const reused = await destinationReused({
+        service: resource.service, name, identifier: resource.identifier, document: resource.document, readRemote
+      });
+      entries.push({
+        id: videoList.length > 1 ? 'qtube-' + (index + 1) : 'qtube',
+        label: CROSS_PUBLISH_LABELS.qtube,
+        service: 'DOCUMENT',
+        identifier,
+        document: resource.document,
+        reused,
+        summary: reused
+          ? 'Q-Tube metadata is already published with identical content; the video is reused.'
+          : 'Q-Tube metadata references the single VIDEO resource at ' + (current.name || name) + ' / ' + current.identifier + '.'
+      });
+      if (!reused) resources.push(resource);
+    }
   }
 
   if (selections.subwire) {
-    const markdown = markdownFromHtml(html);
+    const markdown = markdownFromHtml(html, { postUrl });
     if (!markdown) throw new Error('Subwire publication needs a non-empty post body.');
     const token = await stableToken(seedBase + '|subwire');
     const identifier = await subwireArticleIdentifier(token);
@@ -251,23 +271,52 @@ export async function buildCrossPublishPlan(input) {
     announcement = text;
     const token = await stableToken(seedBase + '|quitter');
     const identifier = await quitterPostIdentifier(token);
-    const resource = buildQuitterResource({ text, name: publisherName || name, timestamp: now, identifier });
-    const reused = await destinationReused({
-      service: resource.service, name, identifier, document: resource.document, readRemote
-    });
-    entries.push({
-      id: 'quitter',
-      label: CROSS_PUBLISH_LABELS.quitter,
-      service: 'DOCUMENT',
-      identifier,
-      document: resource.document,
-      reused,
-      summary: reused
-        ? 'The Quitter announcement is already published with identical content.'
-        : 'One public Quitter post that links to this CMS post (' + text.length + ' characters).'
-    });
-    if (!reused) resources.push(resource);
+    const remembered = crossPostEntry(record, postKey);
+    const remote = await readRemote('DOCUMENT', name, identifier);
+    if ((remembered && remembered.quitter) || remote) {
+      entries.push({
+        id: 'quitter',
+        label: CROSS_PUBLISH_LABELS.quitter,
+        service: 'DOCUMENT',
+        identifier,
+        document: null,
+        reused: true,
+        summary: 'This post was already announced on Quitter. The announcement is never repeated on edits.'
+      });
+    } else {
+      const resource = buildQuitterResource({ text, name: publisherName || name, timestamp: now, identifier });
+      entries.push({
+        id: 'quitter',
+        label: CROSS_PUBLISH_LABELS.quitter,
+        service: 'DOCUMENT',
+        identifier,
+        document: resource.document,
+        reused: false,
+        summary: 'One public Quitter post that links to this CMS post (' + text.length + ' characters).'
+      });
+      resources.push(resource);
+    }
   }
 
-  return { entries, resources, warnings, announcement };
+  if (entries.length) {
+    const updated = mergeCrossPostRecord(record, {
+      postId: postKey,
+      qtube: entries.filter((entry) => entry.id.startsWith('qtube')).map((entry) => entry.identifier),
+      subwire: (entries.find((entry) => entry.id === 'subwire') || {}).identifier || null,
+      quitter: (entries.find((entry) => entry.id === 'quitter') || {}).identifier || null,
+      timestamp: now
+    });
+    if (!isIdenticalRemote(rawRecord, updated)) {
+      resources.push({
+        stage: 'crosspost-record',
+        service: 'DOCUMENT',
+        identifier: CROSSPOST_RECORD_IDENTIFIER,
+        document: updated,
+        title: 'Cross-post record for ' + name,
+        description: 'Which optional Q-Tube, Subwire and Quitter resources were published from this CMS site.'
+      });
+    }
+  }
+
+  return { entries, resources, warnings, announcement, videoMoves };
 }

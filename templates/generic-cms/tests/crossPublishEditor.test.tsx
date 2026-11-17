@@ -122,7 +122,7 @@ describe('optional cross-publication destinations in the post editor', () => {
     expect(within(results).getByText(/Quitter/)).toBeTruthy();
     expect(publishNative).toHaveBeenCalledTimes(1);
     const extra = publishNative.mock.calls[0][0].extraResources;
-    expect(extra.map((entry: any) => entry.stage)).toEqual(['subwire', 'quitter']);
+    expect(extra.map((entry: any) => entry.stage)).toEqual(['subwire', 'quitter', 'crosspost-record']);
     expect(extra[1].document.text).toBe('My custom announcement with a link qortal://APP/QortalDemo/#/posts/cms-existing');
   });
 

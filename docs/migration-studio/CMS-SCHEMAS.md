@@ -273,6 +273,30 @@ Inside `qms-qdn-content@1` HTML an attachment is a block `<div class="qms-attach
 
 Text colors are class-only spans: `<span class="qms-color qms-color-<red|orange|yellow|green|teal|blue|purple|pink|gray>">`.
 
+## Cross-post record `qms-cms-crosspost`
+
+Optional DOCUMENT written in the same confirmed batch as the post when at least one destination is selected:
+
+```json
+{
+  "version": 1,
+  "siteId": "string",
+  "posts": {
+    "<post id>": {
+      "qtube": ["qtube_vid_<token>_metadata"],
+      "subwire": "7l1NGsWiY0SgPb-FJVWQM-T60ZadsfPsbLTh-<token>-v1",
+      "quitter": "MhNiRYdzkaP9dz-kX47dT-XrFXaYetyErMdF-<token>-v1",
+      "updatedAt": 1763000000000
+    }
+  }
+}
+```
+
+- One identifier per site, so retries overwrite the same document.
+- A missing or invalid record is treated as empty and never blocks publication.
+- Quitter is only created when neither the record nor the deterministic Quitter resource already exists; edits never repeat the announcement.
+- The record is informational about submitted resources; the dialog's per-destination result remains the source of truth.
+
 ## Resources deliberately not used
 
 - No localStorage-only ownership or settings.

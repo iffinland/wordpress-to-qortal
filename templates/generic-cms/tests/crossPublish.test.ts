@@ -184,7 +184,8 @@ describe('Subwire article contract', () => {
     expect(markdown).toContain('[link](https://example.com)');
     expect(markdown).toContain('- Üks');
     expect(markdown).toContain('- Kaks');
-    expect(markdown).toContain('[Klipp](qortal://VIDEO/QortalDemo/qms-cms-att-abcdef)');
+    // Audio, video and file attachments have no GFM equivalent and are dropped.
+    expect(markdown).not.toContain('qortal://VIDEO/QortalDemo/qms-cms-att-abcdef');
   });
 
   it('never turns literal CMS text into raw HTML for Subwire', () => {
@@ -250,7 +251,7 @@ describe('cross-publication planning', () => {
     const selections = { qtube: true, subwire: true, quitter: true };
     const first = await buildCrossPublishPlan(planInput({ selections }));
     const second = await buildCrossPublishPlan(planInput({ selections }));
-    expect(first.resources.map((resource: any) => resource.stage)).toEqual(['qtube', 'subwire', 'quitter']);
+    expect(first.resources.map((resource: any) => resource.stage)).toEqual(['qtube', 'subwire', 'quitter', 'crosspost-record']);
     expect(first.resources.map((resource: any) => resource.identifier))
       .toEqual(second.resources.map((resource: any) => resource.identifier));
     expect(first.entries.every((entry: any) => entry.reused === false)).toBe(true);
@@ -269,7 +270,7 @@ describe('cross-publication planning', () => {
         requested === identifier ? document : null
     }));
     expect(plan.entries[0].reused).toBe(true);
-    expect(plan.resources).toEqual([]);
+    expect(plan.resources.map((resource: any) => resource.stage)).toEqual(['crosspost-record']);
     expect(plan.entries[0].identifier).toBe(identifier);
   });
 

@@ -99,14 +99,20 @@ function escapeXml(text) {
     .replace(/'/g, '&apos;');
 }
 
-function attachmentMarkdown(element) {
-  const service = element.getAttribute('data-service') || 'FILE';
-  const name = element.getAttribute('data-name') || '';
-  const identifier = element.getAttribute('data-identifier') || '';
-  const title = element.getAttribute('data-title') || element.getAttribute('data-filename') || 'Attachment';
-  if (!identifier) return '';
-  return '[' + escapeLinkLabel(title) + '](qortal://' + service + '/'
-    + encodeURIComponent(name) + '/' + encodeURIComponent(identifier) + ')';
+function attachmentMarkdown() {
+  // Audio, video and file attachments have no GFM Markdown equivalent that
+  // Subwire can use, so they are dropped from the derived article. The CMS post
+  // keeps the authoritative attachment.
+  return '';
+}
+
+/** Only absolute web URLs, qortal:// links and site-relative paths survive. */
+function safeUrl(value) {
+  const url = String(value || '').trim();
+  if (!url) return '';
+  if (/^(https?:|mailto:|qortal:)/i.test(url)) return url;
+  if (url.startsWith('/') || url.startsWith('#')) return url;
+  return '';
 }
 
 function renderChildren(node, context) {
@@ -158,12 +164,12 @@ function renderNode(node, context) {
       return out ? out + '\n' : '';
     }
     case 'a': {
-      const href = node.getAttribute('href') || '';
+      const href = safeUrl(node.getAttribute('href') || '');
       const label = renderChildren(node, context).trim() || href;
       return href ? '[' + escapeLinkLabel(label) + '](' + href + ')' : label;
     }
     case 'img': {
-      const src = node.getAttribute('src') || '';
+      const src = safeUrl(node.getAttribute('src') || '');
       const alt = node.getAttribute('alt') || '';
       return src ? '![' + escapeLinkLabel(alt) + '](' + src + ')' : '';
     }
@@ -196,15 +202,21 @@ function renderNode(node, context) {
 export function markdownFromHtml(html, options = {}) {
   const Parser = options.windowLike || (typeof window !== 'undefined' ? window : null);
   const source = String(html || '');
+  let markdown = '';
   if (!Parser || !Parser.DOMParser) {
-    return source.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    markdown = source.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  } else {
+    const doc = new Parser.DOMParser().parseFromString('<body>' + source + '</body>', 'text/html');
+    markdown = renderChildren(doc.body, { preserve: false });
   }
-  const doc = new Parser.DOMParser().parseFromString('<body>' + source + '</body>', 'text/html');
-  const markdown = renderChildren(doc.body, { preserve: false });
-  return markdown
+  const result = markdown
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
+  const postUrl = safeUrl(options.postUrl);
+  if (!postUrl) return result;
+  const backlink = '[Read this post on the original site](' + postUrl + ')';
+  return (result ? result + '\n\n---\n\n' : '') + backlink;
 }
 
 function normalizeImageMime(mime, name) {

@@ -54,15 +54,30 @@ export function isQTubeEligibleVideo(meta) {
   return Number(meta.size) > 0;
 }
 
+/** Every eligible video attachment in document order. */
+export function selectQTubeVideos(attachments) {
+  const list = Array.isArray(attachments) ? attachments : [];
+  return list.filter(isQTubeEligibleVideo);
+}
+
 /** First eligible video attachment in document order, or null. */
 export function selectQTubeVideo(attachments) {
-  const list = Array.isArray(attachments) ? attachments : [];
-  return list.find(isQTubeEligibleVideo) || null;
+  return selectQTubeVideos(attachments)[0] || null;
+}
+
+/** Q-Tube media identifier. One video uses the bare token; several get _1, _2… */
+export function qtubeVideoIdentifier(token, index = 0) {
+  return QTUBE_VIDEO_IDENTIFIER_BASE + token + (index ? '_' + index : '');
+}
+
+/** Metadata identifier for a video published under the Q-Tube convention. */
+export function qtubeMetadataIdentifierForVideo(videoIdentifier) {
+  return String(videoIdentifier) + QTUBE_METADATA_IDENTIFIER_SUFFIX;
 }
 
 /** Deterministic metadata identifier for one CMS post. */
 export function qtubeMetadataIdentifier(token) {
-  return QTUBE_VIDEO_IDENTIFIER_BASE + token + QTUBE_METADATA_IDENTIFIER_SUFFIX;
+  return qtubeMetadataIdentifierForVideo(qtubeVideoIdentifier(token));
 }
 
 /** Q-Tube's `commentsId` shape (verified: the base already ends with '_'). */
@@ -126,13 +141,13 @@ export function isValidQTubeMetadata(value) {
 }
 
 /** Batch resource entry for the Q-Tube metadata DOCUMENT. */
-export function buildQTubeResource({ title, plainDescription, htmlDescription, video, token }) {
+export function buildQTubeResource({ title, plainDescription, htmlDescription, video, token, videoIdentifier = '' }) {
   const document = buildQTubeMetadata({ title, description: plainDescription, htmlDescription, video, token });
   if (!isValidQTubeMetadata(document)) throw new Error('The generated Q-Tube metadata is not valid.');
   return {
     stage: 'qtube',
     service: 'DOCUMENT',
-    identifier: qtubeMetadataIdentifier(token),
+    identifier: qtubeMetadataIdentifierForVideo(videoIdentifier || qtubeVideoIdentifier(token)),
     document,
     title: String(title || '').slice(0, QTUBE_CORE_TITLE_MAX),
     description: qtubeCoreMetadataDescription({
