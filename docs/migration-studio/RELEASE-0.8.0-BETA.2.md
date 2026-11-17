@@ -1,6 +1,6 @@
 # Qortal Migration Studio 0.8.0 beta.2
 
-<!-- qms-release-version: 0.8.0-beta.2 -->
+<!-- qms-release-version: 0.8.0-rc.1 -->
 
 The public prerelease tag is `v0.8.0-beta.2`. Component versions are independent:
 
