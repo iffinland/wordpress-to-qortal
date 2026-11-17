@@ -6,7 +6,7 @@ normalizes the content, downloads and de-duplicates supported media, prepares
 deterministic QDN batches, hands them to a separate Qortal Hub publishing app,
 and verifies the resulting QDN resources byte-for-byte.
 
-## Download Qortal Migration Studio 0.8.0 beta.2
+## Download Qortal Migration Studio 0.8.0 beta.1
 
 The public beta.2 prerelease contains Generic CMS 0.8.0-beta.2 with the approved
 Android featured-image, native-catalog, navigation and warning-banner fixes,
