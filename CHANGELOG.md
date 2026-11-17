@@ -4,17 +4,6 @@ All release-facing changes to Qortal Migration Studio are recorded here. The
 release contract requires a heading entry for the exact released version before
 an artifact may be published.
 
-## 0.8.0-rc.1 — 2026-11-17
-
-Generic CMS **0.8.0-rc.1**. Desktop and Migration Publisher remain
-**0.8.0-beta.1** (unchanged, reused byte-for-byte). Adds optional Q-Tube,
-SubWire and Quitter cross-publication (one batch, per-destination results,
-WebP cover, Q-Tube video once, Quitter first publish only), per-account and
-per-deployment isolation of local drafts and pending state, legacy drafts
-shown only as a count with Delete, plus the hamburger header, menu reorder,
-subpages/sections, combined Hub confirmation, lazy admin chunk, text colors
-and attachment pipeline documented in the manual.
-
 ## 0.8.0-beta.2 — 2026-11-15
 
 Generic CMS **0.8.0-beta.2**. Desktop and Migration Publisher remain

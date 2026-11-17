@@ -1,15 +1,15 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-rc.1",
-  "channel": "rc",
-  "releaseTag": "v0.8.0-rc.1",
+  "version": "0.8.0-beta.2",
+  "channel": "beta",
+  "releaseTag": "v0.8.0-beta.2",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
-  "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-RC.1.md",
+  "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-BETA.2.md",
   "changelog": {
-    "summary": "0.8.0-rc.1 publishes Generic CMS 0.8.0-rc.1 with optional Q-Tube, SubWire and Quitter cross-publication, WebP covers and per-account isolation of local drafts. Desktop and Publisher remain 0.8.0-beta.1."
+    "summary": "0.8.0-beta.2 publishes Generic CMS 0.8.0-beta.2 with the approved BUG-01 to BUG-04 fixes and removes the unused Adoption interface. Desktop and Publisher remain 0.8.0-beta.1."
   },
   "components": {
     "desktop": {
@@ -25,8 +25,8 @@
       "changelog": "Unchanged from the approved beta.1 Publisher Q-App."
     },
     "cms": {
-      "version": "0.8.0-rc.1",
-      "channel": "rc",
+      "version": "0.8.0-beta.2",
+      "channel": "beta",
       "source": "templates/generic-cms/package.json",
       "changelog": "Generic CMS beta.2: Android featured-image publication, native catalog loading, public navigation during catalog errors, warning-banner cleanup and removal of the unused Adoption interface."
     }
