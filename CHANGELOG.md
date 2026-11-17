@@ -4,9 +4,9 @@ All release-facing changes to Qortal Migration Studio are recorded here. The
 release contract requires a heading entry for the exact released version before
 an artifact may be published.
 
-## 0.8.0-rc.8 — 2026-11-17
+## 0.8.0-rc.1 — 2026-11-17
 
-Generic CMS **0.8.0-rc.8**. Desktop and Migration Publisher remain
+Generic CMS **0.8.0-rc.1**. Desktop and Migration Publisher remain
 **0.8.0-beta.1** (unchanged, reused byte-for-byte). Adds optional Q-Tube,
 SubWire and Quitter cross-publication (one batch, per-destination results,
 WebP cover, Q-Tube video once, Quitter first publish only), per-account and
@@ -69,7 +69,7 @@ against `qortal-migration-studio_0.8.0-rc.2_amd64.deb` (SHA-256
 `344941454765132e99331818e1043594d2cf5ad9d220490de96459a3f2693cd7`), built from
 commit `2c61ba7b80b0cbf6d3d90f274346b93c78e90c13`.
 
-## 0.8.0-rc.8 — 2026-11-08
+## 0.8.0-rc.1 — 2026-11-08
 
 Private unsigned acceptance candidate. Fixed the source-scan IPC allowlist
 (BUG-004) so Quick scan and Full inventory can start, and rebuilt the Debian
