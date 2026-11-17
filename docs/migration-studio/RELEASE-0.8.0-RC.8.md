@@ -1,13 +1,13 @@
 # Qortal Migration Studio 0.8.0 rc.1
 
-<!-- qms-release-version: 0.8.0-rc.1 -->
+<!-- qms-release-version: 0.8.0-rc.8 -->
 
-The public prerelease tag is `v0.8.0-rc.1`. Component versions are independent:
+The public prerelease tag is `v0.8.0-rc.8`. Component versions are independent:
 Desktop `0.8.0-beta.1`, Migration Publisher `0.8.0-beta.1` and Generic CMS
-`0.8.0-rc.1`. The desktop and publisher artifacts are reused byte-for-byte from
+`0.8.0-rc.8`. The desktop and publisher artifacts are reused byte-for-byte from
 the approved beta.1 builds.
 
-## Generic CMS 0.8.0-rc.1
+## Generic CMS 0.8.0-rc.8
 
 Everything added since 0.8.0-beta.2:
 
