@@ -4,6 +4,19 @@ All release-facing changes to Qortal Migration Studio are recorded here. The
 release contract requires a heading entry for the exact released version before
 an artifact may be published.
 
+## 0.8.0-beta.3 — 2026-11-17
+
+Generic CMS **0.8.0-beta.3** source release. Desktop and Migration Publisher
+remain **0.8.0-beta.1**; their artifacts are unchanged. The QMS bundle version
+and tag remain **0.8.0-beta.2**. Adds the hamburger header and menu reorder,
+subpages/sections, one combined Hub confirmation, lazy admin chunk, text colors,
+attachments with text/PDF preview, optional Q-Tube/SubWire/Quitter
+cross-publication (public and permanent content, Markdown losses, WebP cover,
+Q-Tube video once), and per-account isolation of local drafts. Known limitations
+are listed in `RELEASE-0.8.0-BETA.3.md`. The three-artifact gate was not run for
+this code release because the unchanged desktop beta.1 evidence files are not in
+this checkout.
+
 ## 0.8.0-beta.2 — 2026-11-15
 
 Generic CMS **0.8.0-beta.2**. Desktop and Migration Publisher remain

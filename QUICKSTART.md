@@ -1,5 +1,9 @@
 # Quick Start
 
+> Source on `main` includes Generic CMS 0.8.0-beta.3. The download below is the
+> approved 0.8.0-beta.2 artifact release until the owner publishes new
+> artifacts; the desktop and Publisher files are unchanged.
+
 ## Beginner path — Qortal Migration Studio desktop app
 
 This path needs **no Node.js, npm, Git, compiler or manual build**. Do not clone

@@ -25,7 +25,7 @@
       "changelog": "Unchanged from the approved beta.1 Publisher Q-App."
     },
     "cms": {
-      "version": "0.8.0-beta.2",
+      "version": "0.8.0-beta.3",
       "channel": "beta",
       "source": "templates/generic-cms/package.json",
       "changelog": "Generic CMS beta.2: Android featured-image publication, native catalog loading, public navigation during catalog errors, warning-banner cleanup and removal of the unused Adoption interface."

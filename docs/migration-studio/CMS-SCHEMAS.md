@@ -336,3 +336,7 @@ Legacy `qms-cms-post-drafts:<siteId>` is never returned as drafts. The admin dra
 - No direct seed/key/password collection. All writes go through Qortal Hub
   approval.
 
+
+## Known limitations (CMS 0.8.0-beta.3)
+
+Q-Tube, SubWire and Quitter content is public and permanent. SubWire Markdown drops non-text media. Legacy unscoped drafts are delete-only. The three-artifact gate was not run for this code release; desktop 0.8.0-beta.1 and Publisher artifacts are unchanged.

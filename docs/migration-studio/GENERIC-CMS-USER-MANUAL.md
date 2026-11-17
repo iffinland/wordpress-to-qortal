@@ -88,3 +88,7 @@ In **Galleries**, **New gallery** begins a gallery and **Edit / add batch** open
 
 Use **Publish gallery…** only after reviewing the gallery and then confirm the owner flow in Hub. **← All galleries** returns without publishing. A gallery becomes public only through this explicit confirmed owner publication.
 
+
+## Known limitations (CMS 0.8.0-beta.3)
+
+Q-Tube, SubWire and Quitter content is public and permanent. SubWire Markdown drops text colors, audio, video and file attachments. Q-Tube rejects MKV and HEVC. Legacy unscoped drafts are delete-only. The three-artifact release gate was not run for this code release because the unchanged desktop 0.8.0-beta.1 evidence files are not in this checkout; the desktop and Publisher artifacts are unchanged.

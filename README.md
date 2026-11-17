@@ -13,11 +13,19 @@ Android featured-image, native-catalog, navigation and warning-banner fixes,
 plus the removal of the unused Adoption interface. Desktop and Publisher remain
 at the unchanged, approved 0.8.0-beta.1.
 
+Source on `main` now includes **Generic CMS 0.8.0-beta.3**: hamburger header and
+menu reorder, subpages/sections, one combined Hub confirmation, lazy admin
+chunk, text colors, attachments with text/PDF preview, optional Q-Tube, SubWire
+and Quitter cross-publication, WebP covers, and per-account isolation of local
+drafts. The download links below remain the approved 0.8.0-beta.2 artifacts
+until the owner publishes the next artifacts; the desktop and Publisher files
+are unchanged.
+
 | What you need | Download | What it does |
 | --- | --- | --- |
 | **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0-beta.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.2/qortal-migration-studio_0.8.0-beta.1_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. |
 | **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-beta.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.2/qortal-migration-publisher-v0.8.0-beta.1.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. |
-| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.8.0-beta.2.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.2/qortal-migration-generic-cms-v0.8.0-beta.2.zip) | The neutral website/APP Q-App that renders a published QDN catalog and supports owner editing of imported and CMS-authored content. |
+| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.8.0-beta.3.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.2/qortal-migration-generic-cms-v0.8.0-beta.3.zip) | The neutral website/APP Q-App that renders a published QDN catalog and supports owner editing of imported and CMS-authored content. |
 
 Verify all three assets with
 [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.2/SHA256SUMS).
