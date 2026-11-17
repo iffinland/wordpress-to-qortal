@@ -1,15 +1,15 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-beta.2",
+  "version": "0.8.0-beta.3",
   "channel": "beta",
-  "releaseTag": "v0.8.0-beta.2",
+  "releaseTag": "v0.8.0-beta.3",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
-  "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-BETA.2.md",
+  "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-BETA.3.md",
   "changelog": {
-    "summary": "0.8.0-beta.2 publishes Generic CMS 0.8.0-beta.2 with the approved BUG-01 to BUG-04 fixes and removes the unused Adoption interface. Desktop and Publisher remain 0.8.0-beta.1."
+    "summary": "0.8.0-beta.3 publishes Generic CMS 0.8.0-beta.4 with the accepted usability round: optional community chat navigation, Back to Top, owner-only post deletion, taxonomy suggestions and management, mobile tagline and public-author defaults. Desktop and Publisher remain 0.8.0-beta.1."
   },
   "components": {
     "desktop": {
@@ -25,10 +25,10 @@
       "changelog": "Unchanged from the approved beta.1 Publisher Q-App."
     },
     "cms": {
-      "version": "0.8.0-beta.3",
+      "version": "0.8.0-beta.4",
       "channel": "beta",
       "source": "templates/generic-cms/package.json",
-      "changelog": "Generic CMS beta.2: Android featured-image publication, native catalog loading, public navigation during catalog errors, warning-banner cleanup and removal of the unused Adoption interface."
+      "changelog": "Generic CMS beta.4: accepted usability round (community chat navigation, Back to Top, owner post deletion, taxonomy suggestions and management, mobile tagline, public-author default). Community chat UX needs later refinement."
     }
   },
   "versionMarkers": [
@@ -37,6 +37,6 @@
     "viewer/package.json",
     "templates/generic-cms/package.json",
     "lib/engine/index.js",
-    "docs/migration-studio/RELEASE-0.8.0-BETA.2.md"
+    "docs/migration-studio/RELEASE-0.8.0-BETA.3.md"
   ]
 }

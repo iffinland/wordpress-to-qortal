@@ -1,47 +1,34 @@
-# Generic CMS 0.8.0-beta.3
+# Qortal Migration Studio 0.8.0-beta.3 (unsigned beta)
 
-Component release for the Generic CMS. Desktop and Migration Publisher remain
-0.8.0-beta.1 and their artifacts are unchanged. The QMS bundle version and tag
-remain 0.8.0-beta.2; this is a CMS source release on main.
+<!-- qms-release-version: 0.8.0-beta.3 -->
 
-## Added since 0.8.0-beta.2
+Generic CMS **0.8.0-beta.4** usability release. Desktop and Migration Publisher
+remain **0.8.0-beta.1**; their component versions and artifacts are unchanged.
 
-- Compact hamburger header; the old standalone header buttons are gone. Site
-  navigation is reorderable in settings.
-- Subpages and page assignments via the optional `qms-cms-sections` document,
-  with ordering and hide-from-home support.
-- One combined Qortal Hub confirmation for posts and galleries. The dialog lists
-  every resource and the total fee; one approval publishes the batch and each
-  resource is verified separately with truthful partial states.
-- Modernized admin: grouped navigation, lazy-loaded admin chunk, design tokens
-  and responsive layouts.
-- Class-based, theme-aware text colors in the rich text editor.
-- Attachments: audio, video, files and archives; text/PDF preview; video posters;
-  documented size limits and the public-node limit; all in the post batch.
-- Optional cross-publication:
-  - Q-Tube: each eligible video is published once under `qtube_vid_<token>`
-    and metadata at `<video>_metadata`; the CMS post references the same
-    resource. A video already present under the CMS media identifier produces a
-    size and fee warning before the extra upload.
-  - SubWire: one `essay` document with GFM Markdown. Headings, paragraphs,
-    lists, links, images, quotes and code survive; text colors, audio, video and
-    file attachments are dropped. A backlink to the CMS post is appended. The
-    featured image is converted to WebP in the webview canvas (1600 px, 2 MiB
-    cap), with a clear error if conversion is impossible.
-  - Quitter: one 280-character announcement, created only on the first publish,
-    never repeated on edits.
-- Per-account local data isolation: drafts, settings drafts, pending publication
-  records, adoption records and media/gallery pending state are scoped by the
-  deployment identity and the verified owner address. Old unscoped drafts are
-  hidden and shown only as a count with a Delete button.
+## Generic CMS 0.8.0-beta.4
 
-## Known limitations
+- Optional **Community chat** navigation item using the documented
+  `qortal://use-group/action-join/groupid-127` Hub link with a copyable
+  fallback. The owner accepted the function; its UX will be refined later.
+- Compact accessible **Back to top** control for phone and desktop.
+- Owner-only CMS post deletion with explicit confirmation, stable-identifier
+  tombstone, and native index, search index and page-assignment cleanup.
+  Historical QDN versions are not physically erased.
+- Taxonomy suggestions while editing and owner-side category/tag rename and
+  delete for CMS-authored content. Imported WordPress taxonomy is read-only.
+- Configured site tagline restored in the compact mobile header.
+- New posts default to the configured Public author; saved authors are preserved.
 
-- Q-Tube, SubWire and Quitter content is public and permanent.
-- SubWire Markdown cannot represent text colors, audio, video or file
-  attachments; the canonical CMS post keeps them.
-- Q-Tube rejects MKV and HEVC; only MP4, M4V, WebM and OGV are offered.
-- Legacy unscoped drafts are delete-only by design.
-- The three-artifact release gate was not run for this code release: the
-  unchanged desktop 0.8.0-beta.1 evidence files are not present in this
-  checkout. The desktop and Publisher artifacts were not rebuilt or modified.
+## Verification
+
+- Generic CMS template suite: 42 files, 364 tests passed; typecheck, production
+  build and docs verification passed.
+- Desktop 0.8.0-beta.1 artifact is reused byte-identically. Its Debian
+  validation (60 checks) and packaged engine clean-install and negative
+  evidence were regenerated against that exact .deb for this gate.
+- The three-artifact gate binds the reused Desktop and Publisher artifacts and
+  the new CMS ZIP. No QDN publication or signing is performed by this release.
+
+Known limitation: Community chat opening depends on Qortal Hub's group-link
+handling; the current fallback exposes the exact link when the bridge cannot
+open it. Its interaction design is scheduled for a later refinement.

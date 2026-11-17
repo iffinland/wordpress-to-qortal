@@ -4,9 +4,9 @@ All release-facing changes to Qortal Migration Studio are recorded here. The
 release contract requires a heading entry for the exact released version before
 an artifact may be published.
 
-## Unreleased — Generic CMS usability follow-up (no version bump)
+## 0.8.0-beta.3 — 2026-11-17
 
-Local Generic CMS **0.8.0-beta.3** follow-up, not a release. Adds an optional
+Generic CMS **0.8.0-beta.4** artifact release. Desktop and Publisher remain **0.8.0-beta.1**. Adds an optional
 Qortal community-chat navigation destination using the documented
 `qortal://use-group/action-join/groupid-127` Hub link with a copyable fallback;
 a compact accessible Back to Top control; owner-only deletion of CMS-authored
@@ -18,7 +18,7 @@ default from the configured public author with preserved overrides. Desktop and
 Publisher are unchanged. No tag, release or QDN publication accompanies this
 entry.
 
-## 0.8.0-beta.3 — 2026-11-17
+## 0.8.0-beta.3 (previous code release) — 2026-11-17
 
 Generic CMS **0.8.0-beta.3** source release. Desktop and Migration Publisher
 remain **0.8.0-beta.1**; their artifacts are unchanged. The QMS bundle version
