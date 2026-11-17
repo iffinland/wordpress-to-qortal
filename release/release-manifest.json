@@ -1,14 +1,14 @@
 {
   "schema": "qms-release-artifacts@1",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-beta.2",
+  "version": "0.8.0-beta.3",
   "channel": "beta",
-  "tag": "v0.8.0-beta.2",
+  "tag": "v0.8.0-beta.3",
   "signing": "unsigned",
   "architecture": "amd64",
   "source": {
-    "commit": "b8c23d181ea5e61c28d748e351f632c2d2acdc5f",
-    "tree": "42f95c49c8149096e1c7c71e6824e57255863a80",
+    "commit": "25ddd6882739598ba110f2d1f7e3fb22041d4063",
+    "tree": "c64c495964fdd3fbcc1e050b3b3ca7c0efe50303",
     "branch": "main",
     "dirty": false
   },
@@ -45,14 +45,14 @@
       "kind": "cms",
       "component": "cms",
       "label": "Generic CMS (Q-App ZIP)",
-      "name": "qortal-migration-generic-cms-v0.8.0-beta.3.zip",
-      "bytes": 844151,
-      "uncompressedBytes": 2622592,
-      "sha256": "b9d20e5fdb13d3e8018ab6927139b4a998f1278e65bdc61d7186791d4b51c9fd",
+      "name": "qortal-migration-generic-cms-v0.8.0-beta.4.zip",
+      "bytes": 849789,
+      "uncompressedBytes": 2644918,
+      "sha256": "917c64b675661406aee158c6883e94d69422b33dfe28b5ebc6e7beb0730ed145",
       "entrypoint": "/index.html",
       "files": 7,
-      "componentVersion": "0.8.0-beta.3",
-      "version": "0.8.0-beta.3",
+      "componentVersion": "0.8.0-beta.4",
+      "version": "0.8.0-beta.4",
       "layout": "qapp-root"
     }
   ],
@@ -69,11 +69,11 @@
     "cmsRuntimeConfig": "compatible"
   },
   "sha256sums": [
-    "qortal-migration-generic-cms-v0.8.0-beta.2.zip",
+    "qortal-migration-generic-cms-v0.8.0-beta.4.zip",
     "qortal-migration-publisher-v0.8.0-beta.1.zip",
     "qortal-migration-studio_0.8.0-beta.1_amd64.deb"
   ],
   "failures": [],
   "ok": true,
-  "generatedAt": "2026-11-15T04:23:28.185Z"
+  "generatedAt": "2026-11-17T11:59:53.734Z"
 }
