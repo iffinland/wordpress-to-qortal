@@ -121,6 +121,51 @@ export function applyAssignment(doc, assignment, options = {}) {
   };
 }
 
+/**
+ * Remove one deleted post from every page assignment and from the hidden-home
+ * list. The revision guard matches applyAssignment: a newer published document
+ * is never overwritten by a stale editor.
+ */
+export function removePostFromSections(doc, postId, options = {}) {
+  const current = doc || emptySections(options.siteId);
+  const id = String(postId == null ? '' : postId);
+  if (!id) return { ok: true, conflict: false, message: '', doc: current, changed: false };
+  const remoteRevision = Number(current.revision) || 0;
+  const baseRevision = Math.max(0, Number(options.baseRevision) || 0);
+  if (remoteRevision > baseRevision) {
+    return {
+      ok: false,
+      conflict: true,
+      message: 'Published sections moved from revision ' + baseRevision + ' to ' + remoteRevision + '. Reload before deleting.',
+      doc: current
+    };
+  }
+  const sections = current.sections.map((section) => ({
+    slug: section.slug,
+    post_ids: section.post_ids.filter((entry) => entry !== id)
+  }));
+  const homeHidden = current.home_hidden_ids.filter((entry) => entry !== id);
+  const changed = JSON.stringify(sections) !== JSON.stringify(current.sections)
+    || JSON.stringify(homeHidden) !== JSON.stringify(current.home_hidden_ids);
+  return {
+    ok: true,
+    conflict: false,
+    message: '',
+    changed,
+    doc: changed
+      ? {
+          ...current,
+          schema: SECTIONS_SCHEMA,
+          version: SECTIONS_VERSION,
+          revision: remoteRevision + 1,
+          updated_at: new Date(options.now || Date.now()).toISOString(),
+          sections: sections.filter((section) => section.post_ids.length > 0),
+          home_hidden_ids: homeHidden
+        }
+      : current
+  };
+}
+
 /** Posts for the home page: every published post except hidden ones. */
 export function homePostsFilter(posts, doc) {
   const hidden = new Set(doc ? doc.home_hidden_ids : []);

@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import type { CmsContentItem } from '../../types';
 import { pageHref } from '../../lib/routes.js';
+import { QORTAL_COMMUNITY_CHAT_LINK } from '../../lib/links.js';
 
 export interface NavItemDraft { label: string; href: string }
 
@@ -11,6 +12,7 @@ const PRESETS: NavItemDraft[] = [
   { label: 'Archive', href: '#/archive' },
   { label: 'Search', href: '#/search' },
   { label: 'Gallery', href: '#/gallery' },
+  { label: 'Community chat', href: QORTAL_COMMUNITY_CHAT_LINK },
   { label: 'Admin', href: '#/admin' }
 ];
 

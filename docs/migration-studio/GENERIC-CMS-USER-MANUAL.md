@@ -4,7 +4,11 @@ Generic CMS is the public QDN site runtime plus an owner-only admin area. It is 
 
 ## 1. Public pages, navigation, and search
 
-The header brand returns to **Home**. On narrow screens (720 px and below) the navigation is behind a hamburger **menu** button in a compact header (Escape closes it and returns focus to the button; it also closes when you open a page). Posts and Search are always in the menu. Configured navigation links open their public routes: posts, archive, search, pages, categories, tags, or gallery. **Gallery** is added when published galleries exist. **Admin** is hidden from visitors and appears only for a verified owner.
+The header brand returns to **Home** and shows the configured **Site title** and **Tagline** on desktop and narrow screens (the tagline is truncated with an ellipsis when space is tight). On narrow screens (720 px and below) the navigation is behind a hamburger **menu** button in a compact header (Escape closes it and returns focus to the button; it also closes when you open a page). Posts and Search are always in the menu. Configured navigation links open their public routes: posts, archive, search, pages, categories, tags, or gallery. **Gallery** is added when published galleries exist. **Admin** is hidden from visitors and appears only for a verified owner.
+
+An owner may add **Community chat** to navigation in **Site settings**. It opens the existing Qortal community group chat (“qortal official general chat”, group 127) through the documented `qortal://use-group/action-join/groupid-127` Hub link. In Qortal Hub desktop and Android the CMS asks Hub to open it; when the bridge is unavailable the menu shows the exact link with **Copy chat link** instead of pretending it opened. The chat is a navigation destination, not a second floating control.
+
+After scrolling well past the first screen, a compact **Back to top** button appears at the lower right (above the phone safe area). It is keyboard focusable, respects reduced-motion preferences and moves focus to the main content after the jump.
 
 The theme control (inside the menu on phones) changes light, dark, or system appearance. There is no owner/read-only badge. When ownership can be checked, a non-owner can use **Connect owner account** to ask Hub for identity/ownership verification, or **Retry verification** when the lookup must be repeated. A public site does not prove ownership.
 
@@ -14,7 +18,7 @@ Use public cards/titles to open posts and pages. Category, tag, and archive link
 
 Open **Admin** (the #/admin route). During lookup, the app shows **Checking QDN name ownership...**. If it cannot verify, it stays read-only: use **Connect owner account** or **Retry verification** and correct the Hub/name condition.
 
-A verified owner sees five tabs in three groups: **Site** (**Overview**, **Site settings**), **Content** (**Posts**, **Pages**) and **Media** (**Galleries**). **Posts** lists and creates posts; **Pages** lists and creates pages. The admin code loads only when you open Admin, so public visitors never download the editor. Publication actions revalidate owner identity immediately before Hub signing.
+A verified owner sees these tabs in three groups: **Site** (**Overview**, **Site settings**), **Content** (**Posts**, **Pages**, **Categories & tags**) and **Media** (**Galleries**). **Posts** lists and creates posts; **Pages** lists and creates pages. The admin code loads only when you open Admin, so public visitors never download the editor. Publication actions revalidate owner identity immediately before Hub signing.
 
 ## 3. Overview and catalog
 
@@ -29,18 +33,18 @@ Open **Site settings** and use these **Identity** controls:
 | Control | Meaning |
 | --- | --- |
 | **Site title** | Public name, up to 120 characters. |
-| **Tagline** | Public subtitle, up to 200 characters. |
+| **Tagline** | Public subtitle, up to 200 characters. Shown in the public header on desktop and phone layouts. |
 | **Description** | Longer public description. |
 | **Footer text (separate from the Qortal attribution)** | Optional footer copy, up to 500 characters. |
 | **Public author name** | Public author metadata. |
 
-Under **Navigation**, each item has a **Label** (up to 40 characters) and a **Target** picker (Home, Posts, Archive, Search, Gallery, Admin or any existing page such as Files; choose **Custom link…** for any other link). Reorder items with **Move up** / **Move down** or by dragging the handle; the order is saved in the settings document. **Remove** deletes an item while at least one remains; **Add navigation item** adds an item up to the visible limit of 12. **Branding colors** exposes the actual color-key text fields used for the saved theme; light mode derives an accessible palette while preserving the accent.
+Under **Navigation**, each item has a **Label** (up to 40 characters) and a **Target** picker (Home, Posts, Archive, Search, Gallery, **Community chat**, Admin or any existing page such as Files; choose **Custom link…** for any other link). The community-chat preset is optional: add it once and do not add a second chat shortcut. Reorder items with **Move up** / **Move down** or by dragging the handle; the order is saved in the settings document. **Remove** deletes an item while at least one remains; **Add navigation item** adds an item up to the visible limit of 12. **Branding colors** exposes the actual color-key text fields used for the saved theme; light mode derives an accessible palette while preserving the accent.
 
 **Save local draft** stores settings only in the browser. **Revert to published** abandons that working draft. **Preview draft** and **Stop preview** start/end local preview. **Publish settings…** opens the **Confirm settings publication** window (a modal dialog, a full-width sheet on narrow phone screens): inspect the destination, revision, fee and signer, then choose **Confirm publish** to request owner publication, or **Cancel** / **Escape**. The same window then shows the progress and the result (**Published and verified**, **Publication unconfirmed**, **Not published** including a revision conflict); use **Close** to dismiss it. Focus returns to **Publish settings…**. Drafts/previews are never public.
 
 ## 5. Posts and pages
 
-Open **Posts**. **New post** begins CMS-authored post content; **New page** begins CMS-authored page content. Lists for **Local drafts**, **CMS-authored posts and pages**, and **Imported WordPress posts and pages** expose **Edit**. Imported editing does not claim to re-import WordPress content. **Slug health and repair** presents flagged slugs and applicable repair action.
+Open **Posts**. **New post** begins CMS-authored post content; **New page** begins CMS-authored page content. Lists for **Local drafts**, **CMS-authored posts and pages**, and **Imported WordPress posts and pages** expose **Edit**. CMS-authored items also expose **Delete** (see *Deleting a post* below). Imported editing does not claim to re-import WordPress content. **Slug health and repair** presents flagged slugs and applicable repair action.
 
 In the editor use each visible control:
 
@@ -49,8 +53,8 @@ In the editor use each visible control:
 | **Title** | Public title, up to 200 characters. |
 | **Slug** | URL component; new content can regenerate it, published slugs are protected. |
 | **Excerpt** | Listing summary. |
-| **Categories (comma separated)** / **Tags (comma separated)** | Comma-delimited public terms. |
-| **Author** | Public author metadata. |
+| **Categories (comma separated)** / **Tags (comma separated)** | Comma-delimited public terms. Existing terms are offered as a datalist and as tappable suggestion chips, so terms stay consistent and are easy to reuse on a phone. |
+| **Author** | Public author metadata. A new post is prefilled from the configured **Public author name**; you can overwrite it. A saved or published author is preserved. |
 | **Content type** | Post/page where the editor offers the selection. |
 | Body toolbar | **H2**, **H3**, **Bold**, **Italic**, **Bullets**, **Numbers**, **Quote**, **Color** (a palette of nine theme-aware text colors plus **Reset color**; the colors adapt to light and dark mode), **Link**, **Image**, **Attach file**, **Undo**, and **Redo** format or change the rich-text body. **Link** requests a target; **Image** opens media selection. |
 
@@ -78,6 +82,14 @@ Posts can be shown on user-created pages: in the post editor, **Show on page(s)*
 
 When a post is viewed, attachments become: an inline **audio player** with the title (nothing loads until you press play); a **video card** showing the poster, which starts native playback in place when tapped; **archives and documents** as an icon, title and **Download** link (files are always downloaded, never opened inline); and **text files** (txt, md, pdf) with a **Preview** button. The preview opens a full-width sheet on phones (Escape or **Close** returns focus to the button; page scrolling is locked while it is open). txt is shown as plain text, md as safely rendered Markdown, and only the first 256 KB of large files is shown with **Download full file** for the rest. PDF text is extracted on demand (first 30 pages); scanned or unreadable PDFs show a clear message and the download button. The editor's **Preview** shows attachments, but they only play after the post is published.
 
+### Deleting a CMS-authored post
+
+Only CMS-authored posts and pages have **Delete**; imported WordPress content is read-only and is never erased by the CMS. Clicking **Delete** opens an explicit confirmation. Tick **I understand that historical QDN data is not physically erased**, then choose **Delete from CMS**. One owner-approved batch writes a deletion marker over the item's existing content resource (the identifier stays the same), removes the item from the CMS index, search index and page assignments, and therefore from public listings, categories, tags and navigation. Older QDN versions and copies outside this CMS are **not** physically erased. If the result is unconfirmed it is not resent automatically; use **Retry removal** only to re-check the same coordinates. A successful removal cannot be undone from the CMS.
+
+### Categories and tags
+
+Open **Admin → Categories & tags** to manage the taxonomy used by CMS-authored content. **Rename** changes the display name while keeping the stable term id and URL slug, so every existing CMS item keeps its classification and links stay valid. **Delete** asks for confirmation and removes the term from every CMS-authored item; imported WordPress taxonomy is read-only and such rows are disabled with an explanation. A term that imported content still uses is refused rather than silently rewritten. Suggestions while editing come from the published catalog.
+
 ## 6. Media and galleries
 
 Publishing a gallery (**Publish gallery…**) opens **Confirm gallery publication**, which lists every new image resource and the gallery catalog with the total fee; one Hub approval publishes them all, with the same per-resource verification and partial-failure behavior as posts. Site settings are also published through the combined request.
@@ -91,4 +103,4 @@ Use **Publish gallery…** only after reviewing the gallery and then confirm the
 
 ## Known limitations (CMS 0.8.0-beta.3)
 
-Q-Tube, SubWire and Quitter content is public and permanent. SubWire Markdown drops text colors, audio, video and file attachments. Q-Tube rejects MKV and HEVC. Legacy unscoped drafts are delete-only. The three-artifact release gate was not run for this code release because the unchanged desktop 0.8.0-beta.1 evidence files are not in this checkout; the desktop and Publisher artifacts are unchanged.
+Q-Tube, SubWire and Quitter content is public and permanent. SubWire Markdown drops text colors, audio, video and file attachments. Q-Tube rejects MKV and HEVC. Legacy unscoped drafts are delete-only. Deleting a CMS item removes it from this CMS catalog and overwrites its mutable content resource with a tombstone under the same identifier; historical QDN versions and copies outside the CMS are not physically erased. Imported WordPress taxonomy and content cannot be renamed or deleted from the CMS. The three-artifact release gate was not run for this code release because the unchanged desktop 0.8.0-beta.1 evidence files are not in this checkout; the desktop and Publisher artifacts are unchanged.

@@ -6,6 +6,7 @@ import type { AdminSection, CmsDataset, SectionsDocument, ViewerIdentity } from 
 import { SettingsPanel } from './admin/SettingsPanel';
 import { EditorPage } from './admin/EditorPage';
 import { GalleryAdmin } from './admin/GalleryAdmin';
+import { TaxonomyAdmin } from './admin/TaxonomyAdmin';
 
 function OwnerAdmin(props: {
   dataset: CmsDataset | null;
@@ -39,6 +40,7 @@ function OwnerAdmin(props: {
           <span className="admin-tabs__label" aria-hidden="true">Content</span>
           <a href={adminHref('editor')} aria-current={props.section === 'editor' ? 'page' : undefined}>Posts</a>
           <a href={adminHref('pages')} aria-current={props.section === 'pages' ? 'page' : undefined}>Pages</a>
+          <a href={adminHref('taxonomy')} aria-current={props.section === 'taxonomy' ? 'page' : undefined}>Categories &amp; tags</a>
         </div>
         <div className="admin-tabs__group" role="group" aria-label="Media">
           <span className="admin-tabs__label" aria-hidden="true">Media</span>
@@ -73,6 +75,17 @@ function OwnerAdmin(props: {
           loadContent={props.loadContent}
           onRefresh={props.onRefresh}
           initialId={props.initialEditorId}
+        />
+      ) : null}
+
+      {props.section === 'taxonomy' ? (
+        <TaxonomyAdmin
+          identity={props.identity}
+          name={props.qdnName}
+          siteId={props.siteId}
+          deployment={props.settingsConfig ? props.settingsConfig.deployment : undefined}
+          dataset={props.dataset}
+          onRefresh={props.onRefresh}
         />
       ) : null}
 

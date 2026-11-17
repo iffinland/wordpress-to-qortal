@@ -65,7 +65,7 @@ async function loadContent(item: CmsContentItem) {
   return normalizeContentPayload(payload, item) as any;
 }
 
-async function renderEditor(target: CmsDataset = datasetWith()) {
+async function renderEditor(target: CmsDataset = datasetWith(), config?: any) {
   render(
     <EditorPage
       identity={ownerIdentity}
@@ -75,6 +75,7 @@ async function renderEditor(target: CmsDataset = datasetWith()) {
       galleries={[]}
       loadContent={loadContent}
       onRefresh={() => undefined}
+      config={config}
     />
   );
   await screen.findByRole('button', { name: 'New post' });
@@ -401,3 +402,59 @@ describe('authorization and navigation', () => {
     expect(screen.queryByText('Imported WordPress posts and pages')).toBeNull();
   });
 });
+
+describe('author defaults and taxonomy suggestions in the rendered editor', () => {
+  it('prepopulates a new post author from the configured public author and allows an override', async () => {
+    stubNetwork();
+    await renderEditor(datasetWith(), {
+      ...cmsConfig,
+      site: { ...cmsConfig.site, publicAuthor: 'Configured Author' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'New post' }));
+    const author = screen.getByLabelText('Author') as HTMLInputElement;
+    expect(author.value).toBe('Configured Author');
+    fireEvent.change(author, { target: { value: 'Manual Override' } });
+    expect(author.value).toBe('Manual Override');
+  });
+
+  it('preserves the author stored with a published item', async () => {
+    stubNetwork();
+    await renderEditor(datasetWith({ native: true }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit CMS existing' })[0]);
+    await waitFor(() => expect((screen.getByLabelText('Author') as HTMLInputElement).value).toBe('Fixture Editor'));
+  });
+
+  it('exposes existing categories and tags as suggestions', async () => {
+    stubNetwork();
+    await renderEditor();
+    fireEvent.click(screen.getByRole('button', { name: 'New post' }));
+    const categories = screen.getByLabelText('Categories (comma separated)') as HTMLInputElement;
+    expect(categories.getAttribute('list')).toBe('categories-options');
+    expect(document.querySelectorAll('#categories-options option').length).toBe(dataset.categories.length);
+    expect(document.querySelectorAll('#tags-options option').length).toBe(dataset.tags.length);
+    const suggestion = document.querySelector('.taxonomy-suggestions .chip-button') as HTMLButtonElement | null;
+    if (suggestion) {
+      fireEvent.click(suggestion);
+      expect(categories.value.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+
+describe('owner-only deletion from the CMS list', () => {
+  it('requires an explicit confirmation before deleting a CMS-authored post', async () => {
+    stubNetwork();
+    await renderEditor(datasetWith({ native: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Delete CMS existing' }));
+    const dialog = await screen.findByRole('dialog', { name: /Delete/ });
+    expect(dialog).toBeTruthy();
+    const confirm = within(dialog).getByRole('button', { name: 'Delete from CMS' }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+    fireEvent.click(within(dialog).getByRole('checkbox'));
+    expect(confirm.disabled).toBe(false);
+    expect(within(dialog).getByText(/historical QDN data is not physically erased/)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('dialog', { name: /Delete/ })).toBeNull();
+  });
+});
+

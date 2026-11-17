@@ -41,6 +41,9 @@ function safeHref(value) {
   const href = String(value || '').trim();
   if (!href) return '';
   if (href.startsWith('#/')) return href;
+  // The official community chat is a Qortal group, not a QDN resource.
+  // Only the documented join deep link is accepted in navigation.
+  if (/^qortal:\/\/use-group\/action-join\/groupid-[1-9]\d*$/i.test(href)) return href;
   try {
     const url = new URL(href);
     if (url.protocol === 'https:' || url.protocol === 'http:') return href;

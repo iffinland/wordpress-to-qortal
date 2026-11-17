@@ -9,6 +9,7 @@ import {
   validateSettingsDraft
 } from '../src/lib/settings.js';
 import { cmsConfig } from '../src/config/cmsConfig';
+import { QORTAL_COMMUNITY_CHAT_LINK } from '../src/lib/links.js';
 
 const identity = { address: 'QOwnerAddress111111111111111111111', qdnName: 'developer iffi' };
 
@@ -21,6 +22,23 @@ describe('versioned site settings', () => {
     expect(site.title).toBe('developer iffi');
     expect(site.tagline).toBe('');
     expect(site.footerText).toBe('');
+  });
+
+  it('accepts the documented Qortal community chat link in navigation', () => {
+    const draft = defaultSettingsDraft(cmsConfig);
+    draft.navigation = [
+      { label: 'Home', href: '#/' },
+      { label: 'Community chat', href: QORTAL_COMMUNITY_CHAT_LINK }
+    ];
+    expect(validateSettingsDraft(draft).ok).toBe(true);
+    expect(validateSettingsDraft({
+      ...draft,
+      navigation: [...draft.navigation, { label: 'Bad', href: 'qortal://use-group/action-join/groupid-0' }]
+    }).ok).toBe(false);
+    expect(validateSettingsDraft({
+      ...draft,
+      navigation: [...draft.navigation, { label: 'Bad', href: 'qortal://use-group/action-kick/groupid-1' }]
+    }).ok).toBe(false);
   });
 
   it('validates required fields, navigation and colors', () => {

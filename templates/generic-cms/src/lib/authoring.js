@@ -2,9 +2,12 @@ import {
   buildNativeContentPayload,
   emptyNativeIndex,
   mergeTermDefinitions,
+  NATIVE_CONTENT_SCHEMA,
+  NATIVE_INDEX_IDENTIFIER,
   nativeContentIdentifier,
   nativeEntryFromDraft,
   readNativeIndex,
+  removeNativeEntry,
   upsertNativeEntry
 } from './nativeCatalog.js';
 import {
@@ -48,7 +51,7 @@ import {
   removeOverlayEntry,
   upsertOverlayEntry
 } from './overlay.js';
-import { applyAssignment, readSections, SECTIONS_IDENTIFIER } from './sections.js';
+import { applyAssignment, readSections, removePostFromSections, SECTIONS_IDENTIFIER } from './sections.js';
 import { assertSlugChangeAllowed } from './slugField.js';
 import { mergeAliases, slugify } from './slug.js';
 import { featuredMediaEntry, resolveFeaturedImage } from './featuredImage.js';
@@ -238,6 +241,237 @@ export async function publishNativePostDraft({ identity, name, siteId, draft, ba
     slugAliases,
     entry: built.entry
   });
+}
+
+/**
+ * Owner-only removal of a CMS-authored item from the public catalog.
+ *
+ * QDN resources are mutable, not erasable: the existing content resource is
+ * overwritten in place with a tombstone that keeps its stable identifier, the
+ * native index and search index stop listing the item, and page assignments
+ * are cleaned. Historical versions and any copies outside this CMS are not
+ * claimed to be physically erased.
+ */
+export async function deleteNativePost(options) {
+  const { identity, name, siteId, item, baseRevision, storage, timestamp, onProgress } = options;
+  if (!item || item.native !== true || item.sourceKind !== 'cms-authored') {
+    return {
+      ok: false,
+      state: 'unsupported',
+      message: 'Only CMS-authored posts and pages can be removed from this catalog. Imported WordPress content is never modified or deleted by the CMS.'
+    };
+  }
+  const remote = await loadNativeIndex(name, siteId);
+  if (!remote.ok) return { ok: false, state: 'invalid-remote', message: remote.errors.join(' ') };
+  const index = remote.index;
+  if (Number(index.revision) > Number(baseRevision || 0)) {
+    return {
+      ok: false,
+      state: 'conflict',
+      message: 'CMS content moved from revision ' + baseRevision + ' to ' + index.revision + '. Reload before deleting.'
+    };
+  }
+  const entry = (Array.isArray(index.entries) ? index.entries : []).find((candidate) => String(candidate.id) === String(item.id));
+  if (!entry) {
+    return { ok: false, state: 'invalid', message: 'This item is no longer present in the published CMS index. Refresh before deleting.' };
+  }
+  const contentIdentifier = (item.contentRef && item.contentRef.identifier)
+    || (entry.qdn && entry.qdn.identifier)
+    || '';
+  if (!contentIdentifier) {
+    return { ok: false, state: 'invalid', message: 'The published content identifier is missing, so the tombstone cannot preserve the item identity.' };
+  }
+  const now = Number(timestamp) || Date.now();
+  const iso = new Date(now).toISOString();
+  const updated = removeNativeEntry(index, item.id, { baseRevision, siteId, now });
+  if (!updated.ok) return { ok: false, state: 'conflict', message: updated.message, stage: 'index' };
+
+  const tombstone = {
+    schema: NATIVE_CONTENT_SCHEMA,
+    version: 1,
+    id: String(item.id),
+    content_type: item.type === 'page' ? 'page' : 'post',
+    source: { adapter: 'qms-cms-native', key: item.slug },
+    identity: { slug: item.slug, old_url: null, canonical_url: null, parent_key: null, menu_order: null },
+    title: item.title,
+    dates: { published_at: item.publishedAt || item.createdAt || iso, modified_at: iso },
+    publication_status: 'deleted',
+    deleted_at: iso,
+    body: { format: 'html', html: '', text: '', excerpt_html: '', excerpt_text: '', summary: '' },
+    authors: [],
+    terms: { categories: [], tags: [] },
+    media: { featured: null, images: [], audio: [], video: [], documents: [], embeds: [], attachments: [] },
+    links: { internal: [], external: [], external_media: [] },
+    content_hash: null,
+    qdn: { service: 'DOCUMENT', name, identifier: contentIdentifier }
+  };
+
+  const stages = [{
+    stage: 'content',
+    identifier: contentIdentifier,
+    document: tombstone,
+    title: 'Deleted: ' + item.title,
+    description: 'Tombstone for removed CMS content on ' + name + '. The resource identifier is unchanged; historical QDN versions are not erased.'
+  }, {
+    stage: 'index',
+    identifier: 'qms-cms-native-index',
+    document: updated.index,
+    title: 'CMS content index revision ' + updated.index.revision,
+    description: 'CMS-authored content supplement for ' + name + ' after removing ' + item.slug + '.'
+  }];
+
+  const remoteSearchRaw = await readRemoteJson('DOCUMENT', name, SEARCH_INDEX_IDENTIFIER);
+  const remoteSearch = remoteSearchRaw ? readSearchIndex(remoteSearchRaw) : { ok: true, index: emptySearchIndex(siteId), errors: [] };
+  if (!remoteSearch.ok) {
+    return {
+      ok: false,
+      state: 'invalid-remote',
+      stage: 'search',
+      message: 'The published search index is invalid and was not overwritten. The post was not removed. Rebuild search before deleting.'
+    };
+  }
+  const cleaned = removeSearchEntry(remoteSearch.index, { id: item.id, type: item.type, slug: item.slug }, { now });
+  stages.push({
+    stage: 'search',
+    identifier: SEARCH_INDEX_IDENTIFIER,
+    document: cleaned.index,
+    title: 'Search index revision ' + cleaned.index.revision,
+    description: 'Search index cleanup after removing ' + item.slug + ' on ' + name + '.'
+  });
+
+  let sectionsDoc = null;
+  let sectionsSkipped = '';
+  const sectionsResult = await loadSectionsDocument(name, siteId);
+  if (!sectionsResult.ok) {
+    sectionsSkipped = 'Page assignments were not changed because the published sections document is invalid. The deleted post stays hidden by the catalog.';
+  } else {
+    const removal = removePostFromSections(sectionsResult.doc, item.id, {
+      baseRevision: Number(sectionsResult.doc.revision) || 0,
+      siteId,
+      now
+    });
+    if (!removal.ok) {
+      return { ok: false, state: 'conflict', stage: 'sections', message: removal.message };
+    }
+    if (removal.changed) {
+      sectionsDoc = removal.doc;
+      stages.push({
+        stage: 'sections',
+        identifier: SECTIONS_IDENTIFIER,
+        document: removal.doc,
+        title: 'CMS sections revision ' + removal.doc.revision,
+        description: 'Page assignments after removing ' + item.slug + ' on ' + name + '.'
+      });
+    }
+  }
+
+  const batch = await publishBatch({ identity, name, resources: stages, storage, onProgress });
+  const byStage = {};
+  for (const result of batch.results || []) byStage[result.stage] = result;
+  const extras = {
+    index: updated.index,
+    sections: sectionsDoc,
+    contentIdentifier,
+    tombstone,
+    results: batch.results || [],
+    sectionsSkipped
+  };
+  if (batch.ok) {
+    return {
+      ok: true,
+      state: 'remote-verified',
+      message: 'The CMS catalog, search and page assignments no longer list this item, and its content resource carries a deletion tombstone. Historical QDN versions are not physically erased.',
+      ...extras
+    };
+  }
+  const stage = Object.keys(byStage).find((key) => byStage[key] && !byStage[key].ok) || 'unknown';
+  const stateMessage = 'Removal was not fully confirmed (stage: ' + stage + '). It was not resent automatically. ' + (batch.message || '');
+  return { ok: false, state: batch.state || 'failed', stage, message: stateMessage, ...extras };
+}
+
+/**
+ * Owner-side category/tag maintenance.
+ *
+ * Renaming keeps the stable term id and slug, so every existing CMS-authored
+ * entry follows automatically. Deleting removes the definition and strips the
+ * id from all CMS-authored entries. Imported WordPress content is read-only:
+ * a term that is present in the imported taxonomy or used by imported items is
+ * refused instead of being silently rewritten.
+ */
+export async function publishTaxonomyChange(options) {
+  const { identity, name, siteId, kind, action, termId, newName, baseRevision, storage, timestamp, usedByImported = false } = options;
+  if (kind !== 'categories' && kind !== 'tags') {
+    return { ok: false, state: 'invalid', message: 'Unknown taxonomy kind.' };
+  }
+  if (action !== 'rename' && action !== 'delete') {
+    return { ok: false, state: 'invalid', message: 'Unknown taxonomy action.' };
+  }
+  if (usedByImported) {
+    return {
+      ok: false,
+      state: 'unsupported',
+      message: 'This ' + (kind === 'categories' ? 'category' : 'tag') + ' is used by imported WordPress content. Imported content is read-only; rename or remove it there first, or keep the term.'
+    };
+  }
+  const remote = await loadNativeIndex(name, siteId);
+  if (!remote.ok) return { ok: false, state: 'invalid-remote', message: remote.errors.join(' ') };
+  const index = remote.index;
+  if (Number(index.revision) > Number(baseRevision || 0)) {
+    return {
+      ok: false,
+      state: 'conflict',
+      message: 'Taxonomy moved from revision ' + baseRevision + ' to ' + index.revision + '. Reload before saving.'
+    };
+  }
+  const listKey = kind === 'categories' ? 'categories' : 'tags';
+  const idsKey = kind === 'categories' ? 'category_ids' : 'tag_ids';
+  const terms = Array.isArray(index[listKey]) ? index[listKey] : [];
+  const target = terms.find((term) => String(term.id) === String(termId));
+  if (!target) {
+    return { ok: false, state: 'invalid', message: 'This term is no longer present in the published CMS index. Reload.' };
+  }
+  const now = Number(timestamp) || Date.now();
+  let nextTerms;
+  let nextEntries = Array.isArray(index.entries) ? index.entries : [];
+  if (action === 'rename') {
+    const clean = String(newName || '').trim();
+    if (!clean) return { ok: false, state: 'invalid', message: 'A name is required.' };
+    if (clean.length > 80) return { ok: false, state: 'invalid', message: 'A term name must be 80 characters or fewer.' };
+    if (terms.some((term) => String(term.id) !== String(termId) && String(term.name).toLowerCase() === clean.toLowerCase())) {
+      return { ok: false, state: 'invalid', message: 'Another term already uses this name.' };
+    }
+    nextTerms = terms.map((term) => (String(term.id) === String(termId)
+      ? { ...term, name: clean }
+      : term));
+  } else {
+    nextTerms = terms.filter((term) => String(term.id) !== String(termId));
+    nextEntries = nextEntries.map((entry) => ({
+      ...entry,
+      [idsKey]: (Array.isArray(entry[idsKey]) ? entry[idsKey] : []).filter((id) => String(id) !== String(termId))
+    }));
+  }
+  const nextIndex = {
+    ...index,
+    revision: (Number(index.revision) || 0) + 1,
+    updated_at: new Date(now).toISOString(),
+    [listKey]: nextTerms,
+    entries: nextEntries
+  };
+  const result = await publishJsonResource({
+    identity,
+    name,
+    identifier: NATIVE_INDEX_IDENTIFIER,
+    document: nextIndex,
+    title: 'CMS content index revision ' + nextIndex.revision,
+    description: 'Owner-managed ' + kind + ' for ' + name + '.',
+    storage
+  });
+  return {
+    ...result,
+    index: nextIndex,
+    term: action === 'rename' ? { ...target, name: String(newName || '').trim() } : null,
+    removedId: action === 'delete' ? String(termId) : null
+  };
 }
 
 export async function loadGalleryCatalog(name) {

@@ -46,7 +46,7 @@ export function parseHashRoute(hash = '') {
   if (parts[0] === 'gallery') return parts[1] ? { kind: 'gallery', slug: parts[1] } : { kind: 'gallery' };
   if (parts[0] === 'admin') {
     if (!parts[1]) return { kind: 'admin' };
-    const section = parts[1] === 'settings' || parts[1] === 'editor' || parts[1] === 'pages' || parts[1] === 'galleries' ? parts[1] : 'overview';
+    const section = parts[1] === 'settings' || parts[1] === 'editor' || parts[1] === 'pages' || parts[1] === 'galleries' || parts[1] === 'taxonomy' ? parts[1] : 'overview';
     return { kind: 'admin', section, id: parts[2] ? parts[2] : undefined };
   }
   return { kind: 'not-found' };

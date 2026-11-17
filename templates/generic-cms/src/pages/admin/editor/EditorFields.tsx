@@ -1,4 +1,60 @@
 import { finalizeSlug } from '../../../lib/slug.js';
+import type { CmsTerm } from '../../../types';
+
+/**
+ * Comma-separated taxonomy field with suggestions from the existing catalog.
+ * The datalist is the compact native control; the chips work even in embedded
+ * Android WebViews whose datalist support is unreliable.
+ */
+function TaxonomyInput(props: {
+  id: string;
+  label: string;
+  value: string;
+  terms: CmsTerm[];
+  onChange: (value: string) => void;
+}) {
+  const selected = String(props.value || '')
+    .split(',')
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean);
+  const suggestions = props.terms
+    .filter((term) => term && term.name && !selected.includes(term.name.toLowerCase()))
+    .slice(0, 8);
+  const append = (name: string) => {
+    const next = String(props.value || '').trim();
+    props.onChange(next ? next + ', ' + name : name);
+  };
+  return (
+    <div className="taxonomy-field">
+      <label>{props.label}
+        <input
+          list={props.id + '-options'}
+          value={props.value}
+          onChange={(event) => props.onChange(event.target.value)}
+          aria-describedby={props.id + '-help'}
+        />
+      </label>
+      <datalist id={props.id + '-options'}>
+        {props.terms.map((term) => <option key={term.id} value={term.name} />)}
+      </datalist>
+      <p id={props.id + '-help'} className="muted">Comma separated. Suggestions come from the published catalog.</p>
+      {suggestions.length ? (
+        <div className="taxonomy-suggestions" aria-label={'Suggested ' + props.label.toLowerCase()}>
+          {suggestions.map((term) => (
+            <button
+              key={term.id}
+              type="button"
+              className="chip-button"
+              onClick={() => append(term.name)}
+            >
+              {term.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function SlugField(props: {
   draft: any;
@@ -102,6 +158,8 @@ export function EditorFields(props: {
   onUnlock: () => void;
   onCancelSlugChange: () => void;
   onUpdate: (key: string, value: unknown) => void;
+  categories: CmsTerm[];
+  tags: CmsTerm[];
 }) {
   const { draft } = props;
   return (
@@ -125,8 +183,20 @@ export function EditorFields(props: {
       />
 
       <label>Excerpt<textarea rows={2} value={draft.excerpt} onChange={(event) => props.onUpdate('excerpt', event.target.value)} /></label>
-      <label>Categories (comma separated)<input value={draft.categoriesText} onChange={(event) => props.onUpdate('categoriesText', event.target.value)} /></label>
-      <label>Tags (comma separated)<input value={draft.tagsText} onChange={(event) => props.onUpdate('tagsText', event.target.value)} /></label>
+      <TaxonomyInput
+        id="categories"
+        label="Categories (comma separated)"
+        value={draft.categoriesText}
+        terms={props.categories}
+        onChange={(value) => props.onUpdate('categoriesText', value)}
+      />
+      <TaxonomyInput
+        id="tags"
+        label="Tags (comma separated)"
+        value={draft.tagsText}
+        terms={props.tags}
+        onChange={(value) => props.onUpdate('tagsText', value)}
+      />
       <label>Author<input value={draft.author} onChange={(event) => props.onUpdate('author', event.target.value)} /></label>
       {!draft.remoteId && !draft.sourceItemId ? (
         <label>Content type

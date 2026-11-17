@@ -69,3 +69,27 @@ export function sanitizeQortalHref(value) {
   const parsed = parseQortalLink(value);
   return parsed ? parsed.raw : '';
 }
+
+/**
+ * Qortal group links are a navigation scheme handled by Hub, not a QDN
+ * resource. The official community chat is a group, so a resource parser
+ * would reject it. Accept only the documented join form and keep the raw
+ * string byte-for-byte.
+ */
+export const QORTAL_COMMUNITY_CHAT_LINK = 'qortal://use-group/action-join/groupid-127';
+const USE_GROUP_JOIN = /^qortal:\/\/use-group\/action-join\/groupid-([1-9]\d*)$/i;
+
+export function parseQortalUseGroupLink(value) {
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw || raw.length > QORTAL_LINK_MAX_LENGTH) return null;
+  const match = USE_GROUP_JOIN.exec(raw);
+  if (!match) return null;
+  const groupId = Number(match[1]);
+  if (!Number.isSafeInteger(groupId) || groupId <= 0) return null;
+  return { raw, action: 'join', groupId };
+}
+
+export function isQortalUseGroupLink(value) {
+  return Boolean(parseQortalUseGroupLink(value));
+}

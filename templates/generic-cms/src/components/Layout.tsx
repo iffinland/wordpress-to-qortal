@@ -2,8 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type { AppRoute, CmsTemplateConfig, ViewerIdentity } from '../types';
 import { themeStyle } from '../lib/config.js';
+import { isQortalUseGroupLink } from '../lib/links.js';
+import { openQortalUseGroupLink } from '../lib/qortal.js';
 import { ThemeToggle } from './ThemeToggle';
 import { SiteFooter } from './SiteFooter';
+import { BackToTop } from './BackToTop';
 
 function isActive(href: string, route: AppRoute) {
   if (href === '#/' && route.kind === 'home') return true;
@@ -55,6 +58,8 @@ export function Layout(props: {
   const owner = Boolean(props.viewer && props.viewer.owner && props.viewer.nameRecordStatus === 'verified');
   const navigation = withCoreLinks(publicNavigation(props.config, owner, Boolean(props.hasGalleries)));
   const [menuOpen, setMenuOpen] = useState(false);
+  const [chatFallback, setChatFallback] = useState<{ link: string; message: string } | null>(null);
+  const [chatNotice, setChatNotice] = useState('');
   const buttonRef = useRef<HTMLButtonElement>(null);
   const routeKey = JSON.stringify(props.route);
   useEffect(() => { setMenuOpen(false); }, [routeKey]);
@@ -97,18 +102,61 @@ export function Layout(props: {
               <ul className="site-nav__list">
                 {navigation.map((item) => (
                   <li key={item.label + item.href}>
-                    <a
-                      className="site-nav__link"
-                      href={item.href}
-                      aria-current={isActive(item.href, props.route) ? 'page' : undefined}
-                    >
-                      {item.label}
-                    </a>
+                    {isQortalUseGroupLink(item.href) ? (
+                      <button
+                        type="button"
+                        className="site-nav__link site-nav__link--button"
+                        onClick={async () => {
+                          setChatNotice('');
+                          setChatFallback(null);
+                          const result = await openQortalUseGroupLink(item.href);
+                          if (!result.ok) {
+                            setChatFallback({ link: result.link || item.href, message: result.message || '' });
+                          }
+                        }}
+                      >
+                        {item.label}
+                      </button>
+                    ) : (
+                      <a
+                        className="site-nav__link"
+                        href={item.href}
+                        aria-current={isActive(item.href, props.route) ? 'page' : undefined}
+                      >
+                        {item.label}
+                      </a>
+                    )}
                   </li>
                 ))}
               </ul>
             </nav>
             <div className="site-header__tools">
+              {chatFallback ? (
+                <div className="chat-fallback" role="status" aria-live="polite">
+                  <p>{chatFallback.message || 'Open the community chat in Qortal Hub.'}</p>
+                  <code>{chatFallback.link}</code>
+                  <button
+                    type="button"
+                    className="button button--ghost"
+                    onClick={async () => {
+                      try {
+                        if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+                          await navigator.clipboard.writeText(chatFallback.link);
+                          setChatNotice('Community chat link copied.');
+                        } else {
+                          setChatNotice('Copy the link shown above.');
+                        }
+                      } catch {
+                        setChatNotice('Copy the link shown above.');
+                      }
+                    }}
+                  >
+                    Copy chat link
+                  </button>
+                  <button type="button" className="button button--ghost" onClick={() => setChatFallback(null)}>Dismiss</button>
+                  {chatNotice ? <span className="muted">{chatNotice}</span> : null}
+                </div>
+              ) : null}
               {props.updateBadge}
               <ThemeToggle mode={props.themeMode || 'system'} onChange={props.onThemeChange} />
               {canConnect ? (
@@ -129,6 +177,7 @@ export function Layout(props: {
         {props.children}
       </main>
       <SiteFooter config={props.config} templateVersion={props.templateVersion} onCheckUpdates={props.onCheckUpdates} />
+      <BackToTop />
     </div>
   );
 }

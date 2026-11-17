@@ -10,6 +10,7 @@ export function DraftLists(props: {
   onDeleteDraft: (id: string) => void;
   onEditPublished: (id: string) => void;
   onEditImported: (id: string) => void;
+  onDeletePublished?: (id: string) => void;
 }) {
   return (
     <>
@@ -35,7 +36,14 @@ export function DraftLists(props: {
           {props.nativePosts.map((item) => (
             <li key={item.id} className="admin-list__item">
               <span>{item.title} <span className="admin-list__meta">{item.type} · /{item.slug} · {item.status} · CMS-authored</span></span>
-              <button type="button" className="button button--ghost" aria-label={'Edit ' + item.title} onClick={() => props.onEditPublished(item.id)}>Edit</button>
+              <span className="admin-list__actions">
+                <button type="button" className="button button--ghost" aria-label={'Edit ' + item.title} onClick={() => props.onEditPublished(item.id)}>Edit</button>
+                {props.onDeletePublished ? (
+                  <button type="button" className="button button--danger" aria-label={'Delete ' + item.title} onClick={() => props.onDeletePublished!(item.id)}>
+                    Delete
+                  </button>
+                ) : null}
+              </span>
             </li>
           ))}
         </ul>

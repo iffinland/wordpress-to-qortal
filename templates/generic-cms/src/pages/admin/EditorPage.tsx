@@ -11,6 +11,7 @@ import { FeaturedImagePanel } from './editor/FeaturedImagePanel';
 import { PreviewModal } from './editor/PreviewModal';
 import { LeavePrompt } from './editor/LeavePrompt';
 import { ConfirmPublishPanel } from './editor/ConfirmPublishPanel';
+import { DeletePostDialog, type DeletePhase } from '../../components/DeletePostDialog';
 import type { PublishPhase } from '../../components/ConfirmPublishDialog';
 import { draftFromItem, fingerprintSource, resolveTerms, termNames, type QdnRefLike } from './editor/editorUtils';
 import {
@@ -24,7 +25,7 @@ import {
   writeDrafts
 } from '../../lib/drafts.js';
 import { createScopedStorage, storageScope } from '../../lib/storageScope.js';
-import { loadNativeIndex, loadOverlay, publishNativePostDraft, publishOverlayDraft, resolveOverlayConflict } from '../../lib/authoring.js';
+import { deleteNativePost, loadNativeIndex, loadOverlay, publishNativePostDraft, publishOverlayDraft, resolveOverlayConflict } from '../../lib/authoring.js';
 import { SectionsPicker } from './editor/SectionsPicker';
 import { assignmentFor, sameAssignment } from '../../lib/sections.js';
 import { prepareMediaResource, quotePublication } from '../../lib/publish.js';
@@ -83,6 +84,14 @@ export function EditorPage(props: {
   contentType?: 'post' | 'page';
 }) {
   const siteConfig = props.config || cmsConfig;
+  // The configured public author is the editor default. A saved draft or
+  // published author always wins; an empty field falls back to this value.
+  const configuredAuthor = String(
+    (siteConfig.site && siteConfig.site.publicAuthor)
+    || (props.dataset && props.dataset.site.publicAuthor)
+    || props.identity.name
+    || ''
+  ).trim();
   const scope = useMemo(() => storageScope({
     deployment: siteConfig.deployment,
     identity: props.identity,
@@ -140,6 +149,9 @@ export function EditorPage(props: {
   const [crossResults, setCrossResults] = useState<CrossPublishResultView[] | null>(null);
   const [planFee, setPlanFee] = useState('');
   const [subwireCoverKind, setSubwireCoverKind] = useState<'featured' | 'generated' | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CmsContentItem | null>(null);
+  const [deletePhase, setDeletePhase] = useState<DeletePhase>('confirm');
+  const [deleteMessage, setDeleteMessage] = useState('');
   const savedRef = useRef<string>('');
   const openedInitialRef = useRef(false);
 
@@ -293,7 +305,14 @@ export function EditorPage(props: {
   };
 
   const startNew = (type: 'post' | 'page' = 'post') => {
-    const next = createDraft({ baseRevision: revision, type, sourceKind: 'cms-native', slugTouched: false, slugLocked: false });
+    const next = createDraft({
+      baseRevision: revision,
+      type,
+      sourceKind: 'cms-native',
+      slugTouched: false,
+      slugLocked: false,
+      author: configuredAuthor
+    });
     openDraftState(next);
   };
 
@@ -309,6 +328,9 @@ export function EditorPage(props: {
     try {
       const content = await props.loadContent(item);
       const next = draftFromItem(item, content, revision, props.dataset);
+      // Preserve the author stored with the published content; only an empty
+      // value is filled from the configured public author.
+      next.author = next.author || configuredAuthor;
       openDraftState(next);
       const updated = upsertDraft(drafts, next);
       persistDrafts(updated);
@@ -356,7 +378,7 @@ export function EditorPage(props: {
         excerpt: item.excerpt,
         categoriesText: termNames(props.dataset, item.categoryIds, 'categories'),
         tagsText: termNames(props.dataset, item.tagIds, 'tags'),
-        author: local.author || '',
+        author: local.author || configuredAuthor,
         status: item.status,
         createdAt: item.createdAt || undefined,
         publishedAt: item.publishedAt,
@@ -741,7 +763,7 @@ export function EditorPage(props: {
     const timestamp = Number(draft.publishTimestamp) || Date.now();
     const finalSlug = finalizeSlug(draft.slug || draft.title);
     persist({ ...draft, slug: finalSlug, publishTimestamp: timestamp });
-    const author = (props.dataset && props.dataset.site.publicAuthor) || props.identity.name;
+    const author = String(draft.author || '').trim() || configuredAuthor;
 
     // A local featured image joins the single batch: its identifier and
     // reference come from the captured bytes, nothing is published yet.
@@ -993,6 +1015,46 @@ export function EditorPage(props: {
     setMessage(result.message || 'The conflict could not be resolved.');
   };
 
+  const requestDelete = (id: string) => {
+    const target = nativePosts.find((item) => String(item.id) === String(id));
+    if (!target) return;
+    setDeleteTarget(target);
+    setDeletePhase('confirm');
+    setDeleteMessage('');
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    if (!scope) {
+      setDeletePhase('error');
+      setDeleteMessage('Verify the owner account before deleting.');
+      return;
+    }
+    const target = deleteTarget;
+    setDeletePhase('deleting');
+    setDeleteMessage('');
+    setProgress([]);
+    const result: any = await deleteNativePost({
+      identity: props.identity,
+      name: props.name,
+      siteId: props.siteId,
+      item: target,
+      baseRevision: revision,
+      storage: createScopedStorage(localStorage, scope),
+      onProgress: setProgress
+    });
+    if (result.index) setRevision(Number(result.index.revision) || revision);
+    if (result.ok) {
+      persistDrafts(removeDraft(drafts, target.id));
+      setDeletePhase('done');
+      setDeleteMessage(result.message || 'Removal confirmed.');
+      props.onRefresh();
+      return;
+    }
+    setDeletePhase('error');
+    setDeleteMessage(result.message || 'Removal could not be confirmed.');
+  };
+
   const requestLeave = () => {
     if (dirty) setLeavePrompt(true);
     else { setDraft(null); setState('idle'); setMessage(''); }
@@ -1082,6 +1144,7 @@ export function EditorPage(props: {
             }}
             onEditPublished={editPublished}
             onEditImported={editImported}
+            onDeletePublished={requestDelete}
           />
         </>
       ) : (
@@ -1122,6 +1185,8 @@ export function EditorPage(props: {
             onUnlock={unlockSlug}
             onCancelSlugChange={cancelSlugChange}
             onUpdate={update}
+            categories={props.dataset ? props.dataset.categories : []}
+            tags={props.dataset ? props.dataset.tags : []}
           />
 
           {draft.type !== 'page' ? (
@@ -1211,6 +1276,16 @@ export function EditorPage(props: {
           onSaveAndLeave={() => { saveLocalDraft(); setLeavePrompt(false); setDraft(null); }}
           onDiscard={() => { setLeavePrompt(false); setDraft(null); setDirty(false); }}
           onStay={() => setLeavePrompt(false)}
+        />
+      ) : null}
+
+      {deleteTarget ? (
+        <DeletePostDialog
+          item={deleteTarget}
+          phase={deletePhase}
+          message={deleteMessage}
+          onConfirm={confirmDelete}
+          onClose={() => { if (deletePhase !== 'deleting') setDeleteTarget(null); }}
         />
       ) : null}
 

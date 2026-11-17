@@ -886,7 +886,13 @@ input {
   }
 
   .brand__tagline {
-    display: none;
+    display: block;
+    font-size: 0.72rem;
+    line-height: 1.25;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .menu-button {
@@ -983,6 +989,95 @@ input {
   .access-card,
   .admin-fieldset {
     border: 1px solid CanvasText;
+  }
+}
+
+
+/* Back to Top: compact, safe-area aware, clear of header and footer controls. */
+.back-to-top {
+  position: fixed;
+  right: calc(1rem + env(safe-area-inset-right, 0px));
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 44px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--qms-border);
+  border-radius: 999px;
+  background: var(--qms-surface);
+  color: var(--qms-text);
+  box-shadow: 0 6px 24px rgb(0 0 0 / 0.18);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.back-to-top:hover {
+  background: var(--qms-surface-alt);
+}
+
+.back-to-top:focus-visible {
+  outline: 3px solid var(--qms-accent);
+  outline-offset: 2px;
+}
+
+.back-to-top__icon {
+  font-size: 1rem;
+  line-height: 1;
+}
+
+@media (max-width: 720px) {
+  .back-to-top {
+    right: calc(0.75rem + env(safe-area-inset-right, 0px));
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .back-to-top {
+    scroll-behavior: auto;
+  }
+}
+
+
+/* A Qortal group link renders as a navigation action, not an anchor. */
+.site-nav__link--button {
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.chat-fallback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--qms-border);
+  border-radius: 8px;
+  background: var(--qms-surface);
+  font-size: 0.82rem;
+}
+
+.chat-fallback p {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.chat-fallback code {
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+}
+
+@media (max-width: 720px) {
+  .chat-fallback {
+    flex-basis: 100%;
   }
 }
 

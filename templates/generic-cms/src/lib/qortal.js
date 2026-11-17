@@ -707,3 +707,38 @@ export async function openQortalLink(qortalLink) {
     return { ok: false, message: error && error.message ? error.message : 'Qortal Hub could not open the link.' };
   }
 }
+
+/**
+ * Open the Qortal community group chat.
+ *
+ * A group is not a QDN resource, so the QDN link parser must not be used.
+ * Hub exposes the documented `qortal://use-group/action-join/groupid-N`
+ * deep link; try the bridge first (desktop and Android Hub) and fall back to
+ * the custom scheme for an installed Hub. Never claim the chat opened when
+ * the request returned no confirmation: the caller shows a copyable fallback.
+ */
+export async function openQortalUseGroupLink(value) {
+  const raw = String(value || '').trim();
+  if (!/^qortal:\/\/use-group\/action-join\/groupid-[1-9]\d*$/i.test(raw)) {
+    return { ok: false, message: 'This is not a valid Qortal group link.', link: raw };
+  }
+  if (hasQortalBridge()) {
+    try {
+      await requestQortal({ action: 'OPEN_NEW_TAB', qortalLink: raw }, 15000);
+      return { ok: true, state: 'hub-tab', link: raw, message: '' };
+    } catch {
+      try {
+        window.location.href = raw;
+        return { ok: true, state: 'custom-scheme', link: raw, message: '' };
+      } catch {
+        // Fall through to the copyable link.
+      }
+    }
+  }
+  return {
+    ok: false,
+    state: 'manual',
+    link: raw,
+    message: 'Open this link inside Qortal Hub to join the community chat, or copy it into Hub.'
+  };
+}
