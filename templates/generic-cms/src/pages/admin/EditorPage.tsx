@@ -109,6 +109,7 @@ export function EditorPage(props: {
   const [quitterText, setQuitterText] = useState('');
   const [quitterTouched, setQuitterTouched] = useState(false);
   const [crossPlan, setCrossPlan] = useState<CrossPublishPlanView | null>(null);
+  const [crossVideoMoves, setCrossVideoMoves] = useState<Array<{ from: string; to: string; filename: string; size: number }>>([]);
   const [crossResults, setCrossResults] = useState<CrossPublishResultView[] | null>(null);
   const [planFee, setPlanFee] = useState('');
   const [subwireCoverKind, setSubwireCoverKind] = useState<'featured' | 'generated' | null>(null);
@@ -126,21 +127,23 @@ export function EditorPage(props: {
     const capture = attachmentStoreRef.current.get(meta.identifier);
     return Boolean(capture && capture.poster && capture.posterIdentifier !== undefined && meta.poster);
   }).length;
-  const qtubeVideo = useMemo(() => {
-    if (!draft || !draft.html) return null;
-    return attachmentsInHtml(draft.html).find(isQTubeEligibleVideo) || null;
+  const qtubeVideos = useMemo(() => {
+    if (!draft || !draft.html) return [] as ReturnType<typeof attachmentsInHtml>;
+    return attachmentsInHtml(draft.html).filter(isQTubeEligibleVideo);
   }, [draft && draft.html]);
+  const qtubeVideo = qtubeVideos[0] || null;
   const effectiveSelections = {
-    qtube: Boolean(qtubeVideo) && crossSelections.qtube,
+    qtube: qtubeVideos.length > 0 && crossSelections.qtube,
     subwire: crossSelections.subwire,
     quitter: crossSelections.quitter
   };
   const basePublicationResources = (featuredBytes || featuredFile ? 4 : 3)
     + (sectionsChanged ? 1 : 0)
     + attachmentResourceCount;
-  const destinationResourceCount = (effectiveSelections.qtube ? 1 : 0)
+  const destinationResourceCount = (effectiveSelections.qtube ? qtubeVideos.length : 0)
     + (effectiveSelections.subwire ? 1 : 0)
-    + (effectiveSelections.quitter ? 1 : 0);
+    + (effectiveSelections.quitter ? 1 : 0)
+    + (effectiveSelections.qtube || effectiveSelections.subwire || effectiveSelections.quitter ? 1 : 0);
   const items = useMemo(() => (props.dataset ? [...props.dataset.posts, ...props.dataset.pages] : []), [props.dataset]);
   const nativePosts = useMemo(() => items.filter((item) => item.native), [items]);
   const importedItems = useMemo(() => items.filter((item) => !item.native), [items]);
@@ -558,28 +561,31 @@ export function EditorPage(props: {
   const prepareCrossPublishPlan = async (finalSlug: string, selected: CrossPublishSelections) => {
     const html = sanitizeHtml(draft.html);
     const timestamp = Number(draft.publishTimestamp) || Date.now();
-    let video: any = null;
+    const videos: any[] = [];
     if (selected.qtube) {
-      if (!qtubeVideo) {
+      if (!qtubeVideos.length) {
         throw new Error('Q-Tube publication needs an eligible video attachment (' + QTUBE_PLAYABLE_EXTENSIONS.join(', ') + ').');
       }
-      const capture = attachmentStoreRef.current.get(qtubeVideo.identifier);
-      let ready = Boolean(capture);
-      if (!ready) {
-        const status: any = await getQdnResourceStatus('VIDEO', props.name, qtubeVideo.identifier);
-        ready = Boolean(status && status.status === 'READY');
+      for (const candidate of qtubeVideos) {
+        if (!candidate) continue;
+        const capture = attachmentStoreRef.current.get(candidate.identifier);
+        let ready = Boolean(capture);
+        if (!ready) {
+          const status: any = await getQdnResourceStatus('VIDEO', props.name, candidate.identifier);
+          ready = Boolean(status && status.status === 'READY');
+        }
+        if (!ready) {
+          throw new Error('The video attachment "' + candidate.filename + '" is no longer available on this device and is not READY on QDN. Re-attach it or clear the Q-Tube option.');
+        }
+        videos.push({
+          service: 'VIDEO',
+          name: props.name,
+          identifier: candidate.identifier,
+          filename: candidate.filename,
+          mime: candidate.mime || '',
+          size: Number(candidate.size) || (capture && capture.size) || 0
+        });
       }
-      if (!ready) {
-        throw new Error('The video attachment "' + qtubeVideo.filename + '" is no longer available on this device and is not READY on QDN. Re-attach it or clear the Q-Tube option.');
-      }
-      video = {
-        service: 'VIDEO',
-        name: props.name,
-        identifier: qtubeVideo.identifier,
-        filename: qtubeVideo.filename,
-        mime: qtubeVideo.mime || '',
-        size: Number(qtubeVideo.size) || (capture && capture.size) || 0
-      };
     }
     let cover: any = null;
     if (selected.subwire) {
@@ -606,7 +612,8 @@ export function EditorPage(props: {
       siteTitle: siteConfig.site.title,
       publisherName: props.name,
       postUrl: buildSitePostUrl({ deployment: siteConfig.deployment, name: props.name, slug: finalSlug }),
-      video,
+      video: videos[0] || null,
+      videos,
       cover,
       selections: selected,
       quitterText,
@@ -643,7 +650,7 @@ export function EditorPage(props: {
     }
 
     const selected: CrossPublishSelections = {
-      qtube: Boolean(qtubeVideo) && crossSelections.qtube,
+      qtube: qtubeVideos.length > 0 && crossSelections.qtube,
       subwire: crossSelections.subwire,
       quitter: crossSelections.quitter
     };
@@ -656,6 +663,17 @@ export function EditorPage(props: {
         plan = await prepareCrossPublishPlan(finalSlug, selected) as CrossPublishPlanView;
         const quote = await quotePublication(basePublicationResources + plan.resources.length);
         exactFee = quote.label;
+        const warnings = [...((plan as any).warnings || [])];
+        for (const move of ((plan as any).videoMoves || [])) {
+          const status: any = await getQdnResourceStatus('VIDEO', props.name, move.from);
+          if (status && status.status === 'READY') {
+            warnings.push('The video "' + move.filename + '" is already published under the CMS media identifier ' + move.from
+              + ' (' + formatBytes(move.size) + '). Publishing it under ' + move.to
+              + ' uploads the same bytes again; the total fee (' + exactFee + ') includes this extra resource.');
+          }
+        }
+        plan = { ...(plan as any), warnings } as CrossPublishPlanView;
+        setCrossVideoMoves(((plan as any).videoMoves || []));
       } catch (error) {
         setState('failed');
         setMessage((error instanceof Error ? error.message : String(error)) + ' Nothing was published.');
@@ -665,6 +683,7 @@ export function EditorPage(props: {
       setPlanFee(exactFee);
     } else {
       setCrossPlan(null);
+      setCrossVideoMoves([]);
       setPlanFee('');
     }
     setCrossResults(null);
@@ -686,6 +705,11 @@ export function EditorPage(props: {
       setState('failed');
       setMessage('HTML could not be sanitized: ' + (error instanceof Error ? error.message : String(error)));
       return;
+    }
+    // The video bytes are published once under the Q-Tube identifier; the CMS
+    // content must reference that same coordinate.
+    for (const move of crossVideoMoves) {
+      html = html.split('data-identifier="' + move.from + '"').join('data-identifier="' + move.to + '"');
     }
     const categories = resolveTerms(props.dataset, draft.categoriesText, 'categories');
     const tags = resolveTerms(props.dataset, draft.tagsText, 'tags');
@@ -743,7 +767,9 @@ export function EditorPage(props: {
       const check: any = validateAttachment({ name: capture.filename, size: capture.size, type: capture.mime }, { publicNode });
       if (!check.ok) { setState('failed'); setMessage(check.message + ' Nothing was published.'); return; }
       mediaResources.push({
-        stage: 'attachment', service: capture.service, identifier: capture.identifier, file: capture.blob, sha256: capture.sha256,
+        stage: 'attachment', service: capture.service, identifier: (capture.service === 'VIDEO'
+          ? ((crossVideoMoves.find((item) => item.from === capture.identifier) || {}).to || capture.identifier)
+          : capture.identifier), file: capture.blob, sha256: capture.sha256,
         filename: capture.filename, title: meta.title || capture.title,
         description: 'Attachment for ' + draft.title + ' on ' + props.name + '.', reuseIfReady: true
       });
@@ -1077,7 +1103,7 @@ export function EditorPage(props: {
           />
 
           <CrossPublishPanel
-            video={qtubeVideo ? { filename: qtubeVideo.filename, size: qtubeVideo.size } : null}
+            videos={qtubeVideos.map((item: any) => ({ filename: item.filename, size: Number(item.size) || 0 }))}
             selections={crossSelections}
             quitterText={quitterText}
             quitterLimit={QUITTER_TEXT_LIMIT}

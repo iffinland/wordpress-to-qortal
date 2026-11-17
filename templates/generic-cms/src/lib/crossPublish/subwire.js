@@ -225,13 +225,91 @@ function normalizeImageMime(mime, name) {
   return IMAGE_MIME_BY_EXTENSION[extensionOf(name)] || '';
 }
 
-/** Embed raw image bytes as a data URL that Subwire renders verbatim. */
+function webpName(name) {
+  const base = String(name || 'cover').replace(/\.[^.]+$/, '');
+  return (base || 'cover') + '.webp';
+}
+
+/**
+ * Embed WebP bytes as bare base64. Subwire prefixes
+ * `data:image/webp;base64,` when `src` is not already a data URL.
+ */
 export function subwireCoverFromBytes({ bytes, mime = '', name = 'cover' }) {
   if (!bytes || !bytes.length) return null;
   if (bytes.length > SUBWIRE_COVER_RAW_MAX_BYTES) return null;
   const type = normalizeImageMime(mime, name);
-  if (!type) return null;
-  return { name, src: 'data:' + type + ';base64,' + bytesToBase64(bytes) };
+  if (type !== 'image/webp') return null;
+  return { name: webpName(name), src: bytesToBase64(bytes) };
+}
+
+function loadImage(win, url) {
+  return new Promise((resolve, reject) => {
+    const image = new win.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('The featured image could not be decoded, so it cannot be converted to WebP.'));
+    image.src = url;
+  });
+}
+
+/**
+ * Convert the featured image to WebP in the webview canvas, bounded by
+ * SUBWIRE_COVER_RAW_MAX_BYTES. An already-WebP image is passed through.
+ * Throws a clear, owner-facing message when conversion is impossible.
+ */
+/**
+ * @param {{ bytes?: any, mime?: string, name?: string, maxDimension?: number, maxBytes?: number, windowLike?: any }} [options]
+ */
+export async function convertCoverToWebp(options = {}) {
+  const {
+    bytes,
+    mime = '',
+    name = 'cover',
+    maxDimension = 1600,
+    maxBytes = SUBWIRE_COVER_RAW_MAX_BYTES,
+    windowLike
+  } = options;
+  if (!bytes || !bytes.length) return null;
+  const type = normalizeImageMime(mime, name);
+  if (!type) {
+    throw new Error('The featured image format is not supported. SubWire needs a WebP cover; choose a JPEG, PNG, GIF, AVIF or WebP image.');
+  }
+  if (type === 'image/webp') {
+    if (bytes.length > maxBytes) {
+      throw new Error('The featured image is ' + bytes.length + ' bytes, above the ' + maxBytes + '-byte SubWire cover cap. Choose a smaller image or clear the SubWire option.');
+    }
+    return { bytes, mime: 'image/webp', name: webpName(name) };
+  }
+  const win = windowLike || (typeof window !== 'undefined' ? window : null);
+  if (!win || !win.document || typeof win.Image !== 'function' || !win.URL
+    || typeof win.URL.createObjectURL !== 'function') {
+    throw new Error('The featured image could not be converted to WebP because this webview has no canvas image encoder. Choose a WebP image or clear the SubWire option.');
+  }
+  const blob = new win.Blob([bytes], { type });
+  const url = win.URL.createObjectURL(blob);
+  try {
+    const image = await loadImage(win, url);
+    const width = Number(image.width) || 0;
+    const height = Number(image.height) || 0;
+    if (!width || !height) throw new Error('The featured image has no usable dimensions, so it cannot be converted to WebP.');
+    const scale = Math.min(1, maxDimension / Math.max(width, height));
+    const canvas = win.document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width * scale));
+    canvas.height = Math.max(1, Math.round(height * scale));
+    const context = canvas.getContext && canvas.getContext('2d');
+    if (!context) throw new Error('The featured image could not be converted to WebP because the canvas is unavailable.');
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const outBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/webp', 0.85));
+    if (!outBlob) {
+      throw new Error('This webview cannot encode WebP, so the featured image cannot be used as the SubWire cover. Choose a WebP image or clear the SubWire option.');
+    }
+    const out = new Uint8Array(await outBlob.arrayBuffer());
+    if (out.length > maxBytes) {
+      throw new Error('The converted WebP cover is ' + out.length + ' bytes, above the ' + maxBytes + '-byte SubWire cap. Choose a smaller image or clear the SubWire option.');
+    }
+    return { bytes: out, mime: 'image/webp', name: webpName(name) };
+  } finally {
+    try { win.URL.revokeObjectURL(url); } catch {}
+  }
 }
 
 /**
@@ -273,18 +351,33 @@ export async function resolveSubwireCover(options = {}) {
     accent = '#1f2937',
     readBytes = fetchQdnBytes
   } = options;
-  const local = bytes
-    ? subwireCoverFromBytes({ bytes, mime: (meta && meta.type) || '', name: (meta && meta.name) || 'cover' })
-    : null;
+  let local = null;
+  if (bytes) {
+    const converted = await convertCoverToWebp({
+      bytes,
+      mime: (meta && meta.type) || '',
+      name: (meta && meta.name) || 'cover'
+    });
+    local = subwireCoverFromBytes({
+      bytes: converted.bytes,
+      mime: 'image/webp',
+      name: converted.name
+    });
+  }
   if (local) return { ...local, kind: 'featured' };
   const ref = featured && featured.ref ? featured.ref : null;
   if (ref && ref.identifier) {
     try {
       const remoteBytes = await readBytes(ref.service || 'IMAGE', ref.name || name, ref.identifier);
-      const embedded = subwireCoverFromBytes({
+      const converted = await convertCoverToWebp({
         bytes: remoteBytes,
         mime: (ref.mimeType || ''),
         name: (ref.identifier || 'cover') + '.' + (extensionOf(ref.identifier) || 'jpg')
+      });
+      const embedded = subwireCoverFromBytes({
+        bytes: converted.bytes,
+        mime: 'image/webp',
+        name: converted.name
       });
       if (embedded) return { ...embedded, kind: 'featured' };
     } catch {

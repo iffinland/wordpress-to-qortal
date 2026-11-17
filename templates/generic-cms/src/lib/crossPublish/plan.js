@@ -129,6 +129,7 @@ async function destinationReused({ service, name, identifier, document, readRemo
  * @param {string} input.publisherName   QDN name written into Subwire/Quitter payloads
  * @param {string} input.postUrl         public CMS post URL for the announcement
  * @param {any} input.video              { service, name, identifier, filename, mime, size }
+ * @param {any[]} [input.videos]         every eligible video; overrides input.video when non-empty
  * @param {any} input.cover              Subwire cover { name, src, kind }
  * @param {{qtube?: boolean, subwire?: boolean, quitter?: boolean}} input.selections
  * @param {string} [input.quitterText]   owner-edited announcement text
@@ -146,6 +147,7 @@ export async function buildCrossPublishPlan(input) {
     publisherName = '',
     postUrl = '',
     video = null,
+    videos: suppliedVideos = [],
     cover = null,
     selections = EMPTY_CROSS_PUBLISH_SELECTIONS,
     quitterText = '',
@@ -169,7 +171,7 @@ export async function buildCrossPublishPlan(input) {
   const warnings = [];
   let announcement = '';
 
-  const videoList = Array.isArray(input.videos) && input.videos.length ? input.videos : (video ? [video] : []);
+  const videoList = Array.isArray(suppliedVideos) && suppliedVideos.length ? suppliedVideos : (video ? [video] : []);
   const videoMoves = [];
   if (selections.qtube) {
     if (!videoList.length) {
@@ -184,18 +186,21 @@ export async function buildCrossPublishPlan(input) {
         title: draft.title,
         plainDescription: excerptFor(draft),
         htmlDescription: html,
-        video: { ...current, name: current.name || name, service: 'VIDEO' },
+        video: { ...current, identifier: videoIdentifier, name: current.name || name, service: 'VIDEO' },
         token,
         videoIdentifier
       });
-      // The VIDEO bytes stay at the CMS attachment coordinate and are uploaded
-      // exactly once. Only the derived Q-Tube metadata gets a Q-Tube identifier.
-      // Re-keying the media coordinate would upload the same bytes a second time.
+      if (current.identifier !== videoIdentifier) {
+        videoMoves.push({
+          from: current.identifier, to: videoIdentifier,
+          filename: current.filename, size: Number(current.size) || 0
+        });
+      }
       const reused = await destinationReused({
         service: resource.service, name, identifier: resource.identifier, document: resource.document, readRemote
       });
       entries.push({
-        id: videoList.length > 1 ? 'qtube-' + (index + 1) : 'qtube',
+        id: index === 0 ? 'qtube' : 'qtube-' + (index + 1),
         label: CROSS_PUBLISH_LABELS.qtube,
         service: 'DOCUMENT',
         identifier,
@@ -203,7 +208,8 @@ export async function buildCrossPublishPlan(input) {
         reused,
         summary: reused
           ? 'Q-Tube metadata is already published with identical content; the video is reused.'
-          : 'Q-Tube metadata references the single VIDEO resource at ' + (current.name || name) + ' / ' + current.identifier + '.'
+          : 'Q-Tube metadata references the VIDEO resource at ' + (current.name || name) + ' / ' + videoIdentifier
+            + ' (published once under the Q-Tube identifier convention).'
       });
       if (!reused) resources.push(resource);
     }

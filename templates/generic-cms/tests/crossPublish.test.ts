@@ -14,7 +14,9 @@ import {
   qtubeMetadataIdentifier
 } from '../src/lib/crossPublish/qtube.js';
 import {
+  SUBWIRE_COVER_RAW_MAX_BYTES,
   buildSubwireArticle,
+  convertCoverToWebp,
   fallbackSubwireCover,
   isSubwireRenderableArticle,
   markdownFromHtml,
@@ -194,12 +196,27 @@ describe('Subwire article contract', () => {
     expect(markdown).not.toContain('<script>');
   });
 
-  it('embeds only raster images and rejects SVG cover bytes', () => {
+  it('embeds only WebP cover bytes as bare base64', () => {
+    const webp = new Uint8Array([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00]);
+    const embedded = subwireCoverFromBytes({ bytes: webp, mime: 'image/webp', name: 'cover.webp' });
+    expect(embedded?.name).toBe('cover.webp');
+    expect(embedded?.src).toBe(btoa(String.fromCharCode(...webp)));
+    expect(embedded?.src.startsWith('data:')).toBe(false);
     const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
-    expect(subwireCoverFromBytes({ bytes: jpeg, mime: 'image/jpeg', name: 'cover.jpg' })?.src)
-      .toBe('data:image/jpeg;base64,' + btoa(String.fromCharCode(...jpeg)));
+    expect(subwireCoverFromBytes({ bytes: jpeg, mime: 'image/jpeg', name: 'cover.jpg' })).toBeNull();
     expect(subwireCoverFromBytes({ bytes: jpeg, mime: 'image/svg+xml', name: 'cover.svg' })).toBeNull();
-    expect(subwireCoverFromBytes({ bytes: jpeg, name: 'cover.jpeg' })?.src.startsWith('data:image/jpeg;base64,')).toBe(true);
+  });
+
+  it('converts the featured image to WebP or fails with a clear message', async () => {
+    const webp = new Uint8Array([1, 2, 3]);
+    await expect(convertCoverToWebp({ bytes: webp, mime: 'image/webp', name: 'a.webp' }))
+      .resolves.toMatchObject({ mime: 'image/webp', name: 'a.webp' });
+    await expect(convertCoverToWebp({
+      bytes: new Uint8Array(SUBWIRE_COVER_RAW_MAX_BYTES + 1), mime: 'image/webp', name: 'big.webp'
+    })).rejects.toThrow(/above the/);
+    await expect(convertCoverToWebp({
+      bytes: new Uint8Array([0xff]), mime: 'image/jpeg', name: 'a.jpg', windowLike: {}
+    })).rejects.toThrow(/canvas/);
   });
 
   it('builds a renderable article and a deterministic fallback cover', () => {
@@ -257,6 +274,24 @@ describe('cross-publication planning', () => {
     expect(first.entries.every((entry: any) => entry.reused === false)).toBe(true);
     expect(first.announcement.length).toBeLessThanOrEqual(QUITTER_TEXT_LIMIT);
     expect(first.announcement).toContain('qortal://APP/QortalDemo/#/posts/pohja-tallinn-ja-qortal');
+  });
+
+  it('re-keys every video under qtube_vid_ and moves the CMS references', async () => {
+    const videos = [
+      { ...video, kind: 'video' },
+      { ...video, kind: 'video', identifier: 'qms-cms-att-second', filename: 'teine.mp4' }
+    ];
+    const plan: any = await buildCrossPublishPlan(planInput({
+      selections: { qtube: true, subwire: false, quitter: false },
+      videos
+    }));
+    expect(plan.videoMoves).toHaveLength(2);
+    expect(plan.videoMoves[0].to.startsWith('qtube_vid_')).toBe(true);
+    expect(plan.videoMoves[1].to).not.toBe(plan.videoMoves[0].to);
+    const firstMetadata = plan.entries.find((entry: any) => entry.id === 'qtube');
+    const secondMetadata = plan.entries.find((entry: any) => entry.id === 'qtube-2');
+    expect(firstMetadata.document.videoReference.identifier).toBe(plan.videoMoves[0].to);
+    expect(secondMetadata.document.videoReference.identifier).toBe(plan.videoMoves[1].to);
   });
 
   it('marks an identical remote destination as reused and removes it from the batch', async () => {

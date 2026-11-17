@@ -9,8 +9,8 @@ export function emptyCrossPublishSelections(): CrossPublishSelections {
 }
 
 export function CrossPublishPanel(props: {
-  /** First eligible VIDEO attachment, or null. */
-  video: { filename: string; size: number } | null;
+  /** Every eligible VIDEO attachment, in document order. */
+  videos: Array<{ filename: string; size: number }>;
   selections: CrossPublishSelections;
   quitterText: string;
   quitterLimit: number;
@@ -19,7 +19,11 @@ export function CrossPublishPanel(props: {
   onQuitterText: (value: string) => void;
   onRegenerateQuitter: () => void;
 }) {
-  const qtubeChecked = Boolean(props.video) && props.selections.qtube;
+  const videos = Array.isArray(props.videos) ? props.videos : [];
+  const count = videos.length;
+  const first = videos[0] || null;
+  const totalSize = videos.reduce((sum, item) => sum + (Number(item.size) || 0), 0);
+  const qtubeChecked = count > 0 && props.selections.qtube;
   const overLimit = props.quitterText.trim().length > props.quitterLimit;
   return (
     <section className="cross-publish-panel" aria-labelledby="cross-publish-title">
@@ -34,18 +38,20 @@ export function CrossPublishPanel(props: {
           type="checkbox"
           aria-label="Publish to Q-Tube"
           checked={qtubeChecked}
-          disabled={!props.video}
+          disabled={count === 0}
           onChange={(event) => props.onToggle('qtube', event.target.checked)}
         />
         <span>
-          <strong>Q-Tube</strong> — publish video metadata that Q-Tube can discover and play. The existing VIDEO
-          attachment is referenced, never uploaded twice.
+          <strong>Q-Tube</strong> — publish each video under the Q-Tube identifier so Q-Tube can discover and play it.
+          The CMS post references the same resource; the bytes are uploaded once.
         </span>
       </label>
       <p className="cross-publish-hint" data-destination="qtube">
-        {props.video
-          ? 'Eligible video: ' + props.video.filename + ' (' + formatBytes(props.video.size) + ').'
-          : 'No eligible video attachment. Q-Tube accepts ' + QTUBE_PLAYABLE_EXTENSIONS.join(', ').toUpperCase() + ' videos (MKV and HEVC are rejected by Q-Tube).'}
+        {count === 0
+          ? 'No eligible video attachment. Q-Tube accepts ' + QTUBE_PLAYABLE_EXTENSIONS.join(', ').toUpperCase() + ' videos (MKV and HEVC are rejected by Q-Tube).'
+          : count === 1
+            ? 'Eligible video: ' + first.filename + ' (' + formatBytes(first.size) + ').'
+            : count + ' eligible videos (' + formatBytes(totalSize) + '): ' + videos.map((item) => item.filename).join(', ') + '. Each is published once under qtube_vid_.'}
       </p>
 
       <label className="check-row">

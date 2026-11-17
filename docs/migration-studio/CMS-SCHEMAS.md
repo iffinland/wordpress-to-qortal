@@ -273,6 +273,22 @@ Inside `qms-qdn-content@1` HTML an attachment is a block `<div class="qms-attach
 
 Text colors are class-only spans: `<span class="qms-color qms-color-<red|orange|yellow|green|teal|blue|purple|pink|gray>">`.
 
+## Q-Tube cross-post resources and the video re-key
+
+When Q-Tube is selected, every eligible video attachment is published once under the Q-Tube convention, and the CMS post references that same coordinate:
+
+| Resource | QDN service | Identifier |
+| --- | --- | --- |
+| First video | `VIDEO` | `qtube_vid_<token>` |
+| Additional video | `VIDEO` | `qtube_vid_<token>_1`, `_2`, ... |
+| Q-Tube metadata | `DOCUMENT` | `<video identifier>_metadata` with `tag1: qtube_vid_` |
+
+The CMS attachment block is rewritten from the CMS media identifier to the Q-Tube identifier before the single batch is signed, so the bytes are uploaded once. If the same video is already READY under the CMS media identifier, the confirmation dialog shows the file size and the total fee before the extra upload; it never uploads silently.
+
+## SubWire cover contract
+
+`coverImage.src` is bare WebP base64, not a data URL: SubWire renders it as `data:image/webp;base64,<src>`. The editor converts the featured image in the webview canvas, scales it to at most 1600 px, and enforces a 2 MiB raw-byte cap. If conversion is impossible, the dialog reports a clear error and SubWire is not published. A generated cover is used only when the post has no embeddable featured image.
+
 ## Cross-post record `qms-cms-crosspost`
 
 Optional DOCUMENT written in the same confirmed batch as the post when at least one destination is selected:
