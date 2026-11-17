@@ -313,6 +313,21 @@ Optional DOCUMENT written in the same confirmed batch as the post when at least 
 - Quitter is only created when neither the record nor the deterministic Quitter resource already exists; edits never repeat the announcement.
 - The record is informational about submitted resources; the dialog's per-destination result remains the source of truth.
 
+## Local storage scope
+
+Local working state is scoped by the deployment identity (service, name, identifier, site id) **and** the verified owner address. The scoped key shape is `<base>//<service>:<name>:<identifier>:<siteId>:<address>`; no private record is read before the owner identity is verified.
+
+| Base key | Content | Scope today |
+| --- | --- | --- |
+| `qms-cms-post-drafts` | local post/page drafts | deployment + verified owner address |
+| `qms-cms-publish-pending@1` | pending publication records | deployment + verified owner address (scoped Storage view) |
+| `qms-cms-settings-draft@1` | site-settings draft | deployment + verified owner address |
+| `qms-cms-adoption` | adoption queue | deployment + verified owner address |
+| `qms-cms-dataset-cache@2` | public published dataset cache | deployment-bound only; contains no account data |
+| `qms-cms-theme@1` | light/dark UI preference | global browser preference, not account data |
+
+Legacy `qms-cms-post-drafts:<siteId>` is never returned as drafts. The admin drafts area shows only its count and a Delete button; no titles or content are shown and no adoption is offered. There is no sessionStorage or IndexedDB usage.
+
 ## Resources deliberately not used
 
 - No localStorage-only ownership or settings.

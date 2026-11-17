@@ -1,5 +1,7 @@
 import { canMutate, requireOwner } from './ownership.js';
 
+import { scopedKey } from './storageScope.js';
+
 export const ADOPTION_QUEUE_SCHEMA = 'qms-cms-adoption-queue@1';
 
 export function adoptionKey(siteId, item) {
@@ -44,10 +46,13 @@ export function removeAdoption(queue, key, identity) {
   return { ok: true, error: null, message: '', queue: current.filter((record) => record.key !== key) };
 }
 
-export function readAdoptionQueue(storage, siteId) {
-  if (!storage) return [];
+const ADOPTION_BASE_KEY = 'qms-cms-adoption';
+
+export function readAdoptionQueue(storage, scope) {
+  const key = scopedKey(ADOPTION_BASE_KEY, scope);
+  if (!storage || !key) return [];
   try {
-    const raw = storage.getItem('qms-cms-adoption:' + String(siteId || 'site'));
+    const raw = storage.getItem(key);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return parsed && parsed.schema === ADOPTION_QUEUE_SCHEMA && Array.isArray(parsed.records) ? parsed.records : [];
@@ -56,12 +61,13 @@ export function readAdoptionQueue(storage, siteId) {
   }
 }
 
-export function writeAdoptionQueue(storage, siteId, records) {
-  if (!storage) return false;
+export function writeAdoptionQueue(storage, scope, records) {
+  const key = scopedKey(ADOPTION_BASE_KEY, scope);
+  if (!storage || !key) return false;
   try {
-    storage.setItem('qms-cms-adoption:' + String(siteId || 'site'), JSON.stringify({
+    storage.setItem(key, JSON.stringify({
       schema: ADOPTION_QUEUE_SCHEMA,
-      siteId: String(siteId || 'site'),
+      siteId: String((scope.binding && scope.binding.siteId) || ''),
       records: Array.isArray(records) ? records : []
     }));
     return true;

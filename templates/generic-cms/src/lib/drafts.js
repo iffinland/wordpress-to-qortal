@@ -1,7 +1,15 @@
 /**
  * Local, resumable drafts. Drafts are convenience state only — they never grant
  * ownership and are never published without a fresh owner revalidation.
+ *
+ * Storage is scoped by deployment AND the verified owner address. There is no
+ * unscoped read path: old unscoped data is counted for a delete-only notice and
+ * is never returned as drafts.
  */
+
+import { legacyKey, scopedKey } from './storageScope.js';
+
+const DRAFT_BASE_KEY = 'qms-cms-post-drafts';
 
 export const DRAFT_STORAGE_SCHEMA = 'qms-cms-post-drafts@1';
 export const DRAFT_STORAGE_VERSION = 1;
@@ -38,14 +46,15 @@ export function publicationStateForResult(result) {
   return 'failed';
 }
 
-function keyFor(siteId) {
-  return 'qms-cms-post-drafts:' + String(siteId || 'site');
+function keyFor(scope) {
+  return scopedKey(DRAFT_BASE_KEY, scope);
 }
 
-export function readDrafts(storage, siteId) {
-  if (!storage) return [];
+export function readDrafts(storage, scope) {
+  const key = keyFor(scope);
+  if (!storage || !key) return [];
   try {
-    const raw = storage.getItem(keyFor(siteId));
+    const raw = storage.getItem(key);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!parsed || parsed.schema !== DRAFT_STORAGE_SCHEMA || !Array.isArray(parsed.drafts)) return [];
@@ -55,15 +64,45 @@ export function readDrafts(storage, siteId) {
   }
 }
 
-export function writeDrafts(storage, siteId, drafts) {
-  if (!storage) return false;
+export function writeDrafts(storage, scope, drafts) {
+  const key = keyFor(scope);
+  if (!storage || !key) return false;
   try {
-    storage.setItem(keyFor(siteId), JSON.stringify({
+    storage.setItem(key, JSON.stringify({
       schema: DRAFT_STORAGE_SCHEMA,
       version: DRAFT_STORAGE_VERSION,
-      siteId: String(siteId || 'site'),
+      siteId: String((scope.binding && scope.binding.siteId) || ''),
       drafts: Array.isArray(drafts) ? drafts : []
     }));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Old, unscoped key from versions before per-account storage. */
+export function legacyDraftsKey(siteId) {
+  return legacyKey(DRAFT_BASE_KEY, siteId);
+}
+
+/** Only the number of legacy drafts; their titles and content are never read. */
+export function legacyDraftCount(storage, siteId) {
+  if (!storage) return 0;
+  try {
+    const raw = storage.getItem(legacyDraftsKey(siteId));
+    if (!raw) return 0;
+    const parsed = JSON.parse(raw);
+    return parsed && Array.isArray(parsed.drafts) ? parsed.drafts.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Delete-only action for the legacy bucket; scoped drafts are untouched. */
+export function deleteLegacyDrafts(storage, siteId) {
+  if (!storage) return false;
+  try {
+    storage.removeItem(legacyDraftsKey(siteId));
     return true;
   } catch {
     return false;

@@ -7,12 +7,15 @@ import { quotePublication } from '../../lib/publish.js';
 import { NavigationEditor } from './NavigationEditor';
 import { StateNotice } from '../../components/StateNotice';
 import { ConfirmPublishDialog, type PublishPhase } from '../../components/ConfirmPublishDialog';
+import { createScopedStorage, scopedKey, storageScope } from '../../lib/storageScope.js';
 
 const DRAFT_KEY = 'qms-cms-settings-draft@1';
 
-function loadDraft(siteId: string, fallback: any) {
+function loadDraft(scope: any, fallback: any) {
+  const key = scopedKey(DRAFT_KEY, scope);
+  if (!key) return fallback;
   try {
-    const raw = localStorage.getItem(DRAFT_KEY + ':' + siteId);
+    const raw = localStorage.getItem(key);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw);
     return parsed && parsed.draft ? parsed.draft : fallback;
@@ -21,9 +24,11 @@ function loadDraft(siteId: string, fallback: any) {
   }
 }
 
-function saveDraft(siteId: string, draft: unknown) {
+function saveDraft(scope: any, draft: unknown) {
+  const key = scopedKey(DRAFT_KEY, scope);
+  if (!key) return;
   try {
-    localStorage.setItem(DRAFT_KEY + ':' + siteId, JSON.stringify({ schema: DRAFT_KEY, siteId, savedAt: new Date().toISOString(), draft }));
+    localStorage.setItem(key, JSON.stringify({ schema: DRAFT_KEY, siteId: (scope.binding && scope.binding.siteId) || '', savedAt: new Date().toISOString(), draft }));
   } catch {
     // Draft convenience only; QDN publication is the source of truth.
   }
@@ -48,7 +53,12 @@ export function SettingsPanel(props: {
     }
     return defaultSettingsDraft(props.config);
   }, [props.config, props.remoteSettings, props.qdnName]);
-  const [draft, setDraft] = useState<any>(() => loadDraft(props.siteId, fallback));
+  const scope = useMemo(() => storageScope({
+    deployment: props.config.deployment,
+    identity: props.identity,
+    siteId: props.siteId
+  }), [props.config.deployment, props.identity, props.siteId]);
+  const [draft, setDraft] = useState<any>(() => loadDraft(scope, fallback));
   const [state, setState] = useState<'idle' | 'publishing' | 'verified' | 'ambiguous' | 'failed' | 'conflict'>('idle');
   const [message, setMessage] = useState('');
   const [confirming, setConfirming] = useState(false);
@@ -66,7 +76,7 @@ export function SettingsPanel(props: {
 
   const updateSite = (key: string, value: string) => { setDirty(true); setDraft((current: any) => ({ ...current, site: { ...current.site, [key]: value } })); };
   const updateColor = (key: string, value: string) => { setDirty(true); setDraft((current: any) => ({ ...current, colors: { ...current.colors, [key]: value } })); };
-  const persistDraft = (next: unknown) => { setDirty(false); setDraft(next as any); saveDraft(props.siteId, next); };
+  const persistDraft = (next: unknown) => { setDirty(false); setDraft(next as any); saveDraft(scope, next); };
 
   const revertToPublished = () => {
     setDraft(fallback);
@@ -108,13 +118,13 @@ export function SettingsPanel(props: {
       name: props.qdnName,
       draft,
       baseRevision: remoteRevision,
-      storage: localStorage,
+      storage: createScopedStorage(localStorage, scope),
       timestamp
     });
     if (result.ok) {
       setState('verified');
       setMessage(result.message || 'Published and verified.');
-      saveDraft(props.siteId, draft);
+      saveDraft(scope, draft);
       setDirty(false);
       props.onPublished((result as any).document);
       setPreviewing(false);

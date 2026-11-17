@@ -4,7 +4,12 @@ import { EditorPage } from '../src/pages/admin/EditorPage';
 import { AdminPage } from '../src/pages/AdminPage';
 import { loadFixture, ownerIdentity, readerIdentity } from './support/fixtures';
 import { normalizeContentPayload } from '../src/lib/manifest.js';
+import { cmsConfig } from '../src/config/cmsConfig';
+import { scopedKey, storageScope } from '../src/lib/storageScope.js';
 import type { CmsContentItem, CmsDataset } from '../src/types';
+
+const testScope = storageScope({ deployment: (cmsConfig as any).deployment, identity: ownerIdentity, siteId: 'site-fixture' });
+const draftKey = scopedKey('qms-cms-post-drafts', testScope) || '';
 
 let dataset: CmsDataset;
 let payloads: Record<string, any>;
@@ -186,7 +191,7 @@ describe('editing imported WordPress content', () => {
     expect((screen.getByLabelText('Slug') as HTMLInputElement).value).toBe('hello-qortal');
     fireEvent.click(screen.getByRole('button', { name: 'Save draft' }));
     expect(screen.getByText(/This is not a published update/)).toBeTruthy();
-    const stored = JSON.parse(localStorage.getItem('qms-cms-post-drafts:site-fixture') || '{}');
+    const stored = JSON.parse(localStorage.getItem(draftKey) || '{}');
     expect(stored.drafts[0]).toMatchObject({ title: 'Edited Hello', publicationState: 'modified-unpublished', sourceKind: 'wordpress-overlay' });
   });
 
@@ -245,7 +250,7 @@ describe('editing imported WordPress content', () => {
 
   it('reports missing and ambiguous publication states without calling them published', async () => {
     stubNetwork();
-    localStorage.setItem('qms-cms-post-drafts:site-fixture', JSON.stringify({
+    localStorage.setItem(draftKey, JSON.stringify({
       schema: 'qms-cms-post-drafts@1',
       version: 1,
       siteId: 'site-fixture',
@@ -301,7 +306,7 @@ describe('featured images in the rendered editor', () => {
 
   it('auto-selects the first suitable body image and can be removed explicitly', async () => {
     stubNetwork();
-    localStorage.setItem('qms-cms-post-drafts:site-fixture', JSON.stringify({
+    localStorage.setItem(draftKey, JSON.stringify({
       schema: 'qms-cms-post-drafts@1',
       version: 1,
       siteId: 'site-fixture',
@@ -324,7 +329,7 @@ describe('featured images in the rendered editor', () => {
     Object.defineProperty(URL, 'createObjectURL', { value: () => 'blob:featured-preview', configurable: true });
     try {
       stubNetwork();
-      localStorage.setItem('qms-cms-post-drafts:site-fixture', JSON.stringify({
+      localStorage.setItem(draftKey, JSON.stringify({
         schema: 'qms-cms-post-drafts@1',
         version: 1,
         siteId: 'site-fixture',
@@ -354,7 +359,7 @@ describe('featured images in the rendered editor', () => {
 describe('truncated automatic slug guard in the rendered editor', () => {
   it('refuses to save or publish a one-character automatic slug from a longer title', async () => {
     stubNetwork();
-    localStorage.setItem('qms-cms-post-drafts:site-fixture', JSON.stringify({
+    localStorage.setItem(draftKey, JSON.stringify({
       schema: 'qms-cms-post-drafts@1',
       version: 1,
       siteId: 'site-fixture',

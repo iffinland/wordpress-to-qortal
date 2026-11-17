@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CmsDataset, Gallery, GalleryImage, ViewerIdentity } from '../../types';
 import { StateNotice } from '../../components/StateNotice';
 import { loadGalleryCatalog, publishGalleryDraft } from '../../lib/authoring.js';
+import { cmsConfig } from '../../config/cmsConfig';
+import { createScopedStorage, storageScope } from '../../lib/storageScope.js';
 import { prepareMediaResource, quotePublication } from '../../lib/publish.js';
 import { readFileBytes } from '../../lib/mediaBytes.js';
 import { ConfirmPublishDialog, type PublishPhase } from '../../components/ConfirmPublishDialog';
@@ -24,6 +26,7 @@ export function GalleryAdmin(props: {
   galleries: Gallery[];
   onRefresh: () => void;
 }) {
+  const scope = storageScope({ deployment: (cmsConfig as any).deployment, identity: props.identity, siteId: props.siteId });
   const [revision, setRevision] = useState(0);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [editing, setEditing] = useState<any>(null);
@@ -190,7 +193,7 @@ export function GalleryAdmin(props: {
       gallery: plan.merged,
       newImageCount: plan.added,
       baseRevision: revision,
-      storage: localStorage,
+      storage: createScopedStorage(localStorage, scope),
       now: plan.timestamp,
       extraResources: plan.resources
     });

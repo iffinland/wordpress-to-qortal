@@ -3,6 +3,7 @@ import type { Gallery, CmsMediaRef, ViewerIdentity } from '../../types';
 import { createQdnResourceUrl, searchQdnResources } from '../../lib/qortal.js';
 import { publishMediaFile } from '../../lib/publish.js';
 import { StateNotice } from '../../components/StateNotice';
+import { createScopedStorage } from '../../lib/storageScope.js';
 
 export interface InsertedMedia {
   url: string;
@@ -15,6 +16,7 @@ export interface InsertedMedia {
 export function MediaPicker(props: {
   identity: ViewerIdentity;
   name: string;
+  scope?: any;
   catalogMedia: CmsMediaRef[];
   galleries: Gallery[];
   onInsert: (media: InsertedMedia) => void;
@@ -75,7 +77,7 @@ export function MediaPicker(props: {
     setMessage('Waiting for Qortal Hub approval for each file...');
     let published = 0;
     for (const file of files) {
-      const result = await publishMediaFile({ identity: props.identity, name: props.name, file, storage: localStorage as any });
+      const result = await publishMediaFile({ identity: props.identity, name: props.name, file, storage: createScopedStorage(localStorage, props.scope) as any });
       if (!result.ok || !result.ref) {
         setState('failed');
         setMessage('Stopped after ' + published + ' file(s): ' + result.message);

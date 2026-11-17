@@ -15,12 +15,15 @@ import type { PublishPhase } from '../../components/ConfirmPublishDialog';
 import { draftFromItem, fingerprintSource, resolveTerms, termNames, type QdnRefLike } from './editor/editorUtils';
 import {
   createDraft,
+  deleteLegacyDrafts,
+  legacyDraftCount,
   publicationStateForResult,
   readDrafts,
   removeDraft,
   upsertDraft,
   writeDrafts
 } from '../../lib/drafts.js';
+import { createScopedStorage, storageScope } from '../../lib/storageScope.js';
 import { loadNativeIndex, loadOverlay, publishNativePostDraft, publishOverlayDraft, resolveOverlayConflict } from '../../lib/authoring.js';
 import { SectionsPicker } from './editor/SectionsPicker';
 import { assignmentFor, sameAssignment } from '../../lib/sections.js';
@@ -79,8 +82,32 @@ export function EditorPage(props: {
   /** Admin section focus: only list and create this content type. */
   contentType?: 'post' | 'page';
 }) {
-  const [drafts, setDrafts] = useState<any[]>(() => readDrafts(localStorage, props.siteId));
   const siteConfig = props.config || cmsConfig;
+  const scope = useMemo(() => storageScope({
+    deployment: siteConfig.deployment,
+    identity: props.identity,
+    siteId: props.siteId
+  }), [siteConfig.deployment, props.identity, props.siteId]);
+  const [draftStore, setDraftStore] = useState<{ key: string; drafts: any[] }>({ key: '', drafts: [] });
+  const drafts = scope && draftStore.key === scope.key ? draftStore.drafts : [];
+  const persistDrafts = (next: any[]) => {
+    if (!scope) return;
+    writeDrafts(localStorage, scope, next);
+    setDraftStore({ key: scope.key, drafts: next });
+  };
+  const [legacyCount, setLegacyCount] = useState(0);
+  useEffect(() => {
+    if (!scope) {
+      setDraftStore({ key: '', drafts: [] });
+      setLegacyCount(0);
+      return;
+    }
+    // Clear the previous account's drafts before reading the new scope, so an
+    // account switch never flashes the previous owner's data.
+    setDraftStore({ key: scope.key, drafts: [] });
+    setDraftStore({ key: scope.key, drafts: readDrafts(localStorage, scope) });
+    setLegacyCount(legacyDraftCount(localStorage, props.siteId));
+  }, [scope && scope.key, props.siteId]);
   const [draft, setDraft] = useState<any>(null);
   const [revision, setRevision] = useState(0);
   const [overlay, setOverlay] = useState<any>(null);
@@ -226,8 +253,7 @@ export function EditorPage(props: {
     setDraft(next);
     setDirty(true);
     const updated = upsertDraft(drafts, next);
-    setDrafts(updated);
-    writeDrafts(localStorage, props.siteId, updated);
+    persistDrafts(updated);
   };
 
   const savedSnapshot = (value: any) => JSON.stringify({
@@ -285,8 +311,7 @@ export function EditorPage(props: {
       const next = draftFromItem(item, content, revision, props.dataset);
       openDraftState(next);
       const updated = upsertDraft(drafts, next);
-      setDrafts(updated);
-      writeDrafts(localStorage, props.siteId, updated);
+      persistDrafts(updated);
     } catch (error) {
       setMessage('Could not load the published post for editing: ' + (error instanceof Error ? error.message : String(error)));
       setState('failed');
@@ -368,8 +393,7 @@ export function EditorPage(props: {
       next.conflictResolved = false;
       openDraftState(next);
       const updated = upsertDraft(drafts, next);
-      setDrafts(updated);
-      writeDrafts(localStorage, props.siteId, updated);
+      persistDrafts(updated);
     } catch (error) {
       setMessage('Could not load the imported post for editing: ' + (error instanceof Error ? error.message : String(error)));
       setState('failed');
@@ -623,6 +647,7 @@ export function EditorPage(props: {
   };
 
   const requestPublish = async () => {
+    if (!scope) { setState('failed'); setMessage('Verify the owner account before publishing.'); return; }
     if (!draft.title.trim()) { setState('failed'); setMessage('A title is required.'); return; }
     const finalSlug = finalizeSlug(draft.slug || slugify(draft.title));
     const truncated = prematureAutoSlugProblem({
@@ -812,7 +837,7 @@ export function EditorPage(props: {
             slugAliases: mergeAliases(draft.slugAliases, draft.originalSlug || draft.sourceSlug, finalSlug)
           },
           baseRevision: overlayRevision,
-          storage: localStorage,
+          storage: createScopedStorage(localStorage, scope),
           author,
           timestamp,
           extraResources: mediaResources,
@@ -828,7 +853,7 @@ export function EditorPage(props: {
             slugAliases: mergeAliases(draft.slugAliases, draft.originalSlug, finalSlug)
           },
           baseRevision: revision,
-          storage: localStorage,
+          storage: createScopedStorage(localStorage, scope),
           author,
           timestamp,
           extraResources: mediaResources,
@@ -949,7 +974,7 @@ export function EditorPage(props: {
       sourceItemId: draft.sourceItemId,
       resolution,
       baseRevision: overlayRevision,
-      storage: localStorage,
+      storage: createScopedStorage(localStorage, scope),
       currentSourceHash: upstream ? await fingerprintSource(upstream, { legacy: { sourceId: draft.sourceId } } as any) : draft.baseSourceHash,
       currentSourceModifiedAt: upstream ? upstream.modifiedAt : draft.sourceModifiedAt
     });
@@ -1026,6 +1051,23 @@ export function EditorPage(props: {
         Template v{templateVersion}. If this version is older than the release you deployed, the site is still serving a stale Q-App or WEBSITE bundle; republish the verified CMS ZIP before relying on slug or featured-image behaviour.
       </p>
 
+      {legacyCount > 0 ? (
+        <div className="state-notice" role="status">
+          <p>{legacyCount} old unassigned local draft{legacyCount === 1 ? '' : 's'} on this device. They are hidden and are not tied to any account.</p>
+          <button
+            type="button"
+            className="button button--ghost"
+            onClick={() => {
+              deleteLegacyDrafts(localStorage, props.siteId);
+              setLegacyCount(0);
+            }}
+          >
+            Delete old local drafts
+          </button>
+        </div>
+      ) : null}
+      {!scope ? <p className="muted" role="status">Verify the owner account to see local drafts.</p> : null}
+
       {!draft ? (
         <>
           <DraftLists
@@ -1036,8 +1078,7 @@ export function EditorPage(props: {
             onEditDraft={editDraft}
             onDeleteDraft={(id) => {
               const next = removeDraft(drafts, id);
-              setDrafts(next);
-              writeDrafts(localStorage, props.siteId, next);
+              persistDrafts(next);
             }}
             onEditPublished={editPublished}
             onEditImported={editImported}
@@ -1153,6 +1194,7 @@ export function EditorPage(props: {
         <MediaPicker
           identity={props.identity}
           name={props.name}
+          scope={scope}
           catalogMedia={props.dataset ? props.dataset.media : []}
           galleries={props.galleries}
           onInsert={insertMedia}
