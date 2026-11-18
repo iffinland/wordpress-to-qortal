@@ -134,7 +134,7 @@ describe('optional cross-publication destinations in the post editor', () => {
     });
     fireEvent.click(screen.getByLabelText('Publish to Quitter'));
     const textarea = await screen.findByLabelText('Quitter announcement text') as HTMLTextAreaElement;
-    await waitFor(() => expect(textarea.value).toContain('qortal://APP/QortalDemo/?identifier=qms-site#/posts/cms-existing'));
+    await waitFor(() => expect(textarea.value).toContain('qortal://APP/QortalDemo/#/posts/cms-existing'));
   });
 
   it('reports a failed destination separately while keeping the CMS post published', async () => {

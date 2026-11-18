@@ -254,19 +254,22 @@ export async function verifyReady({
   for (;;) {
     let status = null;
     try { status = await statusFn(service, name, identifier); } catch (error) { lastError = error && error.message ? error.message : String(error); }
-    if (status && status.status === 'READY') {
-      if (!expectedSha256) return { ok: true, status: 'READY' };
+    if (status && (status.status === 'READY' || status.status === 'DOWNLOADED')) {
+      if (!expectedSha256) return { ok: true, status: status.status };
       try {
         const actual = await fetchBytes(service, name, identifier);
         const actualSha256 = await sha256Hex(actual);
-        if (actualSha256 === expectedSha256) return { ok: true, status: 'READY', actualSha256 };
-        return {
-          ok: false,
-          state: 'ambiguous',
-          status: 'READY',
-          actualSha256,
-          message: 'Published bytes for ' + identifier + ' do not match the selected file. It was NOT resent.'
-        };
+        if (actualSha256 === expectedSha256) return { ok: true, status: status.status, actualSha256 };
+        if (status.status === 'READY') {
+          return {
+            ok: false,
+            state: 'ambiguous',
+            status: 'READY',
+            actualSha256,
+            message: 'Published bytes for ' + identifier + ' do not match the selected file. It was NOT resent.'
+          };
+        }
+        lastError = 'Downloaded bytes do not match yet.';
       } catch (error) {
         lastError = error && error.message ? error.message : String(error);
       }
@@ -274,14 +277,16 @@ export async function verifyReady({
       lastStatus = status.status;
     }
     if (Date.now() >= deadline) {
-      const propagating = lastStatus && PROPAGATING_STATUSES.has(lastStatus);
+      // A submitted media write is never reclassified as an ambiguous failure:
+      // the pending record prevents a resend and the retry only re-verifies.
       return {
         ok: false,
-        state: propagating ? 'pending-propagation' : 'ambiguous',
+        state: 'pending-propagation',
         status: lastStatus,
-        message: propagating
-          ? 'Published, but QDN is still downloading the video (status ' + lastStatus + '). It was NOT resent. The video appears when the resource is READY.'
-          : 'The video resource was not confirmed on QDN. It was NOT resent.' + (lastError ? ' ' + lastError : '')
+        message: 'Video submitted but QDN has not finished propagating or verifying it yet'
+          + (lastStatus ? ' (status ' + lastStatus + ')' : '')
+          + '. It was NOT resent. Retry verification; the video appears when READY.'
+          + (lastError ? ' ' + lastError : '')
       };
     }
     await sleep(Math.min(5000, Math.max(1000, Math.ceil((Number(timeoutMs) || 1000) / 30))));

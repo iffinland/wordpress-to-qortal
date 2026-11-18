@@ -93,11 +93,12 @@ export function buildSitePostUrl(options = {}) {
     : 'APP';
   const siteName = hosted.name || (deployment && deployment.name) || name;
   if (!siteName) throw new Error('The CMS site name is unknown, so a public post link cannot be built.');
-  const rawIdentifier = hosted.identifier || (deployment && deployment.identifier) || 'default';
-  const identifier = rawIdentifier && rawIdentifier !== 'default' ? String(rawIdentifier) : '';
+  // Never use ?identifier= for a CMS article link. Subwire's renderer treats
+  // the fragment as part of the identifier, producing ?identifier=%23...
+  // and a blank Hub tab. The full site URL with the hash route is the format
+  // that works in Subwire and Torq.
   const base = 'qortal://' + service + '/' + encodeURIComponent(siteName) + '/';
-  const query = identifier ? '?identifier=' + encodeURIComponent(identifier) : '';
-  return base + query + '#/posts/' + encodeURIComponent(String(slug || ''));
+  return base + '#/posts/' + encodeURIComponent(String(slug || ''));
 }
 
 function defaultReadRemote(service, name, identifier) {

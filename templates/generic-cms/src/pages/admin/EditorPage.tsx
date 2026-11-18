@@ -31,7 +31,7 @@ import { assignmentFor, sameAssignment } from '../../lib/sections.js';
 import { prepareMediaResource, quotePublication } from '../../lib/publish.js';
 import { attachmentsInHtml, isPublicGatewayUrl, validateAttachment, formatBytes } from '../../lib/attachments.js';
 import { attachmentVault, attachmentVaultKey, captureForIdentifier } from '../../lib/attachmentVault.js';
-import { getQdnResourceStatus, getTrustedNodeUrl } from '../../lib/qortal.js';
+import { discoverHostedQdnResource, getQdnResourceStatus, getTrustedNodeUrl } from '../../lib/qortal.js';
 import type { AttachmentStore } from './editor/AttachmentTools';
 import { slugAvailable } from '../../lib/nativeCatalog.js';
 import {
@@ -224,6 +224,11 @@ export function EditorPage(props: {
         excerpt: stripHtml(draft.excerpt || ''),
         postUrl: buildSitePostUrl({
           deployment: siteConfig.deployment,
+          hosting: discoverHostedQdnResource({
+            name: props.name,
+            service: (siteConfig.deployment && siteConfig.deployment.service) || 'APP',
+            identifier: (siteConfig.deployment && siteConfig.deployment.identifier) || 'default'
+          }),
           name: props.name,
           slug: finalizeSlug(draft.slug || draft.title || '')
         }),
@@ -659,7 +664,16 @@ export function EditorPage(props: {
       siteId: props.siteId,
       siteTitle: siteConfig.site.title,
       publisherName: props.name,
-      postUrl: buildSitePostUrl({ deployment: siteConfig.deployment, name: props.name, slug: finalSlug }),
+      postUrl: buildSitePostUrl({
+        deployment: siteConfig.deployment,
+        hosting: discoverHostedQdnResource({
+          name: props.name,
+          service: (siteConfig.deployment && siteConfig.deployment.service) || 'APP',
+          identifier: (siteConfig.deployment && siteConfig.deployment.identifier) || 'default'
+        }),
+        name: props.name,
+        slug: finalSlug
+      }),
       video: videos[0] || null,
       videos,
       cover,
@@ -833,7 +847,13 @@ export function EditorPage(props: {
     // Optional destination resources join the same owner-approved batch.
     const destinationResources = crossPlan ? (crossPlan.resources as any[]) : [];
     if (destinationResources.length) mediaResources.push(...destinationResources);
-    setProgress([]);
+    const plannedProgress = [
+      { stage: 'content', identifier: draft.contentIdentifier || finalSlug, state: 'waiting' },
+      { stage: draft.sourceKind === 'wordpress-overlay' ? 'overlay' : 'index', identifier: draft.sourceKind === 'wordpress-overlay' ? 'qms-cms-edit-overlay' : 'qms-cms-native-index', state: 'waiting' },
+      { stage: 'search', identifier: 'qms-cms-search-index', state: 'waiting' },
+      ...mediaResources.map((resource: any) => ({ stage: resource.stage || resource.identifier, identifier: resource.identifier, state: 'waiting' }))
+    ];
+    setProgress(plannedProgress);
     setMessage('Waiting for Qortal Hub approval of the combined publication...');
 
     const publicationDraft = {

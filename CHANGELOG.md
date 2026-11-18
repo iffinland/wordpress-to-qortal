@@ -4,6 +4,18 @@ All release-facing changes to Qortal Migration Studio are recorded here. The
 release contract requires a heading entry for the exact released version before
 an artifact may be published.
 
+## Generic CMS 0.8.0-beta.5 — 2026-11-18
+
+Component-only Generic CMS release. Desktop and Migration Publisher remain
+**0.8.0-beta.1**; the QMS bundle tag remains **v0.8.0-beta.3**. Restores the
+real-time publishing progress lines; replaces the Subwire backlink with plain
+text plus the full visible CMS URL (no `?identifier=` query); keeps APP/WEBSITE
+article links dynamic with the trailing slash; and verifies large VIDEO
+resources only after READY/DOWNLOADED while reporting propagation as partial,
+never ambiguous, and never resending a pending write. Includes the accepted
+Android attachment, community-chat, owner-update, taxonomy and tagline fixes.
+No GitHub release or QDN publication is part of this handoff.
+
 ## 0.8.0-beta.3 — 2026-11-17
 
 Generic CMS **0.8.0-beta.4** artifact release. Desktop and Publisher remain **0.8.0-beta.1**. Adds an optional

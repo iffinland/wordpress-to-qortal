@@ -68,7 +68,7 @@ describe('publishBatch with attachments and posters', () => {
     });
     expect(result.ok).toBe(false);
     expect(result.state).toBe('pending-propagation');
-    expect(result.message).toContain('still downloading');
+    expect(result.message).toContain('propagating');
     expect(result.message).toContain('NOT resent');
   });
   it('sends the file by reference (no base64), lists every resource and reports progress', async () => {

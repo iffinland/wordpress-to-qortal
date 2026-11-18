@@ -322,7 +322,7 @@ describe('cross-publication planning', () => {
 
   it('builds a best-effort post deep link for APP and WEBSITE deployments', () => {
     expect(buildSitePostUrl({ deployment: { service: 'APP', name: 'Some Owner', identifier: 'qms-site' }, name: 'x', slug: 'my-post' }))
-      .toBe('qortal://APP/Some%20Owner/?identifier=qms-site#/posts/my-post');
+      .toBe('qortal://APP/Some%20Owner/#/posts/my-post');
     expect(buildSitePostUrl({ deployment: { service: 'WEBSITE', name: 'Owner', identifier: 'default' }, name: 'x', slug: 'my-post' }))
       .toBe('qortal://WEBSITE/Owner/#/posts/my-post');
     expect(buildSitePostUrl({ name: 'QortalDemo', slug: 'my-post' }))

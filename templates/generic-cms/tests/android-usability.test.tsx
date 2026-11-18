@@ -28,9 +28,14 @@ describe('cross-publish CMS links', () => {
       hosting: { name: 'Owner', service: 'WEBSITE', identifier: 'qms-site' },
       name: 'fallback',
       slug: 'my post'
-    })).toBe('qortal://WEBSITE/Owner/?identifier=qms-site#/posts/my%20post');
+    })).toBe('qortal://WEBSITE/Owner/#/posts/my%20post');
     expect(buildSitePostUrl({
       hosting: { name: 'Owner', service: 'WEBSITE', identifier: 'default' },
+      slug: 'my-post'
+    })).toBe('qortal://WEBSITE/Owner/#/posts/my-post');
+    // A malformed deployment identifier must never become ?identifier=%23...
+    expect(buildSitePostUrl({
+      hosting: { name: 'Owner', service: 'WEBSITE', identifier: '#/posts/broken' },
       slug: 'my-post'
     })).toBe('qortal://WEBSITE/Owner/#/posts/my-post');
   });

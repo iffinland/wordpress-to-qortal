@@ -101,10 +101,17 @@ export function ConfirmPublishPanel(props: {
         <div><dt>Signer</dt><dd>{props.identity.address}</dd></div>
         {props.slugChanged ? <div><dt>Slug change</dt><dd>Old slug /{props.publishedSlug} becomes an alias; old content resource is kept.</dd></div> : null}
       </dl>
-      {props.progress && props.progress.length && props.phase !== 'confirm' ? (
-        <ul className="publish-progress" aria-label="Progress per resource">
-          {props.progress.map((item) => <li key={item.stage + item.identifier}>{item.stage}: {item.state}</li>)}
-        </ul>
+      {props.phase !== 'confirm' ? (
+        <section className="publish-progress-section" aria-labelledby="publish-progress-title">
+          <h4 id="publish-progress-title">Publishing progress</h4>
+          {props.progress && props.progress.length ? (
+            <ul className="publish-progress" aria-label="Progress per resource">
+              {props.progress.map((item) => <li key={item.stage + item.identifier}>{item.stage}: {item.state}</li>)}
+            </ul>
+          ) : (
+            <p className="muted" role="status">Preparing resources for the owner-approved batch…</p>
+          )}
+        </section>
       ) : null}
       {props.crossResults && props.crossResults.length && props.phase !== 'confirm' ? (
         <section className="destination-results" aria-labelledby="destination-results-title">

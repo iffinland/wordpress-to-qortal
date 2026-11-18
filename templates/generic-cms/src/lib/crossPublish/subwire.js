@@ -215,7 +215,10 @@ export function markdownFromHtml(html, options = {}) {
     .trim();
   const postUrl = safeUrl(options.postUrl);
   if (!postUrl) return result;
-  const backlink = '[Read this post on the original site](' + postUrl + ')';
+  // Subwire autolinks bare qortal:// URLs (processLinks) and keeps the hash
+  // fragment intact. A Markdown link with ?identifier= was being re-encoded as
+  // %23 and opened a blank QDN target. Use ordinary text plus the full URL.
+  const backlink = 'Read this post on the original site: ' + postUrl;
   return (result ? result + '\n\n---\n\n' : '') + backlink;
 }
 
