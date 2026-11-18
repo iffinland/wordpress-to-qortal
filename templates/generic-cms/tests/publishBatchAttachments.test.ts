@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { publishBatch, readPending } from '../src/lib/publish.js';
+import { publishBatch, readPending, verifyReady } from '../src/lib/publish.js';
+import { createHash } from 'node:crypto';
 import { ownerIdentity } from './support/fixtures';
 
 type Mode = 'ok' | 'decline' | 'partial';
@@ -22,6 +23,10 @@ function install(mode: Mode) {
           if (failed.includes(item.identifier)) continue;
           ready.add(item.identifier);
           if (item.data64) stored.set(item.identifier, item.data64);
+          if (item.file) {
+            const buffer = Buffer.from(await item.file.arrayBuffer());
+            stored.set(item.identifier, buffer.toString('base64'));
+          }
         }
         return failed.length ? { message: 'resources failed', error: { unsuccessfulPublishes: failed.map((identifier) => ({ identifier, reason: 'x', service: 'VIDEO' })) } } : [{ signature: 's' }];
       }
@@ -32,9 +37,11 @@ function install(mode: Mode) {
   return calls;
 }
 
-const file = new Blob([new Uint8Array(2048).fill(7)], { type: 'video/mp4' });
+const fileBytes = new Uint8Array(2048).fill(7);
+const file = { size: fileBytes.length, type: 'video/mp4', arrayBuffer: async () => fileBytes.slice().buffer };
+const fileSha = createHash('sha256').update(Buffer.from(fileBytes)).digest('hex');
 const resources = () => [
-  { stage: 'attachment', service: 'VIDEO', identifier: 'att-1', file, sha256: 'a'.repeat(64), filename: 'clip.mp4', title: 'Clip', reuseIfReady: true },
+  { stage: 'attachment', service: 'VIDEO', identifier: 'att-1', file, sha256: fileSha, filename: 'clip.mp4', title: 'Clip', reuseIfReady: true },
   { stage: 'poster', service: 'IMAGE', identifier: 'poster-1', bytes: new Uint8Array([1, 2, 3]), filename: 'poster.jpg', reuseIfReady: true },
   { stage: 'content', identifier: 'post-1', document: { html: '<p>x</p>' } }
 ];
@@ -50,6 +57,20 @@ beforeEach(() => {
 afterEach(() => { delete (window as any).qortalRequest; vi.unstubAllGlobals(); localStorage.clear(); });
 
 describe('publishBatch with attachments and posters', () => {
+  it('reports a resource that is still propagating as pending, not as an ambiguous byte mismatch', async () => {
+    const result: any = await verifyReady({
+      service: 'VIDEO',
+      name: 'QortalDemo',
+      identifier: 'att-1',
+      expectedSha256: fileSha,
+      timeoutMs: 0,
+      statusFn: async () => ({ status: 'DOWNLOADING', localChunkCount: 33, totalChunkCount: 42 })
+    });
+    expect(result.ok).toBe(false);
+    expect(result.state).toBe('pending-propagation');
+    expect(result.message).toContain('still downloading');
+    expect(result.message).toContain('NOT resent');
+  });
   it('sends the file by reference (no base64), lists every resource and reports progress', async () => {
     const calls = install('ok');
     const progress: any[] = [];

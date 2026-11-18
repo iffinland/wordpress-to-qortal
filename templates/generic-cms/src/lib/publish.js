@@ -6,6 +6,7 @@
  */
 
 import {
+  fetchQdnBytes,
   fetchQdnResource,
   fetchUnitFee,
   getQdnResourceStatus,
@@ -226,18 +227,79 @@ export async function publishJsonResource({
  * Per-resource states: remote-verified | reused | declined | failed | ambiguous
  * | not-sent.
  */
-async function verifyReady({ service, name, identifier, timeoutMs }) {
-  const deadline = Date.now() + timeoutMs;
+const PROPAGATING_STATUSES = new Set(['PUBLISHED', 'DOWNLOADING', 'DOWNLOADED']);
+
+/**
+ * Verify a large media resource without confusing propagation with failure.
+ *
+ * A 20 MB VIDEO can be PUBLISHED/DOWNLOADING for minutes. Exact byte read-back
+ * is only meaningful once the resource is READY; polling status first avoids
+ * reporting a successful publish as "ambiguous" while chunks are still being
+ * fetched. When the timeout expires during propagation the result is explicit
+ * and the caller keeps it as partial, never as a byte mismatch or a resend.
+ */
+export async function verifyReady({
+  service,
+  name,
+  identifier,
+  expectedSha256 = '',
+  timeoutMs,
+  statusFn = getQdnResourceStatus,
+  fetchBytes = fetchQdnBytes,
+  sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+}) {
+  const deadline = Date.now() + Math.max(0, Number(timeoutMs) || 0);
+  let lastStatus = null;
+  let lastError = '';
   for (;;) {
-    const status = await getQdnResourceStatus(service, name, identifier);
-    if (status && status.status === 'READY') return { ok: true };
-    if (Date.now() >= deadline) return { ok: false };
-    await new Promise((resolve) => setTimeout(resolve, Math.min(3000, Math.max(50, timeoutMs / 20))));
+    let status = null;
+    try { status = await statusFn(service, name, identifier); } catch (error) { lastError = error && error.message ? error.message : String(error); }
+    if (status && status.status === 'READY') {
+      if (!expectedSha256) return { ok: true, status: 'READY' };
+      try {
+        const actual = await fetchBytes(service, name, identifier);
+        const actualSha256 = await sha256Hex(actual);
+        if (actualSha256 === expectedSha256) return { ok: true, status: 'READY', actualSha256 };
+        return {
+          ok: false,
+          state: 'ambiguous',
+          status: 'READY',
+          actualSha256,
+          message: 'Published bytes for ' + identifier + ' do not match the selected file. It was NOT resent.'
+        };
+      } catch (error) {
+        lastError = error && error.message ? error.message : String(error);
+      }
+    } else if (status && status.status) {
+      lastStatus = status.status;
+    }
+    if (Date.now() >= deadline) {
+      const propagating = lastStatus && PROPAGATING_STATUSES.has(lastStatus);
+      return {
+        ok: false,
+        state: propagating ? 'pending-propagation' : 'ambiguous',
+        status: lastStatus,
+        message: propagating
+          ? 'Published, but QDN is still downloading the video (status ' + lastStatus + '). It was NOT resent. The video appears when the resource is READY.'
+          : 'The video resource was not confirmed on QDN. It was NOT resent.' + (lastError ? ' ' + lastError : '')
+      };
+    }
+    await sleep(Math.min(5000, Math.max(1000, Math.ceil((Number(timeoutMs) || 1000) / 30))));
   }
 }
 
 async function verifyEntry(entry, name, timeoutMs) {
-  if (entry.item.file) return verifyReady({ service: entry.service, name, identifier: entry.item.identifier, timeoutMs: Math.max(timeoutMs, 120000) });
+  if (entry.item.file) {
+    const sizeMb = Math.ceil((entry.item.file.size || 0) / (1024 * 1024));
+    const mediaTimeout = Math.max(Number(timeoutMs) || 0, 300000, 120000 + sizeMb * 5000);
+    return verifyReady({
+      service: entry.service,
+      name,
+      identifier: entry.item.identifier,
+      expectedSha256: entry.sha256,
+      timeoutMs: mediaTimeout
+    });
+  }
   return verifyPublishedBytes({ service: entry.service, name, identifier: entry.item.identifier, expectedBytes: entry.bytes, timeoutMs });
 }
 
@@ -302,7 +364,9 @@ export async function publishBatch({ identity, name, resources, storage, verifyT
       const verifiedCount = results.length - failed.length;
       if (failed.length === 0) return { ok: true, state: 'remote-verified', identity: owner, results, message: 'Published and verified byte-for-byte.' };
       const first = failed[0];
+      const pendingPropagation = failed.some((entry) => entry.state === 'pending-propagation');
       const state = failed.some((entry) => entry.state === 'ambiguous') ? 'ambiguous'
+        : pendingPropagation ? 'partial'
         : verifiedCount > 0 ? 'partial'
         : first.state;
       return { ok: false, state, identity: owner, results, message: first.message };
@@ -396,8 +460,8 @@ export async function publishBatch({ identity, name, resources, storage, verifyT
         clearPending(storage, entry.key);
         Object.assign(results[entry.index], { ok: true, state: 'remote-verified', message: 'Published and verified byte-for-byte.', verification });
       } else {
-        results[entry.index].state = 'ambiguous';
-        results[entry.index].message = 'Submitted, but exact QDN read-back of ' + entry.item.identifier + ' did not match yet. It was NOT resent.';
+        results[entry.index].state = verification.state || 'ambiguous';
+        results[entry.index].message = verification.message || ('Submitted, but exact QDN read-back of ' + entry.item.identifier + ' did not match yet. It was NOT resent.');
       }
       notify();
     }
