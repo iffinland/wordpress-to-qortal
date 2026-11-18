@@ -30,6 +30,17 @@ function fail(message) {
 }
 
 const readme = readFileSync(README, 'utf8');
+const release = JSON.parse(readFileSync(path.join(ROOT, 'qms-release.json'), 'utf8'));
+
+function preferredAsset(component, assets) {
+  const matches = [...assets.keys()].filter((name) => component.pattern.test(name));
+  const version = release.components?.[component.key]?.version;
+  if (version) {
+    const exact = matches.find((name) => name.includes(version));
+    if (exact) return exact;
+  }
+  return matches[0];
+}
 const linkPattern = new RegExp('https://github\\.com/' + REPO.replace('/', '\\/') + '/releases/download/([^/)\\s]+)/([^)\\s]+)', 'g');
 const links = [...readme.matchAll(linkPattern)].map((m) => ({ tag: m[1], asset: m[2], url: m[0] }));
 
@@ -47,7 +58,7 @@ if (!latest) {
 
 const latestAssets = new Map((latest.assets || []).map((a) => [a.name, a]));
 for (const component of COMPONENTS) {
-  const match = [...latestAssets.keys()].find((name) => component.pattern.test(name));
+  const match = preferredAsset(component, latestAssets);
   if (!match) {
     fail('latest release ' + latest.tag_name + ' has no asset matching ' + component.label);
     continue;
@@ -80,7 +91,7 @@ if (sumsAsset) {
       if (!COMPONENTS.some((c) => c.pattern.test(link.asset))) continue;
     }
     for (const component of COMPONENTS) {
-      const name = [...latestAssets.keys()].find((n) => component.pattern.test(n));
+      const name = preferredAsset(component, latestAssets);
       if (name && !sums.has(name)) fail('SHA256SUMS of ' + latest.tag_name + ' does not list ' + name);
     }
   } catch (error) {
@@ -91,7 +102,7 @@ if (sumsAsset) {
 }
 
 // Visible text must not advertise an older desktop build than the newest release.
-const desktopName = [...latestAssets.keys()].find((name) => COMPONENTS[0].pattern.test(name));
+const desktopName = preferredAsset(COMPONENTS[0], latestAssets);
 if (desktopName) {
   const desktopVersion = (desktopName.match(/qortal-migration-studio_(.+)_amd64\.deb/) || [])[1];
   const debMentions = [...readme.matchAll(/qortal-migration-studio_([0-9A-Za-z.~-]+)_amd64\.deb/g)].map((m) => m[1]);

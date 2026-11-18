@@ -7,8 +7,8 @@
   "signing": "unsigned",
   "architecture": "amd64",
   "source": {
-    "commit": "25ddd6882739598ba110f2d1f7e3fb22041d4063",
-    "tree": "c64c495964fdd3fbcc1e050b3b3ca7c0efe50303",
+    "commit": "3cd6979173d9dff40787b3d221b7b1a82e77e947",
+    "tree": "660317e2d1a0104aa29d90d98ac353c2158da549",
     "branch": "main",
     "dirty": false
   },
@@ -45,14 +45,14 @@
       "kind": "cms",
       "component": "cms",
       "label": "Generic CMS (Q-App ZIP)",
-      "name": "qortal-migration-generic-cms-v0.8.0-beta.4.zip",
-      "bytes": 849789,
+      "name": "qortal-migration-generic-cms-v0.9.0-beta.1.zip",
+      "bytes": 2840005,
       "uncompressedBytes": 2644918,
-      "sha256": "917c64b675661406aee158c6883e94d69422b33dfe28b5ebc6e7beb0730ed145",
+      "sha256": "2625bd8662ed21ca77d9794c9a77c26e2c38dd43703693f1bc86839e8acdbe87",
       "entrypoint": "/index.html",
       "files": 7,
-      "componentVersion": "0.8.0-beta.4",
-      "version": "0.8.0-beta.4",
+      "componentVersion": "0.9.0-beta.1",
+      "version": "0.9.0-beta.1",
       "layout": "qapp-root"
     }
   ],
@@ -69,11 +69,11 @@
     "cmsRuntimeConfig": "compatible"
   },
   "sha256sums": [
-    "qortal-migration-generic-cms-v0.8.0-beta.4.zip",
+    "qortal-migration-generic-cms-v0.9.0-beta.1.zip",
     "qortal-migration-publisher-v0.8.0-beta.1.zip",
     "qortal-migration-studio_0.8.0-beta.1_amd64.deb"
   ],
   "failures": [],
   "ok": true,
-  "generatedAt": "2026-11-17T11:59:53.734Z"
+  "generatedAt": "2026-11-18T17:34:08.515Z"
 }
