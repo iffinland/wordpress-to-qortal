@@ -9,9 +9,11 @@ it does not publish anything to QDN. The CMS can be published as an **APP** or a
 
 ## Beginner path (no Node.js, npm, Git or compiler)
 
-1. Download
-   [qortal-migration-generic-cms-v0.8.0-alpha.10.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-rc.7/qortal-migration-generic-cms-v0.8.0-alpha.10.zip)
-   and verify it against `SHA256SUMS`.
+1. Download the latest published Generic CMS ZIP from
+   [GitHub releases](https://github.com/iffinland/wordpress-to-qortal/releases)
+   and verify it against `SHA256SUMS`. The current source version is
+   **0.9.0-beta.1**; the published CMS asset may be older until the owner
+   authorizes a new release.
 2. Inspect the ZIP: `index.html` and `assets/` are at the root, with no
    parent folder.
 3. Publish it to QDN as an APP or WEBSITE through an owner-approved Qortal
@@ -20,13 +22,17 @@ it does not publish anything to QDN. The CMS can be published as an **APP** or a
    `qortal://WEBSITE/developer%20iffi/`.
 5. Open **Admin → Site settings** and publish the owner settings revision. This
    replaces the template placeholders with your title, tagline, footer and
-   colors. Confirm the footer shows `Template v0.8.0-alpha.10`; an older version
-   means the deployed bundle is stale.
+   colors. Confirm the footer version matches the ZIP you deployed (current
+   source: `0.9.0-beta.1`); an older version means the deployed bundle is stale.
 
 Downloading a ZIP is not deployment.
 
 ## Features
 
+- **Eight selectable templates**: Default, Magazine / News, Portfolio,
+  Documentation / Knowledge Base, Photography / Gallery, Business / Services,
+  Video / Media and Personal Journal. Choose one in **Admin → Site settings →
+  Appearance**; content, media, links and publishing stay shared.
 - **Owner-only administration** verified against the live on-chain name record.
   Non-owners see an Access denied page and no admin controls.
 - **Light, dark and system themes** with pre-hydration application, local

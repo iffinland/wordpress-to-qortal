@@ -4,6 +4,24 @@ All release-facing changes to Qortal Migration Studio are recorded here. The
 release contract requires a heading entry for the exact released version before
 an artifact may be published.
 
+## Generic CMS 0.9.0-beta.1 — 2026-11-18
+
+Generic CMS template-system source and handoff release. Desktop and Migration
+Publisher remain **0.8.0-beta.1**; their code and artifacts are unchanged. This
+entry records the approved CMS template developments; no GitHub release, tag or
+QDN publication is created by it.
+
+The CMS now has a reusable presentation registry with eight selectable templates:
+**Default** (the original appearance), **Magazine / News**, **Portfolio**,
+**Documentation / Knowledge Base**, **Photography / Gallery**, **Business /
+Services**, **Video / Media** and **Personal Journal**. Owners choose the template
+in **Admin → Site settings → Appearance**; switching templates preserves posts,
+pages, media, links, navigation and all publishing behaviour. CMS data,
+sanitization, search, owner verification and publication stay in the shared core.
+
+Verification for this source state: 44 template test files / 420 tests passed,
+typecheck passed, and the root-layout Q-App bundle validator passed (7 files).
+
 ## 0.8.0-beta.3 — 2026-11-17
 
 Generic CMS **0.8.0-beta.4** artifact release. Desktop and Publisher remain **0.8.0-beta.1**. Adds an optional

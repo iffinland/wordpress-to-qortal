@@ -1,4 +1,5 @@
 import { buildThemePalette } from './theme.js';
+import { TEMPLATE_IDS } from './template.js';
 
 export const CMS_TEMPLATE_CONFIG_SCHEMA = 'qms-cms-template-config@1';
 
@@ -50,6 +51,13 @@ export function validateCmsConfig(config) {
         errors.push('navigation[' + index + '] must have label and href.');
       }
     });
+  }
+  if (config.appearance !== undefined) {
+    if (!config.appearance || typeof config.appearance !== 'object') {
+      errors.push('appearance must be an object when present.');
+    } else if (config.appearance.template !== undefined && !TEMPLATE_IDS.includes(String(config.appearance.template))) {
+      errors.push('appearance.template must be one of: ' + TEMPLATE_IDS.join(', ') + '.');
+    }
   }
   if (!config.theme || typeof config.theme !== 'object') {
     errors.push('theme is required.');

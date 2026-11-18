@@ -13,13 +13,14 @@ Android featured-image, native-catalog, navigation and warning-banner fixes,
 plus the removal of the unused Adoption interface. Desktop and Publisher remain
 at the unchanged, approved 0.8.0-beta.1.
 
-Source on `main` now includes **Generic CMS 0.8.0-beta.3**: hamburger header and
-menu reorder, subpages/sections, one combined Hub confirmation, lazy admin
-chunk, text colors, attachments with text/PDF preview, optional Q-Tube, SubWire
-and Quitter cross-publication, WebP covers, and per-account isolation of local
-drafts. The download links below remain the approved 0.8.0-beta.2 artifacts
-until the owner publishes the next artifacts; the desktop and Publisher files
-are unchanged.
+Source on `main` now includes **Generic CMS 0.9.0-beta.1** with the approved
+template system: Default, Magazine / News, Portfolio, Documentation /
+Knowledge Base, Photography / Gallery, Business / Services, Video / Media and
+Personal Journal. Owners choose a template in **Admin → Site settings →
+Appearance**; posts, pages, media, links and publishing stay shared. The
+download links below remain the last published 0.8.0-beta.3 artifacts (CMS
+0.8.0-beta.4) until the owner authorizes a new release; the desktop and
+Publisher files are unchanged.
 
 | What you need | Download | What it does |
 | --- | --- | --- |

@@ -25,10 +25,10 @@
       "changelog": "Unchanged from the approved beta.1 Publisher Q-App."
     },
     "cms": {
-      "version": "0.8.0-beta.4",
+      "version": "0.9.0-beta.1",
       "channel": "beta",
       "source": "templates/generic-cms/package.json",
-      "changelog": "Generic CMS beta.4: accepted usability round (community chat navigation, Back to Top, owner post deletion, taxonomy suggestions and management, mobile tagline, public-author default). Community chat UX needs later refinement."
+      "changelog": "Generic CMS 0.9.0-beta.1: reusable template system with Default, Magazine / News, Portfolio, Documentation / Knowledge Base, Photography / Gallery, Business / Services, Video / Media and Personal Journal. Templates are selected in Appearance settings; content, publishing and owner controls are shared."
     }
   },
   "versionMarkers": [

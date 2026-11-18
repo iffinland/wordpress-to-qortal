@@ -101,6 +101,24 @@ In **Galleries**, **New gallery** begins a gallery and **Edit / add batch** open
 Use **Publish gallery…** only after reviewing the gallery and then confirm the owner flow in Hub. **← All galleries** returns without publishing. A gallery becomes public only through this explicit confirmed owner publication.
 
 
-## Known limitations (CMS 0.8.0-beta.3)
+## Templates
 
-Q-Tube, SubWire and Quitter content is public and permanent. SubWire Markdown drops text colors, audio, video and file attachments. Q-Tube rejects MKV and HEVC. Legacy unscoped drafts are delete-only. Deleting a CMS item removes it from this CMS catalog and overwrites its mutable content resource with a tombstone under the same identifier; historical QDN versions and copies outside the CMS are not physically erased. Imported WordPress taxonomy and content cannot be renamed or deleted from the CMS. The three-artifact release gate was not run for this code release because the unchanged desktop 0.8.0-beta.1 evidence files are not in this checkout; the desktop and Publisher artifacts are unchanged.
+Generic CMS separates presentation from content and publishing. The owner selects
+one template in **Admin → Site settings → Appearance**:
+
+- **Default** — the original neutral QMS site layout.
+- **Magazine / News** — editorial hero, image-led stories, sections and a news grid.
+- **Portfolio** — project gallery, services/about/contact sections, consistent case-study pages.
+- **Documentation / Knowledge Base** — category sidebar, guide index, technical reading layout and search.
+- **Photography / Gallery** — full-bleed visual hero, masonry albums and full-size image viewing.
+- **Business / Services** — professional service cards, completed projects, about and contact sections.
+- **Video / Media** — featured video, series collections and embedded playback through existing CMS media.
+- **Personal Journal** — warm introduction, chronological timeline, topics and calm journal-style articles.
+
+Switching templates changes presentation only. Posts, pages, categories, tags,
+media, links, navigation, search, owner controls and publication state are
+preserved. No template introduces a new content type or a separate data store.
+
+## Known limitations (Generic CMS 0.9.0-beta.1)
+
+Q-Tube, SubWire and Quitter content is public and permanent. SubWire Markdown drops text colors, audio, video and file attachments. Q-Tube rejects MKV and HEVC. Legacy unscoped drafts are delete-only. Deleting a CMS item removes it from this CMS catalog and overwrites its mutable content resource with a tombstone under the same identifier; historical QDN versions and copies outside the CMS are not physically erased. Imported WordPress taxonomy and content cannot be renamed or deleted from the CMS. The three-artifact release gate was not run for this source handoff, and no GitHub release was published. Desktop 0.8.0-beta.1 and Publisher 0.8.0-beta.1 remain unchanged.

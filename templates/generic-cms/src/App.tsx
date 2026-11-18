@@ -4,16 +4,10 @@ import { StateNotice } from './components/StateNotice';
 // Admin code (TipTap editor, publishing UI) is a separate chunk so public
 // visitors never download it.
 const AdminPage = lazy(() => import('./pages/AdminPage').then((module) => ({ default: module.AdminPage })));
-import { ArchivePage } from './pages/ArchivePage';
 import { GalleryPage } from './pages/GalleryPage';
-import { HomePage } from './pages/HomePage';
 import { NotFoundPage } from './pages/NotFoundPage';
-import { PageView } from './pages/PageView';
-import { PostPage } from './pages/PostPage';
-import { PostsPage } from './pages/PostsPage';
-import { SearchPage } from './pages/SearchPage';
-import { TermPage } from './pages/TermPage';
 import { baseCmsConfig, loadRuntimeCmsConfig, templateVersion } from './config/cmsConfig';
+import { getSiteTemplate } from './templates/registry';
 import { UpdateDialog } from './components/UpdateDialog';
 import { useCmsUpdate } from './lib/useCmsUpdate';
 import { useHashRoute } from './hooks/useHashRoute';
@@ -76,6 +70,10 @@ export function App() {
     return applyPublishedSettings(withPublished, previewSettings, hostedName);
   }, [cmsConfig, publishedSettings, previewSettings, hostedName]);
   const repository = useMemo(() => createCmsRepository(effectiveConfig), [effectiveConfig]);
+  const template = useMemo(
+    () => getSiteTemplate(effectiveConfig.appearance && effectiveConfig.appearance.template),
+    [effectiveConfig.appearance && effectiveConfig.appearance.template]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -239,23 +237,23 @@ export function App() {
 
   function renderPage() {
     if (!dataset) return null;
-    if (route.kind === 'home') return <HomePage dataset={dataset} sections={sections} />;
-    if (route.kind === 'posts') return <PostsPage dataset={dataset} page={route.page} />;
-    if (route.kind === 'category') return <TermPage dataset={dataset} kind="category" slug={route.slug} page={route.page} />;
-    if (route.kind === 'tag') return <TermPage dataset={dataset} kind="tag" slug={route.slug} page={route.page} />;
-    if (route.kind === 'archive') return <ArchivePage dataset={dataset} year={route.year} month={route.month} page={route.page} />;
-    if (route.kind === 'search') return <SearchPage dataset={dataset} query={route.query} loadSearchIndex={() => repository.loadSearchIndex(false)} />;
+    if (route.kind === 'home') return <template.Home dataset={dataset} sections={sections} />;
+    if (route.kind === 'posts') return <template.Posts dataset={dataset} page={route.page} />;
+    if (route.kind === 'category') return <template.Term dataset={dataset} kind="category" slug={route.slug} page={route.page} />;
+    if (route.kind === 'tag') return <template.Term dataset={dataset} kind="tag" slug={route.slug} page={route.page} />;
+    if (route.kind === 'archive') return <template.Archive dataset={dataset} year={route.year} month={route.month} page={route.page} />;
+    if (route.kind === 'search') return <template.Search dataset={dataset} query={route.query} loadSearchIndex={() => repository.loadSearchIndex(false)} />;
     if (route.kind === 'gallery') return <GalleryPage galleries={galleries} catalogLoading={galleriesLoading} slug={route.slug} />;
     if (route.kind === 'post') {
       const item = resolveBySlug(dataset.posts, route.slug);
       const related = previousAndNext(dataset.posts, item ? item.slug : route.slug);
       const highlightTerms = route.q ? tokenizeQuery(route.q).all : [];
-      return <PostPage dataset={dataset} item={item} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} previous={related.previous} next={related.next} highlightTerms={highlightTerms} />;
+      return <template.Post dataset={dataset} item={item} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} previous={related.previous} next={related.next} highlightTerms={highlightTerms} />;
     }
     if (route.kind === 'page') {
       const item = resolveBySlug(dataset.pages, route.slug);
       const highlightTerms = route.q ? tokenizeQuery(route.q).all : [];
-      return <PageView dataset={dataset} item={item} sections={sections} pageNumber={route.page || 1} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} highlightTerms={highlightTerms} />;
+      return <template.Page dataset={dataset} item={item} sections={sections} pageNumber={route.page || 1} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} highlightTerms={highlightTerms} />;
     }
     return <NotFoundPage />;
   }
@@ -284,6 +282,7 @@ export function App() {
       resolvedTheme={resolvedTheme}
       onThemeChange={(mode) => setThemeMode(mode)}
       hasGalleries={galleries.length > 0}
+      templateId={template.id}
       onConnectOwner={connectOwner}
       onRetryIdentity={retryIdentity}
       updateBadge={updates.state.showBadge ? (

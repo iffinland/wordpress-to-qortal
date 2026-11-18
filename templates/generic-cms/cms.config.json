@@ -23,6 +23,9 @@
     { "label": "Search", "href": "#/search" },
     { "label": "Admin", "href": "#/admin" }
   ],
+  "appearance": {
+    "template": "default"
+  },
   "theme": {
     "colors": {
       "background": "#0b0f14",

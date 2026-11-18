@@ -50,6 +50,7 @@ export function Layout(props: {
   resolvedTheme?: 'light' | 'dark';
   onThemeChange?: (mode: 'light' | 'dark' | 'system') => void;
   hasGalleries?: boolean;
+  templateId?: string;
   updateBadge?: ReactNode;
   onCheckUpdates?: () => void;
   onConnectOwner?: () => void;
@@ -78,7 +79,7 @@ export function Layout(props: {
   const canConnect = Boolean(!owner && !props.viewerLoading && props.viewer && props.viewer.action === 'connect' && props.onConnectOwner);
   const canRetry = Boolean(!owner && !props.viewerLoading && props.viewer && props.viewer.action === 'retry' && props.onRetryIdentity);
   return (
-    <div className="qms-app" style={themeStyle(props.config, resolved) as CSSProperties} data-theme={resolved}>
+    <div className={'qms-app qms-template--' + (props.templateId || 'default')} style={themeStyle(props.config, resolved) as CSSProperties} data-theme={resolved}>
       <a className="skip-link" href="#main-content">Skip to main content</a>
       <header className="site-header">
         <div className="site-header__inner">
@@ -176,7 +177,7 @@ export function Layout(props: {
       <main id="main-content" className="site-main" tabIndex={-1}>
         {props.children}
       </main>
-      <SiteFooter config={props.config} templateVersion={props.templateVersion} onCheckUpdates={props.onCheckUpdates} />
+      <SiteFooter config={props.config} />
       <BackToTop />
     </div>
   );

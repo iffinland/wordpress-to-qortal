@@ -86,6 +86,29 @@ describe('versioned site settings', () => {
     expect(merged.admin).toEqual(cmsConfig.admin);
   });
 
+  it('round-trips the selected template through the published settings document', async () => {
+    const draft = defaultSettingsDraft(cmsConfig);
+    expect(draft.appearance.template).toBe('default');
+    draft.appearance.template = 'magazine';
+    expect(validateSettingsDraft(draft).ok).toBe(true);
+    const document = await buildSettingsDocument({ draft, baseRevision: 0, identity });
+    expect(document.appearance.template).toBe('magazine');
+    const read = readSettingsDocument(document);
+    expect(read.ok).toBe(true);
+    expect((read.settings as any).appearance.template).toBe('magazine');
+    expect(validateSettingsDraft({ ...draft, appearance: { template: 'unknown-template' } }).ok).toBe(false);
+  });
+
+  it('reads an older settings document without an appearance field as Default', async () => {
+    const draft = defaultSettingsDraft(cmsConfig);
+    const document = await buildSettingsDocument({ draft, baseRevision: 0, identity });
+    const legacy = { ...document };
+    delete (legacy as any).appearance;
+    const read = readSettingsDocument(legacy);
+    expect(read.ok).toBe(true);
+    expect((read.settings as any).appearance.template).toBe('default');
+  });
+
   it('detects a newer published revision instead of overwriting it', () => {
     expect(detectSettingsConflict({ revision: 3 }, 2).conflict).toBe(true);
     expect(detectSettingsConflict({ revision: 2 }, 2).conflict).toBe(false);

@@ -1,0 +1,678 @@
+/* ---------------------------------------------------------------
+ * Magazine / News template
+ * Scoped to .qms-template--magazine so it can never alter the default
+ * template or the Admin surface.
+ * --------------------------------------------------------------- */
+
+.qms-template--magazine {
+  --magazine-gutter: clamp(1rem, 4vw, 2.5rem);
+}
+
+.qms-template--magazine .site-header {
+  background: var(--qms-bg);
+  backdrop-filter: none;
+  border-bottom: 3px double var(--qms-border);
+}
+
+.qms-template--magazine .site-header__inner {
+  padding-block: 1.1rem;
+  gap: 1.75rem;
+}
+
+.qms-template--magazine .brand__title {
+  font-size: clamp(1.6rem, 4vw, 2.5rem);
+  letter-spacing: -0.035em;
+  line-height: 0.95;
+}
+
+.qms-template--magazine .brand__tagline {
+  margin-top: 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.qms-template--magazine .site-nav__link {
+  border-radius: 0;
+  padding: 0.4rem 0.15rem;
+  margin-right: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.78rem;
+  border-bottom: 2px solid transparent;
+}
+
+.qms-template--magazine .site-nav__link:hover {
+  background: transparent;
+  color: var(--qms-accent);
+  border-bottom-color: var(--qms-accent);
+}
+
+.qms-template--magazine .site-nav__link[aria-current="page"] {
+  background: transparent;
+  color: var(--qms-text);
+  border-bottom-color: var(--qms-accent);
+}
+
+.qms-template--magazine .site-main {
+  padding-top: 2.4rem;
+}
+
+.qms-template--magazine .page {
+  gap: 2.4rem;
+}
+
+/* Editorial hero ------------------------------------------------- */
+
+.qms-template--magazine .magazine-hero {
+  position: relative;
+  display: grid;
+  min-height: clamp(20rem, 52vw, 34rem);
+  overflow: hidden;
+  border: 1px solid var(--qms-border);
+  background: var(--qms-surface-alt);
+  isolation: isolate;
+}
+
+.qms-template--magazine .magazine-hero__media,
+.qms-template--magazine .magazine-hero__wash {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+}
+
+.qms-template--magazine .magazine-hero__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.qms-template--magazine .magazine-hero__wash {
+  background:
+    radial-gradient(circle at 15% 20%, color-mix(in srgb, var(--qms-accent) 55%, transparent), transparent 55%),
+    linear-gradient(135deg, var(--qms-surface-alt), var(--qms-bg));
+}
+
+.qms-template--magazine .magazine-hero--image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(4, 8, 12, 0.18) 0%, rgba(4, 8, 12, 0.58) 42%, rgba(4, 8, 12, 0.95) 100%);
+}
+
+.qms-template--magazine .magazine-hero--image .magazine-hero__body {
+  background: linear-gradient(90deg, rgba(4, 8, 12, 0.88) 0%, rgba(4, 8, 12, 0.62) 62%, rgba(4, 8, 12, 0) 100%);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
+  padding-right: clamp(1.5rem, 8vw, 7rem);
+}
+
+.qms-template--magazine .magazine-hero--image .magazine-hero__excerpt {
+  color: #fff;
+  opacity: 0.97;
+}
+
+.qms-template--magazine .magazine-hero__body {
+  align-self: end;
+  padding: clamp(1.25rem, 4vw, 2.75rem);
+  max-width: 54rem;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+.qms-template--magazine .magazine-hero:not(.magazine-hero--image) .magazine-hero__body {
+  color: var(--qms-text);
+  text-shadow: none;
+}
+
+.qms-template--magazine .magazine-hero__title {
+  font-size: clamp(2rem, 5.4vw, 3.9rem);
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  margin: 0.35rem 0 0.7rem;
+}
+
+.qms-template--magazine .magazine-hero__title a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.qms-template--magazine .magazine-hero__title a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 0.06em;
+}
+
+.qms-template--magazine .magazine-hero__excerpt {
+  font-size: clamp(1rem, 1.6vw, 1.15rem);
+  max-width: 48ch;
+  color: inherit;
+  opacity: 0.92;
+}
+
+.qms-template--magazine .magazine-hero__cta {
+  display: inline-block;
+  margin-top: 0.4rem;
+  padding: 0.55rem 1rem;
+  border: 1px solid currentColor;
+  color: inherit;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+
+.qms-template--magazine .magazine-hero__cta:hover {
+  background: var(--qms-accent);
+  border-color: var(--qms-accent);
+  color: var(--qms-accent-text);
+  text-shadow: none;
+}
+
+/* Editorial meta ------------------------------------------------- */
+
+.qms-template--magazine .magazine-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--qms-muted);
+}
+
+.qms-template--magazine .magazine-kicker {
+  color: var(--qms-accent);
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+.qms-template--magazine .magazine-hero .magazine-kicker,
+.qms-template--magazine .magazine-hero .magazine-meta {
+  color: #fff;
+}
+
+.qms-template--magazine .magazine-hero:not(.magazine-hero--image) .magazine-kicker {
+  color: var(--qms-accent);
+}
+
+.qms-template--magazine .magazine-hero:not(.magazine-hero--image) .magazine-meta {
+  color: var(--qms-muted);
+}
+
+/* Category strip ------------------------------------------------- */
+
+.qms-template--magazine .magazine-topics {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.7rem 0;
+  border-top: 1px solid var(--qms-border);
+  border-bottom: 1px solid var(--qms-border);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.qms-template--magazine .magazine-topics__label {
+  flex: none;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: var(--qms-muted);
+}
+
+.qms-template--magazine .magazine-topics ul {
+  display: flex;
+  gap: 1.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.qms-template--magazine .magazine-topics li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.qms-template--magazine .magazine-topics a {
+  color: var(--qms-text);
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.88rem;
+}
+
+.qms-template--magazine .magazine-topics a:hover {
+  color: var(--qms-accent);
+}
+
+.qms-template--magazine .magazine-topics__count {
+  color: var(--qms-muted);
+  font-size: 0.72rem;
+}
+
+/* Section headings ---------------------------------------------- */
+
+.qms-template--magazine .magazine-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 2px solid var(--qms-text);
+  padding-bottom: 0.45rem;
+  margin-bottom: 1.1rem;
+}
+
+.qms-template--magazine .magazine-section-head h2 {
+  margin: 0;
+  font-size: clamp(1.2rem, 2.4vw, 1.6rem);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.qms-template--magazine .magazine-section-head a {
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+}
+
+/* Cards ---------------------------------------------------------- */
+
+.qms-template--magazine .magazine-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1.5rem 1.25rem;
+}
+
+.qms-template--magazine .magazine-secondary__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+.qms-template--magazine .magazine-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.qms-template--magazine .magazine-card__media {
+  display: block;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: var(--qms-surface-alt);
+  border-bottom: 3px solid var(--qms-accent);
+}
+
+.qms-template--magazine .magazine-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 220ms ease;
+}
+
+.qms-template--magazine .magazine-card:hover .magazine-card__media img {
+  transform: scale(1.035);
+}
+
+.qms-template--magazine .magazine-card__placeholder {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background:
+    repeating-linear-gradient(135deg, transparent 0 14px, color-mix(in srgb, var(--qms-border) 55%, transparent) 14px 15px),
+    var(--qms-surface-alt);
+}
+
+.qms-template--magazine .magazine-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-top: 0.8rem;
+}
+
+.qms-template--magazine .magazine-card__title {
+  margin: 0;
+  font-size: clamp(1.05rem, 1.8vw, 1.28rem);
+  line-height: 1.18;
+}
+
+.qms-template--magazine .magazine-card__title a {
+  color: var(--qms-text);
+  text-decoration: none;
+}
+
+.qms-template--magazine .magazine-card__title a:hover {
+  color: var(--qms-accent);
+}
+
+.qms-template--magazine .magazine-card__excerpt {
+  margin: 0;
+  color: var(--qms-muted);
+  font-size: 0.94rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* List and term pages ------------------------------------------- */
+
+.qms-template--magazine .magazine-list__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  border-bottom: 3px double var(--qms-border);
+  padding-bottom: 1.1rem;
+}
+
+.qms-template--magazine .magazine-list__head h1 {
+  margin: 0;
+  font-size: clamp(2.1rem, 5vw, 3.4rem);
+  letter-spacing: -0.03em;
+}
+
+.qms-template--magazine .magazine-list__count {
+  margin: 0;
+  color: var(--qms-muted);
+  font-size: 0.85rem;
+}
+
+/* Tag row -------------------------------------------------------- */
+
+.qms-template--magazine .magazine-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--qms-border);
+  padding-top: 1rem;
+}
+
+.qms-template--magazine .magazine-tag-list a {
+  display: inline-block;
+  border: 1px solid var(--qms-border);
+  border-radius: 0;
+  padding: 0.25rem 0.6rem;
+  color: var(--qms-muted);
+  text-decoration: none;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.qms-template--magazine .magazine-tag-list a:hover {
+  color: var(--qms-accent);
+  border-color: var(--qms-accent);
+}
+
+/* Article pages ---------------------------------------------------- */
+
+.qms-template--magazine .magazine-article {
+  gap: 0;
+}
+
+.qms-template--magazine .magazine-article__hero {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: clamp(22rem, 46vw, 34rem);
+  overflow: hidden;
+  background: var(--qms-surface-alt);
+  border-bottom: 3px double var(--qms-border);
+  isolation: isolate;
+}
+
+.qms-template--magazine .magazine-article__image,
+.qms-template--magazine .magazine-article__wash {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+}
+
+.qms-template--magazine .magazine-article__image {
+  object-fit: cover;
+}
+
+.qms-template--magazine .magazine-article__wash {
+  background:
+    radial-gradient(circle at 18% 18%, color-mix(in srgb, var(--qms-accent) 52%, transparent), transparent 58%),
+    linear-gradient(135deg, var(--qms-surface-alt), var(--qms-bg));
+}
+
+.qms-template--magazine .magazine-article__hero--image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(4, 8, 12, 0.22) 0%, rgba(4, 8, 12, 0.55) 45%, rgba(4, 8, 12, 0.96) 100%);
+}
+
+.qms-template--magazine .magazine-article__head {
+  width: 100%;
+  max-width: var(--qms-max-width);
+  margin: 0 auto;
+  padding: clamp(1.5rem, 5vw, 3.5rem) var(--magazine-gutter);
+}
+
+.qms-template--magazine .magazine-article__hero--image .magazine-article__head {
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
+  background: linear-gradient(0deg, rgba(4, 8, 12, 0.92) 0%, rgba(4, 8, 12, 0.45) 68%, rgba(4, 8, 12, 0) 100%);
+}
+
+.qms-template--magazine .magazine-article__head .eyebrow a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.qms-template--magazine .magazine-article__head .eyebrow a:hover {
+  text-decoration: underline;
+}
+
+.qms-template--magazine .magazine-article__title {
+  margin: 0.45rem 0 0.75rem;
+  font-size: clamp(2.2rem, 6vw, 4.4rem);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+}
+
+.qms-template--magazine .magazine-article__byline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  opacity: 0.92;
+}
+
+.qms-template--magazine .magazine-article__body {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2.4rem 0 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.7rem;
+  font-size: 1.05rem;
+}
+
+.qms-template--magazine .magazine-article__body .content-html > p:first-of-type {
+  font-size: 1.16rem;
+  line-height: 1.7;
+}
+
+.qms-template--magazine .magazine-article__terms {
+  margin-top: 0.2rem;
+}
+
+/* Article labels reuse the homepage rectangular label design, never the
+   rounded pill styling from the Default template. */
+.qms-template--magazine .magazine-article__labels {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.qms-template--magazine .magazine-article__labels a {
+  border-radius: 0;
+}
+
+.qms-template--magazine .magazine-article__nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  border-top: 2px solid var(--qms-text);
+  padding-top: 1.2rem;
+}
+
+.qms-template--magazine .magazine-article__nav-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem;
+  border: 1px solid var(--qms-border);
+  color: var(--qms-text);
+  text-decoration: none;
+}
+
+.qms-template--magazine .magazine-article__nav-link:hover {
+  border-color: var(--qms-accent);
+  background: var(--qms-surface-alt);
+}
+
+.qms-template--magazine .magazine-article__nav-link strong {
+  font-family: var(--qms-heading-font);
+  font-size: 1.1rem;
+  line-height: 1.25;
+}
+
+.qms-template--magazine .magazine-article__nav-link--next {
+  text-align: right;
+}
+
+/* Magazine page --------------------------------------------------- */
+
+.qms-template--magazine .magazine-page {
+  gap: 2rem;
+}
+
+.qms-template--magazine .magazine-page__head {
+  border-bottom: 3px double var(--qms-border);
+  padding-bottom: 1.2rem;
+}
+
+.qms-template--magazine .magazine-page__head h1 {
+  margin: 0.3rem 0 0;
+  font-size: clamp(2rem, 5vw, 3.2rem);
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+}
+
+.qms-template--magazine .magazine-page__meta {
+  margin: 0.4rem 0 0;
+  color: var(--qms-muted);
+  font-size: 0.85rem;
+}
+
+.qms-template--magazine .magazine-page__body {
+  padding-top: 0.4rem;
+}
+
+/* Responsive ------------------------------------------------------ */
+
+@media (max-width: 720px) {
+  .qms-template--magazine .site-header__inner {
+    padding: 0.65rem 1rem;
+    align-items: flex-start;
+  }
+
+  .qms-template--magazine .brand__title {
+    font-size: clamp(1.1rem, 5vw, 1.4rem);
+    line-height: 1.12;
+  }
+
+  .qms-template--magazine .brand__tagline {
+    font-size: 0.64rem;
+    letter-spacing: 0.09em;
+  }
+
+  .qms-template--magazine .site-main {
+    padding-inline: 1rem;
+    padding-top: 1.5rem;
+  }
+
+  .qms-template--magazine .magazine-hero {
+    min-height: 22rem;
+  }
+
+  .qms-template--magazine .magazine-hero__body {
+    padding: 1.25rem 1rem;
+  }
+
+  .qms-template--magazine .magazine-hero--image .magazine-hero__body {
+    background: linear-gradient(0deg, rgba(4, 8, 12, 0.95) 0%, rgba(4, 8, 12, 0.5) 100%);
+    padding-right: 1rem;
+  }
+
+  .qms-template--magazine .magazine-article__hero {
+    min-height: 20rem;
+  }
+
+  .qms-template--magazine .magazine-article__head {
+    padding: 1.4rem 1rem 1.2rem;
+  }
+
+  .qms-template--magazine .magazine-article__title {
+    font-size: clamp(1.85rem, 8vw, 2.7rem);
+    line-height: 1.02;
+  }
+
+  .qms-template--magazine .magazine-article__body {
+    padding: 1.6rem 1rem 1rem;
+    font-size: 1rem;
+  }
+
+  .qms-template--magazine .magazine-article__nav {
+    grid-template-columns: 1fr;
+  }
+
+  .qms-template--magazine .magazine-article__nav-link--next {
+    text-align: left;
+  }
+
+  .qms-template--magazine .magazine-grid,
+  .qms-template--magazine .magazine-secondary__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .qms-template--magazine .magazine-topics {
+    gap: 0.65rem;
+  }
+
+  .qms-template--magazine .magazine-topics ul {
+    gap: 0.9rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qms-template--magazine .magazine-card__media img {
+    transition: none;
+  }
+
+  .qms-template--magazine .magazine-card:hover .magazine-card__media img {
+    transform: none;
+  }
+}

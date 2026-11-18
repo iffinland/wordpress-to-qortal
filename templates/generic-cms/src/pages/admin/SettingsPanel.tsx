@@ -8,6 +8,7 @@ import { NavigationEditor } from './NavigationEditor';
 import { StateNotice } from '../../components/StateNotice';
 import { ConfirmPublishDialog, type PublishPhase } from '../../components/ConfirmPublishDialog';
 import { createScopedStorage, scopedKey, storageScope } from '../../lib/storageScope.js';
+import { TEMPLATE_OPTIONS } from '../../lib/template.js';
 
 const DRAFT_KEY = 'qms-cms-settings-draft@1';
 
@@ -168,6 +169,35 @@ export function SettingsPanel(props: {
         <legend>Navigation</legend>
         <NavigationEditor items={draft.navigation} pages={props.pages || []} onChange={(navigation) => { setDirty(true); setDraft((current: any) => ({ ...current, navigation })); }} />
         <p className="muted">The Admin link is never shown to visitors; it appears only after owner verification.</p>
+      </fieldset>
+
+      <fieldset className="admin-fieldset">
+        <legend>Template</legend>
+        <p className="muted">Templates change presentation only. Posts, pages, media, links and publishing stay exactly the same when you switch.</p>
+        <div className="template-choice-grid">
+          {TEMPLATE_OPTIONS.map((option) => {
+            const selected = (draft.appearance && draft.appearance.template ? draft.appearance.template : 'default') === option.id;
+            return (
+              <label key={option.id} className={'template-choice' + (selected ? ' is-selected' : '')}>
+                <input
+                  type="radio"
+                  name="cms-template"
+                  value={option.id}
+                  checked={selected}
+                  onChange={() => {
+                    setDirty(true);
+                    setDraft((current: any) => ({ ...current, appearance: { ...(current.appearance || {}), template: option.id } }));
+                  }}
+                />
+                <span className="template-choice__text">
+                  <strong>{option.label}</strong>
+                  <span className="muted">{option.description}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        <p className="muted">Use Preview draft, then publish the settings to make the template live for visitors.</p>
       </fieldset>
 
       <fieldset className="admin-fieldset">

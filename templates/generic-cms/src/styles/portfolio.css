@@ -1,0 +1,749 @@
+/* ---------------------------------------------------------------
+ * Portfolio template
+ * Scoped to .qms-template--portfolio so it cannot affect Default,
+ * Magazine or the Admin surface.
+ * --------------------------------------------------------------- */
+
+.qms-template--portfolio {
+  --portfolio-gutter: clamp(1rem, 4vw, 2.5rem);
+  --portfolio-line: 1px solid var(--qms-border);
+}
+
+.qms-template--portfolio .site-header {
+  background: var(--qms-bg);
+  backdrop-filter: none;
+  border-bottom: var(--portfolio-line);
+}
+
+.qms-template--portfolio .site-header__inner {
+  padding-block: 1rem;
+}
+
+.qms-template--portfolio .brand__title {
+  font-size: 1.08rem;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+.qms-template--portfolio .brand__tagline {
+  margin-top: 0.2rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.qms-template--portfolio .site-nav__link {
+  border-radius: 0;
+  margin-right: 0.65rem;
+  padding: 0.45rem 0.1rem;
+  border-bottom: 2px solid transparent;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.qms-template--portfolio .site-nav__link:hover {
+  background: transparent;
+  color: var(--qms-accent);
+  border-bottom-color: var(--qms-accent);
+}
+
+.qms-template--portfolio .site-nav__link[aria-current="page"] {
+  background: transparent;
+  color: var(--qms-text);
+  border-bottom-color: var(--qms-accent);
+}
+
+.qms-template--portfolio .site-main {
+  max-width: 1280px;
+  padding-top: 0;
+}
+
+.qms-template--portfolio .page {
+  gap: 0;
+}
+
+.qms-template--portfolio .button {
+  border-radius: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  font-size: 0.78rem;
+}
+
+/* Shared typographic marks --------------------------------------- */
+
+.qms-template--portfolio .portfolio-eyebrow {
+  margin: 0 0 0.8rem;
+  color: var(--qms-accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.qms-template--portfolio .portfolio-eyebrow a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.qms-template--portfolio .portfolio-eyebrow a:hover {
+  text-decoration: underline;
+}
+
+.qms-template--portfolio .portfolio-kicker {
+  color: var(--qms-accent);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.qms-template--portfolio .portfolio-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 1rem;
+  margin: 0 0 0.5rem;
+  color: var(--qms-muted);
+  font-size: 0.78rem;
+}
+
+.qms-template--portfolio .portfolio-index {
+  color: var(--qms-accent);
+  font-family: var(--qms-heading-font);
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+/* Hero ------------------------------------------------------------ */
+
+.qms-template--portfolio .portfolio-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  padding: clamp(2.25rem, 6vw, 5rem) 0;
+  border-bottom: var(--portfolio-line);
+}
+
+.qms-template--portfolio .portfolio-hero__title {
+  margin: 0 0 1.2rem;
+  font-size: clamp(2.9rem, 7vw, 5.6rem);
+  line-height: 0.92;
+  letter-spacing: -0.05em;
+}
+
+.qms-template--portfolio .portfolio-hero__intro {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--qms-muted);
+  font-size: clamp(1rem, 1.5vw, 1.2rem);
+}
+
+.qms-template--portfolio .portfolio-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.6rem;
+}
+
+.qms-template--portfolio .portfolio-hero__count {
+  margin: 1.6rem 0 0;
+  color: var(--qms-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.qms-template--portfolio .portfolio-hero__media {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 4 / 5;
+  max-height: 46rem;
+  overflow: hidden;
+  background: var(--qms-surface-alt);
+}
+
+.qms-template--portfolio .portfolio-hero__media::before {
+  content: "";
+  position: absolute;
+  inset: 1rem -1rem -1rem 1rem;
+  z-index: -1;
+  border: 1px solid var(--qms-accent);
+}
+
+.qms-template--portfolio .portfolio-hero__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.qms-template--portfolio .portfolio-hero__placeholder,
+.qms-template--portfolio .portfolio-project__placeholder {
+  width: 100%;
+  height: 100%;
+  background:
+    radial-gradient(circle at 25% 20%, color-mix(in srgb, var(--qms-accent) 55%, transparent), transparent 60%),
+    repeating-linear-gradient(135deg, transparent 0 16px, color-mix(in srgb, var(--qms-border) 60%, transparent) 16px 17px),
+    var(--qms-surface-alt);
+}
+
+.qms-template--portfolio .portfolio-hero__caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.9rem 1rem;
+  background: color-mix(in srgb, var(--qms-bg) 84%, transparent);
+  border-top: 1px solid var(--qms-border);
+  color: var(--qms-text);
+  text-decoration: none;
+}
+
+.qms-template--portfolio .portfolio-hero__caption span {
+  color: var(--qms-muted);
+  font-size: 0.66rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.qms-template--portfolio .portfolio-hero__caption strong {
+  font-family: var(--qms-heading-font);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.qms-template--portfolio .portfolio-hero__caption:hover strong {
+  color: var(--qms-accent);
+}
+
+/* Sections -------------------------------------------------------- */
+
+.qms-template--portfolio .portfolio-work,
+.qms-template--portfolio .portfolio-about,
+.qms-template--portfolio .portfolio-contact {
+  padding-block: clamp(2.5rem, 5vw, 4.5rem);
+  border-bottom: var(--portfolio-line);
+}
+
+.qms-template--portfolio .portfolio-section-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.qms-template--portfolio .portfolio-section-head h2 {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  letter-spacing: -0.025em;
+}
+
+.qms-template--portfolio .portfolio-section-head > a {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+/* Category filter ------------------------------------------------- */
+
+.qms-template--portfolio .portfolio-filter {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.8rem;
+  padding: 0.8rem 0;
+  border-top: var(--portfolio-line);
+  border-bottom: var(--portfolio-line);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.qms-template--portfolio .portfolio-filter__label {
+  flex: none;
+  color: var(--qms-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.qms-template--portfolio .portfolio-filter ul {
+  display: flex;
+  gap: 1.1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.qms-template--portfolio .portfolio-filter li {
+  white-space: nowrap;
+}
+
+.qms-template--portfolio .portfolio-filter a {
+  color: var(--qms-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.qms-template--portfolio .portfolio-filter a:hover {
+  color: var(--qms-accent);
+}
+
+/* Project grid ---------------------------------------------------- */
+
+.qms-template--portfolio .portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1.25rem, 3vw, 2.25rem);
+}
+
+.qms-template--portfolio .portfolio-grid > .portfolio-card:first-child {
+  grid-column: span 2;
+}
+
+.qms-template--portfolio .portfolio-card {
+  min-width: 0;
+}
+
+.qms-template--portfolio .portfolio-card:first-child .portfolio-card__media {
+  aspect-ratio: 16 / 10;
+}
+
+.qms-template--portfolio .portfolio-card__media {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--qms-surface-alt);
+}
+
+.qms-template--portfolio .portfolio-card__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 260ms ease;
+}
+
+.qms-template--portfolio .portfolio-card:hover .portfolio-card__media img {
+  transform: scale(1.04);
+}
+
+.qms-template--portfolio .portfolio-card__placeholder {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background:
+    repeating-linear-gradient(135deg, transparent 0 14px, color-mix(in srgb, var(--qms-border) 55%, transparent) 14px 15px),
+    var(--qms-surface-alt);
+}
+
+.qms-template--portfolio .portfolio-card__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 1rem;
+  background: linear-gradient(0deg, rgba(4, 8, 12, 0.76), rgba(4, 8, 12, 0) 55%);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
+.qms-template--portfolio .portfolio-card:hover .portfolio-card__overlay,
+.qms-template--portfolio .portfolio-card:focus-within .portfolio-card__overlay {
+  opacity: 1;
+}
+
+.qms-template--portfolio .portfolio-card__body {
+  padding-top: 0.8rem;
+}
+
+.qms-template--portfolio .portfolio-card__title {
+  margin: 0.3rem 0 0.4rem;
+  font-size: clamp(1.05rem, 1.7vw, 1.25rem);
+  line-height: 1.2;
+}
+
+.qms-template--portfolio .portfolio-card__title a {
+  color: var(--qms-text);
+  text-decoration: none;
+}
+
+.qms-template--portfolio .portfolio-card__title a:hover {
+  color: var(--qms-accent);
+}
+
+.qms-template--portfolio .portfolio-card__excerpt {
+  margin: 0;
+  color: var(--qms-muted);
+  font-size: 0.92rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* About and contact ---------------------------------------------- */
+
+.qms-template--portfolio .portfolio-about,
+.qms-template--portfolio .portfolio-contact {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.qms-template--portfolio .portfolio-about h2,
+.qms-template--portfolio .portfolio-contact h2 {
+  margin: 0 0 0.7rem;
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+
+.qms-template--portfolio .portfolio-about p,
+.qms-template--portfolio .portfolio-contact p {
+  max-width: 60ch;
+  margin: 0 0 1.2rem;
+  color: var(--qms-muted);
+  font-size: clamp(1rem, 1.4vw, 1.12rem);
+}
+
+.qms-template--portfolio .portfolio-contact {
+  margin-top: clamp(2rem, 5vw, 4rem);
+  padding: clamp(2rem, 5vw, 4rem);
+  background: var(--qms-surface);
+  border: var(--portfolio-line);
+}
+
+.qms-template--portfolio .portfolio-contact h2 {
+  font-size: clamp(2.2rem, 5vw, 4rem);
+}
+
+/* Project index --------------------------------------------------- */
+
+.qms-template--portfolio .portfolio-list__head {
+  padding: clamp(2.25rem, 5vw, 4rem) 0 1.5rem;
+  border-bottom: var(--portfolio-line);
+}
+
+.qms-template--portfolio .portfolio-list__head h1 {
+  margin: 0 0 0.6rem;
+  font-size: clamp(2.8rem, 7vw, 5rem);
+  line-height: 0.96;
+  letter-spacing: -0.045em;
+}
+
+.qms-template--portfolio .portfolio-list__head p {
+  max-width: 55ch;
+  margin: 0;
+  color: var(--qms-muted);
+}
+
+/* Project page ---------------------------------------------------- */
+
+.qms-template--portfolio .portfolio-project__hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  padding: clamp(2.25rem, 5vw, 4rem) 0;
+  border-bottom: var(--portfolio-line);
+}
+
+.qms-template--portfolio .portfolio-project__title {
+  margin: 0.35rem 0 0;
+  font-size: clamp(2.4rem, 6vw, 4.6rem);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.qms-template--portfolio .portfolio-project__byline {
+  margin: 0.9rem 0 0;
+  color: var(--qms-muted);
+  font-size: 0.9rem;
+}
+
+.qms-template--portfolio .portfolio-project__media {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--qms-surface-alt);
+}
+
+.qms-template--portfolio .portfolio-project__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.qms-template--portfolio .portfolio-project__body {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.8rem;
+  font-size: 1.05rem;
+}
+
+.qms-template--portfolio .portfolio-project__body .content-html > p:first-of-type {
+  font-size: 1.16rem;
+  line-height: 1.7;
+}
+
+.qms-template--portfolio .portfolio-terms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  border-top: var(--portfolio-line);
+  padding-top: 1.2rem;
+}
+
+.qms-template--portfolio .portfolio-terms__heading {
+  margin: 0 0 0.5rem;
+  color: var(--qms-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.qms-template--portfolio .portfolio-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.qms-template--portfolio .portfolio-tags a {
+  display: inline-block;
+  border: 1px solid var(--qms-border);
+  border-radius: 0;
+  padding: 0.25rem 0.6rem;
+  color: var(--qms-muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+}
+
+.qms-template--portfolio .portfolio-tags a:hover {
+  color: var(--qms-accent);
+  border-color: var(--qms-accent);
+}
+
+.qms-template--portfolio .portfolio-project__nav {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  border-top: 2px solid var(--qms-text);
+  padding-top: 1.2rem;
+}
+
+.qms-template--portfolio .portfolio-project__nav-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1rem;
+  border: var(--portfolio-line);
+  color: var(--qms-text);
+  text-decoration: none;
+}
+
+.qms-template--portfolio .portfolio-project__nav-link:hover {
+  border-color: var(--qms-accent);
+  background: var(--qms-surface-alt);
+}
+
+.qms-template--portfolio .portfolio-project__nav-link strong {
+  font-family: var(--qms-heading-font);
+  font-size: 1.1rem;
+  line-height: 1.25;
+}
+
+.qms-template--portfolio .portfolio-project__nav-link--next {
+  text-align: right;
+}
+
+/* CMS pages (About, Contact and other pages) ---------------------- */
+
+.qms-template--portfolio .portfolio-page__head {
+  padding: clamp(2.25rem, 5vw, 4rem) 0 1.5rem;
+  border-bottom: var(--portfolio-line);
+}
+
+.qms-template--portfolio .portfolio-page__head h1 {
+  margin: 0;
+  font-size: clamp(2.6rem, 6vw, 4.6rem);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.qms-template--portfolio .portfolio-page__meta {
+  margin: 0.6rem 0 0;
+  color: var(--qms-muted);
+  font-size: 0.85rem;
+}
+
+.qms-template--portfolio .portfolio-page__body {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 2.2rem 0;
+  font-size: 1.05rem;
+}
+
+/* Archive and search keep the shared CMS behaviour and inherit the
+   portfolio typography through these scoped touches. */
+.qms-template--portfolio .page > h1 {
+  letter-spacing: -0.035em;
+}
+
+.qms-template--portfolio .archive-nav,
+.qms-template--portfolio .pagination {
+  border-top: var(--portfolio-line);
+}
+
+/* Responsive ------------------------------------------------------ */
+
+@media (max-width: 960px) {
+  .qms-template--portfolio .portfolio-hero,
+  .qms-template--portfolio .portfolio-project__hero {
+    grid-template-columns: 1fr;
+  }
+
+  .qms-template--portfolio .portfolio-hero__media,
+  .qms-template--portfolio .portfolio-project__media {
+    aspect-ratio: 16 / 10;
+    max-height: none;
+  }
+
+  .qms-template--portfolio .portfolio-hero__media::before {
+    inset: 0.75rem -0.75rem -0.75rem 0.75rem;
+  }
+
+  .qms-template--portfolio .portfolio-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .qms-template--portfolio .site-header__inner {
+    padding-block: 0.7rem;
+  }
+
+  .qms-template--portfolio .brand__title {
+    font-size: 1rem;
+    line-height: 1.15;
+  }
+
+  .qms-template--portfolio .brand__tagline {
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+  }
+
+  .qms-template--portfolio .site-main {
+    padding: 0 1rem 2.5rem;
+  }
+
+  .qms-template--portfolio .portfolio-hero {
+    padding-top: 1.5rem;
+    gap: 1.75rem;
+  }
+
+  .qms-template--portfolio .portfolio-hero__title {
+    font-size: clamp(2.35rem, 12vw, 3.2rem);
+  }
+
+  .qms-template--portfolio .portfolio-section-head {
+    grid-template-columns: auto minmax(0, 1fr);
+    row-gap: 0.5rem;
+  }
+
+  .qms-template--portfolio .portfolio-section-head > a {
+    grid-column: 2;
+  }
+
+  .qms-template--portfolio .portfolio-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .qms-template--portfolio .portfolio-grid > .portfolio-card:first-child {
+    grid-column: auto;
+  }
+
+  .qms-template--portfolio .portfolio-card:first-child .portfolio-card__media {
+    aspect-ratio: 4 / 5;
+  }
+
+  .qms-template--portfolio .portfolio-about,
+  .qms-template--portfolio .portfolio-contact {
+    grid-template-columns: 1fr;
+    gap: 0.8rem;
+  }
+
+  .qms-template--portfolio .portfolio-contact {
+    padding: 1.5rem 1rem;
+  }
+
+  .qms-template--portfolio .portfolio-list__head,
+  .qms-template--portfolio .portfolio-page__head {
+    padding-top: 1.6rem;
+  }
+
+  .qms-template--portfolio .portfolio-project__hero {
+    padding-top: 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .qms-template--portfolio .portfolio-project__title {
+    font-size: clamp(2.1rem, 10vw, 2.8rem);
+  }
+
+  .qms-template--portfolio .portfolio-project__body,
+  .qms-template--portfolio .portfolio-page__body {
+    padding: 1.6rem 0;
+    font-size: 1rem;
+  }
+
+  .qms-template--portfolio .portfolio-project__nav {
+    grid-template-columns: 1fr;
+  }
+
+  .qms-template--portfolio .portfolio-project__nav-link--next {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qms-template--portfolio .portfolio-card__media img,
+  .qms-template--portfolio .portfolio-card__overlay {
+    transition: none;
+  }
+
+  .qms-template--portfolio .portfolio-card:hover .portfolio-card__media img {
+    transform: none;
+  }
+}

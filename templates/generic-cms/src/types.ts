@@ -23,6 +23,11 @@ export interface CmsTheme {
   maxWidth: string;
 }
 
+export interface CmsAppearance {
+  /** Registered public template id; unknown values fall back to Default. */
+  template?: string;
+}
+
 export interface CmsTemplateConfig {
   schema: 'qms-cms-template-config@1';
   /** The exact QDN resource that hosts this runtime configuration. */
@@ -49,6 +54,8 @@ export interface CmsTemplateConfig {
   };
   navigation: CmsNavigationItem[];
   theme: CmsTheme;
+  /** Presentation-only template selection. CMS data and publishing are shared. */
+  appearance?: CmsAppearance;
   admin: {
     qdnName: string;
     requireOwnerForImport: boolean;

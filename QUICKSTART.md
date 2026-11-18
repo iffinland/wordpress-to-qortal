@@ -1,8 +1,9 @@
 # Quick Start
 
-> Source on `main` includes Generic CMS 0.8.0-beta.3. The download below is the
-> approved 0.8.0-beta.2 artifact release until the owner publishes new
-> artifacts; the desktop and Publisher files are unchanged.
+> Source on `main` includes Generic CMS 0.9.0-beta.1 with the approved template
+> system. The download below remains the last approved 0.8.0-beta.3 artifact
+> release until the owner authorizes a new release; the desktop and Publisher
+> files are unchanged.
 
 ## Beginner path — Qortal Migration Studio desktop app
 

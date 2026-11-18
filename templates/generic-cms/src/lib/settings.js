@@ -9,6 +9,8 @@
  * previous revision of the same document.
  */
 
+import { DEFAULT_TEMPLATE_ID, TEMPLATE_IDS, normalizeTemplateId } from './template.js';
+
 export const SITE_SETTINGS_SCHEMA = 'qms-cms-site-settings@1';
 export const SITE_SETTINGS_VERSION = 1;
 export const SITE_SETTINGS_IDENTIFIER = 'qms-cms-site-settings';
@@ -29,7 +31,10 @@ export function defaultSettingsDraft(config) {
       publicAuthor: config.site.publicAuthor || ''
     },
     navigation: (config.navigation || []).map((item) => ({ label: item.label, href: item.href })),
-    colors: { ...config.theme.colors }
+    colors: { ...config.theme.colors },
+    appearance: {
+      template: normalizeTemplateId(config.appearance && config.appearance.template)
+    }
   };
 }
 
@@ -89,6 +94,12 @@ export function validateSettingsDraft(draft) {
       if (item && item.label && item.label.length > 40) errors.push('Navigation label ' + (index + 1) + ' is too long.');
       if (!item || !safeHref(item.href)) errors.push('Navigation item ' + (index + 1) + ' must link to an internal #/ route or an http(s) URL.');
     });
+  }
+  if (draft.appearance != null) {
+    if (typeof draft.appearance !== 'object') errors.push('appearance must be an object.');
+    else if (draft.appearance.template != null && !TEMPLATE_IDS.includes(String(draft.appearance.template))) {
+      errors.push('appearance.template must be one of: ' + TEMPLATE_IDS.join(', ') + '.');
+    }
   }
   if (!draft.colors || typeof draft.colors !== 'object') errors.push('Branding colors are required.');
   else {
@@ -157,6 +168,9 @@ export async function buildSettingsDocument({ draft, baseRevision = 0, identity,
       publicAuthor: String(draft.site.publicAuthor || '').trim()
     },
     navigation: draft.navigation.map((item) => ({ label: item.label.trim(), href: safeHref(item.href) })),
+    appearance: {
+      template: normalizeTemplateId(draft.appearance && draft.appearance.template)
+    },
     theme: {
       colors: Object.fromEntries(Object.entries(draft.colors).filter(([key, value]) => COLOR_KEYS.includes(key) && value))
     }
@@ -172,11 +186,27 @@ export function readSettingsDocument(payload) {
   const draft = {
     site: payload.site || {},
     navigation: Array.isArray(payload.navigation) ? payload.navigation : [],
-    colors: payload.theme && payload.theme.colors ? payload.theme.colors : {}
+    colors: payload.theme && payload.theme.colors ? payload.theme.colors : {},
+    appearance: payload.appearance && typeof payload.appearance === 'object'
+      ? payload.appearance
+      : { template: DEFAULT_TEMPLATE_ID }
   };
   const validation = validateSettingsDraft(draft);
   if (!validation.ok) return { ok: false, errors: validation.errors, settings: null };
-  return { ok: true, errors: [], settings: payload };
+  // Older published documents have no appearance field. Normalize it here so
+  // every consumer sees the same explicit template selection without
+  // rewriting the stored QDN document.
+  return {
+    ok: true,
+    errors: [],
+    settings: {
+      ...payload,
+      appearance: {
+        ...(payload.appearance && typeof payload.appearance === 'object' ? payload.appearance : {}),
+        template: normalizeTemplateId(payload.appearance && payload.appearance.template)
+      }
+    }
+  };
 }
 
 export function mergeSettingsIntoConfig(config, settings, options = {}) {
@@ -194,6 +224,15 @@ export function mergeSettingsIntoConfig(config, settings, options = {}) {
     ...config,
     site,
     navigation: settings.navigation.map((item) => ({ label: item.label, href: item.href })),
+    appearance: {
+      ...(config.appearance || {}),
+      ...(settings.appearance && typeof settings.appearance === 'object' ? settings.appearance : {}),
+      template: normalizeTemplateId(
+        settings.appearance && settings.appearance.template
+          ? settings.appearance.template
+          : config.appearance && config.appearance.template
+      )
+    },
     theme: {
       ...config.theme,
       colors: { ...config.theme.colors, ...(settings.theme && settings.theme.colors ? settings.theme.colors : {}) }
