@@ -18,6 +18,7 @@
  */
 
 import { readRemoteJson } from '../publish.js';
+import { discoverHostedQdnResource } from '../qortal.js';
 import { stableStringify } from '../settings.js';
 import { stripHtml } from '../text.js';
 import { stableToken } from './ids.js';
@@ -75,16 +76,25 @@ export const EMPTY_CROSS_PUBLISH_SELECTIONS = Object.freeze({
  * because Hub builds differ in how much of the fragment they preserve.
  */
 /**
- * @param {{ deployment?: any, name?: string, slug?: string }} [options]
+ * @param {{ deployment?: any, hosting?: any, name?: string, slug?: string }} [options]
  */
 export function buildSitePostUrl(options = {}) {
-  const { deployment = null, name = '', slug = '' } = options;
-  const service = deployment && deployment.service === 'WEBSITE' ? 'WEBSITE' : 'APP';
-  const siteName = (deployment && deployment.name) || name;
+  const { deployment = null, hosting = null, name = '', slug = '' } = options;
+  // The deployment object in older runtime configs may still say APP even when
+  // the site is actually hosted as WEBSITE. Resolve the real hosting context
+  // (globals/_qdnBase) first, then fall back to the configured deployment.
+  const hosted = hosting || discoverHostedQdnResource({
+    name: (deployment && deployment.name) || name,
+    service: (deployment && deployment.service) || 'APP',
+    identifier: (deployment && deployment.identifier) || 'default'
+  });
+  const service = hosted.service === 'WEBSITE' || (deployment && deployment.service === 'WEBSITE')
+    ? 'WEBSITE'
+    : 'APP';
+  const siteName = hosted.name || (deployment && deployment.name) || name;
   if (!siteName) throw new Error('The CMS site name is unknown, so a public post link cannot be built.');
-  const identifier = deployment && deployment.identifier && deployment.identifier !== 'default'
-    ? String(deployment.identifier)
-    : '';
+  const rawIdentifier = hosted.identifier || (deployment && deployment.identifier) || 'default';
+  const identifier = rawIdentifier && rawIdentifier !== 'default' ? String(rawIdentifier) : '';
   const base = 'qortal://' + service + '/' + encodeURIComponent(siteName) + '/';
   const query = identifier ? '?identifier=' + encodeURIComponent(identifier) : '';
   return base + query + '#/posts/' + encodeURIComponent(String(slug || ''));

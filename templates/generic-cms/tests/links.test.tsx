@@ -126,7 +126,7 @@ describe('rendered link behaviour', () => {
 
 describe('footer attribution and header branding', () => {
   it('renders the CMS attribution without a QDN name label and keeps footer text separate', () => {
-    const html = renderToHtml(<SiteFooter config={{ ...cmsConfig, site: { ...cmsConfig.site, footerText: 'Owner footer' } }} templateVersion="1.2.3" />);
+    const html = renderToHtml(<SiteFooter config={{ ...cmsConfig, site: { ...cmsConfig.site, footerText: 'Owner footer' } }} />);
     expect(html).toContain('Owner footer');
     expect(html).toContain('Qortal Migration Studio CMS');
     expect(html).not.toContain('QDN name:');

@@ -1,28 +1,35 @@
+import { useState } from 'react';
 import { finalizeSlug } from '../../../lib/slug.js';
 import type { CmsTerm } from '../../../types';
 
 /**
- * Comma-separated taxonomy field with suggestions from the existing catalog.
- * The datalist is the compact native control; the chips work even in embedded
- * Android WebViews whose datalist support is unreliable.
+ * Comma-separated taxonomy field with compact suggestions.
+ *
+ * Nothing is permanently expanded: suggestions appear only while the field is
+ * focused and the current token is being typed, filtered to that token. This
+ * stays usable with hundreds of terms on a phone.
  */
-function TaxonomyInput(props: {
+export function TaxonomyInput(props: {
   id: string;
   label: string;
   value: string;
   terms: CmsTerm[];
   onChange: (value: string) => void;
 }) {
-  const selected = String(props.value || '')
-    .split(',')
-    .map((entry) => entry.trim().toLowerCase())
-    .filter(Boolean);
-  const suggestions = props.terms
-    .filter((term) => term && term.name && !selected.includes(term.name.toLowerCase()))
-    .slice(0, 8);
+  const [focused, setFocused] = useState(false);
+  const pieces = String(props.value || '').split(',');
+  const current = (pieces[pieces.length - 1] || '').trim().toLowerCase();
+  const selected = pieces.map((entry) => entry.trim().toLowerCase()).filter(Boolean);
+  const suggestions = focused && current.length > 0
+    ? props.terms
+      .filter((term) => term && term.name && !selected.includes(term.name.toLowerCase()))
+      .filter((term) => term.name.toLowerCase().includes(current))
+      .slice(0, 8)
+    : [];
   const append = (name: string) => {
-    const next = String(props.value || '').trim();
-    props.onChange(next ? next + ', ' + name : name);
+    const next = pieces.map((entry) => entry.trim());
+    next[next.length - 1] = name;
+    props.onChange(next.filter(Boolean).join(', '));
   };
   return (
     <div className="taxonomy-field">
@@ -31,6 +38,8 @@ function TaxonomyInput(props: {
           list={props.id + '-options'}
           value={props.value}
           onChange={(event) => props.onChange(event.target.value)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setTimeout(() => setFocused(false), 120)}
           aria-describedby={props.id + '-help'}
         />
       </label>
@@ -45,6 +54,7 @@ function TaxonomyInput(props: {
               key={term.id}
               type="button"
               className="chip-button"
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => append(term.name)}
             >
               {term.name}

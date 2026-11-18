@@ -286,12 +286,6 @@ export function App() {
       hasGalleries={galleries.length > 0}
       onConnectOwner={connectOwner}
       onRetryIdentity={retryIdentity}
-      updateBadge={updates.state.showBadge ? (
-        <button type="button" className="update-badge" onClick={updates.openPanel}>
-          Update available
-        </button>
-      ) : null}
-      onCheckUpdates={updates.openPanel}
     >
       {adminRequested ? (
         <>
@@ -307,6 +301,8 @@ export function App() {
           section={route.section}
           initialEditorId={route.id}
           onRefresh={refresh}
+          templateVersion={templateVersion}
+          onCheckUpdates={updates.openPanel}
           settingsConfig={effectiveConfig}
           qdnName={hostedName}
           siteId={dataset ? dataset.site.id : effectiveConfig.site.id}

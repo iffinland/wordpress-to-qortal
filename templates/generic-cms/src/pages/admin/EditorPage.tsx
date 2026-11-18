@@ -30,6 +30,7 @@ import { SectionsPicker } from './editor/SectionsPicker';
 import { assignmentFor, sameAssignment } from '../../lib/sections.js';
 import { prepareMediaResource, quotePublication } from '../../lib/publish.js';
 import { attachmentsInHtml, isPublicGatewayUrl, validateAttachment, formatBytes } from '../../lib/attachments.js';
+import { attachmentVault, attachmentVaultKey, captureForIdentifier } from '../../lib/attachmentVault.js';
 import { getQdnResourceStatus, getTrustedNodeUrl } from '../../lib/qortal.js';
 import type { AttachmentStore } from './editor/AttachmentTools';
 import { slugAvailable } from '../../lib/nativeCatalog.js';
@@ -139,13 +140,14 @@ export function EditorPage(props: {
   const [leavePrompt, setLeavePrompt] = useState(false);
   const [assignment, setAssignment] = useState<{ slugs: string[]; hideFromHome: boolean }>({ slugs: [], hideFromHome: false });
   const initialAssignmentRef = useRef<{ slugs: string[]; hideFromHome: boolean }>({ slugs: [], hideFromHome: false });
-  const attachmentStoreRef = useRef<AttachmentStore>(new Map());
+  const attachmentStore = useMemo(() => attachmentVault(attachmentVaultKey({ name: props.name, siteId: props.siteId })), [props.name, props.siteId]);
   const [progress, setProgress] = useState<Array<{ stage: string; identifier: string; state: string }>>([]);
   const [crossSelections, setCrossSelections] = useState<CrossPublishSelections>(() => emptyCrossPublishSelections());
   const [quitterText, setQuitterText] = useState('');
   const [quitterTouched, setQuitterTouched] = useState(false);
   const [crossPlan, setCrossPlan] = useState<CrossPublishPlanView | null>(null);
   const [crossVideoMoves, setCrossVideoMoves] = useState<Array<{ from: string; to: string; filename: string; size: number }>>([]);
+  const captureFor = (identifier: string) => captureForIdentifier(attachmentStore, identifier, crossVideoMoves);
   const [crossResults, setCrossResults] = useState<CrossPublishResultView[] | null>(null);
   const [planFee, setPlanFee] = useState('');
   const [subwireCoverKind, setSubwireCoverKind] = useState<'featured' | 'generated' | null>(null);
@@ -160,10 +162,10 @@ export function EditorPage(props: {
   const sectionsChanged = Boolean(draft && draft.type !== 'page' && !sameAssignment(assignment, initialAssignmentRef.current));
   const attachmentPlan = useMemo(() => {
     if (!draft || !draft.html) return [] as ReturnType<typeof attachmentsInHtml>;
-    return attachmentsInHtml(draft.html).filter((meta: any) => attachmentStoreRef.current.has(meta.identifier));
+    return attachmentsInHtml(draft.html).filter((meta: any) => Boolean(captureFor(meta.identifier)));
   }, [draft && draft.html]);
   const attachmentResourceCount = attachmentPlan.length + attachmentPlan.filter((meta: any) => {
-    const capture = attachmentStoreRef.current.get(meta.identifier);
+    const capture = captureFor(meta.identifier);
     return Boolean(capture && capture.poster && capture.posterIdentifier !== undefined && meta.poster);
   }).length;
   const qtubeVideos = useMemo(() => {
@@ -614,7 +616,7 @@ export function EditorPage(props: {
       }
       for (const candidate of qtubeVideos) {
         if (!candidate) continue;
-        const capture = attachmentStoreRef.current.get(candidate.identifier);
+        const capture = captureFor(candidate.identifier);
         let ready = Boolean(capture);
         if (!ready) {
           const status: any = await getQdnResourceStatus('VIDEO', props.name, candidate.identifier);
@@ -803,7 +805,7 @@ export function EditorPage(props: {
         setMessage('The attachment "' + meta.filename + '" belongs to a different QDN name and was not published.');
         return;
       }
-      const capture = attachmentStoreRef.current.get(meta.identifier);
+      const capture = captureFor(meta.identifier);
       if (!capture) {
         const status: any = await getQdnResourceStatus(meta.service, props.name, meta.identifier);
         if (status && status.status === 'READY') continue;
@@ -921,9 +923,6 @@ export function EditorPage(props: {
     }
 
     if (cmsVerified && sectionsPayload) initialAssignmentRef.current = { slugs: [...assignment.slugs], hideFromHome: assignment.hideFromHome };
-    if (cmsVerified) {
-      for (const meta of attachmentsInHtml(html) as any[]) attachmentStoreRef.current.delete(meta.identifier);
-    }
     if (cmsVerified && uploaded) {
       setFeaturedFile(null);
       setFeaturedBytes(null);
@@ -1234,7 +1233,7 @@ export function EditorPage(props: {
             </p>
           ) : null}
 
-          <RichTextEditor value={draft.html} onChange={(html) => persist({ ...draft, html })} onInsertMedia={() => setShowMedia(true)} qdnName={props.name} attachmentStore={attachmentStoreRef.current} publicNode={isPublicGatewayUrl(getTrustedNodeUrl())} />
+          <RichTextEditor value={draft.html} onChange={(html) => persist({ ...draft, html })} onInsertMedia={() => setShowMedia(true)} qdnName={props.name} attachmentStore={attachmentStore} publicNode={isPublicGatewayUrl(getTrustedNodeUrl())} />
         </>
       )}
 

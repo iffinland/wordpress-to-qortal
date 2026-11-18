@@ -12,7 +12,7 @@ const ATTRIBUTION_LABEL = 'Qortal Migration Studio CMS';
  * Qortal Web Builders site through the Hub OPEN_NEW_TAB bridge action; outside
  * Hub the destination is shown and copied so it can be pasted manually.
  */
-export function SiteFooter(props: { config: CmsTemplateConfig; templateVersion: string; onCheckUpdates?: () => void }) {
+export function SiteFooter(props: { config: CmsTemplateConfig }) {
   const [fallback, setFallback] = useState('');
   const label = ATTRIBUTION_LABEL + ' — open Qortal Web Builders in a new tab';
   const open = async (event: MouseEvent<HTMLAnchorElement>) => {
@@ -30,11 +30,6 @@ export function SiteFooter(props: { config: CmsTemplateConfig; templateVersion: 
     <footer className="site-footer">
       {props.config.site.footerText ? <p className="site-footer__text">{props.config.site.footerText}</p> : null}
       <p className="site-footer__meta">
-        {props.onCheckUpdates ? (
-          <button type="button" className="site-footer__updates" onClick={props.onCheckUpdates}>
-            Check for updates
-          </button>
-        ) : null}
         <a
           className="site-footer__attribution"
           href={ATTRIBUTION_LINK}
@@ -45,7 +40,6 @@ export function SiteFooter(props: { config: CmsTemplateConfig; templateVersion: 
         >
           {ATTRIBUTION_LABEL}
         </a>
-        <span className="site-footer__version">Template v{props.templateVersion}</span>
       </p>
       {fallback ? <p className="site-footer__fallback" role="status">{fallback}</p> : null}
     </footer>

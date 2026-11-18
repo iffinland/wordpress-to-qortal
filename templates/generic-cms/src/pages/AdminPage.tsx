@@ -14,6 +14,8 @@ function OwnerAdmin(props: {
   identity: ViewerIdentity;
   section: AdminSection;
   onRefresh: () => void;
+  templateVersion?: string;
+  onCheckUpdates?: () => void;
   settingsConfig: any;
   qdnName: string;
   siteId: string;
@@ -107,6 +109,15 @@ function OwnerAdmin(props: {
             QDN resources without an owner-approved action.
           </p>
 
+          <section className="admin-section" aria-labelledby="updates-title">
+            <h2 id="updates-title">CMS updates</h2>
+            <p className="muted">Public visitors do not see update checks or template version information.</p>
+            <p className="muted">Template v{props.templateVersion || 'unknown'}</p>
+            <div className="admin-toolbar">
+              <button type="button" className="button button--ghost" onClick={props.onCheckUpdates} disabled={!props.onCheckUpdates}>Check for updates</button>
+            </div>
+          </section>
+
           <section className="admin-section" aria-labelledby="access-title">
             <h2 id="access-title">Access</h2>
             <div className="access-card access-card--owner">
@@ -156,6 +167,8 @@ export function AdminPage(props: {
   identityNotice: string;
   section?: AdminSection;
   onRefresh: () => void;
+  templateVersion?: string;
+  onCheckUpdates?: () => void;
   /** @deprecated Adoption was removed; kept optional for old embeddings only. */
   adoptionQueue?: any[];
   /** @deprecated */
@@ -200,6 +213,8 @@ export function AdminPage(props: {
       identity={props.identity as ViewerIdentity}
       section={props.section || 'overview'}
       onRefresh={props.onRefresh}
+      templateVersion={props.templateVersion}
+      onCheckUpdates={props.onCheckUpdates}
       settingsConfig={props.settingsConfig || { site: {}, navigation: [], theme: { colors: {} } }}
       qdnName={props.qdnName || (props.identity ? props.identity.qdnName : '')}
       siteId={props.siteId || (props.dataset ? props.dataset.site.id : 'site')}

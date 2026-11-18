@@ -176,7 +176,7 @@ export function Layout(props: {
       <main id="main-content" className="site-main" tabIndex={-1}>
         {props.children}
       </main>
-      <SiteFooter config={props.config} templateVersion={props.templateVersion} onCheckUpdates={props.onCheckUpdates} />
+      <SiteFooter config={props.config} />
       <BackToTop />
     </div>
   );

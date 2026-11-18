@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import type { CmsContentItem } from '../../types';
 import { pageHref } from '../../lib/routes.js';
-import { QORTAL_COMMUNITY_CHAT_LINK } from '../../lib/links.js';
+import { parseQortalUseGroupLink } from '../../lib/links.js';
 
 export interface NavItemDraft { label: string; href: string }
 
@@ -12,7 +12,6 @@ const PRESETS: NavItemDraft[] = [
   { label: 'Archive', href: '#/archive' },
   { label: 'Search', href: '#/search' },
   { label: 'Gallery', href: '#/gallery' },
-  { label: 'Community chat', href: QORTAL_COMMUNITY_CHAT_LINK },
   { label: 'Admin', href: '#/admin' }
 ];
 
@@ -35,6 +34,11 @@ export function NavigationEditor(props: {
   const [announce, setAnnounce] = useState('');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [customRows, setCustomRows] = useState<Record<number, boolean>>({});
+  const existingChatIndex = items.findIndex((item) => parseQortalUseGroupLink(item.href));
+  const [chatGroupId, setChatGroupId] = useState(() => {
+    const found = existingChatIndex >= 0 ? parseQortalUseGroupLink(items[existingChatIndex].href) : null;
+    return found ? String(found.groupId) : '';
+  });
   const listRef = useRef<HTMLDivElement>(null);
   const options = [
     ...PRESETS,
@@ -52,6 +56,30 @@ export function NavigationEditor(props: {
     const el = document.elementFromPoint(x, y);
     const row = el && (el as HTMLElement).closest ? (el as HTMLElement).closest('[data-nav-index]') : null;
     return row ? Number(row.getAttribute('data-nav-index')) : null;
+  };
+  const saveCommunityChat = () => {
+    const groupId = String(chatGroupId || '').trim();
+    if (!/^[1-9]\d*$/.test(groupId)) {
+      setAnnounce('Enter a positive Qortal group ID, for example 1214.');
+      return;
+    }
+    const href = 'qortal://use-group/action-join/groupid-' + groupId;
+    if (existingChatIndex >= 0) {
+      update(existingChatIndex, { href });
+      setAnnounce('Community chat link updated to group ' + groupId + '.');
+      return;
+    }
+    if (items.length >= max) {
+      setAnnounce('Navigation already has the maximum number of items.');
+      return;
+    }
+    props.onChange([...items, { label: 'Community chat', href }]);
+    setAnnounce('Community chat link added for group ' + groupId + '.');
+  };
+  const removeCommunityChat = () => {
+    if (existingChatIndex < 0) return;
+    props.onChange(items.filter((_, index) => index !== existingChatIndex));
+    setAnnounce('Community chat link removed.');
   };
   const endDrag = (event: React.PointerEvent, from: number) => {
     const target = rowFromPoint(event.clientX, event.clientY);
@@ -100,6 +128,19 @@ export function NavigationEditor(props: {
         );
       })}
       <button type="button" className="button button--ghost" onClick={() => props.onChange([...items, { label: 'New link', href: '#/' }])} disabled={items.length >= max}>Add navigation item</button>
+      <fieldset className="nav-editor__community">
+        <legend>Community chat (optional)</legend>
+        <p className="muted">Adds a direct Qortal group-join action. The owner can change the group ID at any time.</p>
+        <label>Qortal group ID
+          <input inputMode="numeric" value={chatGroupId} onChange={(event) => setChatGroupId(event.target.value.replace(/[^0-9]/g, ''))} placeholder="1214" />
+        </label>
+        <div className="admin-toolbar">
+          <button type="button" className="button button--ghost" onClick={saveCommunityChat} disabled={items.length >= max && existingChatIndex < 0}>
+            {existingChatIndex >= 0 ? 'Update community chat link' : 'Add community chat link'}
+          </button>
+          {existingChatIndex >= 0 ? <button type="button" className="button button--ghost" onClick={removeCommunityChat}>Remove community chat link</button> : null}
+        </div>
+      </fieldset>
       <p className="visually-hidden" role="status" aria-live="polite">{announce}</p>
     </div>
   );
