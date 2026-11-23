@@ -16,7 +16,7 @@ const checkInput = {
   quickstart: await read('QUICKSTART.md'),
   install: await read('docs/migration-studio/INSTALL-LINUX.md'),
   manifest,
-  strictManifest: Boolean(manifest)
+  strictManifest: true
 };
 const result = publicRelease ? evaluateDevelopmentDocs({ ...checkInput, publishedRelease: publicRelease, developmentNotes: await read('docs/migration-studio/DESKTOP-BETA.2-TESTING.md') }) : evaluateActiveDocs(checkInput);
 if (!result.ok) {

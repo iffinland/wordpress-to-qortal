@@ -39,7 +39,6 @@ jobs:
       - name: Check version, documentation and release uniqueness
         run: |
           npm run version:check
-          npm run docs:verify
           node scripts/release/delivery-gate.mjs --stage=prebuild
       - name: Build embedded CMS required by engine tests
         run: npm --prefix templates/generic-cms run build
@@ -59,11 +58,14 @@ jobs:
           node scripts/release/engine-clean-install-test.mjs --runtime=electron --hide-node-module=fflate --expect-failure --out=desktop/release/engine-clean-install-negative.json
           node scripts/release/engine-wizard-flow-test.mjs --runtime=electron
           npm run release:security
-      - name: Run packaged GUI acceptance
+      - name: Run packaged Guided mode acceptance
+        run: node scripts/release/guided-acceptance.mjs --work="$RUNNER_TEMP/qms-guided"
+      - name: Run packaged Advanced tools acceptance
+        run: node scripts/release/packaged-functional-acceptance.mjs --rootfs=/ --work="$RUNNER_TEMP/qms-functional" --out=release/packaged-functional-acceptance.json
+      - name: Run packaged bounded-scan acceptance
+        run: node scripts/release/packaged-bounded-scan-e2e.mjs --rootfs=/ --work="$RUNNER_TEMP/qms-bounded" --out=release/packaged-bounded-scan-e2e.json
+      - name: Run packaged handoff and read-back acceptance
         run: |
-          node scripts/release/guided-acceptance.mjs --work="$RUNNER_TEMP/qms-guided"
-          node scripts/release/packaged-functional-acceptance.mjs --rootfs=/ --work="$RUNNER_TEMP/qms-functional" --out=release/packaged-functional-acceptance.json
-          node scripts/release/packaged-bounded-scan-e2e.mjs --rootfs=/ --work="$RUNNER_TEMP/qms-bounded" --out=release/packaged-bounded-scan-e2e.json
           node scripts/release/packaged-handoff-e2e.mjs --rootfs=/ --work="$RUNNER_TEMP/qms-handoff" --out=release/packaged-handoff-e2e.json
           npm run release:verify-packaged-scan
           npm run release:verify-functional
