@@ -52,7 +52,8 @@ if (process.argv.includes('--zip')) {
   const zipPath = path.join(releaseDir, 'qortal-migration-generic-cms-v' + packageJson.version + '.zip');
   rmSync(zipPath, { force: true });
   const entries = {};
-  const mtime = new Date('1980-01-01T00:00:00.000Z');
+  // ZIP stores local DOS time. Preserve the accepted RC.2 timestamp in every timezone.
+  const mtime = new Date(1980, 0, 1, 2, 0, 0);
   const files = readdirSync(distDir, { recursive: true, withFileTypes: true })
     .filter((entry) => entry.isFile())
     .map((entry) => {
