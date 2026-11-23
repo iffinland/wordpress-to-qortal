@@ -83,6 +83,26 @@ async function seedProject(server, name, qdnName) {
 }
 
 async function writeSessionScript() {
+  // On a normal CI host, use its native X11/runtime libraries. Mounting a
+  // disposable /dev on rootfs=/ would hide the very host devices being bound.
+  if (rootfs === '/') {
+    const script = [
+      'set -e',
+      'W=' + shellQuote(work),
+      'APP=' + shellQuote(appDir),
+      'mkdir -p "$W/config"',
+      'rm -rf "$W/config"; mkdir -p "$W/config"',
+      'export XDG_DATA_HOME=' + shellQuote(dataHome),
+      'export XDG_CONFIG_HOME="$W/config"',
+      'export DISPLAY=127.0.0.1:99 QMS_ISOLATED_TEST=1',
+      'Xvfb :99 -screen 0 1366x900x24 -nolisten unix -nolisten local -listen tcp -ac >"$W/xvfb.log" 2>&1 &',
+      'for i in $(seq 1 80); do (echo >/dev/tcp/127.0.0.1/6099) 2>/dev/null && break; sleep 0.2; done',
+      '(echo >/dev/tcp/127.0.0.1/6099) 2>/dev/null || { cat "$W/xvfb.log"; exit 1; }',
+      'exec "$APP/qortal-migration-studio" --qms-isolated-test --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=' + CDP_PORT + ' --remote-allow-origins=* >"$W/app.log" 2>&1'
+    ].join('\n');
+    await writeFile(sessionScript, script + '\n', { mode: 0o755 });
+    return;
+  }
   const inner = [
     'set -e',
     'export XDG_DATA_HOME=/mnt/datahome',
@@ -406,7 +426,7 @@ async function main() {
     await writeSessionScript();
 
     stage('launching packaged app');
-    child = spawn('unshare', ['-rmpf', 'bash', sessionScript], { detached: true, stdio: 'ignore', env });
+    child = spawn(rootfs === '/' ? 'bash' : 'unshare', rootfs === '/' ? [sessionScript] : ['-rmpf', 'bash', sessionScript], { detached: true, stdio: 'ignore', env });
     cdp = await connectCdp();
     await openProjectWizard(cdp, bounded.projectId);
     evidence.stages.boundedScan = await scenarioBoundedScan(cdp, server);
@@ -421,7 +441,7 @@ async function main() {
     cdp.close();
     cdp = null;
 
-    child = spawn('unshare', ['-rmpf', 'bash', sessionScript], { detached: true, stdio: 'ignore', env });
+    child = spawn(rootfs === '/' ? 'bash' : 'unshare', rootfs === '/' ? [sessionScript] : ['-rmpf', 'bash', sessionScript], { detached: true, stdio: 'ignore', env });
     cdp = await connectCdp();
     stage('cdp connected');
     scenarioResume.projectId = paused.projectId;
@@ -442,7 +462,7 @@ async function main() {
     if (child) await stopApp(child).catch(() => {});
     await server.close().catch(() => {});
     try {
-      evidence.appLog = (await readFile(path.join(rootfs, 'tmp/app.log'), 'utf8')).split('\n').slice(-60);
+      evidence.appLog = (await readFile(rootfs === '/' ? path.join(work, 'app.log') : path.join(rootfs, 'tmp/app.log'), 'utf8')).split('\n').slice(-60);
     } catch (error) {
       evidence.appLog = ['unavailable: ' + error.message];
     }

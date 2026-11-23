@@ -101,6 +101,7 @@ jobs:
           if-no-files-found: warn
           path: |
             desktop/release/*.json
+            desktop/release/*.deb
             release/*.json
             release/*.md
             release/SHA256SUMS
