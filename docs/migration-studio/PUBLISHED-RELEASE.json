@@ -1,0 +1,42 @@
+{
+  "schema": "qms-release@2",
+  "product": "Qortal Migration Studio",
+  "version": "0.8.0-beta.3",
+  "channel": "beta",
+  "releaseTag": "v0.8.0-beta.3",
+  "signing": "unsigned",
+  "architecture": "amd64",
+  "debianPackage": "qortal-migration-studio",
+  "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-BETA.3.md",
+  "changelog": {
+    "summary": "0.8.0-beta.3 publishes Generic CMS 0.8.0-beta.4 with the accepted usability round: optional community chat navigation, Back to Top, owner-only post deletion, taxonomy suggestions and management, mobile tagline and public-author defaults. Desktop and Publisher remain 0.8.0-beta.1."
+  },
+  "components": {
+    "desktop": {
+      "version": "0.8.0-beta.1",
+      "channel": "beta",
+      "source": "desktop/package.json",
+      "changelog": "Unchanged from the approved beta.1 desktop package."
+    },
+    "publisher": {
+      "version": "0.8.0-beta.1",
+      "channel": "beta",
+      "source": "viewer/package.json",
+      "changelog": "Unchanged from the approved beta.1 Publisher Q-App."
+    },
+    "cms": {
+      "version": "0.9.0-beta.1",
+      "channel": "beta",
+      "source": "templates/generic-cms/package.json",
+      "changelog": "Generic CMS 0.9.0-beta.1: reusable template system with Default, Magazine / News, Portfolio, Documentation / Knowledge Base, Photography / Gallery, Business / Services, Video / Media and Personal Journal. Templates are selected in Appearance settings; content, publishing and owner controls are shared."
+    }
+  },
+  "versionMarkers": [
+    "desktop/package.json",
+    "desktop/engine-package/package.json",
+    "viewer/package.json",
+    "templates/generic-cms/package.json",
+    "lib/engine/index.js",
+    "docs/migration-studio/RELEASE-0.8.0-BETA.3.md"
+  ]
+}

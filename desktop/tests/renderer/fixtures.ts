@@ -188,6 +188,10 @@ export function syncStatusFixture(overrides: Record<string, unknown> = {}) {
 
 export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
   const base: QmsApi = {
+    workflow: vi.fn(async () => ({ status: 'draft', batches: [], cursor: 0 })),
+    backup: vi.fn(async () => ({ cancelled: true })),
+    restoreBackup: vi.fn(async () => ({ cancelled: true })),
+    chooseWorkspace: vi.fn(async () => ({ cancelled: true })),
     app: {
       info: vi.fn(async () => ({ apiVersion: 'qms-engine@1', version: '0.1.9-phase8', dataRoot: '/data', repoRoot: '/repo', sourceContract: 'qms-source-adapter@1', contentSchema: 'qms-content@1', planSchema: 'qms-plan@1', identitySchema: 'qms-identity-state@1', syncSchema: 'qms-sync-state@1', syncScanSchema: 'qms-sync-scan@1', syncConflictSchema: 'qms-sync-conflict@1', withdrawalSchema: 'qms-withdrawal-record@1', eventSchema: 'qms-event@1', adapters: [adapter()] })),
       settings: vi.fn(async () => settings()),

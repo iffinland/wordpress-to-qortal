@@ -3,7 +3,7 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import App from '../../src/renderer/App.js';
+import { AdvancedApp as App } from '../../src/renderer/App.js';
 import { mockApi, project } from './fixtures.js';
 
 describe('stale project lock recovery', () => {
@@ -26,7 +26,7 @@ describe('stale project lock recovery', () => {
     window.qms = api;
 
     render(<App />);
-    const openButtons = await screen.findAllByRole('button', { name: 'Open' });
+    const openButtons = await screen.findAllByRole('button', { name: 'Continue this site' });
     await userEvent.click(openButtons[0]);
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Project needs recovery');

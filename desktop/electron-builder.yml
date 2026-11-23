@@ -16,6 +16,10 @@ extraResources:
     to: engine
     filter:
       - "**/*"
+  - from: engine-runtime/node_modules
+    to: engine/node_modules
+    filter:
+      - "**/*"
 linux:
   target:
     - dir
@@ -25,10 +29,11 @@ linux:
   executableName: qortal-migration-studio
   icon: build/icons
   desktop:
-    Name: Qortal Migration Studio
-    Comment: Prepare, hand off and verify WordPress-to-QDN migrations
-    Categories: Office;Utility;
-    Keywords: Qortal;WordPress;Migration;QDN;
-    StartupWMClass: Qortal Migration Studio
+    entry:
+      Name: Qortal Migration Studio
+      Comment: Prepare, hand off and verify WordPress-to-QDN migrations
+      Categories: Office;Utility;
+      Keywords: Qortal;WordPress;Migration;QDN;
+      StartupWMClass: Qortal Migration Studio
 afterPack: scripts/after-pack.cjs
 publish: null

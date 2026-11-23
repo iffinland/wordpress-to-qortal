@@ -385,6 +385,21 @@ export function validateIpcPayload(channel: string, payload: unknown): Dict {
   const params = object(payload, 'payload', { optional: true });
 
   switch (channel) {
+    case IPC.chooseWorkspace:
+    case IPC.restoreBackup:
+      return {};
+    case IPC.backup:
+      return { projectId: projectId(params) };
+    case IPC.workflow: {
+      const action = text(params.action, 'action', { max: 20 });
+      if (!['status', 'preview', 'prepare', 'pause', 'verify', 'item'].includes(action ?? '')) fail('Unknown workflow action.');
+      return { projectId: projectId(params), action,
+        ...(params.options ? { options: sanitizePersisted(params.options) } : {}),
+        ...(params.resume !== undefined ? { resume: bool(params.resume, 'resume', false) } : {}),
+        ...(params.nodeUrl !== undefined ? { nodeUrl: text(params.nodeUrl, 'nodeUrl', { max: 1000 }) } : {}),
+        ...(params.receipt !== undefined ? { receipt: sanitizePersisted(params.receipt) } : {}),
+        ...(params.sourceKey !== undefined ? { sourceKey: text(params.sourceKey, 'sourceKey', { max: 160 }) } : {}) };
+    }
     case IPC.appInfo:
     case IPC.appSettings:
     case IPC.nodesGet:

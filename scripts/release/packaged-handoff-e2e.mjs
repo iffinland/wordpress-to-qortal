@@ -139,18 +139,18 @@ mkdir -p "$W/home" "$W/datahome" "$W/config" "$W/run"
 chmod 700 "$W/run"
 rm -rf "$W/config"; mkdir -p "$W/config"
 rm -f "$R/tmp/.X98-lock" "$R/tmp/.X11-unix/X98"
-setsid unshare -rmpf bash -c '
+unshare --kill-child=TERM -rmpf bash -c '
   R="'"$R"'"
   mkdir -p "$R/tmp/.X11-unix" "$R/var/lib/xkb"
   mount -t tmpfs -o mode=755 tmpfs "$R/dev" 2>/dev/null || true
-  exec /usr/sbin/chroot "$R" /usr/bin/Xvfb :98 -screen 0 1366x900x24 -listen tcp -ac
+  exec /usr/sbin/chroot "$R" /usr/bin/Xvfb :98 -screen 0 1366x900x24 -nolisten unix -nolisten local -listen tcp -ac
 ' >"$W/xvfb.log" 2>&1 &
 for i in $(seq 1 80); do (exec 3<>/dev/tcp/127.0.0.1/6098) 2>/dev/null && { exec 3>&-; break; }; sleep 0.25; done
 if ! (exec 3<>/dev/tcp/127.0.0.1/6098) 2>/dev/null; then echo XVFB_FAILED; cat "$W/xvfb.log"; exit 1; fi
-export HOME="$W/home" XDG_DATA_HOME="$W/datahome" XDG_CONFIG_HOME="$W/config" XDG_RUNTIME_DIR="$W/run"
+export XDG_DATA_HOME="$W/datahome" XDG_CONFIG_HOME="$W/config" XDG_RUNTIME_DIR="$W/run"
 export DISPLAY=127.0.0.1:98
-LIBS="$R/usr/lib/x86_64-linux-gnu:$R/lib/x86_64-linux-gnu"
-exec env LD_LIBRARY_PATH="$LIBS:$APP" "$APP/qortal-migration-studio" --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=${CDP_PORT} --remote-allow-origins=* >"$W/app.log" 2>&1
+LIBS="$APP"
+exec env QMS_ISOLATED_TEST=1 LD_LIBRARY_PATH="$LIBS:$APP" "$APP/qortal-migration-studio" --qms-isolated-test --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=${CDP_PORT} --remote-allow-origins=* >"$W/app.log" 2>&1
 `;
   await writeFile(sessionScript, script, { mode: 0o755 });
 }class Cdp {
@@ -299,11 +299,16 @@ async function verifyZip(zipPath) {
 }
 
 async function openPublishing(cdp, projectId) {
+  await waitFor(cdp, "!!document.body", 'renderer body', 120000);
+  await waitFor(cdp, clickButton('Advanced tools'), 'open advanced tools', 120000);
   await waitFor(cdp, "document.querySelector('[data-testid=app-shell]') !== null", 'app shell', 120000);
   const cardSelector = '[data-testid="project-' + projectId + '"]';
   await waitFor(cdp, '!!document.querySelector(' + JSON.stringify(cardSelector) + ')', 'project card');
   const opened = await cdp.evaluate('(() => { const card = document.querySelector(' + JSON.stringify(cardSelector) + '); if (!card) return false; const button = [...card.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Continue this site"); if (!button) return false; button.click(); return true; })()');
   if (!opened) throw new Error('Continue this site button missing');
+  if (await cdp.evaluate('!!document.querySelector("[data-testid=stale-lock-banner]")')) {
+    await waitFor(cdp, clickButton('Recover project'), 'recover interrupted project');
+  }
   await waitFor(cdp, clickButton('Publishing'), 'Publishing navigation');
   await waitFor(cdp, "document.querySelector('[data-testid=publishing-view]') !== null", 'publishing view');
 }

@@ -114,7 +114,8 @@
   "dependencies": {
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.7",
-    "fflate": "^0.8.3"
+    "fflate": "^0.8.3",
+    "tar": "7.5.23"
   },
   "devDependencies": {
     "dompurify": "^3.4.17",

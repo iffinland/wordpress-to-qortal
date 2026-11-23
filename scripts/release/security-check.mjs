@@ -15,7 +15,7 @@ import { componentVersion } from './artifact-set.mjs';
 
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const config = await readJson(path.join(REPO_ROOT, 'desktop/release.config.json'));
-const desktopVersion = componentVersion(release, 'desktop');
+const desktopVersion = componentVersion(release, 'deb');
 const artifact = path.join(REPO_ROOT, 'desktop/release', artifactName(config.packageName, desktopVersion, release.architecture));
 
 function audit(cwd) {

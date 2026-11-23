@@ -11,7 +11,7 @@ import { cp, mkdir, readFile, rm, stat, symlink, utimes, writeFile, readdir, lst
 import { chmodSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { REPO_ROOT, artifactName, fileModeFor, gitInfo, readJson, run, sha256File, sourceDateEpoch, walkFiles, writeJson, debVersion } from './lib.mjs';
+import { REPO_ROOT, workingSourceDigest, artifactName, fileModeFor, gitInfo, readJson, run, sha256File, sourceDateEpoch, walkFiles, writeJson, debVersion } from './lib.mjs';
 import { checkVersions } from '../qms-release.mjs';
 import { componentVersion } from './artifact-set.mjs';
 
@@ -22,7 +22,7 @@ const skipBuild = args.has('--skip-build');
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const config = await readJson(path.join(REPO_ROOT, 'desktop/release.config.json'));
 const desktopPackage = await readJson(path.join(REPO_ROOT, 'desktop/package.json'));
-const desktopVersion = componentVersion(release, 'desktop');
+const desktopVersion = componentVersion(release, 'deb');
 
 const versions = await checkVersions(REPO_ROOT);
 if (!versions.ok) {
@@ -150,6 +150,7 @@ const copyright = [
   ''
 ].join('\n');
 await writeFile(path.join(docDir, 'copyright'), copyright, { mode: 0o644 });
+await cp(path.join(REPO_ROOT, 'docs/migration-studio/DESKTOP-BETA.2-TESTING.md'), path.join(docDir, 'QMS-USER-GUIDE.md'));
 await writeFile(path.join(docDir, 'README.Debian'), [
   config.productName + ' for Debian-based Linux',
   '',
@@ -277,6 +278,7 @@ const built = {
   signing: release.signing,
   sourceCommit: git.commit,
   sourceTree: git.tree,
+  workingSourceSha256: workingSourceDigest(REPO_ROOT),
   branch: git.branch,
   dirty: git.dirty,
   sourceDateEpoch: epoch,

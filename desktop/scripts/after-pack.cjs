@@ -18,7 +18,7 @@ module.exports = async function afterPack(context) {
     [FuseV1Options.EnableCookieEncryption]: true,
     [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
     [FuseV1Options.EnableNodeCliInspectArguments]: false,
-    // Linux Electron 33 does not embed asar integrity metadata into the
+    // Linux builds do not embed asar integrity metadata into the
     // executable; enabling this fuse makes the packaged renderer unloadable.
     [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false,
     [FuseV1Options.OnlyLoadAppFromAsar]: true,

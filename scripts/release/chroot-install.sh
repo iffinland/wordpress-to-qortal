@@ -58,26 +58,27 @@ test -f "$ROOT$INSTALL/resources/engine/templates/generic-cms/dist/index.html" |
 step 'package_layout_verified'
 
 mkdir -p "$ROOT$DATA_HOME" "$ROOT/home/qms/.config"
-export HOME=/home/qms
 export XDG_DATA_HOME=$DATA_HOME
 export XDG_CONFIG_HOME=/home/qms/.config
 export DISPLAY=:99
 export ELECTRON_DISABLE_SECURITY_WARNINGS=1
 
-"$CHROOT" "$ROOT" sh -c "Xvfb :99 -screen 0 1366x900x24 -nolisten tcp -ac >/tmp/xvfb.log 2>&1 &"
-for attempt in $(seq 1 50); do
-  [ -S "$ROOT/tmp/.X11-unix/X99" ] && break
+# Loopback X11 avoids relying on UNIX-domain sockets in restricted CI.
+export DISPLAY=127.0.0.1:99
+"$CHROOT" "$ROOT" sh -c "Xvfb :99 -screen 0 1366x900x24 -nolisten unix -nolisten local -listen tcp -ac >/tmp/xvfb.log 2>&1 &"
+for attempt in $(seq 1 80); do
+  (exec 3<>/dev/tcp/127.0.0.1/6099) 2>/dev/null && { exec 3>&-; break; }
   sleep 0.2
 done
-[ -S "$ROOT/tmp/.X11-unix/X99" ] || { tail -20 "$ROOT/tmp/xvfb.log" 2>/dev/null; fail 'xvfb_start'; }
+(exec 3<>/dev/tcp/127.0.0.1/6099) 2>/dev/null || { tail -20 "$ROOT/tmp/xvfb.log"; fail 'xvfb_start'; }
 step 'xvfb_started'
 
-"$CHROOT" "$ROOT" env HOME="$HOME" XDG_DATA_HOME="$XDG_DATA_HOME" XDG_CONFIG_HOME="$XDG_CONFIG_HOME" DISPLAY="$DISPLAY" \
+"$CHROOT" "$ROOT" env XDG_DATA_HOME="$XDG_DATA_HOME" XDG_CONFIG_HOME="$XDG_CONFIG_HOME" DISPLAY="$DISPLAY" \
   "$INSTALL/$PKG" --qms-smoke-test --no-sandbox --disable-gpu --disable-dev-shm-usage >/tmp/qms-gui-smoke.log 2>&1 || { tail -40 /tmp/qms-gui-smoke.log; fail 'gui_smoke'; }
 grep -q 'QMS_SMOKE_OK' /tmp/qms-gui-smoke.log || fail 'gui_smoke_marker'
 step 'electron_gui_smoke'
 
-"$CHROOT" "$ROOT" env HOME="$HOME" XDG_DATA_HOME="$XDG_DATA_HOME" XDG_CONFIG_HOME="$XDG_CONFIG_HOME" ELECTRON_RUN_AS_NODE=1 \
+"$CHROOT" "$ROOT" env XDG_DATA_HOME="$XDG_DATA_HOME" XDG_CONFIG_HOME="$XDG_CONFIG_HOME" ELECTRON_RUN_AS_NODE=1 \
   "$INSTALL/$PKG" /tmp/qms-smoke/installedSmoke.mjs --engine="$INSTALL/resources/engine" --data-root="$DATA_ROOT" --report=/tmp/qms-engine-smoke.json >/tmp/qms-engine-smoke.log 2>&1 || { tail -60 /tmp/qms-engine-smoke.log; fail 'engine_flows'; }
 grep -q '"ok": true' "$ROOT/tmp/qms-engine-smoke.json" || { tail -40 /tmp/qms-engine-smoke.log; fail 'engine_flows_marker'; }
 step 'engine_primary_flows'
@@ -109,7 +110,7 @@ apt_get install --reinstall -y --no-install-recommends /tmp/qms.deb >/tmp/qms-ap
 test -f "$ROOT$DATA_ROOT/UNINSTALL-PRESERVATION-MARKER" || fail 'data_survived_upgrade'
 step 'same_version_reinstall_preserved_data'
 
-"$CHROOT" "$ROOT" env HOME="$HOME" XDG_DATA_HOME="$XDG_DATA_HOME" ELECTRON_RUN_AS_NODE=1 \
+"$CHROOT" "$ROOT" env XDG_DATA_HOME="$XDG_DATA_HOME" ELECTRON_RUN_AS_NODE=1 \
   "$INSTALL/$PKG" /tmp/qms-smoke/verifyData.mjs --engine="$INSTALL/resources/engine" --data-root="$DATA_ROOT" >/tmp/qms-verify-data.log 2>&1 || { tail -20 /tmp/qms-verify-data.log; fail 'project_list_after_reinstall'; }
 grep -q '"ok": true' /tmp/qms-verify-data.log || fail 'project_list_marker'
 step 'existing_project_read_after_reinstall'

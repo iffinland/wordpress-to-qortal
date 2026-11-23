@@ -1,5 +1,17 @@
 # Changelog
 
+## Desktop 0.8.0-beta.2 — runtime accepted 2026-11-23 (unpublished package)
+
+- Add a guided URL-first workflow with durable local preparation, automatic ZIP export and publication receipt verification.
+- Continue larger selections in publication-safe groups and retain existing project identities.
+- Add text/picture previews, download controls, project backup/restore, accessible small-screen layout and in-app help.
+- Repair pause/cancel controls, preview invalidation, approved plan persistence, node configuration and credential timeouts.
+- Stream ZIP export, bound QDN response reads, and update Electron/build tooling.
+- Repair DEB component-version handling and explicitly separate unpublished test builds from public release documentation.
+- Owner runtime test passed on 2026-11-23; main integration and GitHub follow-up are approved. The accepted DEB remains byte-identical; public download links are updated only after release publication and hash verification.
+
+
+
 All release-facing changes to Qortal Migration Studio are recorded here. The
 release contract requires a heading entry for the exact released version before
 an artifact may be published.

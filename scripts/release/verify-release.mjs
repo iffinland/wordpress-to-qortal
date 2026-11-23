@@ -15,7 +15,7 @@ import { componentVersion } from './artifact-set.mjs';
 
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const config = await readJson(path.join(REPO_ROOT, 'desktop/release.config.json'));
-const desktopVersion = componentVersion(release, 'desktop');
+const desktopVersion = componentVersion(release, 'deb');
 const releaseDir = path.join(REPO_ROOT, 'desktop/release');
 const artifact = path.join(releaseDir, artifactName(config.packageName, desktopVersion, release.architecture));
 const artifactInfo = await readJson(path.join(releaseDir, 'artifact.json'));
@@ -73,7 +73,7 @@ const releaseState = {
   schema: 'qms-release-state@1',
   product: release.product,
   version: release.version,
-  components: Object.fromEntries(['desktop','publisher','cms'].map((id) => [id, componentVersion(release, id)])),
+  components: Object.fromEntries(['desktop','publisher','cms'].map((id) => [id, componentVersion(release, id === 'desktop' ? 'deb' : id)])),
   debianVersion: artifactInfo.debianVersion,
   channel: release.channel,
   architecture: release.architecture,

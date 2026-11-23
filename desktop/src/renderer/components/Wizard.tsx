@@ -261,6 +261,16 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
+  const previewInputsInitialized = useRef(false);
+  useEffect(() => {
+    if (!previewInputsInitialized.current) { previewInputsInitialized.current = true; return; }
+    previewFlight.reset();
+    setPlanPreview(null);
+    setPlanDocument(null);
+    setPlanFailure(null);
+  }, [adapterId, sourceUrl, targetName, batchSize, contentTypes, after, before, includeReserved,
+    allowExternal, includeUnreferencedAttachments, concurrency, reserveGib, maxRunGib, maxFileMib, maxFiles, unknownPolicy]);
+
   useEffect(() => () => previewFlight.reset(), [previewFlight]);
 
   useEffect(() => {
@@ -355,6 +365,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
         status: connection.status,
         report: connection.report ? {
           ok: connection.report.ok,
+          auth: connection.report.auth ?? null,
           site: connection.report.site ?? null,
           counts: connection.report.counts ?? {},
           contentTypes: connection.report.contentTypes ?? [],
@@ -434,7 +445,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       const checked = checkQortalName(targetName);
       if (!checked.ok) return checked.message;
       if (!siteTitle.trim()) return 'A website title is required.';
-      if (cmsTemplate === 'generic-cms' && !siteTagline.trim()) return 'A tagline is required when the Generic CMS is selected.';
+
       return '';
     }
     if (current === 4) {
@@ -903,7 +914,7 @@ export function Wizard({ project, adapters, settings, onClose, onComplete }: Wiz
       }
       const nextCompleted: WizardStepId[] = completed.includes('plan') ? completed : [...completed, 'plan'];
       setCompleted(nextCompleted);
-      await persist(5, nextCompleted);
+      await persist(5, nextCompleted, undefined, result);
       await onComplete(project.id, result.planId);
     } catch (approveError) {
       setError(approveError);

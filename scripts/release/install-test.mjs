@@ -54,7 +54,7 @@ try {
 const resultFile = path.join(rootfs, 'tmp/qms-result.txt');
 await rm(resultFile, { force: true }).catch(() => {});
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
-const desktopVersion = componentVersion(release, 'desktop');
+const desktopVersion = componentVersion(release, 'deb');
 const debInfo = await stat(deb);
 const debSha = await sha256File(deb);
 

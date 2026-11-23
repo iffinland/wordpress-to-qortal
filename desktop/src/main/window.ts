@@ -66,8 +66,8 @@ export function createMainWindow({ show = true }: { show?: boolean } = {}): Brow
   const window = new BrowserWindow({
     width: 1240,
     height: 820,
-    minWidth: 960,
-    minHeight: 640,
+    minWidth: 720,
+    minHeight: 560,
     show,
     title: 'Qortal Migration Studio',
     backgroundColor: '#0b1620',

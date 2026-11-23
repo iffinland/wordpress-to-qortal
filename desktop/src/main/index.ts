@@ -1,4 +1,4 @@
-import { BrowserWindow, app } from 'electron';
+import { BrowserWindow, app, dialog } from 'electron';
 import path from 'node:path';
 import { EngineHost, resolveHostPaths } from './host.js';
 import { CredentialStore } from './credentials.js';
@@ -87,13 +87,17 @@ async function removeNode(url: string): Promise<{ nodes: string[]; selected: str
 }
 
 async function changeDataRoot(candidate: string): Promise<Record<string, unknown>> {
+  if (host) {
+    const state = await host.request<{ allowed: boolean }>('workspace.canSwitch', {});
+    if (!state.allowed) throw new Error('Pause running operations before opening another workspace.');
+  }
   const target = await validateDataRoot(candidate);
   if (host) {
     await host.restart(target);
   } else {
     host = await startHost(target);
   }
-  currentConfig = { schema: 'qms-desktop-config@1', dataRoot: target, updatedAt: new Date().toISOString() };
+  currentConfig = { ...currentConfig, dataRoot: target, updatedAt: new Date().toISOString() };
   await saveConfig(currentConfig);
   return settingsPayload();
 }
@@ -105,7 +109,10 @@ app.on('web-contents-created', (_event, contents) => {
   contents.setWindowOpenHandler(() => ({ action: 'deny' }));
 });
 
-const gotLock = app.requestSingleInstanceLock();
+// Smoke runs use a dedicated temporary profile; avoid the desktop singleton
+// socket in restricted automated runners. Normal launches retain the lock.
+const isolatedTest = process.env.QMS_ISOLATED_TEST === '1' && process.argv.includes('--qms-isolated-test');
+const gotLock = smokeTest || isolatedTest || app.requestSingleInstanceLock();
 if (!gotLock) {
   app.quit();
 } else {
@@ -224,6 +231,10 @@ if (!gotLock) {
     }
   }).catch((error) => {
     console.error('QMS_STARTUP_FAILED ' + (error instanceof Error ? error.stack : String(error)));
+    if (!smokeTest) {
+      dialog.showErrorBox('Qortal Migration Studio could not start', (error instanceof Error ? error.message : String(error)) + '\nYour projects have not been deleted. Check that the workspace is available, or reinstall the application.');
+      app.quit();
+    }
     if (smokeTest) app.exit(1);
   });
 

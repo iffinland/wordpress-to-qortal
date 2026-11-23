@@ -1,0 +1,1268 @@
+{
+  "artifactSha256": "8ebbb0e443e8b51a885ba8345b32d03d0e8129f6450a584bffa6081153a0eae4",
+  "evidence": {
+    "security-report.json": {
+      "schema": "qms-security-report@1",
+      "version": "0.8.0-beta.2",
+      "artifact": "qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+      "dependencyAudits": [
+        {
+          "name": "engine-runtime",
+          "exitCode": 0,
+          "error": null,
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 0,
+            "critical": 0,
+            "total": 0
+          }
+        },
+        {
+          "name": "desktop",
+          "exitCode": 0,
+          "error": null,
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 0,
+            "critical": 0,
+            "total": 0
+          }
+        }
+      ],
+      "productionHighOrCritical": 0,
+      "payloadScan": {
+        "files": 1176,
+        "textFiles": 1102,
+        "bytes": 307351420,
+        "secretFindings": [],
+        "forbiddenNames": []
+      },
+      "verdict": "pass",
+      "scannedAt": "2026-11-23T04:17:51.523Z"
+    },
+    "packaged-handoff-e2e.json": {
+      "schema": "qms-packaged-handoff-e2e@1",
+      "startedAt": "2026-11-23T04:21:09.890Z",
+      "stages": {
+        "seed": {
+          "projectId": "prj_33f6a1tg9rplr3tn",
+          "planId": "plan_zpmx2qmuipi5x243cp7wbziu",
+          "selectedCount": 1,
+          "mediaCount": 19,
+          "mediaDownloadStatus": "completed",
+          "payloadBytes": 9253000,
+          "siteId": "site_380064621661a5f9e92fe0bf17d87159"
+        },
+        "firstRun": {
+          "shell": true,
+          "error": false,
+          "rows": 1
+        },
+        "handoffDir": {
+          "handoffDir": "/workspace/scratch/244891d69657/beta2-handoff-final2/datahome/qortal-migration-studio/projects/prj_33f6a1tg9rplr3tn/publication/handoffs/hof_s5rwxtoxalidp45nwoahjmfa",
+          "handoffId": "hof_s5rwxtoxalidp45nwoahjmfa",
+          "schema": "qms-publication-handoff@1",
+          "resources": 30,
+          "resourcesByService": {
+            "APP": 1,
+            "DOCUMENT": 10,
+            "IMAGE": 19
+          },
+          "genericCmsSite": true,
+          "verified": 30,
+          "payloadBytes": 10159096,
+          "zipFilesInsideHandoffDir": 1,
+          "embeddedZipPaths": [
+            "payload/site/default.zip"
+          ],
+          "readmePresent": true
+        },
+        "firstZip": {
+          "path": "/workspace/scratch/244891d69657/beta2-handoff-final2/datahome/qortal-migration-studio/exports/hof_s5rwxtoxalidp45nwoahjmfa-publisher.zip",
+          "publisherCompatible": true,
+          "publisherResources": 30,
+          "publisherSummaryResources": 30,
+          "zipBytes": 10192600,
+          "zipSha256": "feb180633f8273b4d84e47f1c625d6cf50065a1a40b4660304a06950b4c09f4c",
+          "resources": 30,
+          "verified": 30,
+          "payloadBytes": 10159096,
+          "mediaResources": 19,
+          "service": "APP",
+          "target": "AcceptanceName",
+          "handoffId": "hof_s5rwxtoxalidp45nwoahjmfa"
+        },
+        "recovery": {
+          "zipRemoved": true,
+          "handoffDirKept": true
+        },
+        "restart": {
+          "shell": true,
+          "error": false
+        },
+        "restartZip": {
+          "path": "/workspace/scratch/244891d69657/beta2-handoff-final2/datahome/qortal-migration-studio/exports/hof_s5rwxtoxalidp45nwoahjmfa-publisher.zip",
+          "handoffDirsAfterRecovery": 1,
+          "handoffIdUnchanged": true,
+          "publisherCompatible": true,
+          "publisherResources": 30,
+          "publisherSummaryResources": 30,
+          "zipBytes": 10192600,
+          "zipSha256": "feb180633f8273b4d84e47f1c625d6cf50065a1a40b4660304a06950b4c09f4c",
+          "resources": 30,
+          "verified": 30,
+          "payloadBytes": 10159096,
+          "mediaResources": 19,
+          "service": "APP",
+          "target": "AcceptanceName",
+          "handoffId": "hof_s5rwxtoxalidp45nwoahjmfa"
+        },
+        "receiptVerify": {
+          "receiptId": "rcp_pkgaccept0001",
+          "resources": 30,
+          "nodeUrl": "http://127.0.0.1:35861",
+          "importClaimedVerification": false,
+          "remoteVerifiedRows": 30,
+          "verifiedMessage": "Exact read-back completed for every resource"
+        }
+      },
+      "status": "pass",
+      "finishedAt": "2026-11-23T04:21:33.751Z"
+    },
+    "artifact.json": {
+      "schema": "qms-deb-artifact@1",
+      "artifact": "qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+      "path": "/workspace/scratch/244891d69657/qms-desktop-beta2/desktop/release/qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+      "bytes": 129085056,
+      "sha256": "8ebbb0e443e8b51a885ba8345b32d03d0e8129f6450a584bffa6081153a0eae4",
+      "version": "0.8.0-beta.2",
+      "debianVersion": "0.8.0~beta.2",
+      "architecture": "amd64",
+      "channel": "beta",
+      "signing": "unsigned",
+      "sourceCommit": "9a26317f6eb55ec50cd6d77981228c88e2a25b5c",
+      "sourceTree": "58afa6ac19ed3a9b99f5434bd8e991c6bcdd16d0",
+      "workingSourceSha256": "8c2808ed7452d889d317fb978f089064fc4b2c7a82bea6cb1620b2f666d75486",
+      "branch": "development/qms-desktop-beta.2",
+      "dirty": true,
+      "sourceDateEpoch": 1795023397,
+      "builtAt": "2026-11-23T04:20:43.214Z"
+    },
+    "packaged-functional-acceptance.json": {
+      "schema": "qms-packaged-functional-acceptance@1",
+      "startedAt": "2026-11-23T04:17:38.260Z",
+      "environment": {
+        "appDir": "/workspace/scratch/244891d69657/qms-desktop-beta2/desktop/release/linux-unpacked",
+        "rootfs": "/workspace/scratch/244891d69657/distro-tests/bookworm",
+        "work": "/workspace/scratch/244891d69657/beta2-functional-final3"
+      },
+      "controls": {
+        "A": {
+          "control": "Direct Run quick scan",
+          "status": "PASS",
+          "outcome": "completed",
+          "ui": {
+            "scan": "Source scan\n\nChoose an explicit scope. Quick scan is the recommended default for a small import; it never enumerates the whole library or every taxonomy term.\n\nQuick scan \u2014 selected batch (recommended)\nIndex up to (newest matching items)\nOne REST page, maximum 100. Only taxonomy terms and media dependencies referenced by these items are fetched.\n\nScope: up to 3 post item(s) in 1 content page request(s), plus bounded lookups for only the referenced terms and media. Source total: post 3.\n\nThis is ",
+            "telemetry": "Phase content \u00b7 mode quick \u00b7 3/3 item(s) \u00b7 API pages \u2014 \u00b7 media deps 0 \u00b7 terms 0 \u00b7 4.6 KiB"
+          },
+          "run": "run_iha3dqoge7fm0auh",
+          "latest": {
+            "mode": "quick",
+            "batchId": "bat_iha3dqoge7fm0auh",
+            "counts": {
+              "posts": 3,
+              "pages": 0,
+              "categories": 2,
+              "tags": 2,
+              "media": 1
+            },
+            "scope": {
+              "schema": "qms-scan-scope@1",
+              "mode": "quick",
+              "bounded": true,
+              "contentTypes": [
+                "post"
+              ],
+              "selection": {
+                "include": [],
+                "slug": [],
+                "perPage": 100,
+                "maxPages": 1,
+                "maxItems": 3
+              },
+              "requested": 3,
+              "scanned": 3,
+              "underReturned": false,
+              "shortfall": 0,
+              "availableTotal": 3,
+              "postsScanned": 3,
+              "pagesScanned": 0,
+              "pagesFetched": 4,
+              "totalAvailable": {
+                "post": 3
+              },
+              "worstCasePages": 1,
+              "termsReferenced": 4,
+              "termsRequested": 4,
+              "mediaDependencies": 1,
+              "apiRequests": 6,
+              "bytesTransferred": 4692
+            }
+          },
+          "indexEntries": 8,
+          "duplicateIndexKeys": 0
+        },
+        "B": {
+          "control": "Confirm quick scan and continue",
+          "status": "PASS",
+          "latest": {
+            "mode": "quick",
+            "counts": {
+              "posts": 3,
+              "pages": 0,
+              "categories": 2,
+              "tags": 2,
+              "media": 1
+            }
+          }
+        },
+        "C": {
+          "control": "Full inventory on a small fixture",
+          "status": "PASS",
+          "outcome": "completed",
+          "counts": {
+            "posts": 3,
+            "pages": 2,
+            "categories": 2,
+            "tags": 2,
+            "media": 3
+          },
+          "latest": {
+            "mode": "full",
+            "batchId": "bat_ei7qgtxane3xyf96"
+          },
+          "ui": "Source scan\n\nChoose an explicit scope. Quick scan is the recommended default for a small import; it never enumerates the whole library or every taxonomy term.\n\nQuick scan \u2014 selected batch (recommended)\nFull site inventory (explicitly chosen; can be very long)\n\nFull inventory walks every post / page item, every category/tag and the whole media library. Worst case: 3 API page(s).\n\nI understand this "
+        },
+        "I": {
+          "control": "Plan Review entry: one plan.create, no stale error (BUG-005)",
+          "status": "PASS",
+          "badge": "ready",
+          "planRuns": 1,
+          "stalePlanError": null
+        },
+        "J": {
+          "control": "NASA-shaped short page still fills the requested window",
+          "status": "PASS",
+          "counts": {
+            "posts": 3,
+            "pages": 0,
+            "categories": 2,
+            "tags": 2,
+            "media": 3
+          },
+          "scope": {
+            "schema": "qms-scan-scope@1",
+            "mode": "quick",
+            "bounded": true,
+            "contentTypes": [
+              "post"
+            ],
+            "selection": {
+              "include": [],
+              "slug": [],
+              "perPage": 100,
+              "maxPages": 1,
+              "maxItems": 3
+            },
+            "requested": 3,
+            "scanned": 3,
+            "underReturned": false,
+            "shortfall": 0,
+            "availableTotal": 35600,
+            "postsScanned": 3,
+            "pagesScanned": 0,
+            "pagesFetched": 4,
+            "totalAvailable": {
+              "post": 35600
+            },
+            "worstCasePages": 1,
+            "termsReferenced": 4,
+            "termsRequested": 4,
+            "mediaDependencies": 3,
+            "apiRequests": 6,
+            "bytesTransferred": 34991
+          },
+          "postRequests": [
+            {
+              "per_page": "100",
+              "page": "1"
+            }
+          ],
+          "underReturnedNotice": false
+        },
+        "D": {
+          "control": "Pause then Resume",
+          "status": "PASS",
+          "outcome": "completed",
+          "postsRequestsBeforePause": 0,
+          "postsRequestsAfterResume": 13,
+          "counts": {
+            "posts": 1200,
+            "pages": 0,
+            "categories": 60,
+            "tags": 12,
+            "media": 600
+          },
+          "duplicates": 0
+        },
+        "E": {
+          "control": "Cancel a running scan",
+          "status": "PASS",
+          "cancelled": true,
+          "projectExists": true,
+          "latestBeforeCancel": null
+        },
+        "F": {
+          "control": "Interrupted Full checkpoint, then independent Quick scan",
+          "status": "PASS",
+          "quickRun": "run_k2doetvbwtyv0ws7",
+          "quickMode": "quick",
+          "quickCounts": {
+            "posts": 3,
+            "pages": 0,
+            "categories": 2,
+            "tags": 2,
+            "media": 3
+          },
+          "pausedRunStillPaused": true,
+          "fullCheckpointPreserved": "bat_n7vgzyn819918bnm",
+          "banner": "Interrupted scan found (full, checkpoint content_page 100/1200). Completed pages and referenced terms stay reusable.\n\nResume interrupted scan from checkpoint"
+        },
+        "G1": {
+          "control": "Connection failure is visible",
+          "status": "PASS",
+          "alert": "SOURCE_NETWORK_ERROR\nCould not reach the WordPress site."
+        },
+        "G2": {
+          "control": "Invalid source is visible",
+          "status": "PASS",
+          "alert": "SOURCE_INVALID_RESPONSE\nWordPress returned a non-JSON response."
+        },
+        "G3": {
+          "control": "API timeout is visible next to the scan controls",
+          "status": "PASS",
+          "error": "Source scan did not complete\nSource scan failed (SOURCE_TIMEOUT): WordPress request timed out after 1200 ms.",
+          "visibleInScanPanel": true
+        },
+        "G4": {
+          "control": "Engine failure is visible",
+          "status": "PASS",
+          "error": "Source scan did not complete\nSource scan failed: Engine host is not running."
+        }
+      },
+      "projects": {
+        "A": {
+          "projectId": "prj_su1v16idmiv5nnck",
+          "siteId": "site_1f623f227aabf65d7eaf93d6ead201ad"
+        },
+        "B": {
+          "projectId": "prj_ixs4w6rrdfl6lmo5",
+          "siteId": "site_4d96c84a8265b063593702e9c98c884c"
+        },
+        "C": {
+          "projectId": "prj_n70fmkddgmubgzsg",
+          "siteId": "site_f78b5a934d25e450cbe35effff40661e"
+        },
+        "D": {
+          "projectId": "prj_c75g5hhg3dj00jen",
+          "siteId": "site_f862a75b6e865004a936471d0830a573"
+        },
+        "E": {
+          "projectId": "prj_1l78kmdy3vqxiqxl",
+          "siteId": "site_a9bb1de6b46b8866cb1775034ac74f53"
+        },
+        "F": {
+          "projectId": "prj_yzdu8ptg6wz348mo",
+          "siteId": "site_b57203987aee1bb29ce5131cf8069be0"
+        },
+        "G1": {
+          "projectId": "prj_bxoexp7vrygsqecl",
+          "siteId": "site_a9f1e3f04514eff4c1e3aab7858eae37"
+        },
+        "G2": {
+          "projectId": "prj_fjtgb2ebxl1s0zk7",
+          "siteId": "site_5690985bba46fdb23fb4e50e95fe6dd3"
+        },
+        "G3": {
+          "projectId": "prj_6ar1ulgz3ao29dxl",
+          "siteId": "site_b55845420e559270bbebc4755bd4c519"
+        },
+        "G4": {
+          "projectId": "prj_0xq31irq4nyn52fj",
+          "siteId": "site_78e34c94138329fb8f384387e09b1169"
+        },
+        "I": {
+          "projectId": "prj_xblwc23cdcju0e2a",
+          "siteId": "site_d85196756a832c25788c67b562a17344"
+        },
+        "J": {
+          "projectId": "prj_ovns6e0ymwjjkjjh",
+          "siteId": "site_fdab0e64eb10f0aecb499553ec090453"
+        }
+      },
+      "fixtures": {
+        "small": "http://127.0.0.1:44693",
+        "medium": "http://127.0.0.1:40795",
+        "badHtml": "http://127.0.0.1:37925",
+        "hanging": "http://127.0.0.1:32775"
+      },
+      "failures": [],
+      "status": "pass",
+      "finishedAt": "2026-11-23T04:18:24.424Z"
+    },
+    "engine-clean-install-negative.json": {
+      "schema": "qms-engine-clean-install-negative@1",
+      "status": "pass",
+      "artifact": "qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+      "artifactBytes": 129085056,
+      "artifactSha256": "8ebbb0e443e8b51a885ba8345b32d03d0e8129f6450a584bffa6081153a0eae4",
+      "version": "0.8.0-beta.2",
+      "enginePackageVersion": "0.8.0-beta.2",
+      "runtime": "electron",
+      "runtimeVersion": "bundled Electron (ELECTRON_RUN_AS_NODE=1)",
+      "engineRoot": "/opt/qortal-migration-studio/resources/engine",
+      "entry": "bin/qms-host.js",
+      "handshake": {
+        "method": "engine.info",
+        "ok": false,
+        "apiVersion": null,
+        "engineVersion": null,
+        "durationMs": 580,
+        "reason": "early-exit",
+        "exitCode": 1
+      },
+      "hiddenModules": [
+        "fflate"
+      ],
+      "detector": {
+        "expected": "engine startup fails when a runtime dependency is removed",
+        "detected": true,
+        "mentionsHiddenModule": true,
+        "hiddenModules": [
+          "fflate"
+        ]
+      },
+      "stderrExcerpt": "node:internal/modules/package_json_reader:331\n  throw new ERR_MODULE_NOT_FOUND(packageName, fileURLToPath(base), null);\n        ^\n\nError [ERR_MODULE_NOT_FOUND]: Cannot find package 'fflate' imported from /tmp/qms-engine-clean-deP3Mn/root/opt/qortal-migration-studio/resources/engine/lib/engine/publication/index.js\n    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:331:9)\n    at packageResolve (node:internal/modules/esm/resolve:797:25)\n    at moduleResolve (node:internal/modules/esm/resolve:886:18)\n    at defaultResolve (node:internal/modules/esm/resolve:1019:11)\n    at #cachedDefaultResolve (node:internal/modules/esm/loader:705:20)\n    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:725:38)\n    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:763:56)\n    at #resolve (node:internal/modules/esm/loader:687:17)\n    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:607:35)\n    at ModuleJob.syncLink (node:internal/modules/esm/module_job:276:33) {\n  code: 'ERR_MODULE_NOT_FOUND'\n}\n\nNode.js v24.22.3\n",
+      "stdoutExcerpt": "",
+      "ranAt": "2026-11-23T04:17:45.435Z"
+    },
+    "packaged-bounded-scan-e2e.json": {
+      "schema": "qms-packaged-bounded-scan-e2e@1",
+      "startedAt": "2026-11-23T04:18:24.772Z",
+      "stages": {
+        "seed": {
+          "boundedProjectId": "prj_4unh1t36d0cgnwtj",
+          "pausedProjectId": "prj_54bs05hc7v13mdu5",
+          "fixtureUrl": "http://127.0.0.1:35875"
+        },
+        "boundedScan": {
+          "afterContinue": {
+            "total": 0,
+            "posts": 0,
+            "postPages": [],
+            "postPerPage": [],
+            "categories": 0,
+            "categoryIncludesOnly": true,
+            "tags": 0,
+            "tagIncludesOnly": true,
+            "media": 0,
+            "mediaIncludesOnly": true
+          },
+          "counts": {
+            "total": 6,
+            "posts": 1,
+            "postPages": [
+              "1"
+            ],
+            "postPerPage": [
+              "100"
+            ],
+            "categories": 1,
+            "categoryIncludesOnly": true,
+            "tags": 1,
+            "tagIncludesOnly": true,
+            "media": 1,
+            "mediaIncludesOnly": true
+          },
+          "telemetry": null,
+          "scopeText": "Source scan\n\nChoose an explicit scope. Quick scan is the recommended default for a small import; it never enumerates the whole library or every taxonomy term.\n\nQuick scan \u2014 selected batch (recommended)\nIndex up to (newest matching items)\nOne REST page, maximum 100. Only taxonomy terms and media dependencies referenced by these items are fetched.\n\nScope: up to 100 post / page item(s) in 2 content page request(s), plus bounded lookups for only the referenced terms and media. Source total: not fetched yet.\n\nThis is a hard one-page window. Because of that, QMS requests a full page and keeps only the requested number of items, so a source that returns short pages cannot silently reduce the batch.\n\nFull site inventory (explicitly chosen; can be very long)\nScan scope is not confirmed yet. Press Confirm quick scan and continue for the bounded selection above, or explicitly start full inventory. QMS will not start an unbounded scan from Continue.\nRun quick scan\nConfirm quick scan and continue\nPhase connect \u00b7 mode quick \u00b7 0/? item(s) \u00b7 API pages \u2014 \u00b7 media deps 0 \u00b7 terms 0 \u00b7 0 B\n\nSource connection validated\n\nNo source scan has completed for this project. Planning needs an indexed content batch. Choose a bounded scope above and run it explicitly."
+        },
+        "pause": {
+          "paused": true,
+          "requestsAtPause": {
+            "total": 4,
+            "posts": 1,
+            "postPages": [
+              "1"
+            ],
+            "postPerPage": [
+              "100"
+            ],
+            "categories": 1,
+            "categoryIncludesOnly": true,
+            "tags": 0,
+            "tagIncludesOnly": true,
+            "media": 0,
+            "mediaIncludesOnly": true
+          }
+        },
+        "resume": {
+          "postsBefore": 1,
+          "postsAfter": 1,
+          "refetched": false,
+          "requests": {
+            "total": 9,
+            "posts": 1,
+            "postPages": [
+              "1"
+            ],
+            "postPerPage": [
+              "100"
+            ],
+            "categories": 2,
+            "categoryIncludesOnly": true,
+            "tags": 1,
+            "tagIncludesOnly": true,
+            "media": 1,
+            "mediaIncludesOnly": true
+          }
+        }
+      },
+      "status": "pass",
+      "finishedAt": "2026-11-23T04:19:24.121Z"
+    },
+    "install-bookworm.json": {
+      "schema": "qms-install-environment@1",
+      "distro": "bookworm",
+      "distribution": "bookworm",
+      "artifact": "qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+      "artifactBytes": 129085056,
+      "artifactSha256": "8ebbb0e443e8b51a885ba8345b32d03d0e8129f6450a584bffa6081153a0eae4",
+      "version": "0.8.0-beta.2",
+      "method": "isolated debootstrap-style Debian rootfs; apt-get install of the local .deb; real dpkg database; Xvfb X server",
+      "isolation": "user + PID + mount namespaces (unshare -rmpf); no host services or host package database modified",
+      "executed": {
+        "packageInstall": true,
+        "packageLayout": true,
+        "guiSmoke": true,
+        "engineFlows": true,
+        "projectDataCreated": true,
+        "removal": true,
+        "dataSurvivedRemoval": true,
+        "reinstall": true,
+        "dataSurvivedReinstall": true,
+        "projectReadAfterReinstall": true
+      },
+      "guiSmokeOutput": "QMS_SMOKE_OK version=0.8.0-beta.2 title=Qortal Migration Studio",
+      "engineSteps": 17,
+      "installedVersion": "0.8.0~beta.2",
+      "keyring": "KEYRING_UNAVAILABLE libsecret-tools present, but no graphical keyring session can be created in this single-UID namespace",
+      "steps": [
+        "namespaces_and_devices_ready",
+        "apt_index_updated",
+        "test_dependencies_installed",
+        "package_installed",
+        "package_layout_verified",
+        "xvfb_started",
+        "electron_gui_smoke",
+        "engine_primary_flows",
+        "project_data_created",
+        "package_removed",
+        "project_data_survived_removal",
+        "package_reinstalled",
+        "same_version_reinstall_preserved_data",
+        "existing_project_read_after_reinstall",
+        "all_install_gates"
+      ],
+      "failures": [],
+      "status": "pass",
+      "exitCode": 0,
+      "limitations": [
+        "Headless X11 (Xvfb), not a complete desktop session or desktop-menu click.",
+        "Application runs as root inside the single-UID user namespace; --no-sandbox is used for Chromium because the namespace cannot provide a privileged setuid sandbox helper.",
+        "GNOME Keyring unlock depends on a headless D-Bus session and may not represent a real graphical login keyring."
+      ],
+      "startedAt": "2026-11-23T04:21:42.949Z",
+      "finishedAt": "2026-11-23T04:22:00.714Z"
+    },
+    "engine-wizard-flow.json": {
+      "schema": "qms-engine-wizard-flow@1",
+      "status": "pass",
+      "artifact": "qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+      "artifactBytes": 129085056,
+      "artifactSha256": "8ebbb0e443e8b51a885ba8345b32d03d0e8129f6450a584bffa6081153a0eae4",
+      "version": "0.8.0-beta.2",
+      "runtime": "electron",
+      "engineRoot": "/opt/qortal-migration-studio/resources/engine",
+      "projectId": "prj_c4cg63roozqfrb3g",
+      "discovery": {
+        "status": "completed",
+        "batchId": "bat_kri90ww0kirpn6bk"
+      },
+      "plan": {
+        "status": "completed",
+        "planStatus": "ready",
+        "planId": "plan_acmiekoyxjopic5k5oeazhbc",
+        "selected": 5,
+        "filters": {
+          "after": "2026-11-01T00:00:00.000Z",
+          "before": "2026-11-05T23:59:59.999Z",
+          "modifiedAfter": null,
+          "modifiedBefore": null,
+          "contentTypes": [
+            "post",
+            "page"
+          ],
+          "statuses": null,
+          "search": null,
+          "sourceKeys": null
+        },
+        "messages": []
+      },
+      "emptyPlan": {
+        "status": "completed",
+        "selected": 0,
+        "empty": true,
+        "emptyReason": "NO_ITEMS_MATCH_FILTERS",
+        "filterDiagnostics": {
+          "indexed": 10,
+          "supported": 6,
+          "unsupported": 4,
+          "contentTypeExcluded": 0,
+          "sourceKeyExcluded": 0,
+          "statusExcluded": 0,
+          "searchExcluded": 0,
+          "missingPublishedAt": 0,
+          "publishedBeforeAfter": 1,
+          "publishedAfterBefore": 5,
+          "modifiedOutsideRange": 0,
+          "matched": 0,
+          "actionable": 0
+        },
+        "messages": [
+          "No indexed item matches the current filters.",
+          "Published-date filter: after 2026-10-05T00:00:00.000Z and before 2026-10-21T23:59:59.999Z.",
+          "1 item(s) were published before the lower bound.",
+          "5 item(s) were published after the upper bound."
+        ]
+      },
+      "stderrExcerpt": "",
+      "ranAt": "2026-11-23T04:17:47.327Z"
+    },
+    "engine-clean-install.json": {
+      "schema": "qms-engine-clean-install@1",
+      "status": "pass",
+      "artifact": "qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+      "artifactBytes": 129085056,
+      "artifactSha256": "8ebbb0e443e8b51a885ba8345b32d03d0e8129f6450a584bffa6081153a0eae4",
+      "version": "0.8.0-beta.2",
+      "enginePackageVersion": "0.8.0-beta.2",
+      "runtime": "electron",
+      "runtimeVersion": "bundled Electron (ELECTRON_RUN_AS_NODE=1)",
+      "engineRoot": "/opt/qortal-migration-studio/resources/engine",
+      "entry": "bin/qms-host.js",
+      "handshake": {
+        "method": "engine.info",
+        "ok": true,
+        "apiVersion": "qms-engine@1",
+        "engineVersion": "0.8.0-beta.2",
+        "durationMs": 159,
+        "reason": null,
+        "exitCode": 0
+      },
+      "hiddenModules": [],
+      "detector": null,
+      "stderrExcerpt": "",
+      "stdoutExcerpt": "an-YrhR52/root/opt/qortal-migration-studio/resources/engine\",\"eventSchema\":\"qms-event@1\",\"eventTypes\":[\"operation_started\",\"progress_updated\",\"warning_emitted\",\"operation_completed\",\"operation_failed\",\"operation_cancelled\",\"state_snapshot\"],\"sourceContract\":\"qms-source-adapter@1\",\"contentSchema\":\"qms-content@1\",\"planSchema\":\"qms-plan@1\",\"identitySchema\":\"qms-identity-state@1\",\"syncSchema\":\"qms-sync-state@1\",\"syncScanSchema\":\"qms-sync-scan@1\",\"syncConflictSchema\":\"qms-sync-conflict@1\",\"withdrawalSchema\":\"qms-withdrawal-record@1\",\"handoffSchema\":\"qms-publication-handoff@1\",\"receiptSchema\":\"qms-publication-receipt@1\",\"publicationStateSchema\":\"qms-publication-state@1\",\"auditEntrySchema\":\"qms-audit-entry@1\",\"historySnapshotSchema\":\"qms-history-snapshot@1\",\"recoveryCheckpointSchema\":\"qms-recovery-checkpoint@1\",\"recoveryStageSchema\":\"qms-recovery-stage@1\",\"recoveryStatusSchema\":\"qms-recovery-status@1\",\"cleanupRecordSchema\":\"qms-cleanup-record@1\",\"cleanupPreviewSchema\":\"qms-cleanup-preview@1\",\"supportBundleSchema\":\"qms-support-bundle@1\",\"maxPublishBatchResources\":20,\"adapters\":[{\"id\":\"wordpress\",\"displayName\":\"WordPress REST API\",\"version\":\"1.0.1\",\"contract\":\"qms-source-adapter@1\",\"contractVersion\":1,\"capabilities\":{\"contract\":\"qms-source-adapter@1\",\"contractVersion\":1,\"contentTypes\":[\"post\",\"page\"],\"terms\":[\"category\",\"tag\"],\"assets\":{\"images\":true,\"audio\":true,\"video\":true,\"documents\":true,\"embeds\":true},\"states\":[\"publish\",\"draft\",\"pending\",\"private\",\"future\",\"inherit\",\"unknown\"],\"incremental\":{\"new\":true,\"modified\":true,\"deleted\":false,\"cursor\":\"date\"},\"authentication\":[\"none\",\"application_password\",\"session\"],\"limits\":{\"maxPageSize\":100,\"supportsDateFilters\":true,\"supportsModifiedFilters\":true,\"supportsOffset\":true,\"boundedMemory\":true},\"unsupported\":{\"customPostTypes\":\"reported-with-counts\",\"comments\":\"reported-not-migrated\",\"users\":\"reported-not-migrated\",\"menus\":\"reported-not-migrated\",\"widgets\":\"reported-not-migrated\",\"reusableBlocks\":\"reported-not-migrated\"}}}]}}\n",
+      "ranAt": "2026-11-23T04:17:42.898Z"
+    },
+    "guided-acceptance.json": {
+      "schema": "qms-guided-acceptance@1",
+      "status": "pass",
+      "checks": [
+        {
+          "name": "Guided mode opens by default",
+          "status": "pass"
+        },
+        {
+          "name": "Click: Add a website",
+          "status": "pass"
+        },
+        {
+          "name": "Fill: WordPress website address",
+          "status": "pass"
+        },
+        {
+          "name": "Click: Connect and continue",
+          "status": "pass"
+        },
+        {
+          "name": "Click: Continue",
+          "status": "pass"
+        },
+        {
+          "name": "Fill: Your registered Qortal name",
+          "status": "pass"
+        },
+        {
+          "name": "Click: Check selected content",
+          "status": "pass"
+        },
+        {
+          "name": "Real IPC scan selects all three fixture posts",
+          "status": "pass",
+          "detail": {
+            "total": 3,
+            "status": "review"
+          }
+        },
+        {
+          "name": "Click: Prepare for Qortal",
+          "status": "pass"
+        },
+        {
+          "name": "Local chain produces a portable package",
+          "status": "pass",
+          "detail": {
+            "status": "ready",
+            "bytes": 25711
+          }
+        },
+        {
+          "name": "Click: Settings & help",
+          "status": "pass"
+        },
+        {
+          "name": "Fill: Qortal node address",
+          "status": "pass"
+        },
+        {
+          "name": "File import triggers independent verification",
+          "status": "pass"
+        },
+        {
+          "name": "Click: Settings & help",
+          "status": "pass"
+        },
+        {
+          "name": "Small desktop has no horizontal overflow",
+          "status": "pass"
+        },
+        {
+          "name": "No unhandled UI error",
+          "status": "pass"
+        },
+        {
+          "name": "Click: Continue this website",
+          "status": "pass"
+        },
+        {
+          "name": "Reopen reconstructs the verified workflow",
+          "status": "pass"
+        },
+        {
+          "name": "Click: Advanced tools",
+          "status": "pass"
+        },
+        {
+          "name": "Advanced tools remain available",
+          "status": "pass"
+        }
+      ],
+      "app": "/workspace/scratch/244891d69657/qms-desktop-beta2/desktop/release/linux-unpacked",
+      "isolatedSingleInstance": true,
+      "sandboxDisabledForRunner": true
+    },
+    "install-trixie.json": {
+      "schema": "qms-install-environment@1",
+      "distro": "trixie",
+      "distribution": "trixie",
+      "artifact": "qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+      "artifactBytes": 129085056,
+      "artifactSha256": "8ebbb0e443e8b51a885ba8345b32d03d0e8129f6450a584bffa6081153a0eae4",
+      "version": "0.8.0-beta.2",
+      "method": "isolated debootstrap-style Debian rootfs; apt-get install of the local .deb; real dpkg database; Xvfb X server",
+      "isolation": "user + PID + mount namespaces (unshare -rmpf); no host services or host package database modified",
+      "executed": {
+        "packageInstall": true,
+        "packageLayout": true,
+        "guiSmoke": true,
+        "engineFlows": true,
+        "projectDataCreated": true,
+        "removal": true,
+        "dataSurvivedRemoval": true,
+        "reinstall": true,
+        "dataSurvivedReinstall": true,
+        "projectReadAfterReinstall": true
+      },
+      "guiSmokeOutput": "QMS_SMOKE_OK version=0.8.0-beta.2 title=Qortal Migration Studio",
+      "engineSteps": 17,
+      "installedVersion": "0.8.0~beta.2",
+      "keyring": "KEYRING_UNAVAILABLE libsecret-tools present, but no graphical keyring session can be created in this single-UID namespace",
+      "steps": [
+        "namespaces_and_devices_ready",
+        "apt_index_updated",
+        "test_dependencies_installed",
+        "package_installed",
+        "package_layout_verified",
+        "xvfb_started",
+        "electron_gui_smoke",
+        "engine_primary_flows",
+        "project_data_created",
+        "package_removed",
+        "project_data_survived_removal",
+        "package_reinstalled",
+        "same_version_reinstall_preserved_data",
+        "existing_project_read_after_reinstall",
+        "all_install_gates"
+      ],
+      "failures": [],
+      "status": "pass",
+      "exitCode": 0,
+      "limitations": [
+        "Headless X11 (Xvfb), not a complete desktop session or desktop-menu click.",
+        "Application runs as root inside the single-UID user namespace; --no-sandbox is used for Chromium because the namespace cannot provide a privileged setuid sandbox helper.",
+        "GNOME Keyring unlock depends on a headless D-Bus session and may not represent a real graphical login keyring."
+      ],
+      "startedAt": "2026-11-23T04:17:38.119Z",
+      "finishedAt": "2026-11-23T04:18:14.607Z"
+    },
+    "install-noble.json": {
+      "schema": "qms-install-environment@1",
+      "distro": "noble",
+      "distribution": "noble",
+      "artifact": "qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+      "artifactBytes": 129085056,
+      "artifactSha256": "8ebbb0e443e8b51a885ba8345b32d03d0e8129f6450a584bffa6081153a0eae4",
+      "version": "0.8.0-beta.2",
+      "method": "isolated debootstrap-style Debian rootfs; apt-get install of the local .deb; real dpkg database; Xvfb X server",
+      "isolation": "user + PID + mount namespaces (unshare -rmpf); no host services or host package database modified",
+      "executed": {
+        "packageInstall": true,
+        "packageLayout": true,
+        "guiSmoke": true,
+        "engineFlows": true,
+        "projectDataCreated": true,
+        "removal": true,
+        "dataSurvivedRemoval": true,
+        "reinstall": true,
+        "dataSurvivedReinstall": true,
+        "projectReadAfterReinstall": true
+      },
+      "guiSmokeOutput": "QMS_SMOKE_OK version=0.8.0-beta.2 title=Qortal Migration Studio",
+      "engineSteps": 17,
+      "installedVersion": "0.8.0~beta.2",
+      "keyring": "KEYRING_UNAVAILABLE libsecret-tools present, but no graphical keyring session can be created in this single-UID namespace",
+      "steps": [
+        "namespaces_and_devices_ready",
+        "apt_index_updated",
+        "test_dependencies_installed",
+        "package_installed",
+        "package_layout_verified",
+        "xvfb_started",
+        "electron_gui_smoke",
+        "engine_primary_flows",
+        "project_data_created",
+        "package_removed",
+        "project_data_survived_removal",
+        "package_reinstalled",
+        "same_version_reinstall_preserved_data",
+        "existing_project_read_after_reinstall",
+        "all_install_gates"
+      ],
+      "failures": [],
+      "status": "pass",
+      "exitCode": 0,
+      "limitations": [
+        "Headless X11 (Xvfb), not a complete desktop session or desktop-menu click.",
+        "Application runs as root inside the single-UID user namespace; --no-sandbox is used for Chromium because the namespace cannot provide a privileged setuid sandbox helper.",
+        "GNOME Keyring unlock depends on a headless D-Bus session and may not represent a real graphical login keyring."
+      ],
+      "startedAt": "2026-11-23T04:19:43.075Z",
+      "finishedAt": "2026-11-23T04:19:56.597Z"
+    },
+    "install-jammy.json": {
+      "schema": "qms-install-environment@1",
+      "distro": "jammy",
+      "distribution": "jammy",
+      "artifact": "qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+      "artifactBytes": 129085056,
+      "artifactSha256": "8ebbb0e443e8b51a885ba8345b32d03d0e8129f6450a584bffa6081153a0eae4",
+      "version": "0.8.0-beta.2",
+      "method": "isolated debootstrap-style Debian rootfs; apt-get install of the local .deb; real dpkg database; Xvfb X server",
+      "isolation": "user + PID + mount namespaces (unshare -rmpf); no host services or host package database modified",
+      "executed": {
+        "packageInstall": true,
+        "packageLayout": true,
+        "guiSmoke": true,
+        "engineFlows": true,
+        "projectDataCreated": true,
+        "removal": true,
+        "dataSurvivedRemoval": true,
+        "reinstall": true,
+        "dataSurvivedReinstall": true,
+        "projectReadAfterReinstall": true
+      },
+      "guiSmokeOutput": "QMS_SMOKE_OK version=0.8.0-beta.2 title=Qortal Migration Studio",
+      "engineSteps": 17,
+      "installedVersion": "0.8.0~beta.2",
+      "keyring": "KEYRING_UNAVAILABLE libsecret-tools present, but no graphical keyring session can be created in this single-UID namespace",
+      "steps": [
+        "namespaces_and_devices_ready",
+        "apt_index_updated",
+        "test_dependencies_installed",
+        "package_installed",
+        "package_layout_verified",
+        "xvfb_started",
+        "electron_gui_smoke",
+        "engine_primary_flows",
+        "project_data_created",
+        "package_removed",
+        "project_data_survived_removal",
+        "package_reinstalled",
+        "same_version_reinstall_preserved_data",
+        "existing_project_read_after_reinstall",
+        "all_install_gates"
+      ],
+      "failures": [],
+      "status": "pass",
+      "exitCode": 0,
+      "limitations": [
+        "Headless X11 (Xvfb), not a complete desktop session or desktop-menu click.",
+        "Application runs as root inside the single-UID user namespace; --no-sandbox is used for Chromium because the namespace cannot provide a privileged setuid sandbox helper.",
+        "GNOME Keyring unlock depends on a headless D-Bus session and may not represent a real graphical login keyring."
+      ],
+      "startedAt": "2026-11-23T04:17:38.090Z",
+      "finishedAt": "2026-11-23T04:17:59.914Z"
+    },
+    "validation.json": {
+      "schema": "qms-deb-validation@1",
+      "artifact": "qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+      "bytes": 129085056,
+      "sha256": "8ebbb0e443e8b51a885ba8345b32d03d0e8129f6450a584bffa6081153a0eae4",
+      "version": "0.8.0-beta.2",
+      "architecture": "amd64",
+      "checks": 60,
+      "passed": 60,
+      "failed": 0,
+      "results": [
+        {
+          "name": "artifact name follows Debian convention",
+          "ok": true,
+          "detail": "qortal-migration-studio_0.8.0-beta.2_amd64.deb"
+        },
+        {
+          "name": "artifact is a plausible Electron package size",
+          "ok": true,
+          "detail": "129085056"
+        },
+        {
+          "name": "package name",
+          "ok": true,
+          "detail": "qortal-migration-studio"
+        },
+        {
+          "name": "package version",
+          "ok": true,
+          "detail": "0.8.0~beta.2"
+        },
+        {
+          "name": "package architecture",
+          "ok": true,
+          "detail": "amd64"
+        },
+        {
+          "name": "package section",
+          "ok": true,
+          "detail": "office"
+        },
+        {
+          "name": "maintainer present",
+          "ok": true,
+          "detail": "Qortal Migration Studio contributors <maintainers@example.invalid>"
+        },
+        {
+          "name": "homepage present",
+          "ok": true,
+          "detail": "https://github.com/iffinland/wordpress-to-qortal"
+        },
+        {
+          "name": "installed size present",
+          "ok": true,
+          "detail": "300148"
+        },
+        {
+          "name": "GTK dependency alternatives",
+          "ok": true,
+          "detail": "libgtk-3-0 | libgtk-3-0t64, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0 | libatspi2.0-0t64, libuuid1, libsecret-1-0, libasound2t64 (>= 1.0.16) | libasound2 (>= 1.0.16), libgbm1, libdrm2, libxkbcommon0, libxcomposite1, libxdamage1, libxrandr2, libxfixes3, libcups2 | libcups2t64, libpango-1.0-0, libcairo2, libatk1.0-0 | libatk1.0-0t64, libatk-bridge2.0-0 | libatk-bridge2.0-0t64, libx11-6, libxcb1, libxext6, libxi6, libatomic1, libc6 (>= 2.28)"
+        },
+        {
+          "name": "libsecret dependency",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "xdg-utils dependency",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/qortal-migration-studio",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/resources/app.asar",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/resources/engine/bin/qms-host.js",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/resources/engine/node_modules/cheerio/package.json",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/resources/engine/node_modules/dotenv/package.json",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/resources/engine/templates/generic-cms/dist/index.html",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/resources/engine/templates/generic-cms/template.json",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./usr/share/applications/qortal-migration-studio.desktop",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./usr/bin/qortal-migration-studio",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./usr/share/doc/qortal-migration-studio/copyright",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 16x16",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 32x32",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 48x48",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 64x64",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 128x128",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 256x256",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 512x512",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "no forbidden path /\\/profiles\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/\\.env$/",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/fixtures\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/test\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/tests\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/test-support\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/corbettreport\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/viewer\\/node_modules\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\.map$/",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/\\.git\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/release\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "main executable is executable",
+          "ok": true,
+          "detail": "100755"
+        },
+        {
+          "name": "chrome-sandbox is setuid root",
+          "ok": true,
+          "detail": "104755"
+        },
+        {
+          "name": "chrome-sandbox mode is 4755",
+          "ok": true,
+          "detail": "104755"
+        },
+        {
+          "name": "desktop entry name",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "desktop entry exec",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "desktop entry icon",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "desktop entry not terminal",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "engine runtime schema",
+          "ok": true,
+          "detail": "qms-engine-runtime@1"
+        },
+        {
+          "name": "engine runtime version",
+          "ok": true,
+          "detail": "0.8.0-beta.2"
+        },
+        {
+          "name": "engine runtime template version",
+          "ok": true,
+          "detail": "0.9.0-beta.1"
+        },
+        {
+          "name": "engine runtime file hashes match manifest",
+          "ok": true,
+          "detail": "0"
+        },
+        {
+          "name": "bundled template schema",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "bundled template version",
+          "ok": true,
+          "detail": "0.9.0-beta.1"
+        },
+        {
+          "name": "bundled template has root index.html",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "asar package version",
+          "ok": true,
+          "detail": "0.8.0-beta.2"
+        },
+        {
+          "name": "usr/bin launcher is a symlink",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "usr/bin launcher target",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "no unsafe permissions",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "maintainer scripts never delete project data",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "prerm has no destructive command",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "validatedAt": "2026-11-23T04:21:14.046Z"
+    }
+  },
+  "fullEvidence": "The original complete evidence and SBOM are retained in QMS_beta.2_source-and-validation.zip."
+}

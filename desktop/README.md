@@ -92,3 +92,7 @@ See `../docs/migration-studio/PHASE-5-QDN-PUBLISHING.md`.
 - diagnostics redact secrets and content bodies.
 
 See `../docs/migration-studio/PHASE-4-DESKTOP-GUI.md`.
+
+## Unpublished desktop beta.2
+
+See [the beta.2 testing guide](../docs/migration-studio/DESKTOP-BETA.2-TESTING.md) for the guided workflow, backup/restore and broader DEB compatibility targets. Public release links remain unchanged until owner approval.
