@@ -23,6 +23,7 @@ export function evaluateActiveDocs({
   quickstart = '',
   install = '',
   manifest = null,
+  componentManifests = {},
   strictManifest = false
 }) {
   const errors = [];
@@ -39,8 +40,9 @@ export function evaluateActiveDocs({
     errors.push('README.md has no active Download section.');
   } else {
     for (const [kind, name] of Object.entries(names)) {
-      if (!downloadSection.includes('/download/' + tag + '/' + name)) {
-        errors.push('README.md ' + kind + ' download does not point at ' + tag + '/' + name + '.');
+      const componentTag = release.componentReleases?.[kind]?.tag || tag;
+      if (!downloadSection.includes('/download/' + componentTag + '/' + name)) {
+        errors.push('README.md ' + kind + ' download does not point at ' + componentTag + '/' + name + '.');
       }
     }
   }
@@ -91,7 +93,13 @@ export function evaluateActiveDocs({
     if (manifest.tag !== tag) errors.push('release manifest tag does not match ' + tag + '.');
     const byKind = Object.fromEntries((manifest.artifacts || []).map((entry) => [entry.kind, entry]));
     for (const [kind, name] of Object.entries(names)) {
-      const entry = byKind[kind === 'desktop' ? 'deb' : kind];
+      const override = release.componentReleases?.[kind];
+      const separate = override && componentManifests[kind];
+      if (override && (!separate || separate.tag !== override.tag || separate.version !== override.version || override.version !== release.components[kind].version)) {
+        errors.push('component manifest is missing or mismatched for ' + kind + '.');
+        continue;
+      }
+      const entry = separate ? separate.artifact : byKind[kind === 'desktop' ? 'deb' : kind];
       const component = release.components[kind];
       if (!entry) {
         errors.push('release manifest has no ' + kind + ' artifact.');

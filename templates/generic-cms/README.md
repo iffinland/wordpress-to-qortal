@@ -194,3 +194,7 @@ URLs. With `--zip` it writes
 validates that ZIP as a root-layout Q-App and ships it with the .deb and the
 Publisher ZIP.
 
+
+### Post quick actions — 0.9.0-beta.2
+
+The shared post action bar offers QDN likes, canonical Qortal link copying and on-demand comments in every public template. Comments are plain text, paginated and editable by their publishing account. Likes use one resource per registered name and post. No social actions are sent without a reader gesture and Hub authorization. See the Generic CMS user manual for propagation, permissions and retry behavior.

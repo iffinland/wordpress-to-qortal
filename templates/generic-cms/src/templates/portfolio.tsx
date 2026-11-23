@@ -1,3 +1,4 @@
+import { PostQuickActions } from '../components/PostQuickActions';
 import { ContentHtml } from '../components/ContentHtml';
 import { Pagination } from '../components/Pagination';
 import { StateNotice } from '../components/StateNotice';
@@ -311,7 +312,7 @@ export function PortfolioPost(props: TemplatePostProps) {
       </header>
 
       <div className="portfolio-project__body">
-        <ContentHtml html={content.html} highlightTerms={props.highlightTerms} />
+        <PostQuickActions key={item.id} config={props.config || cmsConfig} item={item}><ContentHtml html={content.html} highlightTerms={props.highlightTerms} /></PostQuickActions>
         <ProjectTerms dataset={props.dataset} item={item} />
         {props.previous || props.next ? (
           <nav className="portfolio-project__nav" aria-label="Project navigation">

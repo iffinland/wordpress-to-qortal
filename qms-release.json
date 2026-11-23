@@ -25,10 +25,10 @@
       "changelog": "Unchanged from the approved beta.1 Publisher Q-App."
     },
     "cms": {
-      "version": "0.9.0-beta.1",
+      "version": "0.9.0-beta.2",
       "channel": "beta",
       "source": "templates/generic-cms/package.json",
-      "changelog": "Generic CMS 0.9.0-beta.1: reusable template system with Default, Magazine / News, Portfolio, Documentation / Knowledge Base, Photography / Gallery, Business / Services, Video / Media and Personal Journal. Templates are selected in Appearance settings; content, publishing and owner controls are shared."
+      "changelog": "Runtime-accepted post quick actions in all eight templates: QDN likes, canonical link sharing and on-demand plain-text comments with author editing."
     }
   },
   "versionMarkers": [
@@ -38,5 +38,12 @@
     "templates/generic-cms/package.json",
     "lib/engine/index.js",
     "docs/migration-studio/RELEASE-0.8.0-BETA.4.md"
-  ]
+  ],
+  "componentReleases": {
+    "cms": {
+      "version": "0.9.0-beta.2",
+      "tag": "cms-v0.9.0-beta.2",
+      "notes": "docs/migration-studio/RELEASE-CMS-0.9.0-BETA.2.md"
+    }
+  }
 }

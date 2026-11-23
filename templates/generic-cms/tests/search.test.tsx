@@ -59,7 +59,7 @@ describe('versioned search index', () => {
   });
 
   it('detects a stale index honestly', () => {
-    const document = indexOf([entry()]);
+    const document = buildSearchIndexDocument({ siteId: 'site', entries: [entry()] as never[], now: Date.parse('2026-11-01T00:00:00Z') });
     expect(isSearchIndexStale({ updated_at: document.updated_at }, Date.parse('2026-12-20T00:00:00Z'))).toBe(true);
     expect(isSearchIndexStale({ updated_at: document.updated_at }, Date.parse('2026-11-02T00:00:00Z'))).toBe(false);
   });

@@ -1,5 +1,9 @@
 # Changelog
 
+## Generic CMS 0.9.0-beta.2 — 2026-11-23
+
+Publish the runtime-accepted post quick actions in all eight templates: QDN likes with one resource per name and post, canonical link copying and on-demand plain-text comments with author editing. Preserve failed drafts and retry identities, validate resource authors and isolate site/post scopes. Add a CMS-only publication workflow with immutable assets and public checksum verification. Desktop 0.8.0-beta.2 and Publisher 0.8.0-beta.1 remain unchanged at v0.8.0-beta.4.
+
 ## 0.8.0-beta.4 — Desktop 0.8.0-beta.2 — 2026-11-23
 
 Publish the runtime-accepted guided Desktop beta.2 from clean committed source, with verified DEB downloads, checksums and release evidence. Publisher 0.8.0-beta.1 and Generic CMS 0.9.0-beta.1 are reused byte-identically. Add a GitHub Actions publication workflow, keeping all existing release gates blocking. Preserve typed errors across Electron context isolation so stale project locks offer recovery after restart.

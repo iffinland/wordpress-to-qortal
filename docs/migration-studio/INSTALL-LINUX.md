@@ -137,3 +137,7 @@ distributions, exact commands, SHA-256, SBOM, provenance and the remaining
 signing/live-network blockers. See
 docs/migration-studio/DEVELOPER-BUILD.md for the engine dependency rule and the
 clean-install handshake gate.
+
+## Independent CMS updates
+
+Generic CMS **0.9.0-beta.2** is published independently at [cms-v0.9.0-beta.2](https://github.com/iffinland/wordpress-to-qortal/releases/tag/cms-v0.9.0-beta.2). This update does not require a different DEB: Desktop remains 0.8.0-beta.2 from v0.8.0-beta.4, with the same public bytes and checksum. It retains its original embedded CMS template; updating an existing CMS site uses the separate Q-App update flow and preserves the site's runtime configuration.

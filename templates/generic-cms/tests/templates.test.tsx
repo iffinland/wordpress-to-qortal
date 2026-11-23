@@ -688,3 +688,12 @@ describe('template selection in appearance settings', () => {
     expect(merged.appearance.template).toBe('magazine');
   });
 });
+
+// Every public presentation must expose the same post actions, only on posts.
+it.each(['default', 'magazine', 'portfolio', 'docs', 'gallery', 'business', 'video', 'journal'])('exposes quick actions in the %s post template', (id) => {
+  const template = getSiteTemplate(id);
+  const item = dataset.posts.find((entry) => entry.slug === 'hello-qortal')!;
+  const html = renderToStaticMarkup(<template.Post config={cmsConfig} dataset={dataset} item={item} content={helloContent} loading={false} error="" onRetry={() => {}} previous={null} next={null} />);
+  expect(html.match(/aria-label="Post quick actions"/g)).toHaveLength(1);
+  for (const label of ['Like post', 'Share post', 'Comments']) expect(html).toContain('aria-label="' + label + '"');
+});

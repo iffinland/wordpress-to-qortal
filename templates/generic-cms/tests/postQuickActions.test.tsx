@@ -1,0 +1,65 @@
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { PostQuickActions } from '../src/components/PostQuickActions';
+import { cmsConfig } from '../src/config/cmsConfig';
+import { hasQortalBridge } from '../src/lib/qortal.js';
+import { countPostLikes, postSocialTarget, publishPostSocial, readSocialPage, socialAccount } from '../src/lib/postSocial.js';
+vi.mock('../src/lib/qortal.js', () => ({ hasQortalBridge: vi.fn(() => true) }));
+vi.mock('../src/lib/postSocial.js', () => ({ newCommentIdentifier: vi.fn(() => 'stable-comment-id'), countPostLikes: vi.fn(), postSocialTarget: vi.fn(), publishPostSocial: vi.fn(), readSocialPage: vi.fn(), socialAccount: vi.fn() }));
+const item = { id: '42', slug: 'hello' } as any;
+beforeEach(() => {
+ vi.mocked(hasQortalBridge).mockReturnValue(true);
+ vi.mocked(postSocialTarget).mockResolvedValue({ key: 'key', url: 'qortal://APP/Site/#/posts/hello' });
+ vi.mocked(countPostLikes).mockResolvedValue({ count: 3, hasMore: false });
+ vi.mocked(readSocialPage).mockResolvedValue({ entries: [], nextOffset: 0, hasMore: false });
+ vi.mocked(socialAccount).mockResolvedValue({ name: 'Alice', address: 'Q1' });
+ vi.mocked(publishPostSocial).mockResolvedValue({ schema: 'qms-post-social@1', kind: 'comment', key: 'key', authorName: 'Alice', identifier: 'one', text: 'Hello', updatedAt: '2026-11-23T00:00:00Z' });
+});
+afterEach(() => { cleanup(); vi.clearAllMocks(); });
+it('copies the public link and exposes it on clipboard failure', async () => {
+ const writeText = vi.fn().mockRejectedValue(new Error('denied'));
+ Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+ render(<PostQuickActions config={cmsConfig} item={item}/>);
+ await waitFor(() => expect((screen.getByRole('button', { name: 'Share post' }) as HTMLButtonElement).disabled).toBe(false));
+ fireEvent.click(screen.getByRole('button', { name: 'Share post' }));
+ expect(await screen.findByText('Copy this post link: qortal://APP/Site/#/posts/hello')).toBeTruthy();
+ writeText.mockResolvedValue(undefined);
+ fireEvent.click(screen.getByRole('button', { name: 'Share post' }));
+ expect(await screen.findByText('Post link copied.')).toBeTruthy();
+});
+it('does not claim a propagated like count and blocks repeat clicks', async () => {
+ render(<PostQuickActions config={cmsConfig} item={item}/>);
+ await screen.findByText('3');
+ fireEvent.click(screen.getByRole('button', { name: 'Like post' }));
+ await screen.findByText('Like submitted to QDN. The public count updates after propagation.');
+ expect((screen.getByRole('button', { name: 'Like post' }) as HTMLButtonElement).disabled).toBe(true);
+ expect(screen.getByText('3')).toBeTruthy();
+ expect(publishPostSocial).toHaveBeenCalledTimes(1);
+});
+it('loads comments on demand, escapes HTML, and retains a cancelled comment draft', async () => {
+ vi.mocked(readSocialPage).mockResolvedValue({ entries: [{ authorName: 'Bob', identifier: 'two', text: '<img src=x onerror=alert(1)>' }], nextOffset: 1, hasMore: false });
+ const view=render(<PostQuickActions config={cmsConfig} item={item}/>);
+ await screen.findByText('3');
+ expect(readSocialPage).not.toHaveBeenCalled();
+ fireEvent.click(screen.getByRole('button', { name: 'Comments' }));
+ expect(await screen.findByText('<img src=x onerror=alert(1)>')).toBeTruthy();
+ expect(view.container.querySelector('img')).toBeNull();
+ fireEvent.change(screen.getByLabelText('Your comment'), { target: { value: 'My draft' } });
+ vi.mocked(publishPostSocial).mockRejectedValueOnce(new Error('Cancelled'));
+ fireEvent.click(screen.getByRole('button', { name: 'Publish comment' }));
+ await screen.findByText('Cancelled');
+ expect((screen.getByLabelText('Your comment') as HTMLTextAreaElement).value).toBe('My draft');
+ fireEvent.click(screen.getByRole('button', { name: 'Publish comment' }));
+ await screen.findByText('Comment submitted to QDN. Other readers will see it after propagation.');
+ expect((screen.getByLabelText('Your comment') as HTMLTextAreaElement).value).toBe('');
+ const writes = vi.mocked(publishPostSocial).mock.calls;
+ expect(writes[0][3]?.identifier).toBe(writes[1][3]?.identifier);
+});
+it('does not publish outside Hub', async () => {
+ vi.mocked(hasQortalBridge).mockReturnValue(false);
+ render(<PostQuickActions config={cmsConfig} item={item}/>);
+ expect((screen.getByRole('button', { name: 'Like post' }) as HTMLButtonElement).disabled).toBe(true);
+ fireEvent.click(screen.getByRole('button', { name: 'Comments' }));
+ expect(screen.queryByRole('button', { name: 'Publish comment' })).toBeNull();
+ expect(socialAccount).not.toHaveBeenCalled();
+});

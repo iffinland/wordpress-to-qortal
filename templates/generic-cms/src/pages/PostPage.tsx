@@ -1,10 +1,12 @@
+import { PostQuickActions } from '../components/PostQuickActions';
+import { cmsConfig } from '../config/cmsConfig';
 import { ContentHtml } from '../components/ContentHtml';
 import { StateNotice } from '../components/StateNotice';
 import { NotFoundPage } from './NotFoundPage';
 import { categoryHref, tagHref } from '../lib/routes.js';
 import { featuredImageUrlForItem } from '../lib/featuredImage.js';
 import { formatDate } from '../lib/text.js';
-import type { CmsContentItem, CmsDataset, CmsTerm, LoadedContent } from '../types';
+import type { CmsContentItem, CmsDataset, CmsTerm, LoadedContent, CmsTemplateConfig } from '../types';
 
 function taxonomyLinks(dataset: CmsDataset, item: CmsContentItem) {
   const categories = item.categoryIds
@@ -17,6 +19,7 @@ function taxonomyLinks(dataset: CmsDataset, item: CmsContentItem) {
 }
 
 export function PostPage(props: {
+  config?: CmsTemplateConfig;
   dataset: CmsDataset;
   item: CmsContentItem | null;
   content: LoadedContent | null;
@@ -73,8 +76,9 @@ export function PostPage(props: {
         {content.publishedAt ? <time dateTime={content.publishedAt}>{formatDate(content.publishedAt)}</time> : null}
         {content.author ? <span>By {content.author}</span> : null}
       </p>
+
       {image ? <img className="article-image" src={image} alt={item.title} loading="lazy" decoding="async" /> : null}
-      <ContentHtml html={content.html} highlightTerms={props.highlightTerms} />
+      <PostQuickActions key={item.id} config={props.config || cmsConfig} item={item}><ContentHtml html={content.html} highlightTerms={props.highlightTerms} /></PostQuickActions>
       {terms.categories.length > 0 || terms.tags.length > 0 ? (
         <footer className="article-terms">
           {terms.categories.length > 0 ? (

@@ -1,3 +1,4 @@
+import { PostQuickActions } from '../components/PostQuickActions';
 import { ContentHtml } from '../components/ContentHtml';
 import { Pagination } from '../components/Pagination';
 import { StateNotice } from '../components/StateNotice';
@@ -341,7 +342,7 @@ export function BusinessPost(props: TemplatePostProps) {
       </header>
       {image ? <img className="business-article__image" src={image} alt={item.featuredImageAlt || item.title} decoding="async" /> : null}
       <div className="business-article__body">
-        <ContentHtml html={content.html} highlightTerms={props.highlightTerms} />
+        <PostQuickActions key={item.id} config={props.config || cmsConfig} item={item}><ContentHtml html={content.html} highlightTerms={props.highlightTerms} /></PostQuickActions>
         <BusinessTerms dataset={props.dataset} item={item} />
         {props.previous || props.next ? (
           <nav className="business-article__nav" aria-label="Project navigation">

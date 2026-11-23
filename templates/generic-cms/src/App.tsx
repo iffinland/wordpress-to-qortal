@@ -248,7 +248,7 @@ export function App() {
       const item = resolveBySlug(dataset.posts, route.slug);
       const related = previousAndNext(dataset.posts, item ? item.slug : route.slug);
       const highlightTerms = route.q ? tokenizeQuery(route.q).all : [];
-      return <template.Post dataset={dataset} item={item} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} previous={related.previous} next={related.next} highlightTerms={highlightTerms} />;
+      return <template.Post config={effectiveConfig} dataset={dataset} item={item} content={detailContent} loading={detailLoading} error={detailError} onRetry={() => setDetailRetry((value) => value + 1)} previous={related.previous} next={related.next} highlightTerms={highlightTerms} />;
     }
     if (route.kind === 'page') {
       const item = resolveBySlug(dataset.pages, route.slug);

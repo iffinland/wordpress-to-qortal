@@ -1,3 +1,4 @@
+import { PostQuickActions } from '../components/PostQuickActions';
 import type { ReactNode } from 'react';
 import { ContentHtml } from '../components/ContentHtml';
 import { Pagination } from '../components/Pagination';
@@ -357,7 +358,7 @@ export function DocsPost(props: TemplatePostProps) {
         </header>
 
         <div className="docs-article__body">
-          <ContentHtml html={content.html} highlightTerms={props.highlightTerms} />
+        <PostQuickActions key={item.id} config={props.config || cmsConfig} item={item}><ContentHtml html={content.html} highlightTerms={props.highlightTerms} /></PostQuickActions>
           <DocsTerms dataset={props.dataset} item={item} />
           <nav className="docs-article__nav" aria-label="Guide navigation">
             {props.previous ? (

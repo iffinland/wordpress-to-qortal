@@ -1,7 +1,7 @@
 # Quick Start
 
 
-Desktop **0.8.0-beta.2** is included in bundle **v0.8.0-beta.4**. Publisher **0.8.0-beta.1** and Generic CMS **0.9.0-beta.1** are unchanged.
+Desktop **0.8.0-beta.2** is included in bundle **v0.8.0-beta.4**. Publisher **0.8.0-beta.1** is unchanged. Generic CMS **0.9.0-beta.2** is a separate [CMS-only release](https://github.com/iffinland/wordpress-to-qortal/releases/tag/cms-v0.9.0-beta.2); the Desktop DEB is unchanged.
 
 ## Beginner path — Qortal Migration Studio desktop app
 
@@ -236,3 +236,7 @@ Open the project and choose **Recovery** (header or project card).
    cookies, wallet material and content bodies are excluded; the export is
    refused if a secret check fails.
 
+
+## Update the CMS without updating Desktop
+
+Download [Generic CMS 0.9.0-beta.2](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.2/qortal-migration-generic-cms-v0.9.0-beta.2.zip) and its [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.2/SHA256SUMS). Keep the existing site's deployment identity and runtime configuration when using the established CMS update flow. The ZIP contains the generic application; a raw ZIP upload must not replace a site's generated configuration. Publication still requires owner approval in Hub. The current Desktop package continues to embed its original CMS template; existing sites can use the separately updated CMS.
