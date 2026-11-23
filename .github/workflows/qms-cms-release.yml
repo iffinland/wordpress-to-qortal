@@ -1,0 +1,58 @@
+name: Publish approved CMS component
+on:
+  push:
+    branches: ['release/cms-*']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: qms-cms-component
+  cancel-in-progress: false
+jobs:
+  publish-cms:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_BIN: gh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            templates/generic-cms/package-lock.json
+      - name: Install locked CMS tools
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm --prefix templates/generic-cms ci --ignore-scripts --no-audit --no-fund
+          node templates/generic-cms/node_modules/esbuild/install.js
+      - name: Validate versions and focused release checks
+        run: |
+          npm run version:check
+          node --test test/docs/*.test.js test/release/component-release.test.js
+          npm --prefix templates/generic-cms run typecheck
+          npm --prefix templates/generic-cms test
+      - name: Build and validate only CMS
+        run: |
+          npm run cms-template:package
+          node scripts/release/publish-cms.mjs --prepare
+          npm run docs:verify
+      - name: Publish immutable CMS asset and verify downloads
+        run: |
+          node scripts/release/publish-cms.mjs --publish
+          npm run release:readme-links
+      - name: Preserve CMS evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: cms-release-evidence
+          path: |
+            release/*cms*.zip
+            release/cms-*.json
+            release/cms-public/*
+          if-no-files-found: warn
