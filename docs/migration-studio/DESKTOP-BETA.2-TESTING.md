@@ -1,13 +1,8 @@
-# QMS Desktop 0.8.0-beta.2 — unpublished test build
+# QMS Desktop 0.8.0-beta.2 — user and acceptance guide
 
 Artifact: `qortal-migration-studio_0.8.0-beta.2_amd64.deb`.
 
-This is an owner-authorized, **unpublished** desktop test build. It is not a
-GitHub release and is not advertised by the QDN update registry. The public
-bundle remains v0.8.0-beta.3 with Desktop/Publisher 0.8.0-beta.1 and Generic CMS
-0.9.0-beta.1. Public download links intentionally continue to describe those
-published files. Do not invent a GitHub beta.2 download URL or publish this build
-without the owner's approval.
+This guide covers the owner-runtime-accepted Desktop **0.8.0-beta.2**, published in GitHub bundle **v0.8.0-beta.4**. Publisher remains **0.8.0-beta.1** and Generic CMS **0.9.0-beta.1**. Verify the downloaded DEB against that release's SHA256SUMS. The public package is built from clean committed source; the earlier unpublished trial has its own historical checksum and evidence.
 
 ## Installation
 
@@ -113,10 +108,4 @@ Report the Linux distribution/version, the visible error and the operation that
 triggered it. Export diagnostics through Advanced tools if needed; do not send
 wallet material or passwords.
 
-Owner runtime testing passed on 2026-11-23. The owner approved committing and
-integrating the tested source into main. GitHub package publication is pending;
-this remains an unpublished package until its public download is verified.
-The original accepted DEB is preserved with SHA-256
-`8ebbb0e443e8b51a885ba8345b32d03d0e8129f6450a584bffa6081153a0eae4`.
-Its build metadata correctly records the original uncommitted trial; do not
-rewrite that history or describe it as a clean-commit release build.
+Owner runtime testing passed on 2026-11-23. The accepted source was integrated into main and authorized for public beta publication. Original trial metadata remains in the acceptance evidence; public release metadata and checksums identify the clean-source package.

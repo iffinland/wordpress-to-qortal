@@ -1,11 +1,7 @@
 # Quick Start
-**Desktop 0.8.0-beta.2: runtime accepted on 2026-11-23; GitHub package publication pending (unpublished).** The owner approved main integration after runtime testing of `qortal-migration-studio_0.8.0-beta.2_amd64.deb`. It adds the guided workflow and backup/restore. Use [the beta.2 guide](docs/migration-studio/DESKTOP-BETA.2-TESTING.md). Public download links below continue to identify the existing published assets until the new release is verified.
 
 
-> Source on `main` includes Generic CMS 0.9.0-beta.1 with the approved template
-> system. The download below remains the last approved 0.8.0-beta.3 artifact
-> release until the owner authorizes a new release; the desktop and Publisher
-> files are unchanged.
+Desktop **0.8.0-beta.2** is included in bundle **v0.8.0-beta.4**. Publisher **0.8.0-beta.1** and Generic CMS **0.9.0-beta.1** are unchanged.
 
 ## Beginner path — Qortal Migration Studio desktop app
 
@@ -13,18 +9,17 @@ This path needs **no Node.js, npm, Git, compiler or manual build**. Do not clone
 the repository and do not run npm.
 
 1. Download
-   [qortal-migration-studio_0.8.0-beta.1_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.3/qortal-migration-studio_0.8.0-beta.1_amd64.deb)
-   and [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.3/SHA256SUMS).
+   [qortal-migration-studio_0.8.0-beta.2_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/qortal-migration-studio_0.8.0-beta.2_amd64.deb)
+   and [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/SHA256SUMS).
 2. Verify and install:
 
    ~~~bash
-   sha256sum qortal-migration-studio_0.8.0-beta.1_amd64.deb
-   sudo apt install ./qortal-migration-studio_0.8.0-beta.1_amd64.deb
+   sha256sum qortal-migration-studio_0.8.0-beta.2_amd64.deb
+   sudo apt install ./qortal-migration-studio_0.8.0-beta.2_amd64.deb
    qortal-migration-studio
    ~~~
 
-3. Follow [docs/migration-studio/alpha/FIRST-RUN-GUIDE.md](docs/migration-studio/alpha/FIRST-RUN-GUIDE.md),
-   then [docs/migration-studio/alpha/MIGRATION-WALKTHROUGH.md](docs/migration-studio/alpha/MIGRATION-WALKTHROUGH.md).
+3. Follow the [four-step desktop guide](docs/migration-studio/DESKTOP-BETA.2-TESTING.md). The detailed wizard and publishing controls remain under **Advanced tools**.
 
 The release also offers a **Migration Publisher Q-App ZIP** and a **Generic CMS
 Q-App ZIP**. Downloading either ZIP does **not** deploy it. A downloaded ZIP

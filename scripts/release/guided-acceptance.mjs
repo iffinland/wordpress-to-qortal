@@ -47,6 +47,13 @@ try {
       if (ok) break; await sleep(50);
     }
   }
+  if (!guiRoot) {
+    xvfb = spawn('Xvfb', [':' + display, '-screen', '0', '1280x900x24', '-nolisten', 'unix', '-nolisten', 'local', '-listen', 'tcp', '-ac'], { env, stdio: 'ignore' });
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const ok = await new Promise((resolve) => { const socket = net.connect(6000 + display, '127.0.0.1'); socket.once('connect', () => { socket.destroy(); resolve(true); }); socket.once('error', () => resolve(false)); });
+      if (ok) break; await sleep(50);
+    }
+  }
   fixture = await startWordpressFixtureServer({ data: dataWithPosts([makePost(1), makePost(2), makePost(3)]) });
   qdn = await startQdnServer();
   child = spawn(path.join(app, 'qortal-migration-studio'), ['--qms-isolated-test', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=' + port], { env, stdio: ['ignore', 'pipe', 'pipe'] });
