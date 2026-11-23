@@ -31,7 +31,7 @@ jobs:
       - name: Validate versions, publication behavior and documentation contracts
         run: |
           npm run version:check
-          node --test test/publisher/*.test.js test/docs/*.test.js test/release/component-release.test.js
+          node --test test/publisher/*.test.js test/docs/*.test.js test/release/component-release.test.js test/release/publisher-package.test.js
       - name: Build and inspect only Publisher
         run: |
           npm run publisher:build

@@ -31,7 +31,9 @@ const files = await walk(dist);
 if (!files.includes('index.html')) throw new Error('Publisher bundle has no root index.html.');
 if (files.some((file) => file.endsWith('.map'))) throw new Error('Publisher bundle contains source maps.');
 const entries = {};
-const mtime = new Date('1980-01-01T00:00:00.000Z');
+// ZIP stores local DOS fields, not a UTC instant. Fixed wall-clock fields
+// preserve the accepted RC.1 archive and reproduce it in every build timezone.
+const mtime = new Date(1980, 0, 1, 2, 0, 0);
 for (const relative of files) {
   entries[relative] = [new Uint8Array(await readFile(path.join(dist, relative))), { level: 6, mtime }];
 }

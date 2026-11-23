@@ -17,7 +17,7 @@ Download `qortal-migration-publisher-v0.8.0-beta.2.zip` and verify its entry in 
 
 - Size: **85,059 bytes**.
 - SHA-256: `49c1f85f5c0fef091b157c0d9cd219056b981a2b4f6fb264e53fb58fef69014d`.
-- The release process rejects a build that differs from the runtime-accepted ZIP.
+- The release process rejects a build that differs from the runtime-accepted ZIP. Packaging uses fixed ZIP wall-clock timestamps; a regression test checks byte-identical archives in UTC, Helsinki, New York and Tokyo.
 - Focused validation: 67 passing publication/import/production-DOM tests, TypeScript/Vite build, bundle inspection and version checks; release checks also cover documentation and component selection.
 
 The downloadable `publisher-release-manifest.json` identifies the exact committed source and the hash-verified unchanged Desktop/CMS downloads. Publication independently downloads and verifies the new ZIP, checksums and manifest. Existing handoff/receipt schema compatibility is retained. No QDN registry resource is signed or published by this release.
