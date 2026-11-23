@@ -25,10 +25,10 @@
       "changelog": "Runtime-accepted modern publishing workspace: automatic identity, searchable scrolling resource list, clear progress and durable pending-upload protection."
     },
     "cms": {
-      "version": "0.9.0-beta.2",
+      "version": "0.9.0-beta.3",
       "channel": "beta",
       "source": "templates/generic-cms/package.json",
-      "changelog": "Runtime-accepted post quick actions in all eight templates: QDN likes, canonical link sharing and on-demand plain-text comments with author editing."
+      "changelog": "Runtime-accepted RC.2: independent content discovery across APP/WEBSITE with explicit ALL search, persistent owner catalog selection, CMS-first native content and imported text/image edits."
     }
   },
   "versionMarkers": [
@@ -41,9 +41,15 @@
   ],
   "componentReleases": {
     "cms": {
-      "version": "0.9.0-beta.2",
-      "tag": "cms-v0.9.0-beta.2",
-      "notes": "docs/migration-studio/RELEASE-CMS-0.9.0-BETA.2.md"
+      "version": "0.9.0-beta.3",
+      "tag": "cms-v0.9.0-beta.3",
+      "notes": "docs/migration-studio/RELEASE-CMS-0.9.0-BETA.3.md",
+      "runtimeAcceptance": {
+        "status": "passed",
+        "date": "2026-11-23",
+        "candidate": "RC.2",
+        "sha256": "c217c548c63d98b175d084ae2292de30bd4f9ab4d83594c86e8bcb0b987d6e31"
+      }
     },
     "publisher": {
       "version": "0.8.0-beta.2",

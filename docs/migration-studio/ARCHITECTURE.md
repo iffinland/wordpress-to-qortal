@@ -984,6 +984,10 @@ custom template   ->  same contract, different presentation/config
 The engine must not import template code. The template must not import source
 adapters. They communicate through the versioned manifest/content model.
 
+The deployment order is independent: publish imported content before or after installing the CMS. A generic or bespoke frontend under the same Qortal name must read the same DOCUMENT catalog whether hosted as APP or WEBSITE. Bundling a per-project runtime configuration is optional for single-project discovery, not a requirement of the content model. Multiple projects require an explicit owner selection; content from another publisher is never selected automatically.
+
+Native CMS content and imported edit overlays remain separate QDN documents and merge with the imported catalog. Binding an import must preserve native content created before the import. Replacing a frontend must preserve both. The reusable discovery/binding API and stable owner connection are specified in [CMS-CONTENT-CONNECTION.md](CMS-CONTENT-CONNECTION.md).
+
 ### 11.2 Default template requirements
 
 - Neutral branding and configurable site title/tagline/logo/colors.

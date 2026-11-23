@@ -1,6 +1,7 @@
 import type { CmsTemplateConfig } from '../types';
 import { validateCmsConfig } from '../lib/config.js';
 import { discoverHostedQdnName, discoverHostedQdnResource, safeDecodeQdnName } from '../lib/qortal.js';
+import { discoverSiteContent, bindDiscoveredContent } from '../lib/contentDiscovery.js';
 import { removeTemplatePlaceholders } from '../lib/settings.js';
 
 /** Build-time defaults embedded by Vite. */
@@ -39,6 +40,7 @@ export interface RuntimeCmsConfig {
   config: CmsTemplateConfig;
   source: 'runtime' | 'build';
   notice: string;
+  discovery?: any;
 }
 
 function configUnavailableForHostedSite(notice: string): RuntimeCmsConfig {
@@ -82,9 +84,9 @@ function sameName(left: string, right: string): boolean {
 export function runtimeConfigMatchesHosting(config: CmsTemplateConfig, hosting: { name: string; service: string; identifier: string }): boolean {
   if (!hosting.name || !sameName(config.site.ownerName, hosting.name) || !sameName(config.admin.qdnName, hosting.name)) return false;
   if (!config.deployment) return true; // Legacy bundles can be read, but cache binding remains host-scoped.
-  return config.deployment.service === hosting.service
-    && sameName(config.deployment.name, hosting.name)
-    && config.deployment.identifier === hosting.identifier;
+  // The owner can publish the same presentation ZIP as APP or WEBSITE.
+  // The explicit catalog identity stays fixed; hosting coordinates are rebound below.
+  return sameName(config.deployment.name, hosting.name);
 }
 
 async function readRuntimeJson(): Promise<unknown | null> {
@@ -111,13 +113,52 @@ async function readRuntimeJson(): Promise<unknown | null> {
   }
 }
 
+function configForDiscoveredContent(
+  hosting: { name: string; service: string; identifier: string },
+  discovery: any
+): RuntimeCmsConfig {
+  const config = bindDiscoveredContent(baseCmsConfig, hosting, discovery.selected) as CmsTemplateConfig;
+  config.site = removeTemplatePlaceholders(config.site, hosting.name);
+  return {
+    config: ensureAdminNavigation(config),
+    source: 'runtime',
+    notice: discovery.status === 'connected' ? '' : discovery.message,
+    discovery
+  };
+}
+
 export async function loadRuntimeCmsConfig(): Promise<RuntimeCmsConfig> {
   try {
     const parsed = await readRuntimeJson();
     if (!parsed) {
-      return configUnavailableForHostedSite(
-        'This QDN site requires its project-specific qms-cms-config.json, but it could not be read from the hosted APP/WEBSITE resource. Generic catalog defaults were not loaded.'
-      );
+      const hosting = discoverHostedQdnResource({ name: '', service: 'APP', identifier: 'default' });
+      // A custom template may embed an explicit content identity. The runtime
+      // presentation coordinates are derived from the host, not from APP-only defaults.
+      const explicit = baseCmsConfig.site.id !== 'generic-site'
+        && Boolean(baseCmsConfig.content.manifestIdentifier)
+        && baseCmsConfig.content.manifestIdentifier !== 'qms-cms-manifest'
+        && sameName(baseCmsConfig.site.ownerName, hosting.name)
+        && sameName(baseCmsConfig.admin.qdnName, hosting.name);
+      if (explicit) return {
+        config: ensureAdminNavigation({
+          ...baseCmsConfig,
+          deployment: {
+            name: hosting.name,
+            service: hosting.service === 'WEBSITE' ? 'WEBSITE' : 'APP',
+            identifier: hosting.identifier
+          }
+        }),
+        source: 'build',
+        notice: ''
+      };
+      const discovery = await discoverSiteContent(hosting);
+      if (discovery.status === 'unavailable') {
+        return {
+          ...configUnavailableForHostedSite('The project-specific qms-cms-config.json is absent and the public content connection could not be resolved. ' + discovery.message),
+          discovery
+        };
+      }
+      return configForDiscoveredContent(hosting, discovery);
     }
     const merged = merge(baseCmsConfig, parsed) as CmsTemplateConfig;
     const hosting = discoverHostedQdnResource({
@@ -133,6 +174,11 @@ export async function loadRuntimeCmsConfig(): Promise<RuntimeCmsConfig> {
     if (!runtimeConfigMatchesHosting(merged, hosting)) {
       return configUnavailableForHostedSite('Runtime CMS configuration does not belong to this QDN host; catalog cache and content are unavailable.');
     }
+    merged.deployment = {
+      name: hosting.name,
+      service: hosting.service === 'WEBSITE' ? 'WEBSITE' : 'APP',
+      identifier: hosting.identifier
+    };
     return { config: ensureAdminNavigation(merged), source: 'runtime', notice: '' };
   } catch {
     return configUnavailableForHostedSite('Runtime CMS configuration is unavailable; generic catalog defaults were not loaded.');

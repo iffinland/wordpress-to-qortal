@@ -1,3 +1,4 @@
+import { ContentConnectionPanel } from './components/ContentConnectionPanel';
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { Layout } from './components/Layout';
 import { StateNotice } from './components/StateNotice';
@@ -41,6 +42,8 @@ export function App() {
   const [cmsConfig, setCmsConfig] = useState(baseCmsConfig);
   const [configSource, setConfigSource] = useState<'build' | 'runtime'>('build');
   const [configNotice, setConfigNotice] = useState('');
+  const [contentDiscovery, setContentDiscovery] = useState<any>(null);
+  const [connectionReload, setConnectionReload] = useState(0);
   const [publishedSettings, setPublishedSettings] = useState<unknown>(null);
   const [previewSettings, setPreviewSettings] = useState<unknown>(null);
   const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>(() => readStoredTheme(typeof localStorage === 'undefined' ? null : localStorage) as any);
@@ -82,6 +85,7 @@ export function App() {
       setCmsConfig(loaded.config);
       setConfigSource(loaded.source);
       setConfigNotice(loaded.notice);
+      setContentDiscovery(loaded.discovery || null);
       const name = discoverHostedQdnName(loaded.config.admin.qdnName || '');
       const settings = await loadPublishedSettings(name);
       if (cancelled) return;
@@ -89,7 +93,7 @@ export function App() {
       else if (!settings.ok) setConfigNotice((current) => current || 'Published settings could not be read: ' + settings.errors.join(' '));
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [connectionReload]);
 
   useEffect(() => {
     const media = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
@@ -231,7 +235,10 @@ export function App() {
     }
   };
 
-  const refresh = () => setReloadToken((value) => value + 1);
+  const refresh = () => {
+    setConnectionReload((value) => value + 1);
+    setReloadToken((value) => value + 1);
+  };
 
   const loadContent = (item: CmsContentItem) => repository.loadContent(item);
 
@@ -297,6 +304,7 @@ export function App() {
           {showGlobalNotice ? <StateNotice state={dataset.state === 'partial' ? 'partial' : 'stale'} notices={dataset.notices} compact /> : null}
           {configNotice ? <StateNotice state="partial" compact message={configNotice} /> : null}
           <Suspense fallback={<div className="page" aria-busy="true"><StateNotice state="loading" title="Loading administration..." /></div>}>
+          <ContentConnectionPanel config={effectiveConfig} discovery={contentDiscovery} identity={identity} onRefresh={refresh} />
           <AdminPage
           dataset={dataset}
           loading={loading}

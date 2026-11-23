@@ -1,3 +1,4 @@
+import { standaloneSiteId } from './contentDiscovery.js';
 import {
   CatalogError,
   createErrorDataset,
@@ -190,7 +191,10 @@ export function createCmsRepository(config, options = {}) {
       // this resource was read from the exact hosted QDN name; every other
       // non-matching identity is still rejected.
       const legacyPlaceholder = nativeSiteId === 'site';
-      if (nativeSiteId && !legacyPlaceholder && String(config.site.id || '') && nativeSiteId !== String(config.site.id)) {
+      // Owner-authored posts made before any import have a stable name-scoped
+      // identity. They remain visible when the first import is connected later.
+      const standalone = nativeSiteId === standaloneSiteId(manifestName);
+      if (nativeSiteId && !legacyPlaceholder && !standalone && String(config.site.id || '') && nativeSiteId !== String(config.site.id)) {
         return { ok: false, state: 'invalid', errors: ['Native index site identity does not match this CMS configuration.'] };
       }
       return { ok: true, state: 'ready', index: raw };

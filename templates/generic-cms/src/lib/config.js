@@ -38,9 +38,10 @@ export function validateCmsConfig(config) {
   if (!config.site || typeof config.site !== 'object') {
     errors.push('site is required.');
   } else {
-    for (const field of ['title', 'tagline', 'ownerName']) {
+    for (const field of ['title', 'ownerName']) {
       if (!isNonEmptyString(config.site[field])) errors.push('site.' + field + ' must be a non-empty string.');
     }
+    if (typeof config.site.tagline !== 'string') errors.push('site.tagline must be a string.');
     if (config.site.id !== undefined && !isNonEmptyString(config.site.id)) errors.push('site.id must be a non-empty string when present.');
   }
   if (!Array.isArray(config.navigation) || config.navigation.length === 0) {

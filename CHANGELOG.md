@@ -1,5 +1,16 @@
 # Changelog
 
+
+## Generic CMS 0.9.0-beta.3 — 2026-11-23
+
+- RC.2: explicitly request `mode=ALL` on direct and Hub metadata search; avoid hiding older import catalogs behind newer settings documents. Reproduced against the reported owner's public QDN metadata; add default-mode-collapse and Hub-fallback regression tests.
+- Discover owner-published import catalogs without a bundled project configuration; support CMS-before-import and import-before-CMS deployment.
+- Share content connections across APP and WEBSITE under the same Qortal name and deployment identifier. Never guess between several imported projects.
+- Add owner-only Content connection selection and refresh, with an optional public `qms-cms-connection@1` document and exact read-back verification.
+- Preserve CMS-first native posts when an import is connected; retain imported text/image edits through the existing overlay contract. Keep custom-template visual defaults separate from content binding.
+- Fix empty-tagline configuration validation and remount the editor when the connected site changes.
+- Owner runtime test passed for RC.2. Publish its byte-identical ZIP as the independent CMS 0.9.0-beta.3 release. Publisher and Desktop DEB are unchanged.
+
 ## Publisher 0.8.0-beta.2 — 2026-11-23
 
 - Automatic active-account and package-name ownership checks; refresh before signing.

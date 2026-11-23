@@ -63,7 +63,7 @@ function OwnerAdmin(props: {
 
       {props.section === 'editor' || props.section === 'pages' ? (
         <EditorPage
-          key={props.section}
+          key={props.section + ':' + props.siteId}
           contentType={props.section === 'pages' ? 'page' : 'post'}
           identity={props.identity}
           name={props.qdnName}

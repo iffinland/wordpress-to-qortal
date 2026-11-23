@@ -84,7 +84,7 @@ When a post is viewed, attachments become: an inline **audio player** with the t
 
 ### Deleting a CMS-authored post
 
-Only CMS-authored posts and pages have **Delete**; imported WordPress content is read-only and is never erased by the CMS. Clicking **Delete** opens an explicit confirmation. Tick **I understand that historical QDN data is not physically erased**, then choose **Delete from CMS**. One owner-approved batch writes a deletion marker over the item's existing content resource (the identifier stays the same), removes the item from the CMS index, search index and page assignments, and therefore from public listings, categories, tags and navigation. Older QDN versions and copies outside this CMS are **not** physically erased. If the result is unconfirmed it is not resent automatically; use **Retry removal** only to re-check the same coordinates. A successful removal cannot be undone from the CMS.
+Only CMS-authored posts and pages have **Delete**; imported WordPress originals are never erased by the CMS. Imported text and featured images remain editable through CMS edit overlays. Clicking **Delete** opens an explicit confirmation. Tick **I understand that historical QDN data is not physically erased**, then choose **Delete from CMS**. One owner-approved batch writes a deletion marker over the item's existing content resource (the identifier stays the same), removes the item from the CMS index, search index and page assignments, and therefore from public listings, categories, tags and navigation. Older QDN versions and copies outside this CMS are **not** physically erased. If the result is unconfirmed it is not resent automatically; use **Retry removal** only to re-check the same coordinates. A successful removal cannot be undone from the CMS.
 
 ### Categories and tags
 
@@ -123,7 +123,7 @@ preserved. No template introduces a new content type or a separate data store.
 
 Q-Tube, SubWire and Quitter content is public and permanent. SubWire Markdown drops text colors, audio, video and file attachments. Q-Tube rejects MKV and HEVC. Legacy unscoped drafts are delete-only. Deleting a CMS item removes it from this CMS catalog and overwrites its mutable content resource with a tombstone under the same identifier; historical QDN versions and copies outside the CMS are not physically erased. Imported WordPress taxonomy and content cannot be renamed or deleted from the CMS. The three-artifact release gate was not run for this source handoff, and no GitHub release was published. Desktop 0.8.0-beta.1 and Publisher 0.8.0-beta.1 remain unchanged.
 
-## Post quick actions — CMS 0.9.0-beta.2
+## Post quick actions — CMS 0.9.0-beta.3
 
 Every post in all eight presentation templates now has a compact Like, Share and Comments bar. Static pages and post lists do not get the bar.
 
@@ -137,4 +137,15 @@ Engagement belongs to the hosted deployment, site id and stable post id. Editing
 
 ### Install the independent CMS update
 
-[Download CMS 0.9.0-beta.2](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.2/qortal-migration-generic-cms-v0.9.0-beta.2.zip) and verify its [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.2/SHA256SUMS). Use the established site update flow to retain `qms-cms-config.json`, deployment service/name/identifier and content references. Updating the generic CMS does not migrate or reset the site's content. The DEB remains unchanged and still embeds its original CMS version. No QDN registry transaction is included in this GitHub delivery.
+[Download CMS 0.9.0-beta.3](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.3/qortal-migration-generic-cms-v0.9.0-beta.3.zip) and verify its [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.3/SHA256SUMS). Keep the Qortal name and deployment identifier. This standalone ZIP discovers imported catalogs automatically; preserve custom project configuration when updating a bespoke frontend. Updating the generic CMS does not migrate or reset the site's content. The DEB remains unchanged and still embeds its original CMS version. No QDN registry transaction is included in this GitHub delivery.
+
+
+## Independent installation — 0.9.0-beta.3
+
+Publish this CMS ZIP under the same Qortal name that published the imported data. APP and WEBSITE are both supported; the CMS can replace the Publisher at the same APP address or use the other service. The presentation bundle and the DOCUMENT content are independent. No new import or per-project `qms-cms-config.json` is needed for a single discoverable project. A CMS can also be installed first: publish native posts immediately, import later, then refresh the connection.
+
+The CMS searches the connected node for this owner's supported manifests. One verified catalog connects automatically. If several projects exist, the verified owner opens **Admin → Content connection**, chooses **Imported site**, then **Confirm content connection**. This publishes one small connection document with the normal Hub approval and possible network fee. APP and WEBSITE share this selection when their deployment identifier is the same. **Refresh connection** repeats read-only discovery without an upload.
+
+An unavailable catalog is reported separately from an empty account; wait for QDN loading and refresh. A green Publisher upload/read-back verifies its resources, but cannot prove that a separately installed frontend has connected to the catalog. Check both the public homepage and Admin post/page lists.
+
+CMS-authored items appear alongside imports. Open an imported item in the editor to change its text or featured image. These edits are published separately from the imported original. Reinstalling the CMS does not delete those QDN documents. Existing explicit project configurations remain supported; retain custom branding/configuration when updating a bespoke frontend. See [the content connection contract](CMS-CONTENT-CONNECTION.md).

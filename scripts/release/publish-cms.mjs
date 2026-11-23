@@ -25,6 +25,7 @@ const checked = await inspectQappZip(zip, { kind: 'cms', version });
 if (!checked.ok) throw new Error(checked.errors.join('\n'));
 const sha256 = await sha256File(zip);
 const bytes = (await readFile(zip)).length;
+if (record.runtimeAcceptance?.status !== 'passed' || record.runtimeAcceptance.sha256 !== sha256) throw new Error('CMS ZIP differs from the runtime-approved artifact.');
 const notes = await readFile(path.join(REPO_ROOT, record.notes), 'utf8');
 if (!notes.includes('CMS **' + version + '**')) throw new Error('CMS notes must name the exact current version.');
 const out = path.join(REPO_ROOT, 'release/cms-public');
@@ -40,21 +41,39 @@ if (process.argv.includes('--prepare')) {
   const baselineBytes = await fetchBytes(base + 'release-manifest.json');
   const baseline = JSON.parse(baselineBytes.toString());
   if (!baseline.ok || baseline.tag !== release.releaseTag) throw new Error('Invalid baseline bundle manifest.');
-  const unchangedPaths = ['desktop', 'lib', 'viewer', 'src', 'broker', 'patches', 'package.json', 'package-lock.json'];
+  const unchangedPaths = ['desktop', 'lib', 'src', 'broker', 'patches', 'package.json'];
   const changed = execFileSync('git', ['diff', '--name-only', baseline.source.commit, git.commit, '--', ...unchangedPaths], { cwd: REPO_ROOT, encoding: 'utf8' }).trim();
   if (changed) throw new Error('CMS-only release changed Desktop/Publisher inputs:\n' + changed);
+  // Publisher has its own accepted release; the original bundle still lists beta.1.
+  const publisherRecord = release.componentReleases.publisher;
+  const publisherBase = `https://github.com/${repo}/releases/download/${publisherRecord.tag}/`;
+  const publisherBytes = await fetchBytes(publisherBase + 'publisher-release-manifest.json');
+  const publisherManifest = JSON.parse(publisherBytes);
+  const publisher = publisherManifest.artifact;
+  if (publisherManifest.tag !== publisherRecord.tag || publisherManifest.version !== release.components.publisher.version || publisher.componentVersion !== release.components.publisher.version) throw new Error('Published Publisher manifest/version mismatch.');
+  const publisherChanged = execFileSync('git', ['diff', '--name-only', publisherManifest.source.commit, git.commit, '--', 'viewer'], { cwd: REPO_ROOT, encoding: 'utf8' }).trim();
+  if (publisherChanged) throw new Error('CMS-only release changed Publisher inputs:\n' + publisherChanged);
+  const oldLock = JSON.parse(execFileSync('git', ['show', baseline.source.commit + ':package-lock.json'], { cwd: REPO_ROOT, encoding: 'utf8' }));
+  const newLock = await readJson(path.join(REPO_ROOT, 'package-lock.json'));
+  for (const lock of [oldLock, newLock]) delete lock.packages.viewer.version;
+  if (JSON.stringify(oldLock) !== JSON.stringify(newLock)) throw new Error('CMS-only release changed shared dependencies.');
   const baselineSums = parseChecksums((await fetchBytes(base + 'SHA256SUMS')).toString());
+  const publisherSums = parseChecksums((await fetchBytes(publisherBase + 'SHA256SUMS')).toString());
   const unchanged = [];
   for (const kind of ['deb', 'publisher']) {
-    const entry = baseline.artifacts.find((item) => item.kind === kind);
+    const entry = kind === 'publisher' ? publisher : baseline.artifacts.find((item) => item.kind === kind);
     const component = kind === 'deb' ? 'desktop' : 'publisher';
-    if (!entry || entry.componentVersion !== release.components[component].version || baselineSums.get(entry.name) !== entry.sha256) throw new Error('Baseline version/checksum mismatch: ' + kind);
-    const publicBytes = await fetchBytes(base + entry.name);
+    const sums = kind === 'publisher' ? publisherSums : baselineSums;
+    const artifactBase = kind === 'publisher' ? publisherBase : base;
+    const tag = kind === 'publisher' ? publisherRecord.tag : release.releaseTag;
+    if (!entry || entry.componentVersion !== release.components[component].version || sums.get(entry.name) !== entry.sha256) throw new Error('Published version/checksum mismatch: ' + kind);
+    const publicBytes = await fetchBytes(artifactBase + entry.name);
     if (publicBytes.length !== entry.bytes || hash(publicBytes) !== entry.sha256) throw new Error('Existing public artifact failed verification: ' + entry.name);
-    unchanged.push({ kind, name: entry.name, sha256: entry.sha256, bytes: entry.bytes, tag: release.releaseTag });
+    unchanged.push({ kind, name: entry.name, sha256: entry.sha256, bytes: entry.bytes, tag });
   }
+  await writeFile(path.join(REPO_ROOT, 'release/publisher-release-manifest.json'), publisherBytes);
   await writeFile(path.join(REPO_ROOT, 'release/release-manifest.json'), baselineBytes);
-  await writeJson(manifestPath, { schema: 'qms-component-release@1', component: 'cms', version, tag: record.tag, source: git, artifact: { kind: 'cms', name, bytes, sha256, componentVersion: version }, unchanged, checks: checked.checks, preparedAt: new Date().toISOString() });
+  await writeJson(manifestPath, { schema: 'qms-component-release@1', component: 'cms', version, tag: record.tag, source: git, artifact: { kind: 'cms', name, bytes, sha256, componentVersion: version }, unchanged, runtimeAcceptance: record.runtimeAcceptance, checks: checked.checks, preparedAt: new Date().toISOString() });
   await writeFile(path.join(out, 'SHA256SUMS'), sha256 + '  ' + name + '\n');
   console.log('CMS prepared; existing DEB and Publisher bytes verified, no DEB built.');
 } else if (process.argv.includes('--publish')) {
@@ -64,7 +83,7 @@ if (process.argv.includes('--prepare')) {
   execFileSync(process.execPath, ['scripts/release/verify-active-docs.mjs'], { cwd: REPO_ROOT, stdio: 'inherit' });
   execFileSync('git', ['tag', record.tag, git.commit], { cwd: REPO_ROOT });
   execFileSync('git', ['push', 'origin', 'refs/tags/' + record.tag], { cwd: REPO_ROOT, stdio: 'inherit' });
-  gh(['release', 'create', record.tag, '--repo', repo, '--prerelease', '--verify-tag', '--title', 'Generic CMS ' + version + ' — post quick actions', '--notes-file', path.join(REPO_ROOT, record.notes), zip, path.join(out, 'SHA256SUMS'), manifestPath, path.join(REPO_ROOT, record.notes), path.join(REPO_ROOT, 'docs/migration-studio/GENERIC-CMS-USER-MANUAL.md')]);
+  gh(['release', 'create', record.tag, '--repo', repo, '--prerelease', '--verify-tag', '--title', 'Generic CMS ' + version + ' — independent content connection', '--notes-file', path.join(REPO_ROOT, record.notes), zip, path.join(out, 'SHA256SUMS'), manifestPath, path.join(REPO_ROOT, record.notes), path.join(REPO_ROOT, 'docs/migration-studio/GENERIC-CMS-USER-MANUAL.md')]);
   const url = `https://github.com/${repo}/releases/download/${record.tag}/`;
   const downloaded = await fetchBytes(url + name);
   if (hash(downloaded) !== sha256 || downloaded.length !== bytes) throw new Error('Published CMS bytes failed independent download verification.');

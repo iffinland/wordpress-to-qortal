@@ -133,7 +133,7 @@ describe('public navigation through the rendered application', () => {
     // Diagnostics stay available in Admin instead of occupying public pages.
     navigate('#/admin');
     await screen.findByText('Access denied');
-    await waitFor(() => expect(screen.getByText(/requires its project-specific qms-cms-config\.json/)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/public content connection could not be resolved/)).toBeTruthy());
   });
 
   it('keeps navigation usable and shows honest route states when the catalog fails', async () => {
