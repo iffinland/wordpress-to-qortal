@@ -1,0 +1,107 @@
+name: Publish approved QMS beta
+on:
+  push:
+    branches: ['release/publish-*']
+  workflow_dispatch:
+concurrency:
+  group: qms-public-beta
+  cancel-in-progress: false
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_BIN: gh
+      QMS_REPO: iffinland/wordpress-to-qortal
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+            templates/generic-cms/package-lock.json
+      - name: Install Linux packaging and GUI test dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends xvfb xauth libgtk-3-0 libnss3 libasound2 libgbm1 libnotify4 libsecret-1-0 libsecret-tools libxss1 libxtst6 libatspi2.0-0 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxrandr2 libxfixes3 libcups2 libpango-1.0-0 libcairo2 libatk1.0-0 libatk-bridge2.0-0 libx11-6 libxcb1 libxext6 libxi6 libatomic1 xdg-utils fonts-liberation
+          sudo mkdir -p /opt/qms-e2e/app /mnt/datahome /home/qms/.config /var/lib/xkb
+          sudo chown -R "$(id -u):$(id -g)" /opt/qms-e2e /mnt/datahome /home/qms /var/lib/xkb
+      - name: Install locked build tools
+        run: bash scripts/release/install-build-deps.sh
+      - name: Check version, documentation and release uniqueness
+        run: |
+          npm run version:check
+          node scripts/release/delivery-gate.mjs --stage=prebuild
+      - name: Build embedded CMS required by engine tests
+        run: npm --prefix templates/generic-cms run build
+      - name: Run focused source and desktop checks
+        run: |
+          node --test test/engine/*.test.js test/source/*.test.js test/media/*.test.js test/phase3/*.test.js test/phase4/*.test.js test/phase5/*.test.js test/phase7/*.test.js test/phase8/*.test.js test/phase9/*.test.js test/docs/*.test.js test/guided/*.test.js
+          npm --prefix desktop run typecheck
+          npm --prefix desktop test
+      - name: Reuse hash-verified unchanged Q-Apps
+        run: node scripts/release/reuse-qapps.mjs
+      - name: Build clean-source DEB
+        run: npm run release:deb
+      - name: Verify artifact, bundled runtime and security
+        run: |
+          npm run release:validate
+          node scripts/release/engine-clean-install-test.mjs --runtime=electron
+          node scripts/release/engine-clean-install-test.mjs --runtime=electron --hide-node-module=fflate --expect-failure --out=desktop/release/engine-clean-install-negative.json
+          node scripts/release/engine-wizard-flow-test.mjs --runtime=electron
+          npm run release:security
+      - name: Run packaged Guided mode acceptance
+        run: node scripts/release/guided-acceptance.mjs --work="$RUNNER_TEMP/qms-guided"
+      - name: Run packaged Advanced tools acceptance
+        run: node scripts/release/packaged-functional-acceptance.mjs --rootfs=/ --work="$RUNNER_TEMP/qms-functional" --out=release/packaged-functional-acceptance.json
+      - name: Run packaged bounded-scan acceptance
+        run: node scripts/release/packaged-bounded-scan-e2e.mjs --rootfs=/ --work="$RUNNER_TEMP/qms-bounded" --out=release/packaged-bounded-scan-e2e.json
+      - name: Run packaged handoff and read-back acceptance
+        run: |
+          node scripts/release/packaged-handoff-e2e.mjs --rootfs=/ --work="$RUNNER_TEMP/qms-handoff" --out=release/packaged-handoff-e2e.json
+          npm run release:verify-packaged-scan
+          npm run release:verify-functional
+      - name: Prove clean-checkout reproducibility
+        run: node scripts/release/repro-check.mjs --work="$RUNNER_TEMP/qms-repro"
+      - name: Generate release manifest, SBOM and provenance
+        run: |
+          npm run release:gate
+          npm run release:sbom
+          npm run release:provenance
+          npm run release:verify
+          npm run docs:verify
+      - name: Pin immutable release tag to verified build commit
+        run: |
+          tag=$(node -p "require('./qms-release.json').releaseTag")
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git rev-parse "$tag" >/dev/null 2>&1; then
+            test "$(git rev-parse "$tag^{}")" = "$GITHUB_SHA"
+          else
+            git tag "$tag" "$GITHUB_SHA"
+            git push origin "refs/tags/$tag"
+          fi
+      - name: Publish and independently verify public downloads
+        run: |
+          npm run release:publish
+          npm run release:readme-links
+      - name: Preserve release validation evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: qms-release-evidence
+          if-no-files-found: warn
+          path: |
+            desktop/release/*.json
+            desktop/release/*.deb
+            release/*.json
+            release/*.md
+            release/SHA256SUMS
