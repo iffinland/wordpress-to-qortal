@@ -1,6 +1,8 @@
 # Qortal Migration Studio user manual
 
-This operating manual follows the Qortal Migration Studio desktop UI in its real order. It covers use, not installation. QMS prepares local material; Qortal Hub performs wallet signing and approval.
+Desktop **0.8.0-beta.2** opens **Guided mode** by default. Follow the [current four-step guide](DESKTOP-BETA.2-TESTING.md): website address → content selection → Qortal destination → review and prepare. The app fills in site information and automatically runs local preparation. Import the Publisher confirmation for independent verification; larger selections continue in verified groups. Settings & help includes project backup/restore, node settings and text size.
+
+The detailed controls below remain available through **Advanced tools**. QMS prepares local material; Qortal Hub performs wallet signing and approval.
 
 ## 1. Dashboard: create or resume a site
 

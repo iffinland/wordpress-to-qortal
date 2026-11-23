@@ -126,7 +126,7 @@ const create = gh([
   '--repo', REPO,
   '--prerelease',
   '--verify-tag',
-  '--title', release.product + ' ' + release.version + ' (unsigned alpha)',
+  '--title', release.product + ' ' + release.version + ' — Desktop ' + release.components.desktop.version + ' (' + release.signing + ' ' + release.channel + ')',
   '--notes-file', notesPath,
   ...assets
 ], { stdio: 'inherit' });

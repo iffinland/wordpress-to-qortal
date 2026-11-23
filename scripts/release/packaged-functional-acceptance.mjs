@@ -473,6 +473,15 @@ async function openProject(connection, projectId) {
 
 async function openWizardStep(connection, projectId, marker) {
   await openProject(connection, projectId);
+  // Opening/recovering a project is asynchronous. A fixed 600 ms observation
+  // can miss a late stale-lock banner on a cold CI runner.
+  await waitFor(connection, 'document.body.innerText.includes(' + JSON.stringify(marker) + ') || !!document.querySelector("[data-testid=stale-lock-banner]")', 'wizard or explicit recovery for ' + marker, 120000);
+  if (await connection.evaluate('!!document.querySelector("[data-testid=stale-lock-banner]")')) {
+    await click(connection, 'Recover project');
+    await waitFor(connection, '!document.querySelector("[data-testid=stale-lock-banner]") && document.body.innerText.includes("Recovery")', 'recovered project');
+    await backToDashboard(connection);
+    await openProject(connection, projectId);
+  }
   await waitFor(connection, 'document.body.innerText.includes(' + JSON.stringify(marker) + ')', 'wizard marker ' + marker, 120000);
 }
 
@@ -576,7 +585,8 @@ async function record(name, label, body) {
     const message = error instanceof Error ? error.message : String(error);
     results[name] = { control: label, status: 'FAIL', error: message, rendererExceptions: cdp?.exceptions ?? [] };
     failures.push(name + ': ' + message);
-    stage(name + ' FAIL', { error: message });
+    const visible = await cdp?.evaluate('document.body?.innerText').catch(() => null);
+    stage(name + ' FAIL', { error: message, visible: visible?.slice(0, 4500) });
   }
 }
 

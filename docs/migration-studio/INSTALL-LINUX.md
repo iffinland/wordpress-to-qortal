@@ -1,13 +1,12 @@
 # Install Qortal Migration Studio on Linux
-**Desktop 0.8.0-beta.2: runtime accepted on 2026-11-23; GitHub package publication pending (unpublished).** The owner approved main integration after runtime testing of `qortal-migration-studio_0.8.0-beta.2_amd64.deb`. It adds the guided workflow and backup/restore. Use [the beta.2 guide](DESKTOP-BETA.2-TESTING.md). Public download links below continue to identify the existing published assets until the new release is verified.
 
 
 This guide installs the self-contained Debian package. The target machine does
 not need Node.js, npm, Git or development tools.
 
-This is the **0.8.0-beta.1** Desktop package in the **v0.8.0-beta.3** GitHub
+This is the **0.8.0-beta.2** Desktop package in the **v0.8.0-beta.4** GitHub
 bundle release. It is unsigned and amd64 only. Read
-[RELEASE-0.8.0-BETA.3.md](RELEASE-0.8.0-BETA.3.md) and
+[RELEASE-0.8.0-BETA.4.md](RELEASE-0.8.0-BETA.4.md) and
 [alpha/KNOWN-ISSUES.md](alpha/KNOWN-ISSUES.md) before installing.
 
 The beginner path needs **no Node.js, npm, Git, compiler or terminal build step**.
@@ -19,6 +18,7 @@ building is documented separately in
 
 - Debian 12 (bookworm)
 - Debian 13 (trixie)
+- Ubuntu 22.04 and 24.04, and derivatives with equivalent dependencies
 - Debian-based distributions with equivalent packages, including MX Linux 23
   (Debian 12 base). MX Linux is a compatibility target; the install and engine
   tests are run on Debian 12/13 and on an extracted .deb without system Node.
@@ -28,18 +28,18 @@ The package is amd64 only in this release.
 ## Verify the download
 
 ~~~bash
-sha256sum qortal-migration-studio_0.8.0-beta.1_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-beta.2_amd64.deb
 cat SHA256SUMS
 ~~~
 
-The artifact is **unsigned** in this beta.1 package. Compare the SHA-256 with the
+The artifact is **unsigned** in this beta.2 package. Compare the SHA-256 with the
 published value and inspect sbom.cdx.json and provenance.intoto.json before
 installing. Do not install an artifact whose hash does not match.
 
 ## Install
 
 ~~~bash
-sudo apt install ./qortal-migration-studio_0.8.0-beta.1_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-beta.2_amd64.deb
 ~~~
 
 apt resolves the GTK, NSS, libsecret and audio dependencies. Launch **Qortal
@@ -68,7 +68,7 @@ referenced `fflate` without shipping it. 0.8.0-beta.1 ships and verifies the
 complete engine runtime and the imported-card image fix. Replace the package in place:
 
 ~~~bash
-sudo apt install ./qortal-migration-studio_0.8.0-beta.1_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-beta.2_amd64.deb
 qortal-migration-studio
 ~~~
 

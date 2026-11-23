@@ -1,22 +1,22 @@
 {
   "schema": "qms-release@2",
   "product": "Qortal Migration Studio",
-  "version": "0.8.0-beta.3",
+  "version": "0.8.0-beta.4",
   "channel": "beta",
-  "releaseTag": "v0.8.0-beta.3",
+  "releaseTag": "v0.8.0-beta.4",
   "signing": "unsigned",
   "architecture": "amd64",
   "debianPackage": "qortal-migration-studio",
-  "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-BETA.3.md",
+  "releaseNotes": "docs/migration-studio/RELEASE-0.8.0-BETA.4.md",
   "changelog": {
-    "summary": "0.8.0-beta.3 publishes Generic CMS 0.8.0-beta.4 with the accepted usability round: optional community chat navigation, Back to Top, owner-only post deletion, taxonomy suggestions and management, mobile tagline and public-author defaults. Desktop and Publisher remain 0.8.0-beta.1."
+    "summary": "Desktop 0.8.0-beta.2: guided migration, durable preparation, safe continuation, project backup/restore and DEB compatibility. Publisher 0.8.0-beta.1 and Generic CMS 0.9.0-beta.1 are unchanged."
   },
   "components": {
     "desktop": {
       "version": "0.8.0-beta.2",
       "channel": "beta",
       "source": "desktop/package.json",
-      "changelog": "Guided migration, durable preparation, safe pause/resume, project backup/restore, supported Electron and broader DEB compatibility. Owner runtime test passed on 2026-11-23; approved for main integration. GitHub asset publication pending."
+      "changelog": "Runtime-accepted guided desktop beta.2, built from clean committed source for the v0.8.0-beta.4 public beta release."
     },
     "publisher": {
       "version": "0.8.0-beta.1",
@@ -37,19 +37,6 @@
     "viewer/package.json",
     "templates/generic-cms/package.json",
     "lib/engine/index.js",
-    "docs/migration-studio/RELEASE-0.8.0-BETA.3.md"
-  ],
-  "development": {
-    "status": "unpublished",
-    "component": "desktop",
-    "version": "0.8.0-beta.2",
-    "publishedDescriptor": "docs/migration-studio/PUBLISHED-RELEASE.json",
-    "notes": "docs/migration-studio/DESKTOP-BETA.2-TESTING.md",
-    "acceptance": {
-      "runtime": "passed",
-      "acceptedOn": "2026-11-23",
-      "sourceIntegration": "owner-approved",
-      "githubAssetPublication": "pending"
-    }
-  }
+    "docs/migration-studio/RELEASE-0.8.0-BETA.4.md"
+  ]
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.0-beta.4 — Desktop 0.8.0-beta.2 — 2026-11-23
+
+Publish the runtime-accepted guided Desktop beta.2 from clean committed source, with verified DEB downloads, checksums and release evidence. Publisher 0.8.0-beta.1 and Generic CMS 0.9.0-beta.1 are reused byte-identically. Add a GitHub Actions publication workflow, keeping all existing release gates blocking. Preserve typed errors across Electron context isolation so stale project locks offer recovery after restart.
+
 ## Desktop 0.8.0-beta.2 — runtime accepted 2026-11-23 (unpublished package)
 
 - Add a guided URL-first workflow with durable local preparation, automatic ZIP export and publication receipt verification.

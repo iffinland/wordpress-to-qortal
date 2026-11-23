@@ -400,3 +400,9 @@ An explicitly authorized unpublished test build may use `release:deb -- --allow-
 ## Desktop beta.2 acceptance — 2026-11-23
 
 The owner reported runtime test passed and approved main commit/push and GitHub follow-up. Preserve the accepted DEB and its original trial metadata; see [acceptance evidence](evidence/DESKTOP-BETA.2-ACCEPTANCE.md). Source integration is authorized. GitHub release publication still requires the existing clean-source, artifact, documentation and public-download gates; do not relabel the dirty-trial metadata as a clean build or change public download URLs before the assets exist.
+
+## Automated public beta publication
+
+`.github/workflows/qms-release.yml` builds an approved `release/publish-*` branch with GitHub's repository-scoped token, runs the source, packaged UI, security, reproducibility, three-artifact and delivery gates, creates an immutable tag at the clean build commit, publishes the prerelease and verifies the public assets. Never bypass a failed gate. Only merge the release branch into main after the public verification succeeds.
+
+Generated `release/RELEASE-NOTES.md`, `release/SHA256SUMS` and `release/release-manifest.json` are build outputs, excluded from Git. They are attached to GitHub Releases instead of dirtying the build source. `delivery-gate --stage=prebuild` checks source documentation before building. The mandatory `docs:verify` and prepublish gates require the generated manifest, matching document versions and exact artifact hashes. Unchanged Q-App ZIPs are downloaded from the previous published release and checked against its manifest and SHA256SUMS before reuse.

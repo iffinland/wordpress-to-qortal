@@ -10,10 +10,13 @@ interface Envelope {
 async function invoke(channel: string, payload: Record<string, unknown> = {}): Promise<unknown> {
   const result = (await ipcRenderer.invoke(channel, payload)) as Envelope;
   if (result?.ok) return result.value;
-  const error = new Error(result?.error?.message ?? 'Request failed.');
-  (error as Error & { code?: string; details?: unknown }).code = result?.error?.code ?? 'IPC_ERROR';
-  (error as Error & { details?: unknown }).details = result?.error?.details;
-  throw error;
+  // Plain data survives contextBridge; custom properties on thrown Error
+  // objects do not. The renderer reconstructs its own typed Error.
+  throw {
+    code: result?.error?.code ?? 'IPC_ERROR',
+    message: result?.error?.message ?? 'Request failed.',
+    details: result?.error?.details
+  };
 }
 
 const api = {

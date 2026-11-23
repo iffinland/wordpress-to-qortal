@@ -15,7 +15,7 @@
  * asset over HTTPS and re-hashes it.
  */
 import { spawnSync } from 'node:child_process';
-import { access, readFile, stat, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { REPO_ROOT, readJson, sha256File } from './lib.mjs';
@@ -255,6 +255,7 @@ export async function runDeliveryGates({ repoRoot = REPO_ROOT, stage = 'prepubli
     ok: errors.length === 0,
     checkedAt: new Date().toISOString()
   };
+  await mkdir(path.join(repoRoot, 'release'), { recursive: true });
   await writeFile(
     path.join(repoRoot, 'release', 'delivery-gate.json'),
     JSON.stringify(report, null, 2) + '\n'
