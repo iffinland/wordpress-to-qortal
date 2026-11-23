@@ -60,3 +60,11 @@ These rules are blocking gates, not advice:
 | Unique version + docs + artifacts | `release/delivery-gate.json` |
 | Public download verification | `release/public-verification.json` |
 | Final delivery | `release/delivery-complete.json` |
+
+## Independent CMS component release
+
+An explicitly requested CMS-only release uses `qms-release.json` → `componentReleases.cms` and the `cms-v<VERSION>` namespace. Desktop and Publisher keep their component versions, bundle URLs, artifacts and checksums. The bundle descriptor/tag is not republished. The existing full-bundle three-artifact/DEB gates remain mandatory for a full bundle release; they are not replaced or relaxed.
+
+`.github/workflows/qms-cms-release.yml` builds only CMS on an approved `release/cms-*` branch. Its gates require clean committed source, all version markers, the complete CMS typecheck/test suite, exact ZIP version/layout inspection, independent component documentation/manifest consistency, an unused immutable tag, unchanged Desktop/Publisher source inputs, and downloaded/hash-verified existing DEB and Publisher artifacts. After publication, it re-downloads the CMS ZIP, checksums and source manifest, then verifies README links against the latest release of each component. No DEB build command is present.
+
+The workflow must be registered on the default branch before its token creates a release tag containing that workflow. Integrate the prepared application/docs branch into main only after public download verification. Preserve site-specific runtime configuration when applying a generic CMS update. An unchanged Desktop still embeds its original CMS; GitHub component publication does not send a QDN update-registry transaction.

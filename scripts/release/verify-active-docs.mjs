@@ -9,7 +9,12 @@ const release = JSON.parse(await readFile(path.join(root, 'qms-release.json'), '
 const manifest = JSON.parse(await readFile(path.join(root, 'release/release-manifest.json'), 'utf8').catch(() => 'null'));
 const publicRelease = release.development?.status === 'unpublished'
   ? JSON.parse(await read('docs/migration-studio/PUBLISHED-RELEASE.json')) : null;
+const componentManifests = {};
+for (const id of Object.keys(release.componentReleases || {})) {
+  componentManifests[id] = JSON.parse(await read('release/' + id + '-release-manifest.json') || 'null');
+}
 const checkInput = {
+  componentManifests,
   release,
   changelog: await read('CHANGELOG.md'),
   readme: await read('README.md'),

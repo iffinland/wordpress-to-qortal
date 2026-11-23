@@ -77,3 +77,14 @@ test('unpublished trials keep validating public links and require matching trial
   assert.equal(evaluateDevelopmentDocs({ ...input, publishedRelease: { ...release, releaseTag: 'v0.0.0' } }).ok, false);
   assert.equal(evaluateDevelopmentDocs({ ...input, readme: input.readme + 'https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.2/qortal-migration-studio_0.8.0-beta.3_amd64.deb' }).ok, false);
 });
+
+test('separate CMS release requires its own exact manifest and preserves bundle desktop links', () => {
+  const next = { ...release, components: { ...release.components, cms: { version: '0.9.0-beta.2' } }, componentReleases: { cms: { version: '0.9.0-beta.2', tag: 'cms-v0.9.0-beta.2' } } };
+  const newName = 'qortal-migration-generic-cms-v0.9.0-beta.2.zip';
+  const text = readme.replace('/download/v0.8.0-beta.2/' + names.cms, '/download/cms-v0.9.0-beta.2/' + newName);
+  const componentManifests = { cms: { version: '0.9.0-beta.2', tag: 'cms-v0.9.0-beta.2', artifact: { name: newName, componentVersion: '0.9.0-beta.2' } } };
+  assert.equal(valid({ release: next, readme: text, componentManifests }).ok, true);
+  assert.match(valid({ release: next, readme: text }).errors.join(' '), /component manifest/);
+  assert.match(valid({ release: next, readme: text, componentManifests: { cms: { ...componentManifests.cms, tag: 'wrong' } } }).errors.join(' '), /component manifest/);
+  assert.equal(valid({ release: next, readme, componentManifests }).ok, false);
+});

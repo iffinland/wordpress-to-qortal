@@ -1,3 +1,4 @@
+import { PostQuickActions } from '../components/PostQuickActions';
 import { ContentHtml } from '../components/ContentHtml';
 import { Pagination } from '../components/Pagination';
 import { StateNotice } from '../components/StateNotice';
@@ -308,7 +309,7 @@ export function MagazinePost(props: TemplatePostProps) {
       </header>
 
       <div className="magazine-article__body">
-        <ContentHtml html={content.html} highlightTerms={props.highlightTerms} />
+        <PostQuickActions key={item.id} config={props.config || cmsConfig} item={item}><ContentHtml html={content.html} highlightTerms={props.highlightTerms} /></PostQuickActions>
         <ArticleTerms dataset={props.dataset} item={item} />
         {props.previous || props.next ? (
           <nav className="magazine-article__nav" aria-label="Story navigation">

@@ -97,3 +97,16 @@ select {
     width: 100%;
   }
 }
+
+/* Shared post actions, with no extra icon font or remote dependency. */
+.post-social { margin: 1.25rem 0; }
+.post-social__bar { display: inline-flex; flex-wrap: wrap; gap: .4rem; }
+.post-social__bar button { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; min-width: 48px; min-height: 44px; padding: .6rem .9rem; color: var(--qms-text); background: var(--qms-surface); border: 1px solid var(--qms-border); border-radius: 999px; cursor: pointer; }
+.post-social__bar button:hover, .post-social__bar button[aria-pressed="true"] { color: var(--qms-accent); border-color: currentColor; }
+.post-social button:disabled { opacity: .6; cursor: default; }
+.post-social__notice { overflow-wrap: anywhere; }
+.post-social__comments { margin-top: 1rem; padding: 1rem; border: 1px solid var(--qms-border); border-radius: var(--qms-radius); }
+.post-social__comments ol { padding-left: 1.25rem; }
+.post-social__comments li { margin-block: 1rem; overflow-wrap: anywhere; }
+.post-social__text { white-space: pre-wrap; }
+.post-social__comments textarea { display: block; width: 100%; box-sizing: border-box; margin-block: .5rem; }

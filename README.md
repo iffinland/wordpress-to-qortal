@@ -9,17 +9,18 @@ and verifies the resulting QDN resources byte-for-byte.
 
 ## Download Qortal Migration Studio 0.8.0 beta.2
 
-The **v0.8.0-beta.4** public beta ships Desktop **0.8.0-beta.2** with the new guided migration workflow, automatic local preparation, safe continuation, previews and project backup/restore. Publisher remains **0.8.0-beta.1** and Generic CMS remains **0.9.0-beta.1** with its template system. Their unchanged ZIPs keep the original verified bytes.
+The **v0.8.0-beta.4** public beta ships Desktop **0.8.0-beta.2** with the new guided migration workflow, automatic local preparation, safe continuation, previews and project backup/restore. Publisher remains **0.8.0-beta.1** and Generic CMS **0.9.0-beta.2** is available as an independent CMS release with post likes, sharing and comments in all eight templates. Desktop and Publisher keep their existing packages and download locations.
 
 | What you need | Download | What it does |
 | --- | --- | --- |
 | **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0-beta.2_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/qortal-migration-studio_0.8.0-beta.2_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. |
 | **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-beta.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/qortal-migration-publisher-v0.8.0-beta.1.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. |
-| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.9.0-beta.1.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/qortal-migration-generic-cms-v0.9.0-beta.1.zip) | The neutral website/APP Q-App that renders a published QDN catalog and supports owner editing of imported and CMS-authored content. |
+| **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.9.0-beta.2.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.2/qortal-migration-generic-cms-v0.9.0-beta.2.zip) | The neutral website/APP Q-App that renders a published QDN catalog and supports owner editing of imported and CMS-authored content. |
 
-Verify all three assets with
+Verify Desktop and Publisher with
 [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/SHA256SUMS).
-Read the [release notes](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/RELEASE-NOTES.md)
+Verify the [CMS checksum](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.2/SHA256SUMS) and read the [CMS 0.9.0-beta.2 release notes](https://github.com/iffinland/wordpress-to-qortal/releases/tag/cms-v0.9.0-beta.2).
+Read the [Desktop release notes](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/RELEASE-NOTES.md)
 or open the [Desktop beta.2 prerelease](https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-beta.4).
 
 Read the field-by-field operational manuals: [Qortal Migration Studio](docs/migration-studio/QORTAL-MIGRATION-STUDIO-USER-MANUAL.md), [Migration Publisher](docs/migration-studio/MIGRATION-PUBLISHER-USER-MANUAL.md), and [Generic CMS](docs/migration-studio/GENERIC-CMS-USER-MANUAL.md).

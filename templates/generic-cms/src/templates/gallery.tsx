@@ -1,3 +1,4 @@
+import { PostQuickActions } from '../components/PostQuickActions';
 import { useEffect, useState } from 'react';
 import type { MouseEvent } from 'react';
 import { ContentHtml } from '../components/ContentHtml';
@@ -400,7 +401,7 @@ export function GalleryPost(props: TemplatePostProps) {
       </div>
 
       <div className="gallery-article__body">
-        <GalleryReading html={content.html} highlightTerms={props.highlightTerms} onOpen={lightbox.open} />
+        <PostQuickActions key={item.id} config={props.config || cmsConfig} item={item}><GalleryReading html={content.html} highlightTerms={props.highlightTerms} onOpen={lightbox.open} /></PostQuickActions>
         <GalleryTerms dataset={props.dataset} item={item} />
         {props.previous || props.next ? (
           <nav className="gallery-article__nav" aria-label="Photograph navigation">

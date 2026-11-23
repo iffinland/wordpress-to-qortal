@@ -1,3 +1,4 @@
+import { PostQuickActions } from '../components/PostQuickActions';
 import { ContentHtml } from '../components/ContentHtml';
 import { Pagination } from '../components/Pagination';
 import { StateNotice } from '../components/StateNotice';
@@ -312,7 +313,7 @@ export function VideoPost(props: TemplatePostProps) {
             <span className="video-detail__play">▶</span>
           </div>
         ) : null}
-        <ContentHtml html={content.html} highlightTerms={props.highlightTerms} />
+        <PostQuickActions key={item.id} config={props.config || cmsConfig} item={item}><ContentHtml html={content.html} highlightTerms={props.highlightTerms} /></PostQuickActions>
       </div>
 
       <div className="video-detail__body">

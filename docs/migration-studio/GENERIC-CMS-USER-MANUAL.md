@@ -122,3 +122,19 @@ preserved. No template introduces a new content type or a separate data store.
 ## Known limitations (Generic CMS 0.9.0-beta.1)
 
 Q-Tube, SubWire and Quitter content is public and permanent. SubWire Markdown drops text colors, audio, video and file attachments. Q-Tube rejects MKV and HEVC. Legacy unscoped drafts are delete-only. Deleting a CMS item removes it from this CMS catalog and overwrites its mutable content resource with a tombstone under the same identifier; historical QDN versions and copies outside the CMS are not physically erased. Imported WordPress taxonomy and content cannot be renamed or deleted from the CMS. The three-artifact release gate was not run for this source handoff, and no GitHub release was published. Desktop 0.8.0-beta.1 and Publisher 0.8.0-beta.1 remain unchanged.
+
+## Post quick actions — CMS 0.9.0-beta.2
+
+Every post in all eight presentation templates now has a compact Like, Share and Comments bar. Static pages and post lists do not get the bar.
+
+- **Like:** connect an account with a registered Qortal name and approve the public DOCUMENT publication in Hub. Each name has one deterministic like resource per post; repeating the action cannot create an additional counted like for that name. The displayed count comes from readable QDN resources, not an optimistic increment. A `+` indicates a bounded lower count rather than a complete total.
+- **Share:** copies the complete Qortal post link, including a non-default APP/WEBSITE identifier. If clipboard access is unavailable, the link is displayed for manual copying.
+- **Comments:** opens the comments below the article. Comments load only on request, ten resource summaries at a time. Readers can publish plain-text comments of up to 4,000 characters and connect to edit their own comments. Text is escaped, not rendered as HTML.
+
+Likes and comments require Qortal Hub and may incur a QDN publishing fee. Hub supplies account permissions and publication confirmation. Successful submission is reported as submitted; other readers see it after QDN propagation. Failed searches and unreadable resources show a retry action. An unsuccessful comment submission keeps the current draft and resource identifier for retry during the current page session.
+
+Engagement belongs to the hosted deployment, site id and stable post id. Editing a post title or slug keeps its engagement. Another CMS deployment or post has a separate scope. This system does not import WordPress comments or reuse the reference site's engagement records.
+
+### Install the independent CMS update
+
+[Download CMS 0.9.0-beta.2](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.2/qortal-migration-generic-cms-v0.9.0-beta.2.zip) and verify its [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.2/SHA256SUMS). Use the established site update flow to retain `qms-cms-config.json`, deployment service/name/identifier and content references. Updating the generic CMS does not migrate or reset the site's content. The DEB remains unchanged and still embeds its original CMS version. No QDN registry transaction is included in this GitHub delivery.

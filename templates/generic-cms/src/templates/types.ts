@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react';
-import type { AppRoute, CmsDataset, CmsContentItem, LoadedContent, SectionsDocument } from '../types';
+import type { AppRoute, CmsTemplateConfig, CmsDataset, CmsContentItem, LoadedContent, SectionsDocument } from '../types';
 
 export interface TemplateHomeProps {
   dataset: CmsDataset;
@@ -32,6 +32,7 @@ export interface TemplateSearchProps {
 }
 
 export interface TemplatePostProps {
+  config?: CmsTemplateConfig;
   dataset: CmsDataset;
   item: CmsContentItem | null;
   content: LoadedContent | null;
