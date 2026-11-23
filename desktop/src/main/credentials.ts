@@ -19,7 +19,13 @@ export class CredentialStore {
     if (this.initialized) return;
     this.initialized = true;
     try {
-      await execFileAsync('secret-tool', ['--version'], { timeout: 3000 });
+      try {
+        await execFileAsync('secret-tool', ['lookup', 'service', SERVICE, 'account', '__qms_readiness_probe__'], { timeout: 3000 });
+      } catch (error) {
+        const value = error as { code?: number; stderr?: string };
+        // A working service returns 1 with no message when no matching secret exists.
+        if (value.code !== 1 || String(value.stderr ?? '').trim()) throw error;
+      }
       this.keyringAvailable = true;
       this.backend = 'libsecret';
     } catch {
@@ -42,7 +48,11 @@ export class CredentialStore {
     await this.initialize();
     const record: SecretRecord = { auth, updatedAt: new Date().toISOString() };
     this.memory.set(projectId, record);
-    if (!remember || !this.keyringAvailable) return;
+    if (!this.keyringAvailable) return;
+    if (!remember) {
+      await this.secretTool(['clear', 'service', SERVICE, 'account', projectId]).catch(() => {});
+      return;
+    }
     await this.secretTool(['store', '--label', 'Qortal Migration Studio WordPress credentials', 'service', SERVICE, 'account', projectId], JSON.stringify(record));
   }
 
@@ -81,8 +91,13 @@ export class CredentialStore {
       let stderr = '';
       child.stdout.on('data', (chunk) => { stdout += String(chunk); });
       child.stderr.on('data', (chunk) => { stderr += String(chunk); });
-      child.on('error', reject);
+      const timer = setTimeout(() => {
+        child.kill('SIGKILL');
+        reject(new Error('Password storage did not respond. Continue without remembering the password.'));
+      }, 10000);
+      child.on('error', (error) => { clearTimeout(timer); reject(error); });
       child.on('exit', (code) => {
+        clearTimeout(timer);
         if (code === 0) resolve(stdout.trim());
         else reject(new Error('secret-tool failed: ' + stderr.trim()));
       });

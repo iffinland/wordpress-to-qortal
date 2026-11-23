@@ -17,6 +17,10 @@ async function invoke(channel: string, payload: Record<string, unknown> = {}): P
 }
 
 const api = {
+  workflow: (projectId: string, action: string, input: Record<string, unknown> = {}) => invoke(IPC.workflow, { projectId, action, ...input }),
+  backup: (projectId: string) => invoke(IPC.backup, { projectId }),
+  restoreBackup: () => invoke(IPC.restoreBackup),
+  chooseWorkspace: () => invoke(IPC.chooseWorkspace),
   app: {
     info: () => invoke(IPC.appInfo),
     settings: () => invoke(IPC.appSettings),

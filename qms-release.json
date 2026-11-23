@@ -13,10 +13,10 @@
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-beta.1",
+      "version": "0.8.0-beta.2",
       "channel": "beta",
       "source": "desktop/package.json",
-      "changelog": "Unchanged from the approved beta.1 desktop package."
+      "changelog": "Guided migration, durable preparation, safe pause/resume, project backup/restore, supported Electron and broader DEB compatibility. Owner runtime test passed on 2026-11-23; approved for main integration. GitHub asset publication pending."
     },
     "publisher": {
       "version": "0.8.0-beta.1",
@@ -38,5 +38,18 @@
     "templates/generic-cms/package.json",
     "lib/engine/index.js",
     "docs/migration-studio/RELEASE-0.8.0-BETA.3.md"
-  ]
+  ],
+  "development": {
+    "status": "unpublished",
+    "component": "desktop",
+    "version": "0.8.0-beta.2",
+    "publishedDescriptor": "docs/migration-studio/PUBLISHED-RELEASE.json",
+    "notes": "docs/migration-studio/DESKTOP-BETA.2-TESTING.md",
+    "acceptance": {
+      "runtime": "passed",
+      "acceptedOn": "2026-11-23",
+      "sourceIntegration": "owner-approved",
+      "githubAssetPublication": "pending"
+    }
+  }
 }

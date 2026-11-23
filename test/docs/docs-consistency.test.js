@@ -66,3 +66,14 @@ test('does not reject historical examples outside the active sections', () => {
   const historicalQuickstart = quickstart + '\n'.repeat(35) + 'Historical: 0.8.0-rc.7 used an older package.\n';
   assert.equal(valid({ quickstart: historicalQuickstart }).ok, true);
 });
+
+test('unpublished trials keep validating public links and require matching trial documentation', async () => {
+  const { evaluateDevelopmentDocs } = await import('../../scripts/release/docs-consistency.mjs');
+  const staged = { ...release, development: { status: 'unpublished', component: 'desktop', version: '0.8.0-beta.3' }, components: { ...release.components, desktop: { version: '0.8.0-beta.3' } } };
+  const note = '\nUnpublished qortal-migration-studio_0.8.0-beta.3_amd64.deb\n';
+  const input = { release: staged, publishedRelease: release, changelog, readme: readme + note, quickstart: quickstart + note, install: install + note, manifest, strictManifest: true, developmentNotes: note };
+  assert.equal(evaluateDevelopmentDocs(input).ok, true);
+  assert.equal(evaluateDevelopmentDocs({ ...input, developmentNotes: '' }).ok, false);
+  assert.equal(evaluateDevelopmentDocs({ ...input, publishedRelease: { ...release, releaseTag: 'v0.0.0' } }).ok, false);
+  assert.equal(evaluateDevelopmentDocs({ ...input, readme: input.readme + 'https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.2/qortal-migration-studio_0.8.0-beta.3_amd64.deb' }).ok, false);
+});

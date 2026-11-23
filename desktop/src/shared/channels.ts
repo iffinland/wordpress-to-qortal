@@ -1,4 +1,8 @@
 export const IPC = {
+  workflow: 'qms:workflow',
+  backup: 'qms:backup',
+  restoreBackup: 'qms:restore-backup',
+  chooseWorkspace: 'qms:choose-workspace',
   appInfo: 'qms:app:info',
   appSettings: 'qms:app:settings',
   appReportError: 'qms:app:report-error',

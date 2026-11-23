@@ -105,6 +105,13 @@ export const PRODUCT_SOURCE_PATHS = [
   'templates'
 ];
 
+export function workingSourceDigest(cwd) {
+  const files = capture('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...PRODUCT_SOURCE_PATHS], { cwd }).split('\0').filter(Boolean).sort();
+  const digest = createHash('sha256');
+  for (const file of files) { digest.update(file + '\0'); digest.update(readFileSync(path.join(cwd, file))); digest.update('\0'); }
+  return digest.digest('hex');
+}
+
 export function productSourceDigest(cwd, commit) {
   const listing = capture('git', ['ls-tree', '-r', '--full-tree', commit, '--', ...PRODUCT_SOURCE_PATHS], { cwd });
   return createHash('sha256').update(listing).digest('hex');

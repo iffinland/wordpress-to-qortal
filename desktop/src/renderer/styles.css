@@ -200,3 +200,24 @@ tr:last-child td { border-bottom: 0; }
   .update-dialog { border-radius: 0; min-height: 100vh; max-height: 100vh; }
   .update-artifact { grid-template-columns: 1fr; }
 }
+
+/* Guided mode: one decision at a time, with room for larger system fonts. */
+.guided-main { max-width: 1020px; }
+.guided-shell .brand { text-align: left; }
+.guided-stepper { position: static; }
+.guided-choice { display: flex; align-items: flex-start; gap: .8rem; cursor: pointer; padding: 1rem; }
+.guided-choice input { width: auto; margin-top: .35rem; }
+.guided-choice span { display: flex; flex-direction: column; gap: .2rem; }
+.guided-shell details { padding: .7rem 0; }
+.guided-shell summary { cursor: pointer; margin-bottom: .6rem; }
+.guided-shell h1:focus { outline: none; }
+.content-preview-list { list-style: none; padding: 0; }
+.content-preview-list button { width: 100%; text-align: left; margin-bottom: .3rem; }
+.preview-overlay { position: fixed; inset: 0; z-index: 100; padding: 2rem; background: #000b; display: grid; place-items: center; }
+.article-preview { width: min(800px, 100%); max-height: 85vh; overflow-y: auto; }
+.article-preview-text { white-space: pre-wrap; line-height: 1.7; margin-top: 1.5rem; overflow-wrap: anywhere; }
+.guided-shell .card ol { padding-left: 1.5rem; line-height: 1.8; }
+@media (max-width: 800px) { .guided-shell .app-header { position: static; padding: .75rem; } .guided-main { padding: 1rem; } .guided-stepper { display: grid; grid-template-columns: 1fr 1fr; } .project-grid { grid-template-columns: 1fr; } .preview-overlay { padding: .5rem; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+.preview-pictures { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0; }
+.preview-pictures img { max-width: min(100%, 220px); max-height: 180px; object-fit: contain; border-radius: 6px; }

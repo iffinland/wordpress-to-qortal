@@ -1,0 +1,19 @@
+{
+  "schema": "qms-deb-artifact@1",
+  "artifact": "qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+  "path": "/workspace/scratch/244891d69657/qms-desktop-beta2/desktop/release/qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+  "bytes": 129085056,
+  "sha256": "8ebbb0e443e8b51a885ba8345b32d03d0e8129f6450a584bffa6081153a0eae4",
+  "version": "0.8.0-beta.2",
+  "debianVersion": "0.8.0~beta.2",
+  "architecture": "amd64",
+  "channel": "beta",
+  "signing": "unsigned",
+  "sourceCommit": "9a26317f6eb55ec50cd6d77981228c88e2a25b5c",
+  "sourceTree": "58afa6ac19ed3a9b99f5434bd8e991c6bcdd16d0",
+  "workingSourceSha256": "8c2808ed7452d889d317fb978f089064fc4b2c7a82bea6cb1620b2f666d75486",
+  "branch": "development/qms-desktop-beta.2",
+  "dirty": true,
+  "sourceDateEpoch": 1795023397,
+  "builtAt": "2026-11-23T04:20:43.214Z"
+}

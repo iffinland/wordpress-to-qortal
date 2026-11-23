@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import dns from 'node:dns/promises';
+const originalLookup = dns.lookup.bind(dns);
+dns.lookup = (name, options) => name === 'example.com' ? Promise.resolve(options?.all ? [{ address: '93.184.216.34', family: 4 }] : { address: '93.184.216.34', family: 4 }) : originalLookup(name, options);
 import { MediaDownloader } from '../../lib/media/downloader.js';
 
 function downloader(fetchImpl) {

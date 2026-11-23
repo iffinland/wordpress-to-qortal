@@ -85,15 +85,14 @@ async function seedProject(server, name, qdnName) {
 async function writeSessionScript() {
   const inner = [
     'set -e',
-    'export HOME=/home/qms',
     'export XDG_DATA_HOME=/mnt/datahome',
     'export XDG_CONFIG_HOME=/home/qms/.config',
-    'export DISPLAY=:99',
-    'export ELECTRON_DISABLE_SECURITY_WARNINGS=1',
-    'Xvfb :99 -screen 0 1366x900x24 -nolisten tcp -ac >/tmp/xvfb.log 2>&1 &',
-    'for i in $(seq 1 60); do [ -S /tmp/.X11-unix/X99 ] && break; sleep 0.2; done',
-    '[ -S /tmp/.X11-unix/X99 ] || { echo XVFB_FAILED; cat /tmp/xvfb.log; exit 1; }',
-    'exec /opt/qms-e2e/app/qortal-migration-studio --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=' + CDP_PORT + ' --remote-allow-origins=* >/tmp/app.log 2>&1'
+    'export DISPLAY=127.0.0.1:99',
+    'export ELECTRON_DISABLE_SECURITY_WARNINGS=1 QMS_ISOLATED_TEST=1',
+    'Xvfb :99 -screen 0 1366x900x24 -nolisten unix -nolisten local -listen tcp -ac >/tmp/xvfb.log 2>&1 &',
+    'for i in $(seq 1 60); do (echo >/dev/tcp/127.0.0.1/6099) 2>/dev/null && break; sleep 0.2; done',
+    '(echo >/dev/tcp/127.0.0.1/6099) 2>/dev/null || { echo XVFB_FAILED; cat /tmp/xvfb.log; exit 1; }',
+    'exec /opt/qms-e2e/app/qortal-migration-studio --qms-isolated-test --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=' + CDP_PORT + ' --remote-allow-origins=* >/tmp/app.log 2>&1'
   ].join('\n');
   const outer = [
     'set -e',
@@ -209,6 +208,8 @@ async function waitFor(cdp, expression, label, timeoutMs = 90000) {
 const clickButton = (label) => '(() => { const button = [...document.querySelectorAll("button")].find((entry) => entry.textContent.trim() === ' + JSON.stringify(label) + '); if (!button || button.disabled) return false; button.click(); return true; })()';
 
 async function openProjectWizard(cdp, projectId) {
+  await waitFor(cdp, "!!document.body", 'renderer body', 120000);
+  await cdp.evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Advanced tools')?.click()");
   await waitFor(cdp, 'document.querySelector("[data-testid=app-shell]") !== null', 'app shell', 180000);
   const card = '[data-testid="project-' + projectId + '"]';
   await waitFor(cdp, '!!document.querySelector(' + JSON.stringify(card) + ')', 'project card');

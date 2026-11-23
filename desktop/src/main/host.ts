@@ -90,7 +90,7 @@ export class EngineHost {
     clearTimeout(pending.timer);
     if (message.error) {
       const error = message.error as { message?: string; data?: Record<string, unknown> };
-      const wrapped = new Error(error.message ?? 'Engine request failed.');
+      const wrapped = new Error(typeof error.data?.message === 'string' ? error.data.message : error.message ?? 'Engine request failed.');
       (wrapped as Error & { code?: string; details?: unknown }).code = String(error.data?.code ?? 'HOST_PROTOCOL_ERROR');
       (wrapped as Error & { details?: unknown }).details = error.data ?? {};
       pending.reject(wrapped);

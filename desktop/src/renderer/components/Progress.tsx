@@ -90,7 +90,7 @@ export function Progress({ projectId, planId, onBack, onHistory, onPublishing }:
     setError(null);
     setNotice('');
     try {
-      const download = await api().media.download(projectId, plan.planId, { concurrency: 4 });
+      const download = await api().media.download(projectId, plan.planId, { concurrency: Number((plan.config?.media as Record<string, unknown> | undefined)?.concurrency ?? 4) });
       setResult(download);
       setCurrentRunId(download.runId ?? null);
       setNotice('Media run finished with status: ' + download.status + '. Verified files are reused on retry.');
@@ -194,8 +194,8 @@ export function Progress({ projectId, planId, onBack, onHistory, onPublishing }:
               <button className="primary" onClick={() => void startDownload()} disabled={busy || plan.status !== 'ready'}>
                 {busy ? 'Working…' : plan.download ? 'Resume / repair media' : 'Start media preparation'}
               </button>
-              <button onClick={() => void pause()} disabled={busy || !(currentRunId ?? activeRun?.id)}>Pause</button>
-              <button onClick={() => void cancel()} disabled={busy || !(currentRunId ?? activeRun?.id)}>Cancel</button>
+              <button onClick={() => void pause()} disabled={!(currentRunId ?? activeRun?.id)}>Pause</button>
+              <button onClick={() => void cancel()} disabled={!(currentRunId ?? activeRun?.id)}>Cancel</button>
               <span className="small muted">Pause keeps the checkpoint; cancel discards the current attempt and keeps verified files.</span>
             </div>
             <div className="timeline">

@@ -839,6 +839,10 @@ export interface SupportBundleExport {
 }
 
 export interface QmsApi {
+  workflow(projectId: string, action: string, input?: Record<string, unknown>): Promise<Record<string, unknown>>;
+  backup(projectId: string): Promise<Record<string, unknown>>;
+  restoreBackup(): Promise<Record<string, unknown>>;
+  chooseWorkspace(): Promise<Record<string, unknown>>;
   app: {
     info(): Promise<EngineInfo>;
     settings(): Promise<DesktopSettings>;

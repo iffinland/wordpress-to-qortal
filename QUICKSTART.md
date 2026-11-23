@@ -1,4 +1,6 @@
 # Quick Start
+**Desktop 0.8.0-beta.2: runtime accepted on 2026-11-23; GitHub package publication pending (unpublished).** The owner approved main integration after runtime testing of `qortal-migration-studio_0.8.0-beta.2_amd64.deb`. It adds the guided workflow and backup/restore. Use [the beta.2 guide](docs/migration-studio/DESKTOP-BETA.2-TESTING.md). Public download links below continue to identify the existing published assets until the new release is verified.
+
 
 > Source on `main` includes Generic CMS 0.9.0-beta.1 with the approved template
 > system. The download below remains the last approved 0.8.0-beta.3 artifact

@@ -4,6 +4,7 @@ import { readFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkVersions, readRelease } from '../../scripts/qms-release.mjs';
+import { componentVersion } from '../../scripts/release/artifact-set.mjs';
 import { artifactName, debVersion } from '../../scripts/release/lib.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -38,7 +39,8 @@ test('component versions are independent of the GitHub release bundle version', 
   assert.equal(typeof release.components.cms.version, 'string');
   // The model does not require component versions to equal the bundle version.
   // A component that did not change keeps its previous version and artifact.
-  assert.ok(Object.values(release.components).some((component) => component.version === release.version));
+  assert.ok(Object.values(release.components).every((component) => typeof component.version === 'string'));
+  assert.equal(componentVersion(release, 'deb'), release.components.desktop.version);
 });
 
 test('Debian release metadata is complete and uses Debian 12/13 alternatives', async () => {

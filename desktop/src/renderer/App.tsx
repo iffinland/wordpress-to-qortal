@@ -1,3 +1,4 @@
+import { GuidedStudio } from './components/GuidedStudio.js';
 import React, { useEffect, useState } from 'react';
 import { api } from './api.js';
 import type { AdapterInfo, DesktopSettings, EngineInfo, ProjectDocument, ProjectSummary } from '../shared/types.js';
@@ -28,7 +29,7 @@ function wizardComplete(project: ProjectDocument): boolean {
   return normalizeCompletedSteps(wizard?.completedSteps).includes('plan');
 }
 
-export default function App() {
+export function AdvancedApp({ onGuided }: { onGuided?: () => void } = {}) {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [adapters, setAdapters] = useState<AdapterInfo[]>([]);
   const [settings, setSettings] = useState<DesktopSettings | null>(null);
@@ -235,6 +236,7 @@ export default function App() {
             </select>
           </label>
           <Updates />
+          {onGuided && <button onClick={onGuided}>Guided mode</button>}
           {settings && <span className="pill">installed v{settings.appVersion}</span>}
           {info && <span className="pill">engine {info.version}</span>}
           {settings && <span className={'pill ' + (settings.keyring.available ? 'good-text' : 'warn-text')}>{settings.keyring.available ? 'keyring available' : 'session-only credentials'}</span>}
@@ -322,3 +324,8 @@ export default function App() {
   );
 }
 
+
+export default function App() {
+  const [advanced, setAdvanced] = useState(false);
+  return advanced ? <AdvancedApp onGuided={() => setAdvanced(false)} /> : <GuidedStudio onAdvanced={() => setAdvanced(true)} />;
+}

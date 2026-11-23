@@ -1,4 +1,4 @@
-import { BrowserWindow, ipcMain, shell } from 'electron';
+import { BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import { IPC } from '../shared/channels.js';
 import { validateIpcPayload } from '../shared/validation.js';
 import type { EngineHost } from './host.js';
@@ -98,13 +98,31 @@ export function registerIpc(deps: IpcDependencies): void {
     deps.host.request<T>(method, params, TIMEOUTS[method] ?? fallbackTimeout);
 
   const ensureAuth = async (projectId: string, supplied: unknown): Promise<Record<string, unknown>> => {
-    if (supplied && typeof supplied === 'object' && (supplied as Record<string, unknown>).mode !== 'none') {
+    if (supplied && typeof supplied === 'object' && typeof (supplied as Record<string, unknown>).mode === 'string') {
       return supplied as Record<string, unknown>;
     }
     return (await deps.credentials.get(projectId)) ?? (supplied as Record<string, unknown>) ?? { mode: 'none' };
   };
 
   const handlers: Record<string, (params: Record<string, unknown>) => Promise<unknown>> = {
+    [IPC.workflow]: async (params) => invoke('workflow.' + String(params.action), {
+      ...params, auth: await ensureAuth(String(params.projectId), undefined)
+    }, 120000),
+    [IPC.chooseWorkspace]: async () => {
+      const result = await dialog.showOpenDialog({ title: 'Open QMS workspace', properties: ['openDirectory', 'createDirectory'] });
+      if (result.canceled || !result.filePaths[0]) return { cancelled: true };
+      return deps.setDataRoot(result.filePaths[0]);
+    },
+    [IPC.backup]: async (params) => {
+      const result = await dialog.showSaveDialog({ title: 'Save project backup', defaultPath: 'QMS-' + params.projectId + '.qms-backup.tar.gz', filters: [{ name: 'QMS backup', extensions: ['gz'] }] });
+      if (result.canceled || !result.filePath) return { cancelled: true };
+      return invoke('backup.create', { projectId: params.projectId, file: result.filePath }, 60 * 60000);
+    },
+    [IPC.restoreBackup]: async () => {
+      const result = await dialog.showOpenDialog({ title: 'Restore a QMS project backup', properties: ['openFile'], filters: [{ name: 'QMS backup', extensions: ['gz'] }] });
+      if (result.canceled || !result.filePaths[0]) return { cancelled: true };
+      return invoke('backup.restore', { file: result.filePaths[0] }, 60 * 60000);
+    },
     [IPC.appInfo]: async () => deps.appInfo(),
     [IPC.appSettings]: async () => deps.getSettings(),
     [IPC.appReportError]: async (params) => deps.reportRendererError({
@@ -333,7 +351,7 @@ export function registerIpc(deps: IpcDependencies): void {
       projectId: params.projectId,
       runId: params.runId ?? undefined,
       stageId: params.stageId ?? undefined,
-      auth: params.auth ?? undefined
+      auth: await ensureAuth(String(params.projectId), params.auth)
     }, 30 * 60_000),
     [IPC.recoveryDismiss]: async (params) => invoke('recovery.dismiss', {
       projectId: params.projectId,

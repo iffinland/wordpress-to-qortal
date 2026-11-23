@@ -106,3 +106,21 @@ export function evaluateActiveDocs({
 
   return { ok: errors.length === 0, errors };
 }
+
+/** Validate public links against the published snapshot while requiring explicit
+ * instructions for a separately versioned, unpublished owner test build. This
+ * does not change the release gates or permit publishing a dirty source tree. */
+export function evaluateDevelopmentDocs(input) {
+  const { release, publishedRelease, developmentNotes = '' } = input;
+  const errors = [];
+  const development = release.development;
+  if (development?.status !== 'unpublished' || development.component !== 'desktop' || development.version !== release.components.desktop.version) errors.push('Development descriptor does not match the desktop component.');
+  if (publishedRelease?.releaseTag !== release.releaseTag || publishedRelease?.version !== release.version) errors.push('Published snapshot must describe the current public bundle tag.');
+  if (publishedRelease) errors.push(...evaluateActiveDocs({ ...input, release: publishedRelease }).errors);
+  const artifact = expectedArtifactNames(release).desktop;
+  for (const [label, text] of [['README.md', input.readme], ['QUICKSTART.md', input.quickstart], ['INSTALL-LINUX.md', input.install], ['development notes', developmentNotes]]) {
+    if (!text?.includes(artifact) || !text.toLowerCase().includes('unpublished')) errors.push(label + ' must identify the unpublished desktop artifact ' + artifact + '.');
+    if (text?.includes('/download/' + release.releaseTag + '/' + artifact)) errors.push(label + ' advertises an unpublished artifact as publicly downloadable.');
+  }
+  return { ok: errors.length === 0, errors };
+}

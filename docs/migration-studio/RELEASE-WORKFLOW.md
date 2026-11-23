@@ -392,3 +392,11 @@ The Debian staging step normalizes directory modes to 0755, including DEBIAN
 and usr/bin, and normalizes control files/maintainer scripts after writing them. A restrictive build-shell umask (such as 0077) must not make the
 package unbuildable or its installed directories inaccessible. This is packaging
 metadata; reuse the accepted desktop/engine outputs when only this normalization changes.
+
+## Owner-only desktop trials
+
+An explicitly authorized unpublished test build may use `release:deb -- --allow-dirty` without a commit or push. Its artifact records the base commit, dirty status and working source digest; retain a matching source snapshot. This does not satisfy or bypass the clean-tree, public-release or three-artifact publication gates. `qms-release.json.development` identifies the staged component and the published descriptor snapshot used to validate existing public download documentation. See `DESKTOP-BETA.2-TESTING.md`. Remove the development marker and regenerate the release metadata only when publishing is authorized.
+
+## Desktop beta.2 acceptance — 2026-11-23
+
+The owner reported runtime test passed and approved main commit/push and GitHub follow-up. Preserve the accepted DEB and its original trial metadata; see [acceptance evidence](evidence/DESKTOP-BETA.2-ACCEPTANCE.md). Source integration is authorized. GitHub release publication still requires the existing clean-source, artifact, documentation and public-download gates; do not relabel the dirty-trial metadata as a clean build or change public download URLs before the assets exist.

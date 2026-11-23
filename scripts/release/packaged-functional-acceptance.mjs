@@ -280,18 +280,19 @@ async function writeSessionScript() {
     'chmod 700 "$W/run"',
     'rm -rf "$W/config"; mkdir -p "$W/config"',
     'rm -f "$R/tmp/.X99-lock" "$R/tmp/.X11-unix/X99"',
-    'setsid unshare -rmpf bash -c \'',
+    'unshare --kill-child=TERM -rmpf bash -c \'',
     '  R="\'"$R"\'"',
     '  mkdir -p "$R/tmp/.X11-unix" "$R/var/lib/xkb"',
     '  mount -t tmpfs -o mode=755 tmpfs "$R/dev" 2>/dev/null || true',
-    '  exec /usr/sbin/chroot "$R" /usr/bin/Xvfb :99 -screen 0 1366x900x24 -listen tcp -ac',
+    '  exec /usr/sbin/chroot "$R" /usr/bin/Xvfb :99 -screen 0 1366x900x24 -nolisten unix -nolisten local -listen tcp -ac',
     '\' >"$W/xvfb.log" 2>&1 &',
+    'echo $! >"$W/xvfb.pid"',
     'for i in $(seq 1 80); do (exec 3<>/dev/tcp/127.0.0.1/6099) 2>/dev/null && { exec 3>&-; break; }; sleep 0.25; done',
     'if ! (exec 3<>/dev/tcp/127.0.0.1/6099) 2>/dev/null; then echo XVFB_FAILED; cat "$W/xvfb.log"; exit 1; fi',
-    'export HOME="$W/home" XDG_DATA_HOME="$W/datahome" XDG_CONFIG_HOME="$W/config" XDG_RUNTIME_DIR="$W/run"',
+    'export XDG_DATA_HOME="$W/datahome" XDG_CONFIG_HOME="$W/config" XDG_RUNTIME_DIR="$W/run"',
     'export DISPLAY=127.0.0.1:99',
-    'LIBS="$R/usr/lib/x86_64-linux-gnu:$R/lib/x86_64-linux-gnu"',
-    'exec env LD_LIBRARY_PATH="$LIBS:$APP" "$APP/qortal-migration-studio" --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=' + CDP_PORT + ' --remote-allow-origins=* >"$W/app.log" 2>&1'
+    'LIBS="$APP"',
+    'exec env QMS_ISOLATED_TEST=1 LD_LIBRARY_PATH="$LIBS:$APP" "$APP/qortal-migration-studio" --qms-isolated-test --no-sandbox --disable-gpu --disable-dev-shm-usage --remote-debugging-port=' + CDP_PORT + ' --remote-allow-origins=* >"$W/app.log" 2>&1'
   ].join('\n');
   await writeFile(sessionScript, script + '\n', { mode: 0o755 });
 }
@@ -386,6 +387,7 @@ async function startApp() {
       child = spawn('bash', [sessionScript], { detached: true, stdio: 'ignore', env: { ...process.env } });
       cdp = await connectCdp();
       await waitFor(cdp, 'document.querySelector("[data-testid=app-shell]") !== null', 'app shell', 90000);
+      await cdp.evaluate("[...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Advanced tools')?.click()");
       return;
     } catch (error) {
       lastError = error;
@@ -425,7 +427,7 @@ async function stopApp() {
     child = null;
   }
   try { execFileSync('pkill', ['-f', '^' + appDir + '/qortal-migration-studio'], { stdio: 'ignore' }); } catch {}
-  try { execFileSync('pkill', ['-f', 'Xvfb :99'], { stdio: 'ignore' }); } catch {}
+  try { process.kill(Number(await readFile(path.join(work, 'xvfb.pid'), 'utf8')), 'SIGTERM'); } catch {}
   // The packaged app is single-instance. Starting the next session before the
   // previous process is gone makes the new instance exit immediately, which
   // looks like a product failure. Prove the old process group is gone first.
@@ -460,6 +462,12 @@ async function openProject(connection, projectId) {
   const opened = await connection.evaluate('(() => { const card = document.querySelector(' + JSON.stringify(card) + '); const button = [...card.querySelectorAll("button")].find((entry) => entry.textContent.trim() === "Continue this site"); if (!button) return false; button.click(); return true; })()');
   if (!opened) throw new Error('Continue this site button missing for ' + projectId);
   await sleep(600);
+  if (await connection.evaluate('!!document.querySelector("[data-testid=stale-lock-banner]")')) {
+    await click(connection, 'Recover project');
+    await waitFor(connection, 'document.body.innerText.includes("Recovery") && !document.querySelector("[data-testid=stale-lock-banner]")', 'safe stale-lock recovery');
+    await backToDashboard(connection);
+    return openProject(connection, projectId);
+  }
   return connection.evaluate('({ text: document.body.innerText.slice(0, 400), dashboard: document.body.innerText.includes("Your migration projects") })');
 }
 

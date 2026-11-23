@@ -1,3 +1,7 @@
+> Desktop beta.2 opens the new four-step Guided mode by default. Follow the
+> [current desktop guide](../DESKTOP-BETA.2-TESTING.md). The detailed wizard
+> described below remains available under **Advanced tools**.
+
 # First-run guide
 
 This guide assumes Qortal Migration Studio 0.6.1 alpha is installed from the

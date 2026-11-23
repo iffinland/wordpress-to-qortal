@@ -24,6 +24,7 @@ export const QAPP_LIMIT_BYTES = 20 * 1024 * 1024;
 /** Component versions are independent of the GitHub release bundle version. */
 export function componentVersion(release, kind) {
   const component = ARTIFACT_COMPONENTS[kind];
+  if (!component) throw new Error('Unknown artifact kind: ' + kind);
   return release?.components?.[component]?.version ?? release.version;
 }
 

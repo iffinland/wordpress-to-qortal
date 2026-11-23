@@ -26,7 +26,7 @@ const keep = args.keep === true;
 const runtime = String(args.runtime ?? 'node');
 const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
 const config = await readJson(path.join(REPO_ROOT, 'desktop/release.config.json'));
-const version = componentVersion(release, 'desktop');
+const version = componentVersion(release, 'deb');
 const artifact = path.resolve(args.artifact ?? path.join(REPO_ROOT, 'desktop/release', artifactName(config.packageName, version, release.architecture)));
 const out = path.resolve(args.out ?? path.join(REPO_ROOT, 'desktop/release', 'engine-wizard-flow.json'));
 
@@ -130,6 +130,7 @@ try {
   const discovered = await connection.request('source.discover', {
     projectId: project.id,
     adapterId: 'wordpress',
+    mode: 'full',
     contentTypes: ['post', 'page'],
     perPage: 100
   });
