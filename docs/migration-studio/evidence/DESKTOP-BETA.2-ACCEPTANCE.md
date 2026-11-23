@@ -2,7 +2,7 @@
 
 On 2026-11-23 the owner reported **Runtime test passed** and authorized committing and pushing the tested work to main, documentation updates and necessary GitHub operations.
 
-## Accepted artifact
+## Accepted trial artifact
 
 - File: `qortal-migration-studio_0.8.0-beta.2_amd64.deb`
 - Bytes: 129085056
@@ -13,7 +13,7 @@ On 2026-11-23 the owner reported **Runtime test passed** and authorized committi
 
 The source and artifact were recovered from the exact saved beta.2 versions and their SHA-256 values checked. Documentation changes during integration do not change the accepted application payload.
 
-## Automated acceptance
+## Original trial automated acceptance
 
 - Engine/source/media/planning/publication/recovery/guided/docs: 315 tests passed.
 - Desktop: 94 tests passed; TypeScript check passed.
@@ -29,4 +29,10 @@ See `desktop-beta.2-validation.json` for artifact-bound original evidence. Norma
 
 ## Publication state
 
-Source integration is approved. The installable GitHub asset is not yet published; public links intentionally remain on the existing release. The original trial does not satisfy the clean-commit public release gate by itself. No failing gate is bypassed and no QDN registry transaction is authorized or sent.
+Published on 2026-11-23 as [v0.8.0-beta.4](https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-beta.4), containing Desktop **0.8.0-beta.2**. Publisher 0.8.0-beta.1 and Generic CMS 0.9.0-beta.1 remain byte-identical to the previous public assets.
+
+The public DEB is a clean-commit build of `f7ce0c92f29e7f873e48ce75633cca703e5ff3c8`, rather than the historical uncommitted trial above. Its size is **129085104 bytes** and SHA-256 is `5ebd1a34d4cd3a239c87dba043fabe66d23087800193c3fcf824aeab2820c755`.
+
+Publication validation also fixed a stale-lock recovery error-code transport issue across Electron's context bridge. Desktop tests increased to 96; real packaged recovery, Guided/Advanced flows, bounded scanning and handoff/read-back passed. An independent clean Git checkout reproduced the DEB byte for byte. These automated results supplement the owner's original trial acceptance; no additional owner runtime test is claimed.
+
+[GitHub Actions run 45146817189](https://github.com/iffinland/wordpress-to-qortal/actions/runs/45146817189) passed all publication gates and independently downloaded and hash-verified the three public production assets. No failing gate was bypassed. No QDN registry transaction was sent. See `RELEASE-0.8.0-BETA.4-PUBLIC.json` for publication evidence.

@@ -1,0 +1,32 @@
+{
+  "schema": "qms-publication-evidence@1",
+  "release": "https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-beta.4",
+  "tag": "v0.8.0-beta.4",
+  "prerelease": true,
+  "draft": false,
+  "publishedAt": "2026-11-23T09:31:08Z",
+  "sourceCommit": "f7ce0c92f29e7f873e48ce75633cca703e5ff3c8",
+  "validationRun": "https://github.com/iffinland/wordpress-to-qortal/actions/runs/45146817189",
+  "validationConclusion": "success",
+  "verification": "The release job downloaded the three production assets from public URLs, checked SHA256SUMS, exact byte counts and manifest hashes. A clean Git checkout reproduced the desktop DEB byte for byte.",
+  "assets": [
+    {
+      "name": "qortal-migration-generic-cms-v0.9.0-beta.1.zip",
+      "bytes": 874174,
+      "sha256": "2625bd8662ed21ca77d9794c9a77c26e2c38dd43703693f1bc86839e8acdbe87",
+      "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/qortal-migration-generic-cms-v0.9.0-beta.1.zip"
+    },
+    {
+      "name": "qortal-migration-publisher-v0.8.0-beta.1.zip",
+      "bytes": 77101,
+      "sha256": "41c9665559cc74a59bca07121251988297d9fdc8d55eb9620d2ff33621b18a82",
+      "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/qortal-migration-publisher-v0.8.0-beta.1.zip"
+    },
+    {
+      "name": "qortal-migration-studio_0.8.0-beta.2_amd64.deb",
+      "bytes": 129085104,
+      "sha256": "5ebd1a34d4cd3a239c87dba043fabe66d23087800193c3fcf824aeab2820c755",
+      "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/qortal-migration-studio_0.8.0-beta.2_amd64.deb"
+    }
+  ]
+}
