@@ -62,7 +62,7 @@ if (!skipBuild) {
   console.log('[3/6] staging engine runtime with locked dependencies');
   run('npm', ['--prefix', 'desktop', 'run', 'prepare:engine'], { cwd: REPO_ROOT });
   console.log('[4/6] building unpacked Electron application');
-  run(path.join(REPO_ROOT, 'desktop/node_modules/.bin/electron-builder'), ['--linux', 'dir'], {
+  run(path.join(REPO_ROOT, 'desktop/node_modules/.bin/electron-builder'), ['--linux', 'dir', '--publish', 'never'], {
     cwd: path.join(REPO_ROOT, 'desktop'),
     env: { ...process.env, SOURCE_DATE_EPOCH: String(epoch) }
   });

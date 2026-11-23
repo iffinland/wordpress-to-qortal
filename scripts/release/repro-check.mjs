@@ -2,7 +2,7 @@
 /**
  * Clean-checkout reproducibility check.
  *
- * Extracts the exact commit with git archive into a fresh directory, installs
+ * Checks out the exact commit in an independent local clone, installs
  * locked dependencies, rebuilds the .deb with the same SOURCE_DATE_EPOCH and
  * compares the SHA-256 with the reference artifact.
  */
@@ -26,17 +26,19 @@ const workRoot = workArg
   ? path.resolve(workArg.slice('--work='.length), git.commit)
   : path.join('/home/iffi/dev-workspace/tmp/qms-phase9-repro', git.commit);
 const cleanRoot = path.join(workRoot, 'source');
-const archiveFile = path.join(workRoot, 'source.tar');
 
 await rm(workRoot, { recursive: true, force: true });
 await mkdir(workRoot, { recursive: true });
-console.log('extracting commit ' + git.commit + ' to ' + cleanRoot);
-run('git', ['archive', '--format=tar', '--output', archiveFile, git.commit], { cwd: REPO_ROOT });
-await mkdir(cleanRoot, { recursive: true });
-run('tar', ['-xf', archiveFile, '-C', cleanRoot]);
+console.log('checking out commit ' + git.commit + ' in ' + cleanRoot);
+// Keep real Git metadata: source hashing uses the tracked/ignored file rules,
+// which a tar archive cannot supply. The checkout is independent and clean.
+run('git', ['clone', '--no-hardlinks', '--no-checkout', REPO_ROOT, cleanRoot]);
+run('git', ['checkout', '--detach', git.commit], { cwd: cleanRoot });
+if (capture('git', ['rev-parse', 'HEAD'], { cwd: cleanRoot }) !== git.commit) throw new Error('Reproducibility checkout differs from the approved commit.');
+if (capture('git', ['status', '--porcelain'], { cwd: cleanRoot })) throw new Error('Reproducibility checkout is dirty.');
 
 console.log('copying the locked dependency tree into the clean checkout');
-// The source tree comes from git archive. Dependencies are byte-identical
+// The source tree comes from the clean verified checkout. Dependencies are byte-identical
 // copies of the lockfile-installed tree; versions are still pinned by the
 // committed lockfiles. Copying avoids a network reinstall and host memory
 // pressure while keeping the build itself isolated from the working tree.
@@ -74,7 +76,7 @@ const record = {
   referenceSha256: referenceSha,
   rebuiltFromCleanCheckoutSha256: rebuiltSha,
   reproducible: equal,
-  method: 'git archive of HEAD, byte-identical locked dependency tree, identical SOURCE_DATE_EPOCH, byte-for-byte SHA-256 comparison',
+  method: 'independent clean Git checkout of HEAD, byte-identical locked dependency tree, identical SOURCE_DATE_EPOCH, byte-for-byte SHA-256 comparison',
   checkedAt: new Date().toISOString()
 };
 await mkdir(path.join(REPO_ROOT, 'desktop/release'), { recursive: true });
