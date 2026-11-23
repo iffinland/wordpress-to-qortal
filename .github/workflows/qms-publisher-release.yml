@@ -1,0 +1,55 @@
+name: Publish approved Publisher component
+on:
+  push:
+    branches: ['release/publisher-*']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: qms-publisher-component
+  cancel-in-progress: false
+jobs:
+  publish-publisher:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_BIN: gh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install locked Publisher tools
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          node node_modules/esbuild/install.js
+      - name: Validate versions, publication behavior and documentation contracts
+        run: |
+          npm run version:check
+          node --test test/publisher/*.test.js test/docs/*.test.js test/release/component-release.test.js
+      - name: Build and inspect only Publisher
+        run: |
+          npm run publisher:build
+          npm run publisher:validate
+          npm run publisher:package
+          node scripts/release/publish-publisher.mjs --prepare
+          npm run docs:verify
+      - name: Publish immutable ZIP and verify public downloads
+        run: |
+          node scripts/release/publish-publisher.mjs --publish
+          npm run release:readme-links
+      - name: Preserve Publisher evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: publisher-release-evidence
+          path: |
+            release/*publisher*.zip
+            release/publisher-*.json
+            release/publisher-public/*
+          if-no-files-found: warn

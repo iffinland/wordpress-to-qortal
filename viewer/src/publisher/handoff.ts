@@ -222,11 +222,39 @@ export function assertSafePath(value: string): void {
 }
 
 function normalizeZipPath(value: string): string {
-  const normalized = value.replace(/\\/g, '/').replace(/^\/+/, '');
+  if (value.startsWith('/') || value.includes('\\') || value.startsWith('~')) fail('The ZIP package contains an unsafe path: ' + value);
+  const normalized = value;
   if (normalized === '' || normalized.includes('\u0000')) fail('The ZIP package contains an invalid path.');
   const parts = normalized.split('/');
   if (parts.some((part) => part === '' || part === '.' || part === '..')) fail('The ZIP package contains an unsafe path: ' + value);
   return normalized;
+}
+
+/** Inspect the central directory BEFORE allocating decompressed buffers.
+ * Fixed output sizes bound DEFLATE allocation. Central-directory extraction also
+ * supports stored streaming exports containing nested ZIP signatures.
+ * This runs in the import worker, never on the UI thread.
+ */
+export function unpackZip(bytes: Uint8Array, maxBytes = MAX_ZIP_BYTES, maxEntries = MAX_ZIP_ENTRIES): Record<string, Uint8Array> {
+  let total = 0;
+  let count = 0;
+  const paths = new Set<string>();
+  unzipSync(bytes, { filter: file => {
+    if (++count > maxEntries) fail('The ZIP package contains too many files.');
+    const path = file.name.endsWith('/') ? file.name.slice(0, -1) : file.name;
+    normalizeZipPath(path);
+    if (paths.has(path)) fail('The ZIP package contains a duplicate path: ' + path);
+    paths.add(path);
+    if (!Number.isSafeInteger(file.originalSize) || file.originalSize < 0) fail('The ZIP package contains an invalid file size.');
+    // Stored files allocate compressedSize bytes; DEFLATE uses originalSize.
+    total += Math.max(file.originalSize, file.compression === 0 ? file.size : 0);
+    if (total > maxBytes) fail('The ZIP package expands beyond the safety limit.');
+    return false;
+  } });
+  const entries = unzipSync(bytes);
+  if (Object.keys(entries).length === 0) fail('The ZIP package is empty.');
+  if (Object.values(entries).reduce((sum, value) => sum + value.length, 0) > maxBytes) fail('The ZIP package expands beyond the safety limit.');
+  return entries;
 }
 
 export async function buildFolderMapFromZip(file: File): Promise<Map<string, PackageFile>> {
@@ -236,9 +264,9 @@ export async function buildFolderMapFromZip(file: File): Promise<Map<string, Pac
   const bytes = new Uint8Array(await file.arrayBuffer());
   let entries: Record<string, Uint8Array>;
   try {
-    entries = unzipSync(bytes);
-  } catch {
-    fail('The selected file is not a readable ZIP package. Export the Publisher package from Migration Studio or select the handoff folder.');
+    entries = unpackZip(bytes);
+  } catch (error) {
+    fail((error as Error).message + ' The selected file is not a readable ZIP package. Export the Publisher package from Migration Studio or select the handoff folder.');
   }
   const paths = Object.keys(entries).filter((entry) => !entry.endsWith('/'));
   if (paths.length === 0) fail('The ZIP package is empty.');
@@ -273,6 +301,8 @@ export async function buildFolderMapFromZip(file: File): Promise<Map<string, Pac
 }
 
 export async function buildFolderMap(files: File[]): Promise<Map<string, PackageFile>> {
+  if (files.length > MAX_ZIP_ENTRIES) fail('The folder contains too many files.');
+  if (files.reduce((sum, file) => sum + file.size, 0) > MAX_ZIP_BYTES) fail('The folder exceeds the 512 MB import limit.');
   const map = new Map<string, PackageFile>();
   for (const file of files) {
     const relative = normalizeFolderPath(file);
@@ -362,13 +392,13 @@ export async function validateHandoffPackage(files: Map<string, PackageFile>): P
     if ((resource.dependsOn as string[]).includes(id)) fail('Resource cannot depend on itself.');
     const file = files.get(relativePath);
     if (!file) fail('Missing payload file for ' + id + ': ' + relativePath);
-    if (file.bytes.length !== bytes) fail('Payload byte length mismatch for ' + id + '.');
+    if (file.bytes.length !== bytes) fail('Payload byte length mismatch for ' + id + ': expected ' + bytes + ', got ' + file.bytes.length + '.');
     const actual = await sha256Bytes(file.bytes);
     if (actual !== sha256) fail('Payload SHA-256 mismatch for ' + id + '.');
     if (bundle) {
       let entries: Record<string, Uint8Array>;
       try {
-        entries = unzipSync(file.bytes);
+        entries = unpackZip(file.bytes);
       } catch {
         fail('The CMS bundle is not a readable ZIP archive.');
       }

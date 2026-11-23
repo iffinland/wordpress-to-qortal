@@ -1,5 +1,17 @@
 # Changelog
 
+## Publisher 0.8.0-beta.2 — 2026-11-23
+
+- Automatic active-account and package-name ownership checks; refresh before signing.
+- Modern responsive publication workspace with scrolling resource panel, search, filters, bounded rendering and expandable technical details.
+- Transitive dependency selection and safe ordering; pending-upload protection persists across repeated attempts and recovery.
+- Honest first-run upload/verification summaries, read-only reconciliation, separate receipt timestamps, locked in-progress controls and reset approvals.
+- Structured partial Hub responses, exact remote checks and size-aware confirmation waits.
+- ZIP metadata limits before decompression, nested CMS compatibility and worker-based import.
+- Grouped Hub requests retain the 20-resource cap and dependency boundaries. Hub controls session permissions; a single window for every package is not promised.
+- Owner runtime test passed for RC.1. Publish the byte-identical accepted ZIP as `publisher-v0.8.0-beta.2`; Desktop DEB and CMS remain unchanged, with strict component checks and public download verification.
+
+
 ## Generic CMS 0.9.0-beta.2 — 2026-11-23
 
 Publish the runtime-accepted post quick actions in all eight templates: QDN likes with one resource per name and post, canonical link copying and on-demand plain-text comments with author editing. Preserve failed drafts and retry identities, validate resource authors and isolate site/post scopes. Add a CMS-only publication workflow with immutable assets and public checksum verification. Desktop 0.8.0-beta.2 and Publisher 0.8.0-beta.1 remain unchanged at v0.8.0-beta.4.

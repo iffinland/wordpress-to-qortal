@@ -76,7 +76,7 @@ export async function requestQortal(payload: QortalRequestPayload): Promise<unkn
   }
   if (parsed && typeof parsed === 'object') {
     const record = parsed as Record<string, unknown>;
-    if (record.error) {
+    if (record.error && !(payload.action === 'PUBLISH_MULTIPLE_QDN_RESOURCES' && typeof record.error === 'object' && Array.isArray((record.error as Record<string, unknown>).unsuccessfulPublishes))) {
       const error = record.error;
       if (typeof error === 'string') throw new Error(error);
       const message = (error as Record<string, unknown>).message

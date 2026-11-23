@@ -1,0 +1,77 @@
+#!/usr/bin/env node
+// Independent Publisher release. Existing bundle/DEB gates remain unchanged.
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { REPO_ROOT, gitInfo, readJson, sha256File, writeJson } from './lib.mjs';
+import { inspectQappZip } from './artifact-set.mjs';
+import { checkVersions } from '../qms-release.mjs';
+import { parseChecksums } from './component-release.mjs';
+const repo = 'iffinland/wordpress-to-qortal';
+const release = await readJson(path.join(REPO_ROOT, 'qms-release.json'));
+const record = release.componentReleases?.publisher;
+const version = release.components.publisher.version;
+if (!record || record.version !== version || record.tag !== 'publisher-v' + version) throw Error('Inconsistent Publisher component release descriptor.');
+const name = 'qortal-migration-publisher-v' + version + '.zip';
+const zip = path.join(REPO_ROOT, 'release', name);
+const gh = args => execFileSync(process.env.GH_BIN || 'gh', args, {cwd:REPO_ROOT,encoding:'utf8',maxBuffer:32*1024*1024});
+const hash = bytes => createHash('sha256').update(bytes).digest('hex');
+const fetchBytes = async url => {const r = await fetch(url);if(!r.ok)throw Error(url + ': HTTP ' + r.status);return Buffer.from(await r.arrayBuffer());};
+const git = gitInfo(REPO_ROOT);
+if(git.dirty)throw Error('Publisher release requires a clean committed checkout.');
+if(!(await checkVersions()).ok)throw Error('Version marker checks failed.');
+const inspected = await inspectQappZip(zip,{kind:'publisher',version});
+if(!inspected.ok)throw Error(inspected.errors.join('\n'));
+const sha256=await sha256File(zip);const bytes=(await readFile(zip)).length;
+if(record.runtimeAcceptance?.status!=='passed'||record.runtimeAcceptance.sha256!==sha256)throw Error('The built Publisher does not match the runtime-accepted ZIP.');
+const notes=await readFile(path.join(REPO_ROOT,record.notes),'utf8');
+if(!notes.includes('Publisher **'+version+'**'))throw Error('Release notes must identify the current Publisher version.');
+const out=path.join(REPO_ROOT,'release/publisher-public');await mkdir(out,{recursive:true});
+const manifestPath=path.join(REPO_ROOT,'release/publisher-release-manifest.json');
+const diff=(commit,paths)=>execFileSync('git',['diff','--name-only',commit,git.commit,'--',...paths],{cwd:REPO_ROOT,encoding:'utf8'}).trim();
+if(process.argv.includes('--prepare')){
+ const releases=JSON.parse(gh(['api',`repos/${repo}/releases?per_page=100`]));
+ if(releases.some(r=>r.tag_name===record.tag))throw Error('Publisher release already exists; never overwrite assets.');
+ try{gh(['api',`repos/${repo}/git/ref/tags/${record.tag}`]);throw Error('Publisher tag already exists.');}catch(e){if(!String(e.stderr||'').includes('404'))throw e;}
+ const base=`https://github.com/${repo}/releases/download/${release.releaseTag}/`;
+ const baselineBytes=await fetchBytes(base+'release-manifest.json');const baseline=JSON.parse(baselineBytes);
+ if(!baseline.ok||baseline.tag!==release.releaseTag)throw Error('Invalid published baseline manifest.');
+ const unchanged=diff(baseline.source.commit,['desktop','lib','src','broker','patches','package.json']);
+ if(unchanged)throw Error('Publisher release changed Desktop inputs:\n'+unchanged);
+ // Root lock is shared with viewer; only its independent version marker may change.
+ const oldLock=JSON.parse(execFileSync('git',['show',baseline.source.commit+':package-lock.json'],{cwd:REPO_ROOT,encoding:'utf8'}));
+ const newLock=await readJson(path.join(REPO_ROOT,'package-lock.json'));
+ for(const lock of [oldLock,newLock])delete lock.packages.viewer.version;
+ if(JSON.stringify(oldLock)!==JSON.stringify(newLock))throw Error('Publisher release changed shared dependencies.');
+ const baselineSums=parseChecksums((await fetchBytes(base+'SHA256SUMS')).toString());
+ const deb=baseline.artifacts.find(a=>a.kind==='deb');
+ if(!deb||deb.componentVersion!==release.components.desktop.version||baselineSums.get(deb.name)!==deb.sha256)throw Error('Published DEB identity/checksum mismatch.');
+ const publicDeb=await fetchBytes(base+deb.name);
+ if(publicDeb.length!==deb.bytes||hash(publicDeb)!==deb.sha256)throw Error('Unchanged public DEB failed verification.');
+ const cmsRecord=release.componentReleases.cms;
+ const cmsBase=`https://github.com/${repo}/releases/download/${cmsRecord.tag}/`;
+ const cmsManifestBytes=await fetchBytes(cmsBase+'cms-release-manifest.json');const cmsManifest=JSON.parse(cmsManifestBytes);
+ const cms=cmsManifest.artifact;
+ if(cmsManifest.tag!==cmsRecord.tag||cmsManifest.version!==release.components.cms.version||cms.componentVersion!==release.components.cms.version)throw Error('Published CMS manifest/version mismatch.');
+ if(diff(cmsManifest.source.commit,['templates/generic-cms']))throw Error('Publisher release changed CMS inputs.');
+ const cmsSums=parseChecksums((await fetchBytes(cmsBase+'SHA256SUMS')).toString());const publicCms=await fetchBytes(cmsBase+cms.name);
+ if(cmsSums.get(cms.name)!==cms.sha256||publicCms.length!==cms.bytes||hash(publicCms)!==cms.sha256)throw Error('Unchanged public CMS failed verification.');
+ await writeFile(path.join(REPO_ROOT,'release/release-manifest.json'),baselineBytes);
+ await writeFile(path.join(REPO_ROOT,'release/cms-release-manifest.json'),cmsManifestBytes);
+ await writeJson(manifestPath,{schema:'qms-component-release@1',component:'publisher',version,tag:record.tag,source:git,artifact:{kind:'publisher',name,bytes,sha256,componentVersion:version},unchanged:[{kind:'deb',name:deb.name,bytes:deb.bytes,sha256:deb.sha256,tag:release.releaseTag},{kind:'cms',name:cms.name,bytes:cms.bytes,sha256:cms.sha256,tag:cmsRecord.tag}],runtimeAcceptance:record.runtimeAcceptance,checks:inspected.checks,preparedAt:new Date().toISOString()});
+ await writeFile(path.join(out,'SHA256SUMS'),sha256+'  '+name+'\n');
+ console.log('Publisher prepared; runtime ZIP matches; existing DEB and CMS verified byte-for-byte.');
+}else if(process.argv.includes('--publish')){
+ const manifest=await readJson(manifestPath);
+ if(manifest.source.commit!==git.commit||manifest.artifact.sha256!==sha256||manifest.artifact.bytes!==bytes||manifest.tag!==record.tag)throw Error('Publisher changed after preparation.');
+ execFileSync(process.execPath,['scripts/release/verify-active-docs.mjs'],{cwd:REPO_ROOT,stdio:'inherit'});
+ execFileSync('git',['tag',record.tag,git.commit],{cwd:REPO_ROOT});execFileSync('git',['push','origin','refs/tags/'+record.tag],{cwd:REPO_ROOT,stdio:'inherit'});
+ gh(['release','create',record.tag,'--repo',repo,'--prerelease','--verify-tag','--title','Migration Publisher '+version+' — modern publishing workspace','--notes-file',path.join(REPO_ROOT,record.notes),zip,path.join(out,'SHA256SUMS'),manifestPath,path.join(REPO_ROOT,record.notes),path.join(REPO_ROOT,'docs/migration-studio/MIGRATION-PUBLISHER-USER-MANUAL.md')]);
+ const base=`https://github.com/${repo}/releases/download/${record.tag}/`;
+ const downloaded=await fetchBytes(base+name);const sums=parseChecksums((await fetchBytes(base+'SHA256SUMS')).toString());
+ const publicManifest=JSON.parse(await fetchBytes(base+'publisher-release-manifest.json'));
+ if(hash(downloaded)!==sha256||downloaded.length!==bytes||sums.get(name)!==sha256||publicManifest.source.commit!==git.commit||publicManifest.artifact.sha256!==sha256)throw Error('Published Publisher artifact/provenance verification failed.');
+ await writeJson(path.join(REPO_ROOT,'release/publisher-public-verification.json'),{schema:'qms-component-public-verification@1',ok:true,tag:record.tag,sourceCommit:git.commit,url:base+name,bytes,sha256,unchanged:manifest.unchanged,verifiedAt:new Date().toISOString()});
+ console.log('Published and publicly hash-verified '+base+name);
+}else throw Error('Choose --prepare or --publish.');

@@ -19,10 +19,10 @@
       "changelog": "Runtime-accepted guided desktop beta.2, built from clean committed source for the v0.8.0-beta.4 public beta release."
     },
     "publisher": {
-      "version": "0.8.0-beta.1",
+      "version": "0.8.0-beta.2",
       "channel": "beta",
       "source": "viewer/package.json",
-      "changelog": "Unchanged from the approved beta.1 Publisher Q-App."
+      "changelog": "Runtime-accepted modern publishing workspace: automatic identity, searchable scrolling resource list, clear progress and durable pending-upload protection."
     },
     "cms": {
       "version": "0.9.0-beta.2",
@@ -44,6 +44,17 @@
       "version": "0.9.0-beta.2",
       "tag": "cms-v0.9.0-beta.2",
       "notes": "docs/migration-studio/RELEASE-CMS-0.9.0-BETA.2.md"
+    },
+    "publisher": {
+      "version": "0.8.0-beta.2",
+      "tag": "publisher-v0.8.0-beta.2",
+      "notes": "docs/migration-studio/RELEASE-PUBLISHER-0.8.0-BETA.2.md",
+      "runtimeAcceptance": {
+        "status": "passed",
+        "date": "2026-11-23",
+        "candidate": "RC.1",
+        "sha256": "49c1f85f5c0fef091b157c0d9cd219056b981a2b4f6fb264e53fb58fef69014d"
+      }
     }
   }
 }

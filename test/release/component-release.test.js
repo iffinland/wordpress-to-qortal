@@ -17,3 +17,10 @@ test('checksum parsing requires a SHA256 digest', () => {
  assert.equal(parseChecksums('a'.repeat(64) + '  file.zip\nbad  other.zip').get('file.zip'), 'a'.repeat(64));
  assert.equal(parseChecksums('bad  other.zip').size, 0);
 });
+test('an independent Publisher release keeps the current DEB and separately released CMS', () => {
+ const publisher = {tag_name:'publisher-v0.8.0-beta.2',published_at:'2026-11-23T18:00:00Z',assets:[{name:'qortal-migration-publisher-v0.8.0-beta.2.zip'}]};
+ const picked=latestComponentAssets([bundle,cms,publisher]);
+ assert.equal(picked.desktop.release.tag_name,bundle.tag_name);
+ assert.equal(picked.cms.release.tag_name,cms.tag_name);
+ assert.equal(picked.publisher.release.tag_name,publisher.tag_name);
+});

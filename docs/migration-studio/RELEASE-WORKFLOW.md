@@ -44,6 +44,12 @@ Both rules are blocking, not advisory:
   [RELEASE-DELIVERY-CHECKLIST.md](RELEASE-DELIVERY-CHECKLIST.md); a release task
   must not be reported complete while any item is unchecked.
 
+## Publisher-only releases
+
+A runtime-accepted Publisher update is versioned independently in `components.publisher` and `componentReleases.publisher`. Use `.github/workflows/qms-publisher-release.yml` and `scripts/release/publish-publisher.mjs --prepare|--publish` from clean committed source; the release branch is `release/publisher-<version>`.
+
+This component path builds only the Publisher ZIP and requires it to match the pinned runtime-accepted SHA-256. It verifies the existing public DEB and CMS bytes, unchanged Desktop/CMS source inputs, shared dependency identity, version markers, strict documentation and the published ZIP/checksum/provenance. The independent tag is `publisher-v<version>`. README links resolve each component separately. No DEB or CMS build/upload is included. The full-bundle gates remain mandatory for full bundle releases.
+
 ## Preconditions
 
 - Verified source commit on a clean branch that contains the current remote `main`

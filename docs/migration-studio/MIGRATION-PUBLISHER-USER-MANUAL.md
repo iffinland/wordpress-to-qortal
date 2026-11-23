@@ -1,41 +1,60 @@
 # Migration Publisher user manual
 
-Migration Publisher is the Qortal Hub Q-App that publishes a QMS handoff. It never requests a wallet seed, private key, or wallet password: Qortal Hub handles signing and fee approval. This manual begins with the Q-App open in Hub; it does not cover installation or deployment of the Q-App itself.
+## Publisher 0.8.0-beta.2
 
-## 1. Load and inspect the handoff
+This guide describes Publisher **0.8.0-beta.2**, runtime-accepted from RC.1 on 2026-11-23 and distributed as the independent `publisher-v0.8.0-beta.2` ZIP release. Desktop 0.8.0-beta.2 and the Generic CMS package are unchanged by this Publisher release.
 
-Choose one input at the top:
+Migration Publisher publishes a QMS handoff in Qortal Hub. Hub handles wallet signing and network fee approval; the Publisher never asks for your seed, private key or wallet password.
 
-- **Handoff folder** opens the Hub folder picker. Select an extracted QMS handoff folder.
-- **Publisher package (.zip)** opens a ZIP picker. Select the portable ZIP exported by QMS.
+## 1. Connect and load your package
 
-Wait for **Publisher package loaded**, which reports the handoff ID, resource count, and package-bound target. If loading/validation fails, stop and return to QMS; never edit the package to force it through. A valid package means every payload hash matches `handoff.json`, not that any resource is already published.
+Open the Q-App in Qortal Hub. The active account is detected automatically. Hub may ask you to grant account access. **Retry connection** is available if access fails. No manual target-name entry is needed: the loaded package supplies the exact registered name and the account card checks its ownership. If you switch accounts, review the account shown and approve the selection again.
 
-## 2. Connect the account and choose the target name
+Choose **Choose ZIP**, or drop the Publisher package exported by Qortal Migration Studio onto the package area. **Use an exported folder instead** opens an alternative folder picker. Select the complete folder containing `handoff.json`.
 
-Click **Connect Qortal account**; after connection it is **Refresh active account**. The summary displays the active address. With a validated package and account, click **Check remote state** to check remote presence and collisions before approval.
+ZIP and folder imports are limited to 512 MB and 12,000 archive entries. Import processing runs in a worker. The package directory is inspected before decompressed buffers are allocated, then payload hashes and dependencies are validated, including any nested CMS site archive. Do not edit an invalid package to force it through; export a new package from QMS.
 
-**Target Qortal name** is the exact registered name. It is prefilled by the handoff. Do not shorten it, change case, or use a lookalike: matching is exact NFKC without case folding. When more than one name is owned, the **Owned Qortal names** picker appears; select the registered target. A loaded package remains bound to its recorded name, so this field cannot retarget the package.
+## 2. Review the items
 
-If the page says **Qortal request API is not available**, open the Q-App in Qortal Hub instead of a normal browser. Read ownership warnings or confirmation before continuing.
+The resource list scrolls inside its own panel. Each row shows a title or file name, content type, readable size and status. **Details** reveals the QDN identity, file path, hash, dependencies, transaction and full status explanation.
 
-## 3. Review resources, collisions, and CMS choice
+Search titles and files or filter by type and status. Filtering does not change the selection. The list renders up to 50 items per page; use its arrow controls for additional pages. **Select all** applies to the entire package, including items hidden by filters. **Clear** removes the whole selection.
 
-After validation, each resource row exposes a square selection button, **kind · identifier**, service, byte count, content type, dependency count, SHA-256, publication status, and remote **presence**. Click its square to include/exclude it. **Select all** chooses every listed resource; **Clear** removes the selection. Keep dependency resources selected.
+Selecting an item also selects its dependencies. Removing a required item removes its dependent items through the whole chain. Changing the package, selection or replacement permission clears publishing approval.
 
-**Authorize updates to existing resources (N collisions)** is off by default. Turn it on only if the remote-state results identify exact existing resources you deliberately authorize for update. Leaving it off prevents a collision from being overwritten.
+## 3. Check existing content
 
-The CMS message identifies either a **Generic CMS** APP/WEBSITE bundle, which follows its dependencies, or **Content only**, which intentionally has no website bundle. This selection does not add content. **remote verified** means an exact read-back hash matched. **submitted** is not final. Pending/ambiguous results halt automatic continuation; they are not re-submitted.
+**Check QDN content**, or **Recheck pending** when previous uploads remain unresolved, only reads QDN. It never publishes or charges a fee.
 
-## 4. Quote, approve, and publish
+- **Ready:** the package is validated; this item can be considered for publication.
+- **Verified:** exact bytes were read back and matched the package hash. A stored result is checked again before a new publish operation.
+- **Sent to Hub:** an upload/signing request has started. Keep the page open.
+- **Awaiting confirmation:** the result is not yet verifiable. Use **Recheck pending**, which does not re-upload.
+- **Needs attention:** expand Details for the cause and next action.
+- **Declined:** the Hub request was declined.
 
-The footer displays the handoff **Estimate**, selected batch count, and label. It is not a live fee. Click **Get live network fee quote** to retrieve the current amount; read its per-resource QORT amount, selected-count total, and timestamp.
+A node reporting missing or downloading data is not proof that a resource is new. The Publisher waits for an exact check rather than treating that condition as permission to overwrite it.
 
-Before publishing, tick **I explicitly approve publishing these N resources and the Qortal Hub network fee**. Recheck the resource selection, target name, collision authorization, and live fee. Then click **Approve and publish selected set**. Hub presents the authoritative signing/fee approval; Publisher performs bounded batches and stops on ambiguous or pending outcomes. Do not reload it to force retries.
+Enable **Replace existing content** only when you intend to replace different content already published at the package's exact resource identities. Equal file size alone is never a verified match.
 
-**Previous sessions** is local recovery state for this Hub profile. Load the same handoff folder to resume. Nothing is resubmitted automatically.
+## 4. Publish and follow progress
 
-## 5. Export the receipt and complete verification
+The publication card shows selected size, expected approval groups and a fee estimate. **Refresh fee estimate** reads the network fee when available. Hub shows the authoritative fee before approving a group.
 
-The **Receipt** panel shows receipt ID, outcome count, and each status count. Click **Save receipt** to write the JSON needed by QMS, or **Copy JSON** to copy it. Return to QMS Publishing, import the JSON, and run its independent QDN read-back verification. A Publisher receipt is evidence of Publisher's report, not proof that the intended remote bytes can be read.
+Tick **I approve this selection**, then choose **Approve & publish**. The first click checks existing content and proceeds to new uploads in the same operation when all preconditions pass. The final message states how many items were sent to Hub, how many already matched and how many remain. Generating a receipt alone is not reported as a successful upload.
 
+Publication uses `PUBLISH_MULTIPLE_QDN_RESOURCES` with up to 20 resources in each group. Independent ready resources are grouped together. A dependent resource waits until its prerequisites are verified, so an entire package cannot always share one approval window. The displayed number can decrease when preflight finds matching content already on QDN. Some Hub versions offer session permission to reduce repeated prompts; granting or declining that permission stays under your control.
+
+During work, package, selection and approval controls are locked. Progress identifies checking, uploading or waiting for confirmation. Verification waits longer for larger batches. Pending or uncertain results pause continuation; the Publisher does not resend them on repeated publish attempts. Use the read-only recheck. Reloading is not a way to force another upload.
+
+## 5. Save the receipt and finish in QMS
+
+**Save receipt** exports the JSON for Qortal Migration Studio. The receipt records outcomes and separate submission/verification timestamps. Return to QMS, import it and run QMS's independent exact QDN verification. A Publisher receipt reports its observations; it is not a substitute for independent verification.
+
+**Recent sessions** lists local progress. Load the same ZIP in the same Hub profile to restore it. A different manifest using the same recorded handoff ID is rejected. Nothing uploads automatically when a session is restored.
+
+If local recovery storage is unavailable, keep the page open and save the receipt before leaving. The app shows a persistent warning in that case.
+
+## Validation and runtime acceptance
+
+The owner reported Runtime test passed for RC.1 on 2026-11-23 and authorized publication of the same ZIP. Automated checks cover publication behavior and the built app/import worker with a simulated Qortal bridge. For deployment checks, confirm the account card, first publish click, grouped approvals, pending rechecks and receipt import in your Hub.

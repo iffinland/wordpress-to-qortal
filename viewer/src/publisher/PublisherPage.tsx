@@ -1,44 +1,57 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, FileJson, FolderOpen, Play, RefreshCw, Send, ShieldAlert, Square, SquareCheckBig, XCircle } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  FileArchive,
+  FileCheck2,
+  FolderOpen,
+  HelpCircle,
+  LoaderCircle,
+  RefreshCw,
+  Search,
+  Send,
+  ShieldCheck,
+  UploadCloud,
+} from "lucide-react";
 import {
   MAX_BATCH_RESOURCES,
-  buildFolderMap,
-  buildFolderMapFromZip,
-  orderResources,
   planBatches,
-  sha256Bytes,
-  validateHandoffPackage,
-  type HandoffManifest,
   type HandoffResource,
-  type PublicationState,
-  type ValidatedHandoff
-} from './handoff';
+  type ValidatedHandoff,
+} from "./handoff";
 import {
   bridgeDiagnostics,
-  fetchQdnBase64,
   getActiveAccount,
   getOwnedNames,
-  getResourceProperties,
   getQortalRequest,
-  getResourceStatus,
-  requestQortal
-} from './bridge';
-import type { OwnedName } from './ownership';
-import { preselectTargetName, resolveTargetGate, targetPhaseMessage } from './targetState';
-import { createReceipt, downloadReceipt, receiptFileText, type ReceiptDocument } from './receipt';
-import { APP_VERSION } from '../version';
-import { PublisherUpdate } from './PublisherUpdate';
+  requestQortal,
+} from "./bridge";
+import { evaluateNameOwnership, type OwnedName } from "./ownership";
+import {
+  createReceipt,
+  downloadReceipt,
+  type ReceiptDocument,
+} from "./receipt";
+import {
+  displayName,
+  formatSize,
+  needsReconciliation,
+  runPublication,
+  selectWithDependencies,
+  type Progress,
+  type ResourceState,
+} from "./workflow";
+import { probeResource } from "./verification";
+import { APP_VERSION } from "../version";
+import { PublisherUpdate } from "./PublisherUpdate";
+import "./publisher.css";
 
-interface ResourceState {
-  status: PublicationState;
-  reason: string;
-  txSignature: string | null;
-  updatedAt: string;
-  verification?: Record<string, unknown> | null;
-}
-
-interface SessionState {
+type Account = { address: string; publicKey?: string };
+interface Session {
   handoffId: string;
+  packageIntegrity?: string;
   selected: string[];
   states: Record<string, ResourceState>;
   accountAddress: string | null;
@@ -46,935 +59,1154 @@ interface SessionState {
   receipt: ReceiptDocument | null;
   updatedAt: string;
 }
-
-const STORAGE_PREFIX = 'qms-migration-publisher-v2:';
-const ACTIONS = new Set(['PUBLISH_MULTIPLE_QDN_RESOURCES']);
-const STATUS_TONE: Record<string, string> = {
-  remote_verified: 'good',
-  submitted: 'info',
-  pending_confirmation: 'warn',
-  ambiguous: 'warn',
-  partial: 'warn',
-  failed: 'bad',
-  declined: 'bad',
-  blocked: 'bad'
-};
-
-function loadSession(handoffId: string): SessionState | null {
+const STORAGE_PREFIX = "qms-migration-publisher-v2:";
+const PAGE_SIZE = 50;
+function readSession(id: string): Session | null {
   try {
-    const raw = localStorage.getItem(STORAGE_PREFIX + handoffId);
-    return raw ? JSON.parse(raw) as SessionState : null;
+    const value = JSON.parse(
+      localStorage.getItem(STORAGE_PREFIX + id) || "null",
+    );
+    return value &&
+      value.handoffId === id &&
+      value.states &&
+      typeof value.states === "object"
+      ? value
+      : null;
   } catch {
     return null;
   }
 }
-
-function saveSession(session: SessionState) {
+function history(): Session[] {
   try {
-    localStorage.setItem(STORAGE_PREFIX + session.handoffId, JSON.stringify(session));
+    return Object.keys(localStorage)
+      .filter((k) => k.startsWith(STORAGE_PREFIX))
+      .map((k) => readSession(k.slice(STORAGE_PREFIX.length)))
+      .filter((s): s is Session => Boolean(s))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, 5);
   } catch {
-    // localStorage can be unavailable in hardened webviews; the in-memory
-    // session remains authoritative and the receipt is still exportable.
+    return [];
   }
 }
-
-function nowIso(): string {
-  return new Date().toISOString();
+const statusLabels: Record<string, string> = {
+  handoff_ready: "Ready",
+  reserved: "Ready",
+  remote_verified: "Verified",
+  pending_confirmation: "Awaiting confirmation",
+  submitted: "Sent to Hub",
+  ambiguous: "Needs recheck",
+  blocked: "Needs attention",
+  failed: "Needs attention",
+  declined: "Declined",
+  partial: "Partly complete",
+};
+function statusLabel(state?: ResourceState) {
+  return statusLabels[state?.status || "handoff_ready"] || "Ready";
 }
 
-function statusOf(state: ResourceState | undefined): PublicationState {
-  return state?.status ?? 'reserved';
-}
-
-function label(value: string): string {
-  return value.replace(/_/g, ' ');
-}
-
-function tone(value: string): string {
-  return STATUS_TONE[value] ?? 'neutral';
-}
-
-function resourceFilename(resource: HandoffResource): string {
-  return resource.relativePath.split('/').pop() || resource.identifier;
-}
-
-function encodePath(value: string): string {
-  return String(value).split('/').map((segment) => encodeURIComponent(segment)).join('/');
-}
-
-function decodeBase64(value: string): Uint8Array {
-  const compact = value.replace(/\s+/g, '');
-  if (compact !== '' && (!/^[A-Za-z0-9+/]+={0,2}$/.test(compact) || compact.length % 4 !== 0)) {
-    throw new Error('The node returned a non-base64 body; exact hash comparison is not possible.');
-  }
-  const binary = atob(compact);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
-  return bytes;
-}
-
-/** Multi-file APP read-back reads each member with ?filepath= and base64. */
-async function fetchAppMember(resource: HandoffResource, filepath: string): Promise<Uint8Array> {
-  try {
-    const bridged = await requestQortal({
-      action: 'FETCH_QDN_RESOURCE',
-      service: resource.service,
-      name: resource.name,
-      identifier: resource.identifier,
-      filepath,
-      encoding: 'base64'
-    });
-    if (typeof bridged === 'string') return decodeBase64(bridged);
-  } catch {
-    // A Hub build without filepath support falls back to the node read below.
-  }
-  const base = typeof window !== 'undefined' ? window.location.origin : '';
-  const url = base + '/arbitrary/' + encodeURIComponent(resource.service)
-    + '/' + encodeURIComponent(resource.name)
-    + '/' + encodeURIComponent(resource.identifier)
-    + '?filepath=' + encodePath(filepath) + '&encoding=base64';
-  const response = await fetch(url, { cache: 'no-store' });
-  if (response.status === 401 || response.status === 403) {
-    throw new Error('The node refused read access for APP member ' + filepath + '.');
-  }
-  if (!response.ok) {
-    throw new Error('APP member read failed with HTTP ' + response.status + ' for ' + filepath + '.');
-  }
-  return decodeBase64(await response.text());
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  const chunk = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
-  }
-  return btoa(binary);
-}
-
-function normalizeStatus(value: unknown): string {
-  if (!value || typeof value !== 'object') return '';
-  const record = value as Record<string, unknown>;
-  if (typeof record.status === 'string') return record.status;
-  if (typeof record.status === 'number') {
-    return ({ 1: 'PUBLISHED', 2: 'NOT_PUBLISHED', 3: 'DOWNLOADING', 4: 'DOWNLOADED', 5: 'BUILDING', 6: 'READY', 7: 'MISSING_DATA', 8: 'BUILD_FAILED', 9: 'UNSUPPORTED', 10: 'BLOCKED' } as Record<number, string>)[record.status] ?? String(record.status);
-  }
-  return '';
-}
-
-function outcomeForError(message: string): PublicationState {
-  const text = message.toLowerCase();
-  if (text.includes('declin') || text.includes('denied') || text.includes('rejected')) return 'declined';
-  return 'ambiguous';
-}
-
-async function verifyOne(resource: HandoffResource): Promise<ResourceState> {
-  if (resource.service === 'APP' || resource.service === 'WEBSITE') {
-    const bundle = resource.metadata?.bundle;
-    if (!bundle || !Array.isArray(bundle.files) || bundle.files.length === 0) {
-      return {
-        status: 'blocked',
-        reason: 'This APP resource has no member manifest; exact read-back is impossible.',
-        txSignature: null,
-        updatedAt: nowIso()
-      };
-    }
-    const verifiedMembers: Array<Record<string, unknown>> = [];
-    for (const member of bundle.files) {
-      try {
-        const bytes = await fetchAppMember(resource, member.path);
-        const hash = await sha256Bytes(bytes);
-        if (bytes.length !== member.bytes || hash !== member.sha256) {
-          return {
-            status: 'ambiguous',
-            reason: 'APP member bytes do not match: ' + member.path,
-            txSignature: null,
-            updatedAt: nowIso(),
-            verification: { transport: 'http:filepath:base64', path: member.path, expectedBytes: member.bytes, remoteBytes: bytes.length, expectedHash: member.sha256, remoteHash: hash }
-          };
-        }
-        verifiedMembers.push({ path: member.path, bytes: bytes.length, sha256: hash });
-      } catch (error) {
-        const message = (error as Error).message;
-        return {
-          status: message.includes('HTTP 404') ? 'pending_confirmation' : 'ambiguous',
-          reason: message,
-          txSignature: null,
-          updatedAt: nowIso()
-        };
-      }
-    }
-    return {
-      status: 'remote_verified',
-      reason: 'Every APP member matches the bundle SHA-256.',
-      txSignature: null,
-      updatedAt: nowIso(),
-      verification: { transport: 'http:filepath:base64', members: verifiedMembers }
-    };
-  }
-  try {
-    const bytes = await fetchQdnBase64(resource.service, resource.name, resource.identifier);
-    const hash = await sha256Bytes(bytes);
-    if (bytes.length !== resource.bytes || hash !== resource.sha256) {
-      return {
-        status: 'ambiguous',
-        reason: 'Read-back bytes do not match this handoff resource.',
-        txSignature: null,
-        updatedAt: nowIso(),
-        verification: {
-          transport: 'qortalRequest:FETCH_QDN_RESOURCE:base64',
-          expectedBytes: resource.bytes,
-          remoteBytes: bytes.length,
-          expectedHash: resource.sha256,
-          remoteHash: hash
-        }
-      };
-    }
-    return {
-      status: 'remote_verified',
-      reason: 'Exact QDN bytes match the intended SHA-256.',
-      txSignature: null,
-      updatedAt: nowIso(),
-      verification: { transport: 'qortalRequest:FETCH_QDN_RESOURCE:base64', expectedHash: resource.sha256, remoteHash: hash }
-    };
-  } catch (error) {
-    return {
-      status: 'pending_confirmation',
-      reason: (error as Error).message,
-      txSignature: null,
-      updatedAt: nowIso()
-    };
-  }
-}
-
-export function PublisherPage({ initialName = '', onBack }: { initialName?: string; onBack?: () => void }) {
-  const [folderName, setFolderName] = useState('');
-  const [targetName, setTargetName] = useState(initialName);
-  const [nameAttempted, setNameAttempted] = useState(false);
+export function PublisherPage({
+  initialName = "",
+  onBack,
+}: {
+  initialName?: string;
+  onBack?: () => void;
+}) {
   const [validated, setValidated] = useState<ValidatedHandoff | null>(null);
+  const [filename, setFilename] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [states, setStates] = useState<Record<string, ResourceState>>({});
-  const [account, setAccount] = useState<{ address: string; publicKey?: string } | null>(null);
+  const [account, setAccount] = useState<Account | null>(null);
   const [ownedNames, setOwnedNames] = useState<OwnedName[]>([]);
-  const [remotePresence, setRemotePresence] = useState<Record<string, 'unknown' | 'new' | 'update' | 'collision'>>({});
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [accountError, setAccountError] = useState("");
+  const [bridgeReady, setBridgeReady] = useState(Boolean(getQortalRequest()));
   const [allowUpdates, setAllowUpdates] = useState(false);
   const [approved, setApproved] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState('');
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [progress, setProgress] = useState<Progress | null>(null);
   const [receipt, setReceipt] = useState<ReceiptDocument | null>(null);
-  const [sessions, setSessions] = useState<Array<{ handoffId: string; status: string; updatedAt: string }>>([]);
-  const [feeQuote, setFeeQuote] = useState<{ atomic: number; qort: number; at: string } | null>(null);
+  const [sessions, setSessions] = useState<Session[]>(history);
+  const [query, setQuery] = useState("");
+  const [kind, setKind] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(0);
+  const [fee, setFee] = useState<number | null>(null);
+  const [feeBusy, setFeeBusy] = useState(false);
+  const [storageWarning, setStorageWarning] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const workerRef = useRef<Worker | null>(null);
   const running = useRef(false);
-  const bridge = getQortalRequest();
-  const diagnostics = bridgeDiagnostics();
-
-  useEffect(() => {
-    try {
-      const rows = Object.keys(localStorage)
-        .filter((key) => key.startsWith(STORAGE_PREFIX))
-        .map((key) => JSON.parse(localStorage.getItem(key) || '{}') as SessionState)
-        .filter((entry) => entry.handoffId)
-        .map((entry) => ({
-          handoffId: entry.handoffId,
-          status: Object.values(entry.states ?? {})[0]?.status ?? 'reserved',
-          updatedAt: entry.updatedAt ?? ''
-        }));
-      setSessions(rows);
-    } catch {
-      setSessions([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const manifest: HandoffManifest | null = validated?.manifest ?? null;
-  const targetGate = resolveTargetGate({
-    manifestName: manifest?.target.qdnName ?? null,
-    packageLoaded: Boolean(manifest),
-    manualName: targetName,
-    accountAddress: account?.address ?? null,
-    accountConnected: Boolean(account),
+  const accountRef = useRef<Account | null>(null);
+  const accountRequest = useRef<Promise<{
+    active: Account;
+    names: OwnedName[];
+  }> | null>(null);
+  const manifest = validated?.manifest;
+  const targetName = manifest?.target.qdnName || initialName;
+  const ownership = evaluateNameOwnership({
+    targetName,
+    accountAddress: account?.address,
     ownedNames,
-    attempted: nameAttempted
   });
-  const nameOwned = targetGate.canProceed;
-  const selectedResources = useMemo(
-    () => orderResources(manifest?.resources ?? []).filter((resource) => selected.has(resource.id)),
-    [manifest, selected]
+  const resources = manifest?.resources || [];
+  const selectedResources = resources.filter((r) => selected.has(r.id));
+  const plannedGroups = useMemo(
+    () =>
+      planBatches(
+        resources,
+        new Set(
+          selectedResources
+            .filter((r) => states[r.id]?.status !== "remote_verified")
+            .map((r) => r.id),
+        ),
+      ).length,
+    [manifest, selected, states],
   );
-  const collisionCount = Object.values(remotePresence).filter((value) => value === 'collision').length;
-  const blockedByPrereq = !bridge || !account || !nameOwned;
+  const selectedBytes = selectedResources.reduce((sum, r) => sum + r.bytes, 0);
+  const verifiedCount = selectedResources.filter(
+    (r) => states[r.id]?.status === "remote_verified",
+  ).length;
+  const pendingCount = selectedResources.filter(
+    (r) =>
+      needsReconciliation(states[r.id]) &&
+      states[r.id]?.status !== "remote_verified",
+  ).length;
+  const filtered = resources.filter(
+    (r) =>
+      (kind === "all" || r.kind === kind) &&
+      (statusFilter === "all" ||
+        (statusFilter === "attention"
+          ? ["blocked", "failed", "ambiguous", "declined"].includes(
+              states[r.id]?.status,
+            )
+          : states[r.id]?.status === statusFilter)) &&
+      [displayName(r), r.identifier, r.service]
+        .join(" ")
+        .toLowerCase()
+        .includes(query.toLowerCase()),
+  );
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, pages - 1);
+  const visible = filtered.slice(
+    currentPage * PAGE_SIZE,
+    (currentPage + 1) * PAGE_SIZE,
+  );
 
-  function updateState(resourceId: string, next: ResourceState) {
-    setStates((current) => {
-      const merged = { ...current, [resourceId]: next };
-      const handoffId = manifest?.handoffId;
-      if (handoffId) {
-        saveSession({
-          handoffId,
-          selected: [...selected],
-          states: merged,
-          accountAddress: account?.address ?? null,
-          accountName: targetName || null,
-          receipt,
-          updatedAt: nowIso()
-        });
+  async function identify() {
+    if (accountRequest.current) return accountRequest.current;
+    setAccountBusy(true);
+    setAccountError("");
+    const request = (async () => {
+      try {
+        const active = await getActiveAccount();
+        const names = await getOwnedNames(active.address);
+        if (accountRef.current && active.address !== accountRef.current.address)
+          setApproved(false);
+        accountRef.current = active;
+        setAccount(active);
+        setOwnedNames(names);
+        return { active, names };
+      } catch (err) {
+        accountRef.current = null;
+        setAccount(null);
+        setOwnedNames([]);
+        setApproved(false);
+        setAccountError((err as Error).message);
+        throw err;
+      } finally {
+        setAccountBusy(false);
+        accountRequest.current = null;
       }
-      return merged;
-    });
+    })();
+    accountRequest.current = request;
+    return request;
   }
-  async function chooseFolder(event: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files || []);
-    if (files.length === 0) return;
-    const isZip = files.length === 1 && /\.zip$/i.test(files[0].name);
-    setBusy(true);
-    setError(null);
-    setNotice('');
-    setReceipt(null);
-    setValidated(null);
-    setRemotePresence({});
-    try {
-      const map = isZip ? await buildFolderMapFromZip(files[0]) : await buildFolderMap(files);
-      const result = await validateHandoffPackage(map);
-      setValidated(result);
-      setTargetName(result.manifest.target.qdnName);
-      setNameAttempted(false);
-      setFolderName(isZip ? files[0].name : ((files[0] as File & { webkitRelativePath?: string })?.webkitRelativePath?.split('/')[0] || 'selected folder'));
-      const remembered = loadSession(result.manifest.handoffId);
-      if (remembered) {
-        setStates(remembered.states ?? {});
-        setSelected(new Set(remembered.selected ?? result.manifest.resources.map((resource) => resource.id)));
-        setReceipt(remembered.receipt ?? null);
-        setNotice('Recovered the previous session for this handoff. Nothing is resubmitted automatically.');
-      } else {
-        setStates(Object.fromEntries(result.manifest.resources.map((resource) => [
-          resource.id,
-          { status: 'handoff_ready', reason: 'Validated locally; not published.', txSignature: null, updatedAt: nowIso() }
-        ])));
-        setSelected(new Set(result.manifest.resources.map((resource) => resource.id)));
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let attempts = 0;
+    const start = () => {
+      if (cancelled) return;
+      if (getQortalRequest()) {
+        setBridgeReady(true);
+        void identify().catch(() => {});
+        return;
       }
-      saveSession({
-        handoffId: result.manifest.handoffId,
-        selected: [...(remembered?.selected ?? result.manifest.resources.map((resource) => resource.id))],
-        states: remembered?.states ?? {},
-        accountAddress: account?.address ?? null,
-        accountName: result.manifest.target.qdnName,
-        receipt: remembered?.receipt ?? null,
-        updatedAt: nowIso()
-      });
-    } catch (folderError) {
-      setError((folderError as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function connectAccount() {
-    setBusy(true);
-    setError(null);
-    try {
-      const active = await getActiveAccount();
-      setAccount(active);
-      const names = await getOwnedNames(active.address);
-      setOwnedNames(names);
-      setTargetName((current) => preselectTargetName({
-        manifestName: manifest?.target.qdnName ?? null,
-        currentName: current,
-        accountConnected: true,
-        ownedNames: names
-      }));
-      setNotice(names.length === 1
-        ? 'Active account loaded. Target name preselected from its single owned name; verify it before checking remote state.'
-        : 'Active account loaded. ' + (names.length > 1 ? 'Choose the exact owned name from the list.' : 'Enter the exact target Qortal name.'));
-    } catch (connectError) {
-      setError((connectError as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function quoteNetworkFee() {
-    setBusy(true);
-    setError(null);
-    try {
-      const base = typeof window !== 'undefined' ? window.location.origin : '';
-      const response = await fetch(base + '/transactions/unitfee?txType=ARBITRARY&timestamp=' + Date.now(), { cache: 'no-store' });
-      if (!response.ok) throw new Error('The node did not return an ARBITRARY fee (HTTP ' + response.status + ').');
-      const text = (await response.text()).trim();
-      const atomic = Number(text);
-      if (!Number.isFinite(atomic) || atomic < 0) throw new Error('The node returned an invalid ARBITRARY fee.');
-      setFeeQuote({ atomic, qort: atomic / 1e8, at: new Date().toISOString() });
-      setNotice('Live network quote loaded. Qortal Hub still shows and approves the authoritative fee.');
-    } catch (quoteError) {
-      setFeeQuote(null);
-      setError('Live fee quote unavailable: ' + (quoteError as Error).message + ' Continue and Qortal Hub will show the fee before approval.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function checkRemoteState() {
-    setNameAttempted(true);
-    if (!manifest) return;
-    if (!targetGate.canProceed) {
-      setError(targetGate.warning || 'Verify the exact target name and owning account before checking remote state.');
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      const presence: Record<string, 'unknown' | 'new' | 'update' | 'collision'> = {};
-      for (const resource of manifest.resources) {
-        try {
-          const status = normalizeStatus(await getResourceStatus(resource.service, resource.name, resource.identifier));
-          if (!status || status === 'NOT_PUBLISHED' || status === 'MISSING_DATA') {
-            presence[resource.id] = 'new';
-            continue;
-          }
-          const properties = await getResourceProperties(resource.service, resource.name, resource.identifier);
-          if (properties && Number.isInteger(properties.size)) {
-            presence[resource.id] = properties.size === resource.bytes ? 'update' : 'collision';
-          } else {
-            presence[resource.id] = 'unknown';
-          }
-        } catch {
-          presence[resource.id] = 'unknown';
-        }
-      }
-      setRemotePresence(presence);
-      setNotice('Remote state checked. Collisions are updates whose existing byte length differs from this handoff.');
-    } catch (checkError) {
-      setError((checkError as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function toggle(resource: HandoffResource) {
-    setSelected((current) => {
-      const next = new Set(current);
-      if (next.has(resource.id)) {
-        next.delete(resource.id);
-        // Dependents cannot be selected without their prerequisite.
-        for (const candidate of manifest?.resources ?? []) {
-          if (candidate.dependsOn.includes(resource.id)) next.delete(candidate.id);
-        }
-      } else {
-        const missing = resource.dependsOn.filter((dependency) => !next.has(dependency));
-        if (missing.length > 0) {
-          setError('Select dependencies first: ' + missing.join(', '));
-          return current;
-        }
-        next.add(resource.id);
-      }
-      return next;
-    });
-  }
-
-  function selectAll() {
-    setSelected(new Set((manifest?.resources ?? []).map((resource) => resource.id)));
-  }
-
-  function clearSelected() {
-    setSelected(new Set());
-  }
-
-  async function runVerification(resource: HandoffResource, attempts = 4): Promise<ResourceState> {
-    let last = await verifyOne(resource);
-    if (last.status === 'remote_verified' || last.status === 'ambiguous') return last;
-    for (let attempt = 1; attempt < attempts; attempt += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      last = await verifyOne(resource);
-      if (last.status === 'remote_verified' || last.status === 'ambiguous') return last;
-    }
-    return last;
-  }
-
-  function payloadFor(resource: HandoffResource): Record<string, unknown> {
-    const file = validated?.files.get(resource.relativePath);
-    if (!file) throw new Error('Missing selected payload: ' + resource.relativePath);
-    const title = typeof resource.metadata?.title === 'string' ? resource.metadata.title : resource.identifier;
-    if (resource.service === 'APP' || resource.service === 'WEBSITE') {
-      const filename = resource.identifier + '.zip';
-      const body = file.bytes.buffer.slice(file.bytes.byteOffset, file.bytes.byteOffset + file.bytes.byteLength) as ArrayBuffer;
-      return {
-        name: resource.name,
-        service: resource.service,
-        identifier: resource.identifier,
-        file: new File([body], filename, { type: 'application/zip' }),
-        filename,
-        isMultiFileZip: true,
-        title,
-        description: 'Qortal Migration Studio website bundle ' + (manifest?.handoffId ?? '')
-      };
-    }
-    if (resource.service === 'DOCUMENT' || resource.service === 'JSON') {
-      return {
-        name: resource.name,
-        service: resource.service,
-        identifier: resource.identifier,
-        data64: bytesToBase64(file.bytes),
-        encoding: 'base64',
-        title,
-        description: 'Qortal Migration Studio handoff ' + manifest?.handoffId
-      };
-    }
-    const filename = resourceFilename(resource);
-    const body = file.bytes.buffer.slice(file.bytes.byteOffset, file.bytes.byteOffset + file.bytes.byteLength) as ArrayBuffer;
-    return {
-      name: resource.name,
-      service: resource.service,
-      identifier: resource.identifier,
-      file: new File([body], filename, { type: resource.contentType }),
-      filename,
-      title,
-      description: 'Qortal Migration Studio handoff ' + manifest?.handoffId
+      if (++attempts < 40) timer = setTimeout(start, 500);
     };
-  }
+    start();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, []);
+  useEffect(
+    () => () => {
+      workerRef.current?.terminate();
+    },
+    [],
+  );
+  useEffect(() => {
+    setPage(0);
+  }, [query, kind, statusFilter]);
+  useEffect(() => {
+    listRef.current?.scrollTo?.({ top: 0 });
+  }, [currentPage]);
 
-  async function publishSelected() {
-    setNameAttempted(true);
-    if (!manifest || !validated || !account || !nameOwned || !approved || running.current) return;
-    if (collisionCount > 0 && !allowUpdates) {
-      setError('Resolve the ' + collisionCount + ' existing-resource collision(s) before publishing.');
-      return;
+  function save(
+    next: Record<string, ResourceState>,
+    resultReceipt: ReceiptDocument | null = receipt,
+  ) {
+    setStates(next);
+    if (!manifest) return;
+    const value: Session = {
+      handoffId: manifest.handoffId,
+      packageIntegrity: manifest.integrity.value,
+      selected: [...selected],
+      states: next,
+      accountAddress: accountRef.current?.address || null,
+      accountName: targetName,
+      receipt: resultReceipt,
+      updatedAt: new Date().toISOString(),
+    };
+    try {
+      localStorage.setItem(
+        STORAGE_PREFIX + manifest.handoffId,
+        JSON.stringify(value),
+      );
+      setSessions(history());
+    } catch {
+      setStorageWarning(
+        "This Hub profile cannot save recovery data. Keep this page open and save the receipt before leaving.",
+      );
     }
+  }
+  function resetConsent() {
+    setApproved(false);
+    setReceipt(null);
+    setNotice("");
+  }
+  async function loadFiles(files: File[]) {
+    if (!files.length || running.current) return;
     running.current = true;
     setBusy(true);
-    setError(null);
-    setNotice('Checking which selected resources are already available with exact bytes…');
-    const outcome: Record<string, ResourceState> = { ...states };
-    const persist = () => {
-      saveSession({
-        handoffId: manifest.handoffId,
-        selected: [...selected],
-        states: outcome,
-        accountAddress: account.address,
-        accountName: targetName,
-        receipt,
-        updatedAt: nowIso()
-      });
-    };
-    const setOutcome = (resourceId: string, next: ResourceState) => {
-      outcome[resourceId] = next;
-      setStates((current) => ({ ...current, [resourceId]: next }));
-      persist();
-    };
+    setError("");
+    setNotice("");
+    setReceipt(null);
+    setApproved(false);
+    setAllowUpdates(false);
+    setFee(null);
+    setValidated(null);
+    setStates({});
+    setSelected(new Set());
+    setQuery("");
+    setKind("all");
+    setStatusFilter("all");
+    setPage(0);
+    setProgress({
+      phase: "Reading package",
+      done: 0,
+      total: 0,
+      detail: "Preparing your files…",
+    });
     try {
-      const verified = new Set<string>();
-      const collisions = new Set<string>();
-      const blockedRetry = new Set<string>();
-      for (const resource of selectedResources) {
-        const prior = statusOf(outcome[resource.id]);
-        if (prior === 'remote_verified') {
-          verified.add(resource.id);
-          continue;
-        }
-        const result = await runVerification(resource, 2);
-        if (result.status === 'remote_verified') {
-          setOutcome(resource.id, { ...result, reason: 'Already present with exact bytes; publication skipped.' });
-          verified.add(resource.id);
-        } else if (['submitted', 'pending_confirmation', 'ambiguous'].includes(prior)) {
-          blockedRetry.add(resource.id);
-          setOutcome(resource.id, {
-            status: 'blocked',
-            reason: 'An earlier attempt has no confirmed outcome. Reconcile it before any retry; ambiguous writes are never resubmitted automatically.',
-            txSignature: outcome[resource.id]?.txSignature ?? null,
-            updatedAt: nowIso(),
-            verification: result.verification ?? null
-          });
-        } else if (result.status === 'ambiguous') {
-          collisions.add(resource.id);
-          if (!allowUpdates) {
-            setOutcome(resource.id, {
-              status: 'blocked',
-              reason: 'Existing remote bytes differ from this handoff. Authorize updates explicitly or resolve the collision.',
-              txSignature: null,
-              updatedAt: nowIso(),
-              verification: result.verification ?? null
-            });
-          }
-        }
-      }
-      if (collisions.size > 0 && !allowUpdates) {
-        throw new Error('Publishing blocked: ' + collisions.size + ' existing resource(s) have different bytes. No resource was submitted.');
-      }
-      const pendingSelected = selectedResources.filter((resource) => !verified.has(resource.id) && !blockedRetry.has(resource.id));
-      const batches = planBatches(manifest.resources, new Set(pendingSelected.map((resource) => resource.id)));
-      for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
-        const batch = batches[batchIndex];
-        const ready = batch.filter((resource) =>
-          resource.dependsOn.every((dependency) => verified.has(dependency) || !selected.has(dependency))
+      const zip = files.length === 1 && /\.zip$/i.test(files[0].name);
+      const result = await new Promise<ValidatedHandoff>((resolve, reject) => {
+        const worker = new Worker(
+          new URL("./import.worker.ts", import.meta.url),
+          { type: "module" },
         );
-        const blocked = batch.filter((resource) => !ready.includes(resource));
-        for (const resource of blocked) {
-          setOutcome(resource.id, {
-            status: 'blocked',
-            reason: 'A dependency is not remotely verified; this resource was not submitted.',
+        workerRef.current = worker;
+        worker.onmessage = (event) => {
+          if (event.data.error) {
+            worker.terminate();
+            reject(new Error(event.data.error));
+          } else if (event.data.result) {
+            worker.terminate();
+            resolve(event.data.result);
+          } else
+            setProgress({
+              phase: event.data.phase,
+              detail: event.data.detail,
+              done: 0,
+              total: 0,
+            });
+        };
+        worker.onerror = () => {
+          worker.terminate();
+          reject(
+            new Error(
+              "Package processing could not start. Reopen this app in Qortal Hub and try again.",
+            ),
+          );
+        };
+        worker.postMessage({ files, zip });
+      });
+      const remembered = readSession(result.manifest.handoffId);
+      if (
+        remembered?.packageIntegrity &&
+        remembered.packageIntegrity !== result.manifest.integrity.value
+      )
+        throw new Error(
+          "This package reuses a previous handoff ID with different content. Export a new Publisher package from Migration Studio.",
+        );
+      const ids = new Set(result.manifest.resources.map((r) => r.id));
+      let restored = new Set<string>(
+        (remembered?.selected || [...ids]).filter((id) => ids.has(id)),
+      );
+      // Repair old partial dependency selections on recovery.
+      for (const id of [...restored])
+        restored = selectWithDependencies(
+          result.manifest.resources,
+          new Set([...restored].filter((key) => key !== id)),
+          id,
+          true,
+        );
+      const next: Record<string, ResourceState> = Object.fromEntries(
+        result.manifest.resources.map((r) => [
+          r.id,
+          remembered?.states[r.id] || {
+            status: "handoff_ready" as const,
+            reason: "Package validated. Ready for QDN checks.",
             txSignature: null,
-            updatedAt: nowIso()
-          });
-        }
-        if (ready.length === 0) continue;
-        setNotice('Publishing batch ' + (batchIndex + 1) + ' of ' + batches.length + ' (' + ready.length + ' resources, maximum ' + MAX_BATCH_RESOURCES + '). Qortal Hub will ask for approval.');
-        let response: unknown = null;
-        let thrown: string | null = null;
-        try {
-          response = await requestQortal({
-            action: 'PUBLISH_MULTIPLE_QDN_RESOURCES',
-            resources: ready.map(payloadFor)
-          });
-        } catch (publishError) {
-          thrown = (publishError as Error).message;
-        }
-        const submittedAt = nowIso();
-        if (thrown) {
-          for (const resource of ready) {
-            setOutcome(resource.id, {
-              status: outcomeForError(thrown),
-              reason: thrown,
-              txSignature: null,
-              updatedAt: nowIso()
-            });
-          }
-        } else if (Array.isArray(response)) {
-          for (const [index, resource] of ready.entries()) {
-            const entry = response[index] as Record<string, unknown> | undefined;
-            setOutcome(resource.id, {
-              status: 'submitted',
-              reason: 'Hub returned a resource response; exact read-back is pending.',
-              txSignature: typeof entry?.signature === 'string' ? entry.signature : null,
-              updatedAt: nowIso()
-            });
-          }
-        } else {
-          const failures = (response as { error?: { unsuccessfulPublishes?: Array<Record<string, unknown>> } })?.error?.unsuccessfulPublishes ?? [];
-          const failureById = new Map(failures.map((entry) => [String(entry.identifier ?? ''), entry]));
-          for (const resource of ready) {
-            const failure = failureById.get(resource.identifier);
-            if (failure) {
-              const reason = String(failure.reason ?? 'Qortal reported an unsuccessful publish.');
-              setOutcome(resource.id, {
-                status: outcomeForError(reason),
-                reason,
-                txSignature: null,
-                updatedAt: submittedAt
-              });
-            } else {
-              setOutcome(resource.id, {
-                status: 'ambiguous',
-                reason: 'Qortal returned a partial response without a success entry; exact read-back decides.',
-                txSignature: null,
-                updatedAt: submittedAt
-              });
-            }
-          }
-        }
-
-        for (const resource of ready) {
-          const current = outcome[resource.id];
-          if (current?.status === 'failed' || current?.status === 'declined') continue;
-          const verification = await runVerification(resource, 5);
-          setOutcome(resource.id, {
-            ...verification,
-            txSignature: current?.txSignature ?? null,
-            updatedAt: nowIso()
-          });
-          if (verification.status === 'remote_verified') verified.add(resource.id);
-        }
-
-        const unfinished = ready.some((resource) => {
-          const status = statusOf(outcome[resource.id]);
-          return status === 'pending_confirmation' || status === 'ambiguous' || status === 'failed';
-        });
-        if (unfinished) {
-          setNotice('Batch paused for reconciliation. Nothing is automatically resubmitted; resume after reviewing the ambiguous, pending or failed resources.');
-          break;
-        }
-      }
-
-      const attempted = selectedResources.filter((resource) => outcome[resource.id] && outcome[resource.id].status !== 'handoff_ready');
-      if (attempted.length > 0) {
-        const generated = await createReceipt({
-          handoff: manifest,
-          accountAddress: account.address,
-          accountName: targetName,
-          appVersion: APP_VERSION,
-          createdAt: nowIso(),
-          results: attempted.map((resource) => ({
-            resourceId: resource.id,
-            service: resource.service,
-            name: resource.name,
-            identifier: resource.identifier,
-            status: outcome[resource.id].status,
-            reason: outcome[resource.id].reason,
-            txSignature: outcome[resource.id].txSignature,
-            submittedAt: outcome[resource.id].updatedAt,
-            confirmedAt: outcome[resource.id].status === 'remote_verified' ? outcome[resource.id].updatedAt : null,
-            verification: outcome[resource.id].verification ?? null
-          }))
-        });
-        setReceipt(generated);
-        saveSession({
-          handoffId: manifest.handoffId,
-          selected: [...selected],
-          states: outcome,
-          accountAddress: account.address,
-          accountName: targetName,
-          receipt: generated,
-          updatedAt: nowIso()
-        });
-        setNotice('Receipt generated. Import it into Qortal Migration Studio for independent read-back verification.');
-      }
-    } catch (publishFailure) {
-      setError((publishFailure as Error).message);
+            updatedAt: new Date().toISOString(),
+          },
+        ]),
+      );
+      setValidated(result);
+      setSelected(restored);
+      setStates(next);
+      setReceipt(remembered?.receipt || null);
+      setFilename(
+        zip
+          ? files[0].name
+          : (
+              files[0] as File & { webkitRelativePath?: string }
+            ).webkitRelativePath?.split("/")[0] || "Selected folder",
+      );
+      setNotice(
+        remembered
+          ? "Previous progress restored. QDN content will be checked again before publishing."
+          : "Package checked successfully. Review the selected items, then publish.",
+      );
+    } catch (err) {
+      setError((err as Error).message);
     } finally {
+      workerRef.current = null;
+      running.current = false;
+      setBusy(false);
+      setProgress(null);
+    }
+  }
+  function select(r: HandoffResource, checked: boolean) {
+    if (busy) return;
+    resetConsent();
+    setSelected((current) =>
+      selectWithDependencies(resources, current, r.id, checked),
+    );
+  }
+  function selectAll(all: boolean) {
+    if (busy) return;
+    resetConsent();
+    setSelected(new Set(all ? resources.map((r) => r.id) : []));
+  }
+
+  async function quoteFee() {
+    if (feeBusy || busy) return;
+    setFeeBusy(true);
+    try {
+      const response = await fetch(
+        "/transactions/unitfee?txType=ARBITRARY&timestamp=" + Date.now(),
+        { cache: "no-store", signal: AbortSignal.timeout(15_000) },
+      );
+      if (!response.ok) throw Error("No fee response");
+      const atomic = Number((await response.text()).trim());
+      if (!Number.isFinite(atomic) || atomic < 0) throw Error("Invalid fee");
+      setFee(atomic / 1e8);
+    } catch {
+      setNotice(
+        "A live fee estimate is unavailable. Hub shows the actual fee before you approve each group.",
+      );
+    } finally {
+      setFeeBusy(false);
+    }
+  }
+  function payloadFor(r: HandoffResource): Record<string, unknown> {
+    const source = validated?.files.get(r.relativePath);
+    if (!source) throw Error("Missing file: " + r.relativePath);
+    const fileName =
+      r.service === "APP" || r.service === "WEBSITE"
+        ? r.identifier + ".zip"
+        : r.relativePath.split("/").pop() || r.identifier;
+    return {
+      name: r.name,
+      service: r.service,
+      identifier: r.identifier,
+      file: new File([source.file], fileName, { type: r.contentType }),
+      filename: fileName,
+      title: displayName(r),
+      description: "Qortal Migration Studio handoff " + manifest?.handoffId,
+      ...(r.service === "APP" || r.service === "WEBSITE"
+        ? { isMultiFileZip: true }
+        : {}),
+    };
+  }
+  async function run(readOnly = false) {
+    if (
+      running.current ||
+      !manifest ||
+      !validated ||
+      !selected.size ||
+      (!readOnly && !approved)
+    )
+      return;
+    running.current = true;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    setReceipt(null);
+    const startedAt = new Date().toISOString();
+    let lastStates = { ...states };
+    let actualAccount: Account | null = null;
+    const expectedAddress = accountRef.current?.address;
+    try {
+      const result = await runPublication({
+        resources,
+        selected: new Set(selected),
+        states,
+        allowUpdates,
+        readOnly,
+        probe: probeResource,
+        verifyAccount: async () => {
+          const { active, names } = await identify();
+          if (expectedAddress && active.address !== expectedAddress)
+            throw Error(
+              "The active account changed. Review the account shown above and approve the selection again.",
+            );
+          const owned = evaluateNameOwnership({
+            targetName,
+            accountAddress: active.address,
+            ownedNames: names,
+          });
+          if (owned.state !== "verified") throw Error(owned.message);
+          actualAccount = active;
+        },
+        submit: (batch) =>
+          requestQortal({
+            action: "PUBLISH_MULTIPLE_QDN_RESOURCES",
+            resources: batch.map(payloadFor),
+          }),
+        save: (next) => {
+          lastStates = next;
+          save(next, null);
+        },
+        progress: setProgress,
+      });
+      lastStates = result.states;
+      setNotice(
+        result.message +
+          " " +
+          result.submitted +
+          " items sent to Hub in this run · " +
+          result.reused +
+          " already present · " +
+          result.remaining +
+          " remaining.",
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      try {
+        if (
+          actualAccount &&
+          selectedResources.some(
+            (r) => lastStates[r.id]?.status !== "handoff_ready",
+          )
+        ) {
+          const generated = await createReceipt({
+            handoff: manifest,
+            accountAddress: (actualAccount as Account).address,
+            accountName: targetName,
+            appVersion: APP_VERSION,
+            createdAt: startedAt,
+            results: selectedResources.map((r) => ({
+              resourceId: r.id,
+              service: r.service,
+              name: r.name,
+              identifier: r.identifier,
+              status: lastStates[r.id]?.status || "handoff_ready",
+              reason: lastStates[r.id]?.reason,
+              txSignature: lastStates[r.id]?.txSignature,
+              submittedAt: lastStates[r.id]?.submittedAt || null,
+              confirmedAt: lastStates[r.id]?.confirmedAt || null,
+              verification: lastStates[r.id]?.verification || null,
+            })),
+          });
+          setReceipt(generated);
+          save(lastStates, generated);
+        }
+      } catch (err) {
+        setError(
+          "Progress was saved, but the receipt could not be generated: " +
+            (err as Error).message,
+        );
+      }
       running.current = false;
       setBusy(false);
       setApproved(false);
+      setProgress(null);
     }
   }
-
-  async function copyReceipt() {
+  async function saveReceipt() {
     if (!receipt) return;
     try {
-      await navigator.clipboard.writeText(receiptFileText(receipt));
-      setNotice('Receipt JSON copied to the clipboard.');
-    } catch {
-      setError('Clipboard access is unavailable; use Save receipt.');
+      await downloadReceipt(receipt);
+      setNotice(
+        "Receipt save requested. Import it into Qortal Migration Studio.",
+      );
+    } catch (err) {
+      setError("Could not save the receipt: " + (err as Error).message);
     }
   }
-
+  const matching = ownership.state === "verified";
   return (
     <main className="publisher-shell">
-      <section className="publisher-header">
-        {onBack && (
-          <button type="button" className="back-button" onClick={onBack}>
-            Back to preview
-          </button>
-        )}
-        <p className="eyebrow">Universal QDN publication</p>
-        <h1>Migration Publisher</h1>
-        <p className="version-line">Version {APP_VERSION}</p>
-        <PublisherUpdate />
-        <div className="publisher-controls">
-          <label>
-            Handoff folder
-            <input
-              type="file"
-              multiple
-              // Chromium folder picker used by Qortal Hub.
-              {...{ webkitdirectory: '', directory: '' }}
-              onChange={(event) => void chooseFolder(event)}
-              disabled={busy}
-            />
-          </label>
-          <label>
-            Publisher package (.zip)
-            <input
-              type="file"
-              accept=".zip,application/zip"
-              onChange={(event) => void chooseFolder(event)}
-              disabled={busy}
-            />
-          </label>
-          <button type="button" disabled={busy || !bridge} onClick={() => void connectAccount()}>
-            <ShieldAlert size={17} />
-            {account ? 'Refresh active account' : 'Connect Qortal account'}
-          </button>
-          <button type="button" disabled={busy || !validated || !account} onClick={() => void checkRemoteState()}>
-            <RefreshCw size={17} />
-            Check remote state
-          </button>
-        </div>
-        <div className={'publisher-state ' + targetGate.phase} role="status" aria-live="polite">
-          <strong>{targetGate.phase === 'package-loaded' ? 'Publisher package loaded' : 'Load the Publisher package (.zip)'}</strong>
-          <span>{targetGate.phase === 'package-loaded' && manifest
-            ? manifest.handoffId + ' · ' + manifest.resources.length + ' resources · target ' + manifest.target.qdnName
-            : targetPhaseMessage(targetGate.phase)}</span>
-        </div>
-        <section className="publisher-name" aria-labelledby="publisher-target-name-label">
-          <label id="publisher-target-name-label" htmlFor="publisher-target-name">Target Qortal name</label>
-          <div className="publisher-name__row">
-            <input
-              id="publisher-target-name"
-              type="text"
-              value={targetName}
-              onChange={(event) => setTargetName(event.target.value)}
-              placeholder="Exact registered Qortal name"
-              autoComplete="off"
-              spellCheck={false}
-              disabled={busy}
-              list={ownedNames.length > 0 ? 'publisher-owned-names' : undefined}
-            />
-            {ownedNames.length > 1 && (
-              <select
-                aria-label="Owned Qortal names"
-                value={ownedNames.some((entry) => entry.name === targetName) ? targetName : ''}
-                onChange={(event) => setTargetName(event.target.value)}
-                disabled={busy}
-              >
-                <option value="">Choose an owned name…</option>
-                {ownedNames.map((entry) => <option key={entry.name} value={entry.name}>{entry.name}</option>)}
-              </select>
+      <div className="mp-container">
+        <header className="mp-header">
+          <div>
+            <div className="mp-brand">
+              <span className="mp-brand-icon">
+                <UploadCloud size={23} />
+              </span>
+              <span>QORTAL MIGRATION STUDIO</span>
+            </div>
+            <h1>Migration Publisher</h1>
+            <p>
+              Bring your prepared website to Qortal. Review once, publish with
+              confidence.
+            </p>
+          </div>
+          <div className="mp-header-meta">
+            <span className="mp-version">Publisher {APP_VERSION}</span>
+            <PublisherUpdate />
+            {onBack && (
+              <button className="mp-button" onClick={onBack} disabled={busy}>
+                Back to preview
+              </button>
             )}
           </div>
-          <datalist id="publisher-owned-names">
-            {ownedNames.map((entry) => <option key={entry.name} value={entry.name} />)}
-          </datalist>
-          <p className="publisher-note">
-            Names are matched exactly (NFKC, no case-folding). A reduced or renamed form is never treated as ownership evidence.
-            {targetGate.phase === 'package-loaded' ? ' A loaded package is bound to ' + (manifest?.target.qdnName ?? '') + '.' : ''}
-          </p>
-        </section>
-        <div className="publisher-summary">
-          <span>{folderName || 'no package loaded'}</span>
-          <span>{manifest ? manifest.resources.length + ' resources' : '—'}</span>
-          <span>{selected.size} selected</span>
-          <span>{account ? account.address.slice(0, 10) + '…' : 'account not connected'}</span>
-          <span>{targetName ? 'target: ' + targetName : 'target name not set'}</span>
-        </div>
-        {!bridge && (
-          <p className="publisher-warning">
-            Qortal request API is not available. Open this Q-App in Qortal Hub. Bridge diagnostics: injected={String(diagnostics.injectedGlobal)},
-            windowProperty={String(diagnostics.windowProperty)}, secureContext={String(diagnostics.secureContext)}, origin={diagnostics.locationOrigin}
-          </p>
-        )}
-        {targetGate.showValidation && targetGate.ownership.state === 'verified' && !targetGate.boundToPackage && (
-          <p className="publisher-ok" role="status">
-            <CheckCircle2 size={17} />
-            Name ownership verified for {targetGate.name}. Qortal Hub still performs the authoritative check before signing.
-          </p>
-        )}
-        {targetGate.warning && <p className="publisher-warning" role="alert">{targetGate.warning}</p>}
-        {error && <p className="publisher-warning">{error}</p>}
-        {notice && <p className="publisher-note">{notice}</p>}
-      </section>
-
-      {validated && manifest && (
-        <>
-          <section className="publisher-list">
-            <div className="publisher-toolbar">
-              <span className="publisher-note">
-                Validated {validated.summary.resources} resources and {validated.summary.bytes} bytes. Every payload hash matches handoff.json.
-              </span>
-              <button type="button" onClick={selectAll}>Select all</button>
-              <button type="button" onClick={clearSelected}>Clear</button>
-              <label className="publisher-toggle">
-                <input type="checkbox" checked={allowUpdates} onChange={(event) => setAllowUpdates(event.target.checked)} />
-                Authorize updates to existing resources ({collisionCount} collision{collisionCount === 1 ? '' : 's'})
-              </label>
-            </div>
-            {manifest.cms && (
-              <p className={manifest.cms.selection === 'content-only' ? 'publisher-note' : 'publisher-ok'} role="status">
-                {manifest.cms.message || (manifest.cms.selection === 'content-only'
-                  ? 'CMS omitted by Content only selection.'
-                  : 'Generic CMS APP/WEBSITE bundle is included and publishable after its dependencies.')}
+        </header>
+        <ol className="mp-steps" aria-label="Publishing steps">
+          <li className={!manifest ? "active" : "complete"}>
+            <span>1</span>Choose package
+          </li>
+          <li className={manifest && !busy ? "active" : ""}>
+            <span>2</span>Review items
+          </li>
+          <li className={busy && manifest ? "active" : ""}>
+            <span>3</span>Publish & verify
+          </li>
+        </ol>
+        <section
+          className={"mp-account " + (matching && manifest ? "is-ready" : "")}
+          aria-label="Publishing account"
+        >
+          <ShieldCheck size={23} />
+          <div>
+            <strong>
+              {accountBusy
+                ? "Checking your Qortal account…"
+                : account
+                  ? manifest
+                    ? matching
+                      ? "Publishing as " + targetName
+                      : "Check the publishing account"
+                    : "Qortal account connected"
+                  : "Connect through Qortal Hub"}
+            </strong>
+            <p>
+              {account
+                ? account.address
+                : bridgeReady
+                  ? "Your active account is detected automatically. Hub may ask for permission."
+                  : "Open this app in Qortal Hub to connect your account and publish."}
+            </p>
+            {manifest && (
+              <p>
+                Package owner: <b>{targetName}</b>
+                {!accountBusy && !matching && account
+                  ? " · " + ownership.message
+                  : ""}
               </p>
             )}
-            {manifest.resources.map((resource) => {
-              const state = states[resource.id];
-              const status = statusOf(state);
-              const presence = remotePresence[resource.id] ?? 'unknown';
-              return (
-                <article key={resource.id} className={'publisher-row' + (presence === 'collision' && !allowUpdates ? ' blocked' : '')}>
-                  <button type="button" className="row-check" onClick={() => toggle(resource)} disabled={busy}>
-                    {selected.has(resource.id) ? <SquareCheckBig size={19} /> : <Square size={19} />}
-                  </button>
-                  <div>
-                    <strong>{resource.kind} · {resource.identifier}</strong>
-                    <span>{resource.service} · {resource.bytes} bytes · {resource.contentType} · depends on {resource.dependsOn.length}</span>
-                    <span className="publisher-hash">{resource.sha256}</span>
-                  </div>
-                  <div className={'publisher-status ' + tone(status)}>
-                    {status === 'remote_verified' && <CheckCircle2 size={18} />}
-                    {status === 'failed' && <XCircle size={18} />}
-                    {status === 'submitted' && <Play size={18} />}
-                    <span>{label(status)}{state?.reason ? ' · ' + state.reason : ''}</span>
-                  </div>
-                  <div className="publisher-presence">
-                    <span className={'presence presence-' + presence}>{presence}</span>
-                  </div>
-                </article>
-              );
-            })}
-          </section>
-
-          <section className="publisher-footer">
-            <div className="publisher-summary">
-              <span>Estimate {manifest.estimate.estimatedFee} {manifest.estimate.currency}</span>
-              <span>{Math.ceil(selected.size / MAX_BATCH_RESOURCES)} batch(es)</span>
-              <span>{manifest.estimate.label}</span>
-              {feeQuote && (
-                <span>Live quote: {feeQuote.qort.toFixed(8)} QORT/resource · {selected.size} selected ≈ {(feeQuote.qort * selected.size).toFixed(8)} QORT · {new Date(feeQuote.at).toLocaleTimeString()}</span>
-              )}
-            </div>
-            <button type="button" className="ghost" disabled={busy} onClick={() => void quoteNetworkFee()}>
-              Get live network fee quote
+            {accountError && <p className="mp-error-text">{accountError}</p>}
+          </div>
+          <span
+            className={
+              "mp-badge " + (matching && manifest ? "good" : "neutral")
+            }
+          >
+            {accountBusy
+              ? "Connecting"
+              : matching && manifest
+                ? "Owner verified"
+                : account
+                  ? "Connected"
+                  : "Not connected"}
+          </span>
+          {!busy && (!account || accountError) && (
+            <button
+              className="mp-button"
+              disabled={accountBusy}
+              onClick={() => {
+                setBridgeReady(Boolean(getQortalRequest()));
+                void identify().catch(() => {});
+              }}
+            >
+              <RefreshCw size={16} />
+              Retry connection
             </button>
-            <label className="publisher-toggle">
-              <input type="checkbox" checked={approved} onChange={(event) => setApproved(event.target.checked)} />
-              I explicitly approve publishing these {selected.size} resources and the Qortal Hub network fee.
-            </label>
+          )}
+        </section>
+        <section className="mp-card mp-import" aria-labelledby="package-title">
+          <div className="mp-section-heading">
+            <div>
+              <span className="mp-kicker">YOUR PUBLISHER PACKAGE</span>
+              <h2 id="package-title">
+                {manifest
+                  ? "Package ready for review"
+                  : "Choose your migration ZIP"}
+              </h2>
+              <p>
+                Use the Publisher package exported from Qortal Migration Studio.
+              </p>
+            </div>
+            {manifest && (
+              <span className="mp-badge good">
+                <FileCheck2 size={15} />
+                Validated
+              </span>
+            )}
+          </div>
+          <div
+            className={"mp-dropzone " + (busy ? "is-disabled" : "")}
+            onDragOver={(event) => {
+              event.preventDefault();
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              if (!busy) void loadFiles(Array.from(event.dataTransfer.files));
+            }}
+          >
+            <span className="mp-upload-icon">
+              {manifest ? <FileArchive size={30} /> : <UploadCloud size={32} />}
+            </span>
+            <div>
+              <strong>{filename || "Drop your Publisher ZIP here"}</strong>
+              <p>
+                {manifest
+                  ? manifest.resources.length +
+                    " items · " +
+                    formatSize(validated!.summary.bytes) +
+                    " · " +
+                    (manifest.cms?.selection === "content-only"
+                      ? "Content only"
+                      : "Prepared for publication")
+                  : "Or choose a file below. ZIP and folder imports are limited to 512 MB."}
+              </p>
+            </div>
             <button
               type="button"
-              className="publish-button"
-              disabled={busy || blockedByPrereq || !approved || selected.size === 0 || (collisionCount > 0 && !allowUpdates)}
-              onClick={() => void publishSelected()}
+              className="mp-button primary"
+              disabled={busy}
+              onClick={() => inputRef.current?.click()}
             >
-              <Send size={17} />
-              {busy ? 'Working…' : 'Approve and publish selected set'}
-            </button>
-            <p className="publisher-note">
-              Signing and fee approval stay inside Qortal Hub. This Publisher never asks for a seed, private key or wallet password.
-              A READY status is not proof; each resource becomes verified only after an exact base64 read-back hash matches.
-            </p>
-          </section>
-        </>
-      )}
-
-      {receipt && (
-        <section className="publisher-receipt">
-          <FileJson size={19} />
-          <div>
-            <strong>Receipt {receipt.receiptId}</strong>
-            <span>{receipt.results.length} resource outcomes · {Object.entries(receipt.counts).map(([key, value]) => key + ': ' + value).join(' · ')}</span>
-            <span>Import this receipt into Qortal Migration Studio. It is Publisher-reported evidence, not proof of QDN read-back.</span>
-          </div>
-          <div className="publisher-receipt-actions">
-            <button type="button" onClick={() => void downloadReceipt(receipt)}>
               <FolderOpen size={17} />
+              {manifest ? "Change package" : "Choose ZIP"}
+            </button>
+            <input
+              ref={inputRef}
+              className="mp-file-input"
+              aria-label="Publisher ZIP package"
+              type="file"
+              accept=".zip,application/zip"
+              disabled={busy}
+              onChange={(event) => {
+                void loadFiles(Array.from(event.target.files || []));
+                event.target.value = "";
+              }}
+            />
+          </div>
+          <details className="mp-alternative">
+            <summary>Use an exported folder instead</summary>
+            <label>
+              Choose the complete folder containing handoff.json
+              <input
+                type="file"
+                aria-label="Publisher handoff folder"
+                multiple
+                {...{ webkitdirectory: "", directory: "" }}
+                disabled={busy}
+                onChange={(event) => {
+                  void loadFiles(Array.from(event.target.files || []));
+                  event.target.value = "";
+                }}
+              />
+            </label>
+          </details>
+        </section>
+        {storageWarning && (
+          <div className="mp-alert danger" role="alert">
+            <p>{storageWarning}</p>
+          </div>
+        )}
+        {error && (
+          <div className="mp-alert danger" role="alert">
+            <strong>Action needed</strong>
+            <p>{error}</p>
+          </div>
+        )}
+        {notice && (
+          <div className="mp-alert info" role="status">
+            <p>{notice}</p>
+          </div>
+        )}
+        {progress && (
+          <section className="mp-progress" role="status" aria-live="polite">
+            <LoaderCircle className="mp-spin" size={22} />
+            <div>
+              <strong>{progress.phase}</strong>
+              <p>{progress.detail}</p>
+              {progress.total > 0 && (
+                <>
+                  <progress max={progress.total} value={progress.done} />
+                  <span>
+                    {progress.done} / {progress.total} checked or verified for
+                    this stage
+                  </span>
+                </>
+              )}
+            </div>
+          </section>
+        )}
+        {manifest && (
+          <div className="mp-workspace">
+            <section
+              className="mp-card mp-resources"
+              aria-labelledby="resources-title"
+            >
+              <div className="mp-section-heading">
+                <div>
+                  <span className="mp-kicker">PACKAGE CONTENTS</span>
+                  <h2 id="resources-title">
+                    Review your items{" "}
+                    <span className="mp-count">{resources.length}</span>
+                  </h2>
+                  <p>
+                    Select an item to include its required resources
+                    automatically.
+                  </p>
+                </div>
+              </div>
+              <div className="mp-filters">
+                <label className="mp-search">
+                  <Search size={17} />
+                  <span className="mp-sr-only">Search items</span>
+                  <input
+                    placeholder="Search titles or files…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                  />
+                </label>
+                <label>
+                  <span className="mp-sr-only">Filter by type</span>
+                  <select
+                    value={kind}
+                    onChange={(e) => setKind(e.target.value)}
+                  >
+                    <option value="all">All types</option>
+                    <option value="media">Media</option>
+                    <option value="content">Content</option>
+                    <option value="index">Indexes</option>
+                    <option value="manifest">Manifest</option>
+                    <option value="site">Website</option>
+                  </select>
+                </label>
+                <label>
+                  <span className="mp-sr-only">Filter by status</span>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                  >
+                    <option value="all">All statuses</option>
+                    <option value="handoff_ready">Ready</option>
+                    <option value="remote_verified">Verified</option>
+                    <option value="pending_confirmation">
+                      Awaiting confirmation
+                    </option>
+                    <option value="attention">Needs attention</option>
+                  </select>
+                </label>
+              </div>
+              <div className="mp-list-toolbar">
+                <span>
+                  <b>{selected.size}</b> selected · {verifiedCount} verified
+                </span>
+                <div>
+                  <button
+                    className="mp-text-button"
+                    disabled={busy}
+                    onClick={() => selectAll(true)}
+                  >
+                    Select all
+                  </button>
+                  <button
+                    className="mp-text-button"
+                    disabled={busy}
+                    onClick={() => selectAll(false)}
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+              <div
+                ref={listRef}
+                className="mp-scroll-list"
+                tabIndex={0}
+                aria-label="Package items, scroll to review"
+              >
+                {visible.length === 0 && (
+                  <p className="mp-empty">No items match your filters.</p>
+                )}
+                {visible.map((r) => {
+                  const state = states[r.id];
+                  return (
+                    <article key={r.id} className="mp-resource-row">
+                      <div className="mp-resource-main">
+                        <input
+                          type="checkbox"
+                          aria-label={"Select " + displayName(r)}
+                          checked={selected.has(r.id)}
+                          disabled={busy}
+                          onChange={(e) => select(r, e.target.checked)}
+                        />
+                        <span className={"mp-kind-icon " + r.kind}>
+                          <FileCheck2 size={18} />
+                        </span>
+                        <div className="mp-resource-title">
+                          <strong title={displayName(r)}>
+                            {displayName(r)}
+                          </strong>
+                          <span>
+                            {r.kind === "site"
+                              ? "Website"
+                              : r.kind === "index"
+                                ? "Index"
+                                : r.kind === "media"
+                                  ? "Media"
+                                  : r.kind === "manifest"
+                                    ? "Manifest"
+                                    : "Content"}{" "}
+                            · {formatSize(r.bytes)}
+                          </span>
+                        </div>
+                        <span
+                          className={
+                            "mp-badge " +
+                            (state?.status === "remote_verified"
+                              ? "good"
+                              : ["blocked", "failed", "declined"].includes(
+                                    state?.status,
+                                  )
+                                ? "bad"
+                                : [
+                                      "submitted",
+                                      "pending_confirmation",
+                                      "ambiguous",
+                                    ].includes(state?.status)
+                                  ? "warn"
+                                  : "neutral")
+                          }
+                        >
+                          {statusLabel(state)}
+                        </span>
+                      </div>
+                      <details className="mp-item-details">
+                        <summary>
+                          Details
+                          {state &&
+                          [
+                            "blocked",
+                            "pending_confirmation",
+                            "ambiguous",
+                            "failed",
+                            "declined",
+                          ].includes(state.status)
+                            ? " · " + state.reason
+                            : ""}
+                        </summary>
+                        <p>{state?.reason}</p>
+                        <dl>
+                          <dt>QDN resource</dt>
+                          <dd>
+                            {r.service} / {r.name} / {r.identifier}
+                          </dd>
+                          <dt>File</dt>
+                          <dd>{r.relativePath}</dd>
+                          <dt>Required items</dt>
+                          <dd>{r.dependsOn.length}</dd>
+                          <dt>SHA-256</dt>
+                          <dd>
+                            <code>{r.sha256}</code>
+                          </dd>
+                          {state?.txSignature && (
+                            <>
+                              <dt>Transaction</dt>
+                              <dd>
+                                <code>{state.txSignature}</code>
+                              </dd>
+                            </>
+                          )}
+                        </dl>
+                      </details>
+                    </article>
+                  );
+                })}
+              </div>
+              <div className="mp-pagination">
+                <span>
+                  {filtered.length ? currentPage * PAGE_SIZE + 1 : 0}–
+                  {Math.min((currentPage + 1) * PAGE_SIZE, filtered.length)} of{" "}
+                  {filtered.length} items
+                </span>
+                <div>
+                  <button
+                    className="mp-icon-button"
+                    aria-label="Previous items"
+                    disabled={currentPage === 0}
+                    onClick={() => setPage(currentPage - 1)}
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <span>
+                    {currentPage + 1} / {pages}
+                  </span>
+                  <button
+                    className="mp-icon-button"
+                    aria-label="Next items"
+                    disabled={currentPage >= pages - 1}
+                    onClick={() => setPage(currentPage + 1)}
+                  >
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              </div>
+            </section>
+            <aside
+              className="mp-card mp-publish"
+              aria-labelledby="publish-title"
+            >
+              <span className="mp-kicker">READY WHEN YOU ARE</span>
+              <h2 id="publish-title">Publish to Qortal</h2>
+              <p>Hub handles your wallet, signing and network fee approval.</p>
+              <dl className="mp-totals">
+                <dt>Selected items</dt>
+                <dd>{selected.size}</dd>
+                <dt>Total size</dt>
+                <dd>{formatSize(selectedBytes)}</dd>
+                <dt>Approval groups</dt>
+                <dd>{plannedGroups || "None needed"}</dd>
+                <dt>Fee estimate</dt>
+                <dd>
+                  {fee === null
+                    ? "Shown by Hub"
+                    : (
+                        fee *
+                        selectedResources.filter(
+                          (r) => states[r.id]?.status !== "remote_verified",
+                        ).length
+                      ).toFixed(8) + " QORT"}
+                </dd>
+              </dl>
+              <button
+                className="mp-text-button"
+                disabled={busy || feeBusy}
+                onClick={() => void quoteFee()}
+              >
+                {feeBusy ? "Getting estimate…" : "Refresh fee estimate"}
+              </button>
+              <p className="mp-caption">
+                Up to {MAX_BATCH_RESOURCES} items per group. Required items are
+                verified before the next group. Groups may decrease after QDN
+                checks. If Hub offers session permission, you can use it to
+                reduce repeated prompts.
+              </p>
+              <label className="mp-consent">
+                <input
+                  type="checkbox"
+                  checked={allowUpdates}
+                  disabled={busy}
+                  onChange={(e) => {
+                    resetConsent();
+                    setAllowUpdates(e.target.checked);
+                  }}
+                />
+                <span>
+                  <strong>Replace existing content</strong>
+                  <small>
+                    Allow updates when QDN content differs from this package.
+                  </small>
+                </span>
+              </label>
+              <label className="mp-consent">
+                <input
+                  type="checkbox"
+                  checked={approved}
+                  disabled={busy || !matching || !selected.size}
+                  onChange={(e) => setApproved(e.target.checked)}
+                />
+                <span>
+                  <strong>I approve this selection</strong>
+                  <small>
+                    Publish these {selected.size} items and approve the network
+                    fees in Hub.
+                  </small>
+                </span>
+              </label>
+              <button
+                className="mp-button primary mp-publish-button"
+                disabled={
+                  busy ||
+                  !bridgeReady ||
+                  !matching ||
+                  !approved ||
+                  !selected.size ||
+                  pendingCount > 0
+                }
+                onClick={() => void run()}
+              >
+                {busy ? (
+                  <LoaderCircle className="mp-spin" size={18} />
+                ) : (
+                  <Send size={18} />
+                )}{" "}
+                {busy ? "Working…" : "Approve & publish"}
+                {!busy && <ArrowRight size={17} />}
+              </button>
+              <button
+                className="mp-button mp-recheck"
+                disabled={busy || !bridgeReady || !selected.size || accountBusy}
+                onClick={() => void run(true)}
+              >
+                <RefreshCw size={16} />
+                {pendingCount ? "Recheck pending" : "Check QDN content"}
+              </button>
+              <p className="mp-caption">
+                Recheck only reads QDN. It never uploads files or asks you to
+                pay again.
+              </p>
+            </aside>
+          </div>
+        )}
+        {receipt && (
+          <section className="mp-card mp-result">
+            <span className="mp-result-icon">
+              <CheckCircle2 size={25} />
+            </span>
+            <div>
+              <span className="mp-kicker">PUBLICATION RECEIPT</span>
+              <h2>
+                {verifiedCount === selected.size
+                  ? "All selected items verified"
+                  : "Your progress is recorded"}
+              </h2>
+              <p>
+                {verifiedCount} verified ·{" "}
+                {Math.max(0, selected.size - verifiedCount)} remaining. Save
+                this receipt and import it into Qortal Migration Studio.
+              </p>
+            </div>
+            <button
+              className="mp-button primary"
+              disabled={busy}
+              onClick={() => void saveReceipt()}
+            >
+              <FileCheck2 size={17} />
               Save receipt
             </button>
-            <button type="button" onClick={() => void copyReceipt()}>Copy JSON</button>
-          </div>
+          </section>
+        )}
+        <section className="mp-bottom">
+          <details className="mp-card mp-help">
+            <summary>
+              <HelpCircle size={18} />
+              How publishing works
+            </summary>
+            <ol>
+              <li>
+                Export a Publisher ZIP from Qortal Migration Studio and load it
+                here.
+              </li>
+              <li>
+                Your active Qortal account must own the exact name in the
+                package.
+              </li>
+              <li>
+                Review your selection, approve it and confirm the grouped
+                requests in Hub.
+              </li>
+              <li>
+                Keep this page open during upload and verification. A pending
+                result needs a recheck, not another upload.
+              </li>
+              <li>
+                Save the receipt, import it into Migration Studio and run its
+                independent verification.
+              </li>
+            </ol>
+            <details>
+              <summary>Technical connection details</summary>
+              <pre>{JSON.stringify(bridgeDiagnostics(), null, 2)}</pre>
+            </details>
+          </details>
+          {sessions.length > 0 && (
+            <details className="mp-card mp-help">
+              <summary>
+                <RefreshCw size={18} />
+                Recent sessions
+              </summary>
+              <p>
+                Load the same ZIP to restore progress. Nothing is uploaded
+                automatically.
+              </p>
+              <ul>
+                {sessions.map((s) => (
+                  <li key={s.handoffId}>
+                    <strong>{s.accountName || s.handoffId}</strong>
+                    <span>
+                      {
+                        Object.values(s.states).filter(
+                          (r) => r.status === "remote_verified",
+                        ).length
+                      }{" "}
+                      / {Object.keys(s.states).length} verified ·{" "}
+                      {new Date(s.updatedAt).toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
         </section>
-      )}
-
-      {sessions.length > 0 && (
-        <section className="publisher-history">
-          <h2>Previous sessions</h2>
-          <p className="publisher-note">Restart recovery is local to this Hub profile. Select the same handoff folder to resume. Nothing is resubmitted automatically.</p>
-          <ul>
-            {sessions.slice(0, 10).map((session) => (
-              <li key={session.handoffId}><code>{session.handoffId}</code> · {session.status} · {session.updatedAt}</li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <section className="publisher-help">
-        <h2>Variant A workflow</h2>
-        <ol>
-          <li>Qortal Migration Studio prepares one portable Publisher package (.zip) with exact bytes and SHA-256 hashes.</li>
-          <li>Open Qortal Hub → Apps → Migration Publisher and select that .zip (or the whole handoff folder).</li>
-          <li>Connect the active account and confirm it owns the target Qortal name.</li>
-          <li>Review resources, dependencies and existing-resource collisions; explicitly approve the set.</li>
-          <li>Hub approves and signs each batch. This Publisher publishes at most {MAX_BATCH_RESOURCES} resources per request and stops on ambiguous or pending results.</li>
-          <li>If the package includes a Generic CMS site, the Publisher publishes it as a multi-file APP or WEBSITE bundle and verifies every member after publishing.</li>
-          <li>Save the receipt, import it into Migration Studio, then run independent QDN read-back verification there.</li>
-        </ol>
-      </section>
+        <footer className="mp-footer">
+          <ShieldCheck size={15} />
+          Your keys stay in Qortal Hub. Migration Publisher never asks for your
+          wallet password or seed.
+        </footer>
+      </div>
     </main>
   );
 }

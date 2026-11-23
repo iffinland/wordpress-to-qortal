@@ -1,7 +1,7 @@
 # Quick Start
 
 
-Desktop **0.8.0-beta.2** is included in bundle **v0.8.0-beta.4**. Publisher **0.8.0-beta.1** is unchanged. Generic CMS **0.9.0-beta.2** is a separate [CMS-only release](https://github.com/iffinland/wordpress-to-qortal/releases/tag/cms-v0.9.0-beta.2); the Desktop DEB is unchanged.
+Desktop **0.8.0-beta.2** is included in bundle **v0.8.0-beta.4**. Publisher **0.8.0-beta.2** is a separate [Publisher-only release](https://github.com/iffinland/wordpress-to-qortal/releases/tag/publisher-v0.8.0-beta.2). Generic CMS **0.9.0-beta.2** is a separate [CMS-only release](https://github.com/iffinland/wordpress-to-qortal/releases/tag/cms-v0.9.0-beta.2); the Desktop DEB is unchanged.
 
 ## Beginner path — Qortal Migration Studio desktop app
 
@@ -27,11 +27,7 @@ becomes a live QDN application only after an owner publishes it with wallet
 approval. The Generic CMS can be published as an APP or a WEBSITE where the
 verified package and current application flow support that service.
 
-In the Migration Publisher, **Target Qortal name** is prefilled from the loaded
-handoff and remains editable. If the connected account owns exactly one name it
-is preselected; if it owns several, pick the exact name. A loaded package stays
-bound to the name recorded in its handoff, so do not retarget it to a different
-name.
+Migration Publisher **0.8.0-beta.2** detects the active account automatically and checks the exact package-bound name. Review the searchable scrolling resource panel, approve the selection, then confirm the grouped Hub requests. Use **Recheck pending** for unresolved results without re-uploading. See the [Publisher guide](docs/migration-studio/MIGRATION-PUBLISHER-USER-MANUAL.md).
 
 The Generic CMS can only read the catalog and authorize admin when it knows the
 exact Qortal name it runs under. Open it as `qortal://WEBSITE/<name>/` or
