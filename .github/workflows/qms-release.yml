@@ -41,6 +41,8 @@ jobs:
           npm run version:check
           npm run docs:verify
           node scripts/release/delivery-gate.mjs --stage=prebuild
+      - name: Build embedded CMS required by engine tests
+        run: npm --prefix templates/generic-cms run build
       - name: Run focused source and desktop checks
         run: |
           node --test test/engine/*.test.js test/source/*.test.js test/media/*.test.js test/phase3/*.test.js test/phase4/*.test.js test/phase5/*.test.js test/phase7/*.test.js test/phase8/*.test.js test/phase9/*.test.js test/docs/*.test.js test/guided/*.test.js

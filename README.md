@@ -40,7 +40,7 @@ Read the field-by-field operational manuals: [Qortal Migration Studio](docs/migr
   Download it separately only when you want to inspect or run the neutral site
   template yourself.
 
-The beta.1 packages are **unsigned**; the desktop package is amd64-only. See
+The beta packages are **unsigned**; the desktop package is amd64-only. See
 [Beta status](#beta-status) and
 [docs/migration-studio/INSTALL-LINUX.md](docs/migration-studio/INSTALL-LINUX.md).
 
@@ -57,11 +57,7 @@ migrate, or by the Qortal project.
 
 ## Beta status
 
-Version **0.8.0 beta.1** is the latest published prerelease. It retains the
-cumulative same-site catalog and continuation safeguards and uses the three
-beta.1 component packages. See
-[site continuation and cumulative catalogs](docs/migration-studio/CUMULATIVE-CATALOG.md)
-and the [validation evidence](docs/migration-studio/evidence/rc3-catalog-validation.md).
+Desktop **0.8.0-beta.2** is the current desktop beta in bundle **v0.8.0-beta.4**. It adds guided migration, durable preparation, safe continuation, previews and project backup/restore while retaining cumulative same-site catalog safeguards. Publisher is **0.8.0-beta.1** and Generic CMS is **0.9.0-beta.1**. See the [desktop guide](docs/migration-studio/DESKTOP-BETA.2-TESTING.md) and [release notes](docs/migration-studio/RELEASE-0.8.0-BETA.4.md).
 
 The earlier rc.2 added bounded source
 discovery for very large WordPress sites: the wizard defaults to a Quick scan
