@@ -17,9 +17,7 @@ describe('stale project lock recovery', () => {
     api.projects.open = vi.fn(async (_projectId: string, recoverStaleLock = false) => {
       if (!recoverStaleLock) {
         closed += 1;
-        const error = new Error('Project lock is stale (owner-process-gone). Re-run with explicit stale-lock recovery.') as Error & { code: string };
-        error.code = 'PROJECT_LOCK_STALE';
-        throw error;
+        throw { code: 'PROJECT_LOCK_STALE', message: 'Project lock is stale (owner-process-gone). Re-run with explicit stale-lock recovery.' };
       }
       return { project: project(), snapshot: {} };
     });

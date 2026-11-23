@@ -11,7 +11,7 @@ This public beta ships **Qortal Migration Studio Desktop 0.8.0-beta.2**, after o
 - Preview article text and optionally load a small number of pictures. Choose a small sample, date range or archive, posts and/or pages, and download limits.
 - Import the Publisher confirmation file and let QMS independently verify exact QDN bytes. A confirmed group automatically leads to the next preparation; Qortal Hub still asks you to approve each publication and fee.
 - Save and restore a project backup while keeping the same site identity, media and history. Existing projects remain available, and Advanced tools keeps the detailed controls.
-- Repair planning refresh, approved plan IDs, media Pause/Cancel, credential timeouts, preferred-node preservation and QDN response timeouts. Stream ZIP exports and update Electron/build tooling.
+- Repair planning refresh, approved plan IDs, media Pause/Cancel, credential timeouts, preferred-node preservation and QDN response timeouts. Preserve typed errors across the Electron boundary so interrupted projects show their explicit recovery controls. Stream ZIP exports and update Electron/build tooling.
 - Broader amd64 DEB compatibility, including t64 dependency names and an explicit ALSA dependency to avoid incompatible substitute packages.
 
 ## Installation and compatibility
