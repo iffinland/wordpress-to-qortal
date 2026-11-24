@@ -1,3 +1,4 @@
+import { publishedFileMatches, verifyPublishedFile } from './fileVerification.js';
 /**
  * Owner-guarded publication. Every function revalidates the active account
  * against the on-chain name owner immediately before writing. A submitted
@@ -237,11 +238,34 @@ async function verifyReady({ service, name, identifier, timeoutMs }) {
 }
 
 async function verifyEntry(entry, name, timeoutMs) {
+  if (entry.item.file && entry.item.verifyFileHash) return verifyPublishedFile({
+    service: entry.service, name, identifier: entry.item.identifier, size: entry.size, sha256: entry.sha256,
+    timeoutMs: Math.max(timeoutMs, 120000, Math.ceil(entry.size / (1024 * 1024)) * 2000)
+  });
   if (entry.item.file) return verifyReady({ service: entry.service, name, identifier: entry.item.identifier, timeoutMs: Math.max(timeoutMs, 120000) });
   return verifyPublishedBytes({ service: entry.service, name, identifier: entry.item.identifier, expectedBytes: entry.bytes, timeoutMs });
 }
 
 export async function publishBatch({ identity, name, resources, storage, verifyTimeoutMs = 60000, onProgress = undefined }) {
+  // A featured image and video poster can be the same resource. Include it once,
+  // but never silently choose between different bytes at identical coordinates.
+  const distinct = new Map();
+  try {
+    for (const item of resources) {
+      const key = resourceKey(item.service || 'DOCUMENT', name, item.identifier);
+      const previous = distinct.get(key);
+      if (previous) {
+        const digest = async (entry) => entry.file ? String(entry.sha256 || '')
+          : sha256Hex(entry.bytes ? mediaBytes(entry.bytes) : serialiseJsonDocument(entry.document));
+        if (await digest(previous) !== await digest(item)) {
+          return { ok: false, state: 'failed', results: [], message: 'Different payloads target the same QDN resource: ' + item.identifier + '. Nothing was sent.' };
+        }
+      } else distinct.set(key, item);
+    }
+  } catch (error) {
+    return { ok: false, state: 'failed', results: [], message: 'The publication could not be prepared. Nothing was sent. ' + (error.message || error) };
+  }
+  resources = [...distinct.values()];
   const keys = resources.map((item) => resourceKey(item.service || 'DOCUMENT', name, item.identifier));
   const held = [];
   for (const key of keys) {
@@ -270,7 +294,7 @@ export async function publishBatch({ identity, name, resources, storage, verifyT
       results[index].sha256 = sha256;
       if (item.reuseIfReady) {
         const status = await getQdnResourceStatus(service, name, item.identifier);
-        if (status && status.status === 'READY') {
+        if (status && status.status === 'READY' && (!item.file || !item.verifyFileHash || await publishedFileMatches({ service, name, identifier: item.identifier, size: entry.size, sha256, timeoutMs: Math.max(120000, Math.ceil(entry.size / (1024 * 1024)) * 2000) }))) {
           Object.assign(results[index], { ok: true, state: 'reused', message: 'Reused an existing QDN resource with identical bytes.' });
           continue;
         }

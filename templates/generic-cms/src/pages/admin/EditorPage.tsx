@@ -1,3 +1,5 @@
+import { createAttachmentStore } from '../../lib/attachmentStore.js';
+import { preparePostAttachments } from '../../lib/attachmentPublication.js';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CmsContentItem, CmsDataset, Gallery, LoadedContent, SectionsDocument, ViewerIdentity } from '../../types';
 import { RichTextEditor } from './RichTextEditor';
@@ -29,9 +31,8 @@ import { deleteNativePost, loadNativeIndex, loadOverlay, publishNativePostDraft,
 import { SectionsPicker } from './editor/SectionsPicker';
 import { assignmentFor, sameAssignment } from '../../lib/sections.js';
 import { prepareMediaResource, quotePublication } from '../../lib/publish.js';
-import { attachmentsInHtml, isPublicGatewayUrl, validateAttachment, formatBytes } from '../../lib/attachments.js';
+import { attachmentsInHtml, isPublicGatewayUrl, formatBytes } from '../../lib/attachments.js';
 import { getQdnResourceStatus, getTrustedNodeUrl } from '../../lib/qortal.js';
-import type { AttachmentStore } from './editor/AttachmentTools';
 import { slugAvailable } from '../../lib/nativeCatalog.js';
 import {
   finalizeSlug,
@@ -139,7 +140,8 @@ export function EditorPage(props: {
   const [leavePrompt, setLeavePrompt] = useState(false);
   const [assignment, setAssignment] = useState<{ slugs: string[]; hideFromHome: boolean }>({ slugs: [], hideFromHome: false });
   const initialAssignmentRef = useRef<{ slugs: string[]; hideFromHome: boolean }>({ slugs: [], hideFromHome: false });
-  const attachmentStoreRef = useRef<AttachmentStore>(new Map());
+  const attachmentStore = useMemo(() => createAttachmentStore(scope?.key || ''), [scope?.key]);
+  const [attachmentPublication, setAttachmentPublication] = useState<any>(null);
   const [progress, setProgress] = useState<Array<{ stage: string; identifier: string; state: string }>>([]);
   const [crossSelections, setCrossSelections] = useState<CrossPublishSelections>(() => emptyCrossPublishSelections());
   const [quitterText, setQuitterText] = useState('');
@@ -152,6 +154,8 @@ export function EditorPage(props: {
   const [deleteTarget, setDeleteTarget] = useState<CmsContentItem | null>(null);
   const [deletePhase, setDeletePhase] = useState<DeletePhase>('confirm');
   const [deleteMessage, setDeleteMessage] = useState('');
+  const draftContextRef = useRef({ id: '', scope: '' });
+  draftContextRef.current = { id: draft?.id || '', scope: scope?.key || '' };
   const savedRef = useRef<string>('');
   const openedInitialRef = useRef(false);
 
@@ -160,15 +164,16 @@ export function EditorPage(props: {
   const sectionsChanged = Boolean(draft && draft.type !== 'page' && !sameAssignment(assignment, initialAssignmentRef.current));
   const attachmentPlan = useMemo(() => {
     if (!draft || !draft.html) return [] as ReturnType<typeof attachmentsInHtml>;
-    return attachmentsInHtml(draft.html).filter((meta: any) => attachmentStoreRef.current.has(meta.identifier));
-  }, [draft && draft.html]);
-  const attachmentResourceCount = attachmentPlan.length + attachmentPlan.filter((meta: any) => {
-    const capture = attachmentStoreRef.current.get(meta.identifier);
-    return Boolean(capture && capture.poster && capture.posterIdentifier !== undefined && meta.poster);
+    return attachmentsInHtml(draft.html).filter((meta: any) => attachmentStore.has(meta.identifier));
+  }, [draft && draft.html, attachmentStore]);
+  const attachmentResourceCount = attachmentPlan.filter((meta: any) => attachmentStore.get(meta.identifier)?.blob).length + attachmentPlan.filter((meta: any) => {
+    const capture = attachmentStore.get(meta.identifier);
+    return Boolean(capture && capture.poster && capture.posterIdentifier === meta.poster && meta.poster);
   }).length;
   const qtubeVideos = useMemo(() => {
     if (!draft || !draft.html) return [] as ReturnType<typeof attachmentsInHtml>;
-    return attachmentsInHtml(draft.html).filter(isQTubeEligibleVideo);
+    const videos = attachmentsInHtml(draft.html).filter(isQTubeEligibleVideo);
+    return [...new Map(videos.map((video: any) => [video.identifier, video])).values()];
   }, [draft && draft.html]);
   const qtubeVideo = qtubeVideos[0] || null;
   const effectiveSelections = {
@@ -280,6 +285,7 @@ export function EditorPage(props: {
   const sectionPages = useMemo(() => (props.dataset ? props.dataset.pages.filter((page) => page.native && page.status === 'published') : []), [props.dataset]);
 
   const openDraftState = (next: any) => {
+    setAttachmentPublication(null);
     const initial = assignmentFor(props.sections || null, postIdOf(next));
     initialAssignmentRef.current = initial;
     setAssignment(initial);
@@ -604,9 +610,9 @@ export function EditorPage(props: {
    * Anything that would make a destination invalid aborts here, so the owner
    * never signs a batch that cannot produce a compatible resource.
    */
-  const prepareCrossPublishPlan = async (finalSlug: string, selected: CrossPublishSelections) => {
+  const prepareCrossPublishPlan = async (finalSlug: string, selected: CrossPublishSelections, timestamp: number) => {
+    await attachmentStore.ready;
     const html = sanitizeHtml(draft.html);
-    const timestamp = Number(draft.publishTimestamp) || Date.now();
     const videos: any[] = [];
     if (selected.qtube) {
       if (!qtubeVideos.length) {
@@ -614,15 +620,7 @@ export function EditorPage(props: {
       }
       for (const candidate of qtubeVideos) {
         if (!candidate) continue;
-        const capture = attachmentStoreRef.current.get(candidate.identifier);
-        let ready = Boolean(capture);
-        if (!ready) {
-          const status: any = await getQdnResourceStatus('VIDEO', props.name, candidate.identifier);
-          ready = Boolean(status && status.status === 'READY');
-        }
-        if (!ready) {
-          throw new Error('The video attachment "' + candidate.filename + '" is no longer available on this device and is not READY on QDN. Re-attach it or clear the Q-Tube option.');
-        }
+        const capture = attachmentStore.get(candidate.identifier);
         videos.push({
           service: 'VIDEO',
           name: props.name,
@@ -670,7 +668,14 @@ export function EditorPage(props: {
 
   const requestPublish = async () => {
     if (!scope) { setState('failed'); setMessage('Verify the owner account before publishing.'); return; }
+    if (draft.featuredImagePending && !featuredBytes) {
+      setState('failed');
+      setMessage('The selected featured image is not available in this restored draft. Choose the image again, use the automatic image, or choose Publish without a featured image. Nothing was published.');
+      return;
+    }
     if (!draft.title.trim()) { setState('failed'); setMessage('A title is required.'); return; }
+    const requestContext = { ...draftContextRef.current };
+    const stillCurrent = () => draftContextRef.current.id === requestContext.id && draftContextRef.current.scope === requestContext.scope;
     const finalSlug = finalizeSlug(draft.slug || slugify(draft.title));
     const truncated = prematureAutoSlugProblem({
       title: draft.title,
@@ -696,6 +701,7 @@ export function EditorPage(props: {
       return;
     }
 
+    const publicationTimestamp = Number(draft.publishTimestamp) || Date.now();
     const selected: CrossPublishSelections = {
       qtube: qtubeVideos.length > 0 && crossSelections.qtube,
       subwire: crossSelections.subwire,
@@ -707,7 +713,7 @@ export function EditorPage(props: {
       setState('publishing');
       setMessage('Preparing the optional Q-Tube, Subwire and Quitter resources...');
       try {
-        plan = await prepareCrossPublishPlan(finalSlug, selected) as CrossPublishPlanView;
+        plan = await prepareCrossPublishPlan(finalSlug, selected, publicationTimestamp) as CrossPublishPlanView;
         const quote = await quotePublication(basePublicationResources + plan.resources.length);
         exactFee = quote.label;
         const warnings = [...((plan as any).warnings || [])];
@@ -733,10 +739,34 @@ export function EditorPage(props: {
       setCrossVideoMoves([]);
       setPlanFee('');
     }
+    let attachmentHtml = '';
+    try { attachmentHtml = sanitizeHtml(draft.html); }
+    catch { setState('failed'); setMessage('The post could not be prepared. Your draft is kept.'); return; }
+    if (attachmentsInHtml(attachmentHtml).length === 0) {
+      setAttachmentPublication({ sourceHtml: attachmentHtml, html: attachmentHtml, resources: [], scopeKey: scope.key, draftId: draft.id });
+    } else {
+      try {
+        setState('publishing');
+        setMessage('Checking attachment files and saved drafts before approval...');
+        const prepared = await preparePostAttachments({
+          html: attachmentHtml, name: props.name, store: attachmentStore,
+          moves: plan ? ((plan as any).videoMoves || []) : [],
+          publicNode: isPublicGatewayUrl(getTrustedNodeUrl())
+        });
+        setAttachmentPublication({ ...prepared, scopeKey: scope.key, draftId: draft.id });
+        const quote = await quotePublication(basePublicationResources - attachmentResourceCount + prepared.resources.length + (plan ? plan.resources.length : 0));
+        setPlanFee(quote.label);
+      } catch (error) {
+        setState('failed');
+        setMessage((error instanceof Error ? error.message : String(error)) + ' Nothing was published.');
+        return;
+      }
+    }
+    if (!stillCurrent()) return;
     setCrossResults(null);
     setMessage('');
     setState('idle');
-    setDraft({ ...draft, slug: finalSlug, publicationState: 'pending-approval' });
+    persist({ ...draft, slug: finalSlug, publishTimestamp: publicationTimestamp, publicationState: 'pending-approval' });
     setConfirming(true);
   };
 
@@ -753,11 +783,13 @@ export function EditorPage(props: {
       setMessage('HTML could not be sanitized: ' + (error instanceof Error ? error.message : String(error)));
       return;
     }
-    // The video bytes are published once under the Q-Tube identifier; the CMS
-    // content must reference that same coordinate.
-    for (const move of crossVideoMoves) {
-      html = html.split('data-identifier="' + move.from + '"').join('data-identifier="' + move.to + '"');
+    if (!attachmentPublication || attachmentPublication.sourceHtml !== html
+      || attachmentPublication.scopeKey !== scope?.key || attachmentPublication.draftId !== draft.id) {
+      setState('failed');
+      setMessage('The post or account changed after attachment checks. Close this dialog and review publication again. Nothing was published.');
+      return;
     }
+    html = attachmentPublication.html;
     const categories = resolveTerms(props.dataset, draft.categoriesText, 'categories');
     const tags = resolveTerms(props.dataset, draft.tagsText, 'tags');
     const timestamp = Number(draft.publishTimestamp) || Date.now();
@@ -795,39 +827,8 @@ export function EditorPage(props: {
         source: 'explicit'
       };
     }
-    // Attachments: each is its own content-addressed resource in the same batch.
-    const publicNode = isPublicGatewayUrl(getTrustedNodeUrl());
-    for (const meta of attachmentsInHtml(html) as any[]) {
-      if (meta.name !== props.name) {
-        setState('failed');
-        setMessage('The attachment "' + meta.filename + '" belongs to a different QDN name and was not published.');
-        return;
-      }
-      const capture = attachmentStoreRef.current.get(meta.identifier);
-      if (!capture) {
-        const status: any = await getQdnResourceStatus(meta.service, props.name, meta.identifier);
-        if (status && status.status === 'READY') continue;
-        setState('failed');
-        setMessage('The attachment "' + meta.filename + '" is no longer available on this device. Remove it and attach it again. Nothing was published.');
-        return;
-      }
-      const check: any = validateAttachment({ name: capture.filename, size: capture.size, type: capture.mime }, { publicNode });
-      if (!check.ok) { setState('failed'); setMessage(check.message + ' Nothing was published.'); return; }
-      mediaResources.push({
-        stage: 'attachment', service: capture.service, identifier: (capture.service === 'VIDEO'
-          ? ((crossVideoMoves.find((item) => item.from === capture.identifier) || {}).to || capture.identifier)
-          : capture.identifier), file: capture.blob, sha256: capture.sha256,
-        filename: capture.filename, title: meta.title || capture.title,
-        description: 'Attachment for ' + draft.title + ' on ' + props.name + '.', reuseIfReady: true
-      });
-      if (meta.poster && capture.poster) {
-        mediaResources.push({
-          stage: 'poster', service: 'IMAGE', identifier: meta.poster, bytes: capture.poster.bytes,
-          filename: capture.poster.filename, title: 'Poster for ' + (meta.title || capture.title),
-          description: 'Video poster for ' + draft.title + ' on ' + props.name + '.', reuseIfReady: true
-        });
-      }
-    }
+    // Prepared against original coordinates before the confirmation dialog.
+    mediaResources.push(...attachmentPublication.resources);
     // Optional destination resources join the same owner-approved batch.
     const destinationResources = crossPlan ? (crossPlan.resources as any[]) : [];
     if (destinationResources.length) mediaResources.push(...destinationResources);
@@ -922,7 +923,8 @@ export function EditorPage(props: {
 
     if (cmsVerified && sectionsPayload) initialAssignmentRef.current = { slugs: [...assignment.slugs], hideFromHome: assignment.hideFromHome };
     if (cmsVerified) {
-      for (const meta of attachmentsInHtml(html) as any[]) attachmentStoreRef.current.delete(meta.identifier);
+      for (const meta of attachmentsInHtml(attachmentPublication.sourceHtml) as any[]) attachmentStore.delete(meta.identifier);
+      for (const meta of attachmentsInHtml(html) as any[]) attachmentStore.delete(meta.identifier);
     }
     if (cmsVerified && uploaded) {
       setFeaturedFile(null);
@@ -1141,6 +1143,7 @@ export function EditorPage(props: {
             onDeleteDraft={(id) => {
               const next = removeDraft(drafts, id);
               persistDrafts(next);
+              void attachmentStore.prune(next.flatMap((item: any) => attachmentsInHtml(item.html || '').map((meta: any) => meta.identifier)));
             }}
             onEditPublished={editPublished}
             onEditImported={editImported}
@@ -1234,7 +1237,7 @@ export function EditorPage(props: {
             </p>
           ) : null}
 
-          <RichTextEditor value={draft.html} onChange={(html) => persist({ ...draft, html })} onInsertMedia={() => setShowMedia(true)} qdnName={props.name} attachmentStore={attachmentStoreRef.current} publicNode={isPublicGatewayUrl(getTrustedNodeUrl())} />
+          <RichTextEditor key={(scope?.key || '') + ':' + draft.id} value={draft.html} onChange={(html) => persist({ ...draft, html })} onInsertMedia={() => setShowMedia(true)} qdnName={props.name} attachmentStore={attachmentStore} publicNode={isPublicGatewayUrl(getTrustedNodeUrl())} />
         </>
       )}
 
@@ -1303,7 +1306,7 @@ export function EditorPage(props: {
           fee={planFee || fee}
           crossPlan={crossPlan}
           crossResults={crossResults}
-          attachments={attachmentPlan.map((meta: any) => ({ service: meta.service, identifier: meta.identifier, filename: meta.filename, size: meta.size, poster: Boolean(meta.poster) }))}
+          attachments={attachmentsInHtml(attachmentPublication?.sourceHtml || draft?.html || '').map((meta: any) => ({ service: meta.service, identifier: meta.identifier, filename: meta.filename, size: meta.size, poster: Boolean(meta.poster) }))}
           progress={progress}
           sectionsChange={sectionsChanged ? { slugs: assignment.slugs, hideFromHome: assignment.hideFromHome, revision: (props.sections ? props.sections.revision : 0) + 1 } : null}
           slugChanged={slugChanged}

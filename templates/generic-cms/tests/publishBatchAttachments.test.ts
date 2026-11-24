@@ -93,3 +93,44 @@ describe('publishBatch with attachments and posters', () => {
     expect(second.results[0].state).toBe('reused');
   });
 });
+
+it('verifies fixed-coordinate video bytes instead of silently reusing an older READY video', async () => {
+  const {Blob: NodeBlob}=await import('node:buffer');
+  const {Sha256}=await import('../src/lib/sha256Stream.js');
+  const expected=new Uint8Array([1,2,3]);
+  let remote=new Uint8Array([3,2,1]);
+  let submissions=0;
+  vi.stubGlobal('fetch',vi.fn(async(input:any)=>String(input).includes('/names/')
+    ? {ok:true,json:async()=>({name:'QortalDemo',owner:ownerIdentity.address})}
+    : {ok:true,body:new ReadableStream({start(controller){controller.enqueue(remote);controller.close();}})}));
+  (window as any).qortalRequest=async(payload:any)=>{
+    if(payload.action==='GET_USER_ACCOUNT')return {address:ownerIdentity.address};
+    if(payload.action==='GET_ACCOUNT_NAMES')return [{name:'QortalDemo'}];
+    if(payload.action==='GET_NAME_DATA')return {name:'QortalDemo',owner:ownerIdentity.address};
+    if(payload.action==='GET_PRIMARY_NAME')return 'QortalDemo';
+    if(payload.action==='GET_QDN_RESOURCE_STATUS')return {status:'READY'};
+    if(payload.action==='PUBLISH_MULTIPLE_QDN_RESOURCES'){
+      submissions++;remote=new Uint8Array(await payload.resources[0].file.arrayBuffer());return [{signature:'updated-video'}];
+    }
+    return null;
+  };
+  const input={identity:ownerIdentity,name:'QortalDemo',storage:localStorage,resources:[{
+    stage:'attachment',service:'VIDEO',identifier:'qtube_vid_fixed',filename:'replacement.mp4',file:new NodeBlob([expected]),
+    sha256:new Sha256().update(expected).hex(),reuseIfReady:true,verifyFileHash:true
+  }]};
+  const replaced=await publishBatch(input);
+  expect(replaced.ok).toBe(true);expect(submissions).toBe(1);
+  const reused=await publishBatch(input);
+  expect(reused.ok).toBe(true);expect(reused.results[0].state).toBe('reused');expect(submissions).toBe(1);
+});
+
+
+it('includes a shared featured-image/poster resource once and refuses conflicting duplicates before signing', async () => {
+  const calls=install('ok');
+  const shared={stage:'media',service:'IMAGE',identifier:'poster-1',bytes:new Uint8Array([1,2,3]),filename:'featured.jpg',reuseIfReady:true};
+  const result=await publishBatch({identity:ownerIdentity,name:'QortalDemo',storage:localStorage,resources:[...resources(),shared]});
+  expect(result.ok).toBe(true);expect(batchCalls(calls)[0].resources.filter((r:any)=>r.identifier==='poster-1')).toHaveLength(1);
+  calls.length=0;
+  const conflict=await publishBatch({identity:ownerIdentity,name:'QortalDemo',storage:localStorage,resources:[shared,{...shared,bytes:new Uint8Array([9])}]});
+  expect(conflict.state).toBe('failed');expect(conflict.message).toContain('Different payloads');expect(batchCalls(calls)).toHaveLength(0);
+});

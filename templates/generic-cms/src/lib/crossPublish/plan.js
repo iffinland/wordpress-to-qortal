@@ -1,3 +1,4 @@
+import { remapAttachmentIdentifiers } from '../attachmentPublication.js';
 /**
  * Cross-publication plan builder.
  *
@@ -159,7 +160,7 @@ export async function buildCrossPublishPlan(input) {
   if (!draft || !String(draft.title || '').trim()) throw new Error('A title is required before cross-publishing.');
   const slug = String(draft.slug || '').trim();
   if (!slug) throw new Error('A final slug is required before cross-publishing.');
-  const html = String(draft.html || '');
+  let html = String(draft.html || '');
   const now = Number(timestamp) || Date.now();
   const postKey = String(draft.id || slug);
   const seedBase = String(siteId || '') + '|post:' + postKey;
@@ -171,13 +172,20 @@ export async function buildCrossPublishPlan(input) {
   const warnings = [];
   let announcement = '';
 
-  const videoList = Array.isArray(suppliedVideos) && suppliedVideos.length ? suppliedVideos : (video ? [video] : []);
+  const inputVideos = Array.isArray(suppliedVideos) && suppliedVideos.length ? suppliedVideos : (video ? [video] : []);
+  const videoList = [...new Map(inputVideos.map(item => [item.name + '/' + item.identifier, item])).values()];
   const videoMoves = [];
   if (selections.qtube) {
     if (!videoList.length) {
       throw new Error('Q-Tube publication needs an eligible video attachment (' + QTUBE_PLAYABLE_EXTENSIONS.join(', ') + '). Attach a video to the post or clear the Q-Tube option.');
     }
     const token = await stableToken(seedBase + '|qtube');
+    for (let index = 0; index < videoList.length; index += 1) {
+      const current = videoList[index];
+      const target = qtubeVideoIdentifier(token, videoList.length > 1 ? index + 1 : 0);
+      if (current.identifier !== target) videoMoves.push({ from: current.identifier, to: target, filename: current.filename, size: Number(current.size) || 0 });
+    }
+    html = remapAttachmentIdentifiers(html, videoMoves);
     for (let index = 0; index < videoList.length; index += 1) {
       const current = videoList[index];
       const videoIdentifier = qtubeVideoIdentifier(token, videoList.length > 1 ? index + 1 : 0);
@@ -190,12 +198,6 @@ export async function buildCrossPublishPlan(input) {
         token,
         videoIdentifier
       });
-      if (current.identifier !== videoIdentifier) {
-        videoMoves.push({
-          from: current.identifier, to: videoIdentifier,
-          filename: current.filename, size: Number(current.size) || 0
-        });
-      }
       const reused = await destinationReused({
         service: resource.service, name, identifier: resource.identifier, document: resource.document, readRemote
       });

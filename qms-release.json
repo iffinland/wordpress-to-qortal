@@ -25,10 +25,10 @@
       "changelog": "Runtime-accepted modern publishing workspace: automatic identity, searchable scrolling resource list, clear progress and durable pending-upload protection."
     },
     "cms": {
-      "version": "0.9.0-beta.3",
+      "version": "0.9.0-beta.4",
       "channel": "beta",
       "source": "templates/generic-cms/package.json",
-      "changelog": "Runtime-accepted RC.2: independent content discovery across APP/WEBSITE with explicit ALL search, persistent owner catalog selection, CMS-first native content and imported text/image edits."
+      "changelog": "Runtime-accepted attachment publication: correct Q-Tube mapping, durable scoped attachment drafts, poster edits, stable retries, resource deduplication and streamed video hash verification."
     }
   },
   "versionMarkers": [
@@ -41,14 +41,15 @@
   ],
   "componentReleases": {
     "cms": {
-      "version": "0.9.0-beta.3",
-      "tag": "cms-v0.9.0-beta.3",
-      "notes": "docs/migration-studio/RELEASE-CMS-0.9.0-BETA.3.md",
+      "version": "0.9.0-beta.4",
+      "tag": "cms-v0.9.0-beta.4",
+      "notes": "docs/migration-studio/RELEASE-CMS-0.9.0-BETA.4.md",
+      "title": "Generic CMS 0.9.0-beta.4 \u2014 attachment publishing fixes",
       "runtimeAcceptance": {
         "status": "passed",
-        "date": "2026-11-23",
-        "candidate": "RC.2",
-        "sha256": "c217c548c63d98b175d084ae2292de30bd4f9ab4d83594c86e8bcb0b987d6e31"
+        "date": "2026-11-24",
+        "candidate": "RC.1",
+        "sha256": "5cb47155cda6ef43b4a95ba2f03969cd786dc2d9a2851aec0ac95ef10d6922ed"
       }
     },
     "publisher": {

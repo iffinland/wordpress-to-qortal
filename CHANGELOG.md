@@ -1,6 +1,16 @@
 # Changelog
 
 
+## Generic CMS 0.9.0-beta.4 — 2026-11-24
+
+- Resolve captured video bytes before rewriting Q-Tube identifiers; include each file once in the same approved publication batch.
+- Save attachment Blobs and posters in owner/deployment-scoped IndexedDB, restore them with local drafts, and warn when storage is unavailable or full.
+- Check all attachments before approval; support remote attachments, changing posters without the original video and adopting existing QDN videos into Q-Tube with verified downloads.
+- Preserve the publication timestamp across failed/unconfirmed retries. Stream hash verification for fixed Q-Tube video coordinates instead of accepting an older READY video.
+- Deduplicate repeated attachment nodes, keep captures after cancelled/failed attempts, and refuse silent loss of a missing local featured image.
+- Owner runtime test passed for RC.1. Publish the byte-identical accepted ZIP as CMS 0.9.0-beta.4; no tests are repeated during finalization. Publisher and Desktop DEB are unchanged.
+
+
 ## Generic CMS 0.9.0-beta.3 — 2026-11-23
 
 - RC.2: explicitly request `mode=ALL` on direct and Hub metadata search; avoid hiding older import catalogs behind newer settings documents. Reproduced against the reported owner's public QDN metadata; add default-mode-collapse and Hub-fallback regression tests.

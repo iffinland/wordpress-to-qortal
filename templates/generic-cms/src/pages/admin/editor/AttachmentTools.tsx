@@ -7,35 +7,44 @@ import { sha256Hex } from '../../../lib/qortal.js';
 
 export interface AttachmentCapture {
   identifier: string; kind: string; service: string; filename: string; mime: string; size: number;
-  sha256: string; blob: Blob; title: string;
+  sha256: string; blob: Blob | null; title: string;
   poster: { bytes: Uint8Array; mimeType: string; filename: string; sha256: string } | null;
   posterIdentifier: string;
 }
-export type AttachmentStore = Map<string, AttachmentCapture>;
+export interface AttachmentStore extends Map<string, AttachmentCapture> {
+  ready?: Promise<unknown>;
+  save?: (capture: AttachmentCapture) => Promise<boolean>;
+}
 
 const ACCEPT = '.txt,.md,.markdown,.pdf,.mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.flac,.weba,.mp4,.m4v,.webm,.mov,.ogv,.mkv,.zip,.7z,.rar,.tar,.gz,.tgz,.bz2,.xz,.doc,.docx,.xls,.xlsx,.odt,.ods,.ppt,.pptx,.csv,.json,.rtf';
 const MAX_POSTER_BYTES = 10 * 1024 * 1024;
 
 export function AttachButton(props: { editor: Editor; qdnName: string; store: AttachmentStore; publicNode: boolean; onStatus: (message: string, error?: boolean) => void }) {
   const input = useRef<HTMLInputElement>(null);
+  const generation = useRef(0);
+  useEffect(() => () => { generation.current += 1; }, [props.editor, props.store, props.qdnName]);
   const pick = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     // Capture every File synchronously first: the list may be revoked after this event.
     const list = Array.from(files);
+    const current = generation.current;
     for (const file of list) {
       props.onStatus('Reading "' + file.name + '"…');
       const result: any = await captureAttachment(file, {
         publicNode: props.publicNode,
         onProgress: (fraction: number) => props.onStatus('Reading "' + file.name + '": ' + Math.round(fraction * 100) + '%')
       });
+      if (current !== generation.current || props.editor.isDestroyed) return;
       if (!result.ok) { props.onStatus(result.message, true); continue; }
       props.store.set(result.identifier, result);
+      const saved = props.store.save ? await props.store.save(result) : false;
+      if (current !== generation.current || props.editor.isDestroyed) return;
       props.editor.chain().focus().insertAttachment({
         kind: result.kind, service: result.service, name: props.qdnName, identifier: result.identifier,
         filename: result.filename, title: result.title, mime: result.mime, size: result.size,
         sha256: result.sha256, poster: result.posterIdentifier
       }).run();
-      props.onStatus('Attached "' + result.filename + '" (' + formatBytes(result.size) + '). It is published together with the post.');
+      props.onStatus('Attached "' + result.filename + '" (' + formatBytes(result.size) + '). It is published together with the post.' + (saved ? ' The file is saved with your local draft.' : ' Browser file storage is unavailable or full: keep this editor open until publication, or re-attach after reopening.'));
     }
     if (input.current) input.current.value = '';
   };
@@ -81,10 +90,15 @@ export function AttachmentsPanel(props: { editor: Editor; store: AttachmentStore
     try {
       const bytes = await readFileBytes(file);
       const sha256 = await sha256Hex(bytes);
-      const capture = props.store.get(identifier);
-      if (capture) capture.poster = { bytes, mimeType: file.type, filename: file.name, sha256 };
-      update(pos, { poster: ('qms-cms-media-' + sha256.slice(0, 32)).slice(0, 64) });
-      props.onStatus('Poster set for "' + (normalizeAttachmentMeta({ ...editor.state.doc.nodeAt(pos)?.attrs })?.title || 'video') + '".');
+      const meta = normalizeAttachmentMeta(editor.state.doc.nodeAt(pos)?.attrs);
+      if (!meta || meta.identifier !== identifier || editor.isDestroyed) return;
+      const capture = props.store.get(identifier) || { ...meta, blob: null, poster: null, posterIdentifier: '' } as AttachmentCapture;
+      const next = { ...capture, poster: { bytes, mimeType: file.type, filename: file.name, sha256 }, posterIdentifier: ('qms-cms-media-' + sha256.slice(0, 32)).slice(0, 64) };
+      props.store.set(identifier, next);
+      const saved = props.store.save ? await props.store.save(next) : false;
+      if (editor.isDestroyed || editor.state.doc.nodeAt(pos)?.attrs.identifier !== identifier) return;
+      update(pos, { poster: next.posterIdentifier });
+      props.onStatus((saved ? 'Poster saved locally for ' : 'Poster available in this editor session for ') + meta.title + '.');
     } catch {
       props.onStatus('The poster image could not be read. Re-select it.', true);
     }
@@ -95,7 +109,7 @@ export function AttachmentsPanel(props: { editor: Editor; store: AttachmentStore
       <ul className="attachments-panel__list">
         {items.map(({ pos, meta }) => meta ? (
           <li key={meta.identifier + ':' + pos} className="attachments-panel__item">
-            <p><strong>{meta.filename}</strong> · {meta.service} · {formatBytes(meta.size)}{props.store.has(meta.identifier) ? ' · will be published with the post' : ' · already published'}</p>
+            <p><strong>{meta.filename}</strong> · {meta.service} · {formatBytes(meta.size)}{props.store.get(meta.identifier)?.blob ? ' · local file ready' : ' · published file will be checked on QDN'}</p>
             {meta.kind === 'audio' || meta.kind === 'video' ? (
               <label>Display title
                 <input value={meta.title} maxLength={120} onChange={(event) => update(pos, { title: event.target.value })} />

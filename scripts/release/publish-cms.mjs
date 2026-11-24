@@ -83,7 +83,7 @@ if (process.argv.includes('--prepare')) {
   execFileSync(process.execPath, ['scripts/release/verify-active-docs.mjs'], { cwd: REPO_ROOT, stdio: 'inherit' });
   execFileSync('git', ['tag', record.tag, git.commit], { cwd: REPO_ROOT });
   execFileSync('git', ['push', 'origin', 'refs/tags/' + record.tag], { cwd: REPO_ROOT, stdio: 'inherit' });
-  gh(['release', 'create', record.tag, '--repo', repo, '--prerelease', '--verify-tag', '--title', 'Generic CMS ' + version + ' — independent content connection', '--notes-file', path.join(REPO_ROOT, record.notes), zip, path.join(out, 'SHA256SUMS'), manifestPath, path.join(REPO_ROOT, record.notes), path.join(REPO_ROOT, 'docs/migration-studio/GENERIC-CMS-USER-MANUAL.md')]);
+  gh(['release', 'create', record.tag, '--repo', repo, '--prerelease', '--verify-tag', '--title', record.title || ('Generic CMS ' + version + ' — independent content connection'), '--notes-file', path.join(REPO_ROOT, record.notes), zip, path.join(out, 'SHA256SUMS'), manifestPath, path.join(REPO_ROOT, record.notes), path.join(REPO_ROOT, 'docs/migration-studio/GENERIC-CMS-USER-MANUAL.md')]);
   const url = `https://github.com/${repo}/releases/download/${record.tag}/`;
   const downloaded = await fetchBytes(url + name);
   if (hash(downloaded) !== sha256 || downloaded.length !== bytes) throw new Error('Published CMS bytes failed independent download verification.');

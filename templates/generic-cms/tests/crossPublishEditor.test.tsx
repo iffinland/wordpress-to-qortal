@@ -1,3 +1,5 @@
+import { Blob as NodeBlob } from 'node:buffer';
+import { Sha256 } from '../src/lib/sha256Stream.js';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { EditorPage } from '../src/pages/admin/EditorPage';
@@ -6,9 +8,13 @@ import { normalizeContentPayload } from '../src/lib/manifest.js';
 import type { CmsContentItem, CmsDataset } from '../src/types';
 
 const publishNative = vi.hoisted(() => vi.fn());
+const publishOverlay = vi.hoisted(() => vi.fn());
+const captureFile = vi.hoisted(() => vi.fn());
+vi.mock('../src/lib/attachmentCapture.js', () => ({ captureAttachment: captureFile }));
 vi.mock('../src/lib/authoring.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/authoring.js')>()),
-  publishNativePostDraft: publishNative
+  publishNativePostDraft: publishNative,
+  publishOverlayDraft: publishOverlay
 }));
 
 let dataset: CmsDataset;
@@ -26,6 +32,8 @@ afterEach(() => {
   localStorage.clear();
   vi.unstubAllGlobals();
   publishNative.mockReset();
+  publishOverlay.mockReset();
+  captureFile.mockReset();
 });
 
 async function openNativeEditor(config?: any) {
@@ -175,5 +183,79 @@ describe('optional cross-publication destinations in the post editor', () => {
     await waitFor(() => expect(screen.getAllByText(/Quitter shows at most 280/).length).toBeGreaterThan(0));
     expect(screen.queryByRole('dialog')).toBeNull();
     expect(publishNative).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('file attachments through the real editor and confirmation dialog', () => {
+  async function attachVideo() {
+    const bytes = new Uint8Array([4, 3, 2, 1]);
+    const sha256 = new Sha256().update(bytes).hex();
+    const capture = { ok: true, kind: 'video', service: 'VIDEO', filename: 'QMS-manual-unofficial.mp4', title: 'QMS manual', mime: 'video/mp4', size: 4, sha256, identifier: 'qms-cms-att-' + sha256.slice(0, 32), blob: new NodeBlob([bytes]), poster: null, posterIdentifier: '' };
+    captureFile.mockResolvedValue(capture);
+    fireEvent.change(screen.getByLabelText('Attach files'), { target: { files: [new File(['test'], capture.filename, {type: 'video/mp4'})] } });
+    await screen.findByText(/Attached "QMS-manual-unofficial.mp4"/);
+    return capture;
+  }
+  it.each([false,true])('publishes a fresh video in one CMS plan, Q-Tube selected: %s', async qtube => {
+    publishNative.mockImplementation(async request => ({ ok: true, index: {revision:1}, entry:{id:'cms-1'}, contentIdentifier:'post-id', batchResults: [...request.extraResources.map((r:any)=>({stage:r.stage,identifier:r.identifier,ok:true,state:'remote-verified'})), ...['content','index','search'].map(stage=>({stage,ok:true,state:'remote-verified'}))] }));
+    await openNativeEditor();
+    const capture = await attachVideo();
+    if(qtube) fireEvent.click(screen.getByLabelText('Publish to Q-Tube'));
+    const dialog = await openDialog();
+    expect(publishNative).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole('button', {name:'Confirm publish'}));
+    await screen.findByRole('dialog', {name:'Published and verified'});
+    expect(publishNative).toHaveBeenCalledTimes(1);
+    const request=publishNative.mock.calls[0][0];
+    const videos=request.extraResources.filter((r:any)=>r.service==='VIDEO');
+    expect(videos).toHaveLength(1);expect(videos[0].file).toBe(capture.blob);
+    expect(videos[0].identifier.startsWith(qtube?'qtube_vid_':'qms-cms-att-')).toBe(true);
+    expect(request.draft.html).toContain('data-identifier="'+videos[0].identifier+'"');
+    expect(request.extraResources.some((r:any)=>r.stage==='qtube')).toBe(qtube);
+    if(qtube) expect(videos[0].verifyFileHash).toBe(true);
+  });
+  it.each(['new', 'imported'])('adds video through the %s post publication path', async source => {
+    publishNative.mockResolvedValue({ok:true,index:{revision:1},entry:{id:'new-post'}});
+    publishOverlay.mockResolvedValue({ok:true,overlay:{revision:1,entries:[]}});
+    await openNativeEditor();
+    fireEvent.click(screen.getByRole('button',{name:'← All posts'}));
+    if(source==='new') {
+      fireEvent.click(screen.getByRole('button',{name:'New post'}));
+      fireEvent.change(screen.getByLabelText('Title'),{target:{value:'Video post'}});
+    } else {
+      fireEvent.click(screen.getByRole('button',{name:'Edit Hello Qortal'}));
+      await screen.findByLabelText('Title');
+    }
+    await attachVideo();
+    const dialog=await openDialog();fireEvent.click(within(dialog).getByRole('button',{name:'Confirm publish'}));
+    await screen.findByRole('dialog',{name:'Published and verified'});
+    const publish=source==='new'?publishNative:publishOverlay;
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(publish.mock.calls[0][0].extraResources.filter((r:any)=>r.service==='VIDEO')).toHaveLength(1);
+    if(source==='imported') expect(publishNative).not.toHaveBeenCalled();
+  });
+  it('retains the exact publication timestamp and files after an unconfirmed attempt', async () => {
+    publishNative.mockResolvedValueOnce({ok:false,state:'ambiguous',message:'Pending upload'}).mockResolvedValueOnce({ok:true,index:{revision:1},entry:{id:'cms-1'}});
+    await openNativeEditor();await attachVideo();
+    const first=await openDialog();fireEvent.click(within(first).getByRole('button',{name:'Confirm publish'}));
+    const pending=await screen.findByRole('dialog',{name:'Publication unconfirmed'});
+    fireEvent.click(within(pending).getByRole('button',{name:'Close'}));
+    const second=await openDialog();fireEvent.click(within(second).getByRole('button',{name:'Confirm publish'}));
+    await screen.findByRole('dialog',{name:'Published and verified'});
+    const a=publishNative.mock.calls[0][0], b=publishNative.mock.calls[1][0];
+    expect(a.draft.publishTimestamp).toBeTruthy();
+    expect(b.draft.publishTimestamp).toBe(a.draft.publishTimestamp);
+    expect(a.extraResources[0].sha256).toBe(b.extraResources[0].sha256);
+  });
+  it('preserves the selected file when confirmation is cancelled and reopened', async () => {
+    publishNative.mockResolvedValue({ok:true,index:{revision:1},entry:{id:'cms-1'}});
+    await openNativeEditor();await attachVideo();
+    const dialog=await openDialog();
+    fireEvent.click(within(dialog).getByRole('button',{name:'Cancel'}));
+    expect(publishNative).not.toHaveBeenCalled();
+    const retry=await openDialog();fireEvent.click(within(retry).getByRole('button',{name:'Confirm publish'}));
+    await screen.findByRole('dialog',{name:'Published and verified'});
+    expect(publishNative.mock.calls[0][0].extraResources.filter((r:any)=>r.service==='VIDEO')).toHaveLength(1);
   });
 });

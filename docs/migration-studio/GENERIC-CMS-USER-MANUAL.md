@@ -137,7 +137,7 @@ Engagement belongs to the hosted deployment, site id and stable post id. Editing
 
 ### Install the independent CMS update
 
-[Download CMS 0.9.0-beta.3](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.3/qortal-migration-generic-cms-v0.9.0-beta.3.zip) and verify its [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.3/SHA256SUMS). Keep the Qortal name and deployment identifier. This standalone ZIP discovers imported catalogs automatically; preserve custom project configuration when updating a bespoke frontend. Updating the generic CMS does not migrate or reset the site's content. The DEB remains unchanged and still embeds its original CMS version. No QDN registry transaction is included in this GitHub delivery.
+[Download CMS 0.9.0-beta.4](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.4/qortal-migration-generic-cms-v0.9.0-beta.4.zip) and verify its [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.4/SHA256SUMS). Keep the Qortal name and deployment identifier. This standalone ZIP discovers imported catalogs automatically; preserve custom project configuration when updating a bespoke frontend. Updating the generic CMS does not migrate or reset the site's content. The DEB remains unchanged and still embeds its original CMS version. No QDN registry transaction is included in this GitHub delivery.
 
 
 ## Independent installation — 0.9.0-beta.3
@@ -149,3 +149,14 @@ The CMS searches the connected node for this owner's supported manifests. One ve
 An unavailable catalog is reported separately from an empty account; wait for QDN loading and refresh. A green Publisher upload/read-back verifies its resources, but cannot prove that a separately installed frontend has connected to the catalog. Check both the public homepage and Admin post/page lists.
 
 CMS-authored items appear alongside imports. Open an imported item in the editor to change its text or featured image. These edits are published separately from the imported original. Reinstalling the CMS does not delete those QDN documents. Existing explicit project configurations remain supported; retain custom branding/configuration when updating a bespoke frontend. See [the content connection contract](CMS-CONTENT-CONNECTION.md).
+
+
+## Attachment recovery — 0.9.0-beta.4
+
+Picked attachment files and video posters are also saved in browser IndexedDB under the verified owner and deployment. Wait for the attachment notice before leaving the editor. A saved file can be restored when reopening its draft on the same device/browser. It is not a backup: clearing browser site data, storage eviction or moving to another device removes the local copy. If browser storage is unavailable/full, the editor warns that the file is available only in the current session.
+
+Attachment checks run before the confirmation dialog. A missing local file may be reused if its exact QDN coordinate is READY; an unavailable file or poster blocks approval with an actionable message while keeping the post text. Selecting a new poster for a remote video uploads the poster without requiring the original video. Removing a local draft also removes file captures that no remaining draft uses.
+
+For Q-Tube, the original capture is resolved before changing the VIDEO identifier. Multiple distinct videos are included once each; duplicate nodes reuse the same file. An existing CMS video may need to be downloaded, checked and uploaded under Q-Tube coordinates; the pre-approval preparation and warning make that extra work visible. A replacement at a fixed Q-Tube identifier is verified by streamed size/SHA-256 read-back, so verification can download the video and take extra time/bandwidth. An older READY version is not sufficient proof.
+
+Cancel keeps the local file. Unconfirmed publication keeps the file and its original publication timestamp; retry uses the existing pending-publication safeguards. Files are removed from the local capture store after the CMS resources are verified. Featured-image bytes selected before reopening a draft still need to be selected again; publishing now explicitly blocks instead of silently omitting that image. Choosing automatic imagery or Publish without a featured image clears that pending choice.

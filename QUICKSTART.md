@@ -1,10 +1,12 @@
 # Quick Start
 
 
-**Generic CMS 0.9.0-beta.3:** runtime-accepted independent content discovery for separate APP/WEBSITE installation. See [CMS content connection](docs/migration-studio/CMS-CONTENT-CONNECTION.md).
 
 
-Desktop **0.8.0-beta.2** is included in bundle **v0.8.0-beta.4**. Publisher **0.8.0-beta.2** is a separate [Publisher-only release](https://github.com/iffinland/wordpress-to-qortal/releases/tag/publisher-v0.8.0-beta.2). Generic CMS **0.9.0-beta.3** is a separate [CMS-only release](https://github.com/iffinland/wordpress-to-qortal/releases/tag/cms-v0.9.0-beta.3); the Desktop DEB is unchanged.
+**Generic CMS 0.9.0-beta.4:** runtime-accepted attachment publishing fixes and independent content discovery for separate APP/WEBSITE installation. See [CMS content connection](docs/migration-studio/CMS-CONTENT-CONNECTION.md).
+
+
+Desktop **0.8.0-beta.2** is included in bundle **v0.8.0-beta.4**. Publisher **0.8.0-beta.2** is a separate [Publisher-only release](https://github.com/iffinland/wordpress-to-qortal/releases/tag/publisher-v0.8.0-beta.2). Generic CMS **0.9.0-beta.4** is a separate [CMS-only release](https://github.com/iffinland/wordpress-to-qortal/releases/tag/cms-v0.9.0-beta.4); the Desktop DEB is unchanged.
 
 ## Beginner path — Qortal Migration Studio desktop app
 
@@ -38,7 +40,7 @@ exact Qortal name it runs under. Open it as `qortal://WEBSITE/<name>/` or
 Percent-encoded path names from the URL or Hub globals are decoded before lookup,
 so `developer%20iffi` and `developer iffi` mean the same name. Visitor query
 parameters such as `?name=` are ignored for identity and cannot grant ownership.
-CMS 0.9.0-beta.3 discovers the owner's content catalogs without a project-specific `qms-cms-config.json`. Owner settings and CMS content are separate QDN documents and survive replacement of the frontend.
+CMS 0.9.0-beta.4 discovers the owner's content catalogs without a project-specific `qms-cms-config.json`. Owner settings and CMS content are separate QDN documents and survive replacement of the frontend.
 
 ## For developers / legacy Corbett Report CLI
 
@@ -236,4 +238,4 @@ Open the project and choose **Recovery** (header or project card).
 
 ## Update the CMS without updating Desktop
 
-Download [Generic CMS 0.9.0-beta.3](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.3/qortal-migration-generic-cms-v0.9.0-beta.3.zip) and its [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.3/SHA256SUMS). Keep the site's Qortal name and deployment identifier. The standalone ZIP discovers imported content automatically; preserve custom configuration when updating a bespoke frontend. Publication still requires owner approval in Hub. The current Desktop package continues to embed its original CMS template; existing sites can use the separately updated CMS.
+Download [Generic CMS 0.9.0-beta.4](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.4/qortal-migration-generic-cms-v0.9.0-beta.4.zip) and its [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.4/SHA256SUMS). Keep the site's Qortal name and deployment identifier. The standalone ZIP discovers imported content automatically; preserve custom configuration when updating a bespoke frontend. Publication still requires owner approval in Hub. The current Desktop package continues to embed its original CMS template; existing sites can use the separately updated CMS.

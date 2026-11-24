@@ -666,9 +666,9 @@ export async function verifyPublishedBytes({ service, name, identifier, expected
   return { ok: false, actualSha256: null, expectedSha256: expected, error: lastError || 'Timed out waiting for QDN read-back.' };
 }
 
-export async function getQdnResourceStatus(service, name, identifier) {
+export async function getQdnResourceStatus(service, name, identifier, options = {}) {
   try {
-    return await requestQortal({ action: 'GET_QDN_RESOURCE_STATUS', service, name, identifier, build: false });
+    return await requestQortal({ action: 'GET_QDN_RESOURCE_STATUS', service, name, identifier, build: Boolean(options.build) });
   } catch {
     return null;
   }
