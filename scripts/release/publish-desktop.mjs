@@ -94,11 +94,34 @@ await write(path.join(out, 'sbom.cdx.json'), { bomFormat: 'CycloneDX', specVersi
 if (publish) {
   const repo = 'iffinland/wordpress-to-qortal';
   const existing = JSON.parse(gh(['api', `repos/${repo}/releases?per_page=100`]));
-  assert.equal(existing.some(item => item.tag_name === record.tag), false, 'Release already exists; never overwrite');
-  assert.equal(git(['ls-remote', 'origin', `refs/tags/${record.tag}`]), '', 'Tag already exists; never reuse');
   const assets = [name, 'SHA256SUMS', 'RELEASE-NOTES.md', 'desktop-release-manifest.json', 'original-trial-artifact.json', 'acceptance.json', 'validation.json', 'security-report.json', 'provenance.intoto.json', 'sbom.cdx.json'];
-  gh(['release', 'create', record.tag, '--repo', repo, '--target', sourceCommit, '--title', `Qortal Migration Studio ${record.version} — guided project management and login fixes`, '--notes-file', path.join(out, 'RELEASE-NOTES.md'), '--prerelease', '--draft', ...assets.map(file => path.join(out, file))]);
-  const draft = JSON.parse(gh(['api', `repos/${repo}/releases/tags/${record.tag}`]));
+  let draft = existing.find(item => item.tag_name === record.tag);
+  if (draft) {
+    // A draft can be resumed after an interrupted read-back, but never replaced.
+    assert.equal(draft.draft, true, 'Published release already exists; never overwrite');
+    assert.equal(draft.target_commitish, sourceCommit, 'Existing draft belongs to another source');
+    assert.equal(draft.assets.length, assets.length, 'Existing draft asset set is incomplete');
+    // Preserve the first upload's invocation record, rather than overwriting it.
+    const provenanceAsset = draft.assets.find(item => item.name === 'provenance.intoto.json');
+    assert.ok(provenanceAsset);
+    const original = gh(['api', '-H', 'Accept: application/octet-stream', `repos/${repo}/releases/assets/${provenanceAsset.id}`]);
+    const parsed = JSON.parse(original);
+    assert.equal(parsed.subject?.[0]?.digest?.sha256, trial.sha256);
+    assert.ok(parsed.predicate?.buildDefinition?.resolvedDependencies?.some(item => item.digest?.gitCommit === sourceCommit));
+    await writeFile(path.join(out, 'provenance.intoto.json'), original);
+  } else {
+    assert.equal(git(['ls-remote', 'origin', `refs/tags/${record.tag}`]), '', 'Tag already exists; never reuse');
+    gh(['release', 'create', record.tag, '--repo', repo, '--target', sourceCommit, '--title', `Qortal Migration Studio ${record.version} — guided project management and login fixes`, '--notes-file', path.join(out, 'RELEASE-NOTES.md'), '--prerelease', '--draft', ...assets.map(file => path.join(out, file))]);
+    // GitHub's by-tag endpoint can omit untagged drafts; the list includes them.
+    draft = JSON.parse(gh(['api', `repos/${repo}/releases?per_page=100`])).find(item => item.tag_name === record.tag);
+    assert.ok(draft, 'New draft could not be read back');
+  }
+  for (const file of assets) {
+    const remote = draft.assets.find(item => item.name === file);
+    assert.ok(remote, 'Missing draft asset: ' + file);
+    const metadata = JSON.parse(gh(['api', `repos/${repo}/releases/assets/${remote.id}`]));
+    assert.equal(metadata.digest, 'sha256:' + await sha256File(path.join(out, file)), 'Draft asset digest mismatch: ' + file);
+  }
   const uploaded = draft.assets.find(item => item.name === name);
   assert.ok(uploaded && uploaded.size === trial.bytes, 'Uploaded DEB size mismatch');
   const assetInfo = JSON.parse(gh(['api', `repos/${repo}/releases/assets/${uploaded.id}`]));
