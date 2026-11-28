@@ -1,5 +1,7 @@
 # Quick Start
 
+> **Unpublished Desktop trial:** `qortal-migration-studio_0.8.0-beta.5_amd64.deb` adds guided project continuation, project settings, archive/trash restoration and update fixes. This local owner trial is not a public download or a GitHub release. See [the trial guide](docs/migration-studio/DESKTOP-PROJECTS-TESTING.md).
+
 
 
 

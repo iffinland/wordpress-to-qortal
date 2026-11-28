@@ -19,16 +19,16 @@
       "changelog": "Runtime-accepted guided desktop beta.2, built from clean committed source for the v0.8.0-beta.4 public beta release."
     },
     "publisher": {
-      "version": "0.8.0-beta.1",
+      "version": "0.8.0-beta.2",
       "channel": "beta",
       "source": "viewer/package.json",
-      "changelog": "Unchanged from the approved beta.1 Publisher Q-App."
+      "changelog": "Runtime-accepted modern publishing workspace: automatic identity, searchable scrolling resource list, clear progress and durable pending-upload protection."
     },
     "cms": {
-      "version": "0.9.0-beta.1",
+      "version": "0.9.0-beta.4",
       "channel": "beta",
       "source": "templates/generic-cms/package.json",
-      "changelog": "Generic CMS 0.9.0-beta.1: reusable template system with Default, Magazine / News, Portfolio, Documentation / Knowledge Base, Photography / Gallery, Business / Services, Video / Media and Personal Journal. Templates are selected in Appearance settings; content, publishing and owner controls are shared."
+      "changelog": "Runtime-accepted attachment publication: correct Q-Tube mapping, durable scoped attachment drafts, poster edits, stable retries, resource deduplication and streamed video hash verification."
     }
   },
   "versionMarkers": [
@@ -38,5 +38,30 @@
     "templates/generic-cms/package.json",
     "lib/engine/index.js",
     "docs/migration-studio/RELEASE-0.8.0-BETA.4.md"
-  ]
+  ],
+  "componentReleases": {
+    "cms": {
+      "version": "0.9.0-beta.4",
+      "tag": "cms-v0.9.0-beta.4",
+      "notes": "docs/migration-studio/RELEASE-CMS-0.9.0-BETA.4.md",
+      "title": "Generic CMS 0.9.0-beta.4 \u2014 attachment publishing fixes",
+      "runtimeAcceptance": {
+        "status": "passed",
+        "date": "2026-11-24",
+        "candidate": "RC.1",
+        "sha256": "5cb47155cda6ef43b4a95ba2f03969cd786dc2d9a2851aec0ac95ef10d6922ed"
+      }
+    },
+    "publisher": {
+      "version": "0.8.0-beta.2",
+      "tag": "publisher-v0.8.0-beta.2",
+      "notes": "docs/migration-studio/RELEASE-PUBLISHER-0.8.0-BETA.2.md",
+      "runtimeAcceptance": {
+        "status": "passed",
+        "date": "2026-11-23",
+        "candidate": "RC.1",
+        "sha256": "49c1f85f5c0fef091b157c0d9cd219056b981a2b4f6fb264e53fb58fef69014d"
+      }
+    }
+  }
 }

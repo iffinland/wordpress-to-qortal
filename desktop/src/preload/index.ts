@@ -40,6 +40,10 @@ const api = {
     test: (url: string) => invoke(IPC.nodesTest, { url })
   },
   projects: {
+    unarchive: (projectId: string) => invoke(IPC.projectUnarchive, { projectId }),
+    trash: () => invoke(IPC.projectTrash),
+    restoreTrash: (trashId: string) => invoke(IPC.projectRestoreTrash, { trashId }),
+    purgeTrash: (trashId: string, confirmation: string) => invoke(IPC.projectPurgeTrash, { trashId, confirmation }),
     list: (includeArchived = false) => invoke(IPC.projectList, { includeArchived }),
     inspect: (projectId: string) => invoke(IPC.projectInspect, { projectId }),
     create: (input: Record<string, unknown>) => invoke(IPC.projectCreate, input),
@@ -50,6 +54,8 @@ const api = {
     saveWizard: (projectId: string, wizard: Record<string, unknown>) => invoke(IPC.projectSaveWizard, { projectId, wizard })
   },
   sources: {
+    openLogin: (projectId: string) => invoke(IPC.sourceOpenLogin, { projectId }),
+    completeLogin: (projectId: string) => invoke(IPC.sourceCompleteLogin, { projectId }),
     list: () => invoke(IPC.sourceList),
     capabilities: (adapterId: string) => invoke(IPC.sourceCapabilities, { adapterId }),
     validate: (projectId: string, input: Record<string, unknown>) => invoke(IPC.sourceValidate, { projectId, ...input }),

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
 import type {
   PlanDocument,
@@ -49,13 +49,15 @@ function resourceStatus(resource: { status?: string | null; state?: string | nul
   return resource.status ?? resource.state ?? 'handoff_ready';
 }
 
-export function Publishing({ projectId, initialPlanId = null, onBack }: { projectId: string; initialPlanId?: string | null; onBack: () => void }) {
+export function Publishing({ projectId, initialPlanId = null, initialHandoffId = null, onBack }: { projectId: string; initialPlanId?: string | null; initialHandoffId?: string | null; onBack: () => void }) {
   const [plans, setPlans] = useState<PlanRecord[]>([]);
   const [handoffs, setHandoffs] = useState<PublicationHandoffSummary[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState(initialPlanId ?? '');
   const [plan, setPlan] = useState<PlanDocument | null>(null);
   const [selection, setSelection] = useState<Set<string>>(new Set());
-  const [selectedHandoffId, setSelectedHandoffId] = useState('');
+  const [selectedHandoffId, setSelectedHandoffId] = useState(initialHandoffId ?? '');
+  const [blockedHandoffId, setBlockedHandoffId] = useState<string | null>(initialHandoffId);
+  const verificationSection = useRef<HTMLDivElement>(null);
   const [handoff, setHandoff] = useState<PublicationHandoffDetail | null>(null);
   const [prepared, setPrepared] = useState<PublicationPrepareResult | null>(null);
   const [bundle, setBundle] = useState<PublicationBundleExport | null>(null);
@@ -185,6 +187,8 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
     setPrepareStartedAt(Date.now());
     setElapsedSeconds(0);
     try {
+      const media = await api().media.download(projectId, plan.planId, {});
+      if (media.status !== 'completed') throw new Error('Required files are not ready. Open Recovery & storage to continue downloads, then try this package again.');
       const result = await api().publication.prepare(projectId, plan.planId, [...selection], {
         feePerResource: plan.estimates?.feePerResource
       });
@@ -196,6 +200,8 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
       setSelectedHandoffId(result.handoffId);
     } catch (prepareError) {
       setError(prepareError);
+      const previous = (prepareError as { details?: { handoffId?: string } })?.details?.handoffId;
+      if (previous) setBlockedHandoffId(previous);
       // The package may still have been written before a failure; reload the
       // handoff list so the user can see and export any completed artifact.
       await refresh().catch(() => {});
@@ -319,19 +325,20 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
     }
   }
 
-  async function verify() {
-    if (!selectedHandoffId) return;
+  async function verify(handoffId = selectedHandoffId) {
+    if (!handoffId) return;
     setLoading(true);
     setError(null);
     setMessage(null);
     try {
-      const result = await api().publication.verify(projectId, selectedHandoffId, nodeUrl, { attempts });
+      const result = await api().publication.verify(projectId, handoffId, nodeUrl, { attempts });
       setVerification(result);
       setMessage(result.pendingOrUnverified === 0
         ? 'Exact read-back completed for every resource.'
         : 'Some resources remain pending or unverified; they were not marked published.');
       await refresh();
-      setHandoff(await api().publication.get(projectId, selectedHandoffId));
+      setHandoff(await api().publication.get(projectId, handoffId));
+      if (result.pendingOrUnverified === 0) setBlockedHandoffId(null);
     } catch (verifyError) {
       setError(verifyError);
     } finally {
@@ -343,7 +350,7 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
     <div className="stack" data-testid="publishing-view">
       <div className="row between wrap gap">
         <div>
-          <p className="eyebrow">Phase 5 · Variant A</p>
+          <p className="eyebrow">Prepare, publish and check</p>
           <h1>Publish through Qortal Hub</h1>
           <p className="muted">
             Prepare exact QDN bytes here, hand the folder to the Migration Publisher Q-App, then import
@@ -354,6 +361,7 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
       </div>
 
       <ErrorText error={error} />
+      {blockedHandoffId && <Alert tone="warn" title="Check your earlier publication first"><p>An earlier package has resources whose publication is not independently verified. Keep that original package and check it against QDN. This action does not create a package, resubmit transactions or spend QORT.</p><button className="primary" disabled={loading} onClick={() => { const previous = blockedHandoffId; setSelectedHandoffId(previous); verificationSection.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }); verificationSection.current?.focus(); void verify(previous); }}>Check previous publication</button></Alert>}
       {message && <Alert tone="good" title="Status">{message}</Alert>}
 
       <Card title="1. Prepare a portable handoff" subtitle="Resources are selected explicitly. Estimated fees are not a live quote.">
@@ -414,7 +422,7 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
                 and its canonical public CMS APP/WEBSITE deployment uses identifier <code>default</code>.
               </p>
               <p className="small">
-                QMS never overwrites an existing deployment. A resource is updated only when this project republishes the exact
+                QMS only prepares files; Hub performs publication after your approval. Publishing to an existing address can replace its application. Review the exact
                 service, name and identifier shown in the handoff table. Review the service column before approving in Qortal Hub.
               </p>
             </Alert>
@@ -460,7 +468,7 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
         )}
       </Card>
 
-      <Card title="2. Import Publisher receipt and verify QDN" subtitle="Publisher-reported evidence is not proof. Exact read-back decides remote verification.">
+      <div ref={verificationSection} tabIndex={-1}><Card title="2. Import Publisher receipt and verify QDN" subtitle="Publisher-reported evidence is not proof. Exact read-back decides remote verification.">
         <div className="grid-2">
           <Field label="Handoff package">
             <select value={selectedHandoffId} onChange={(event) => { setSelectedHandoffId(event.target.value); setVerification(null); }}>
@@ -632,6 +640,7 @@ export function Publishing({ projectId, initialPlanId = null, onBack }: { projec
         )}
       </Card>
 
+      </div>
       <Card title="Recovery and truthfulness" subtitle="What the statuses mean">
         <ul>
           <li><strong>handoff ready</strong> means bytes are prepared locally and hashed; nothing is published.</li>

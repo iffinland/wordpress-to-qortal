@@ -150,7 +150,7 @@ const copyright = [
   ''
 ].join('\n');
 await writeFile(path.join(docDir, 'copyright'), copyright, { mode: 0o644 });
-await cp(path.join(REPO_ROOT, 'docs/migration-studio/DESKTOP-BETA.2-TESTING.md'), path.join(docDir, 'QMS-USER-GUIDE.md'));
+await cp(path.join(REPO_ROOT, release.development?.notes ?? 'docs/migration-studio/DESKTOP-BETA.2-TESTING.md'), path.join(docDir, 'QMS-USER-GUIDE.md'));
 await writeFile(path.join(docDir, 'README.Debian'), [
   config.productName + ' for Debian-based Linux',
   '',

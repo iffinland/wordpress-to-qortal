@@ -1,5 +1,6 @@
 import { BrowserWindow, app, dialog } from 'electron';
 import path from 'node:path';
+import { isSourceLoginNavigation } from './source-login.js';
 import { EngineHost, resolveHostPaths } from './host.js';
 import { CredentialStore } from './credentials.js';
 import { defaultDataRoot, loadConfig, saveConfig, validateDataRoot, desktopSettings, type DesktopConfig } from './paths.js';
@@ -104,7 +105,7 @@ async function changeDataRoot(candidate: string): Promise<Record<string, unknown
 
 app.on('web-contents-created', (_event, contents) => {
   contents.on('will-navigate', (event, url) => {
-    if (!isTrustedNavigation(url)) event.preventDefault();
+    if (!isTrustedNavigation(url) && !isSourceLoginNavigation(contents.id, url)) event.preventDefault();
   });
   contents.setWindowOpenHandler(() => ({ action: 'deny' }));
 });

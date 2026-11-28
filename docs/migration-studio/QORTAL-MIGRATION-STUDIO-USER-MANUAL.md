@@ -1,3 +1,5 @@
+> Unpublished Desktop 0.8.0-beta.3 project-center trial: see [the complete continuation/settings guide](DESKTOP-PROJECTS-TESTING.md). The public beta.2 instructions below remain historical for this local trial.
+
 # Qortal Migration Studio user manual
 
 Desktop **0.8.0-beta.2** opens **Guided mode** by default. Follow the [current four-step guide](DESKTOP-BETA.2-TESTING.md): website address → content selection → Qortal destination → review and prepare. The app fills in site information and automatically runs local preparation. Import the Publisher confirmation for independent verification; larger selections continue in verified groups. Settings & help includes project backup/restore, node settings and text size.

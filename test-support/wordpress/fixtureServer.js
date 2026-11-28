@@ -548,7 +548,7 @@ function isAuthorized(req, options) {
   }
   if (options.authMode === 'session') {
     const cookie = req.headers.cookie ?? '';
-    return cookie.split(/;\s*/).some((entry) => entry.startsWith('wordpress_logged_in_fixture='));
+    return cookie.split(/;\s*/).some((entry) => entry.startsWith('wordpress_logged_in_fixture=')) && (!options.requireRestNonce || req.headers['x-wp-nonce'] === 'fixture-rest-nonce');
   }
   return false;
 }
@@ -595,14 +595,14 @@ export async function startWordpressFixtureServer(options = {}) {
     }
 
     if (url.pathname === '/login/' && req.method === 'GET') {
-      sendText(res, 200, '<html><body><form id="loginform" action="/login/"><input name="nonce" value="abc"><input name="log"><input name="pwd"></form></body></html>', 'text/html; charset=utf-8');
+      sendText(res, 200, '<html><body><form id="loginform" method="post" action="/login/"><input name="nonce" type="hidden" value="abc"><input name="log"><input name="pwd" type="password">' + (options.loginCaptcha || options.loginCaptchaReference ? '<input name="hcaptcha-signature-fixture" type="hidden" value="fixture-only">' : '') + (options.loginCaptcha ? '<label><input name="fixture-challenge" value="yes" type="checkbox" required>Confirm fixture challenge</label>' : '') + '<button type="submit">Sign in</button></form></body></html>', 'text/html; charset=utf-8');
       return;
     }
     if (url.pathname === '/login/' && req.method === 'POST') {
       const chunks = [];
       for await (const chunk of req) chunks.push(chunk);
       const body = new URLSearchParams(Buffer.concat(chunks).toString('utf8'));
-      if (body.get('log') === authUser(options) && body.get('pwd') === authPassword(options)) {
+      if (body.get('log') === authUser(options) && body.get('pwd') === authPassword(options) && (!options.loginCaptcha || body.get('fixture-challenge') === 'yes')) {
         res.writeHead(302, {
           Location: '/wp-admin/',
           'Set-Cookie': 'wordpress_logged_in_fixture=yes; Path=/; HttpOnly'
@@ -614,6 +614,11 @@ export async function startWordpressFixtureServer(options = {}) {
       return;
     }
 
+    if (url.pathname === '/wp-admin/admin-ajax.php' && query.get('action') === 'rest-nonce') {
+      const signedIn = (req.headers.cookie ?? '').includes('wordpress_logged_in_fixture=');
+      sendText(res, signedIn ? 200 : 401, signedIn ? 'fixture-rest-nonce' : '0'); return;
+    }
+    if (url.pathname === '/wp-admin/' && (req.headers.cookie ?? '').includes('wordpress_logged_in_fixture=')) { sendText(res, 200, '<h1>Signed in to fixture site</h1>', 'text/html'); return; }
     if (!url.pathname.startsWith('/wp-json')) {
       sendJson(res, 404, { code: 'rest_no_route' });
       return;

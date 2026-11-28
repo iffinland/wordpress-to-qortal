@@ -67,7 +67,7 @@ export function Progress({ projectId, planId, onBack, onHistory, onPublishing }:
       mounted.current = false;
       unsubscribe();
     };
-  }, [projectId]);
+  }, [projectId, planId]);
 
   const latestRun = useMemo(() => {
     if (currentRunId) return runs.find((run) => run.id === currentRunId) ?? null;

@@ -197,3 +197,17 @@ describe('desktop publishing handoff flow', () => {
     expect(screen.queryByText('Published (verified)')).toBeNull();
   });
 });
+
+describe('previous publication recovery', () => {
+  it('selects and checks the exact blocking handoff without preparing or submitting it again', async () => {
+    const client = mockApi(); window.qms = client;
+    const previous = 'hof_previous12345678';
+    client.publication.list = vi.fn(async () => [{ ...handoffSummary, handoffId: previous, status: 'pending_confirmation' }]);
+    client.publication.get = vi.fn(async () => ({ handoff: { ...handoffSummary, handoffId: previous, projectId: project().id, siteId: project().siteId!, resources: [resource] }, resources: [resource], absolutePath: '/tmp/handoff', packageValid: true, validation: { filesVerified: 1, summary: {} } }));
+    render(<Publishing projectId="prj_abcdefgh" initialHandoffId={previous} onBack={vi.fn()} />);
+    await userEvent.click(await screen.findByRole('button', { name: 'Check previous publication' }));
+    await waitFor(() => expect(client.publication.verify).toHaveBeenCalledWith('prj_abcdefgh', previous, expect.any(String), expect.any(Object)));
+    expect(client.publication.prepare).not.toHaveBeenCalled();
+    expect(client.publication.exportBundle).not.toHaveBeenCalled();
+  });
+});

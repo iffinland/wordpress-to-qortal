@@ -217,6 +217,7 @@ export function AdvancedApp({ onGuided }: { onGuided?: () => void } = {}) {
   return (
     <div className="app-shell" data-testid="app-shell">
       <header className="app-header">
+        <button className="primary home-button" onClick={() => void backToDashboard()}>Projects / Home</button>
         <div className="brand">
           <div className="brand-mark" aria-hidden="true">Q</div>
           <div>
@@ -326,6 +327,5 @@ export function AdvancedApp({ onGuided }: { onGuided?: () => void } = {}) {
 
 
 export default function App() {
-  const [advanced, setAdvanced] = useState(false);
-  return advanced ? <AdvancedApp onGuided={() => setAdvanced(false)} /> : <GuidedStudio onAdvanced={() => setAdvanced(true)} />;
+  return <GuidedStudio onAdvanced={() => {}} />;
 }

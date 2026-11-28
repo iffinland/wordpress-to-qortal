@@ -1,5 +1,18 @@
 # Release Delivery Checklist
 
+## Explicitly approved Desktop artifact promotion
+
+The owner runtime-accepted Desktop beta.5 on 2026-11-28 and explicitly requested
+the same DEB be published without another build or large test rerun. This
+independent component path uses `desktop-v<VERSION>`,
+`.github/workflows/qms-desktop-release.yml` and `publish-desktop.mjs`.
+It preserves the original dirty-trial metadata rather than relabelling it as
+a clean build. Require the accepted SHA-256, matching committed product source,
+unchanged Publisher/CMS source, clean promotion checkout, prior passing checks,
+owner acceptance, unused tag, matching GitHub asset digest and independent public
+download hashes. Publish notes, checksums, SBOM and provenance with the DEB.
+The complete-bundle gates below remain unchanged for complete bundle releases.
+
 Permanent owner rules, enforced by the release scripts:
 
 1. **Every completed release-facing bug fix must produce a uniquely versioned,

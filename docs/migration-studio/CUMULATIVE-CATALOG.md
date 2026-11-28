@@ -76,8 +76,11 @@ and configuration (ignoring only `generated_at`), the next handoff reuses it.
 Changing code/configuration requires an APP update; matching an older historical
 configuration is insufficient. The publishing screen retains the reused deployment
 and opens its exact service/name/identifier, including the site identity in the
-review. An independent site under the same name has a different manifest and APP
-identifier; it does not continue an older site's catalog.
+review. An independent site under the same name has a different manifest, but the public
+APP/WEBSITE application uses identifier `default`. The same name and service
+therefore share a public address: a replacement can switch the visible catalog.
+Desktop destination review requires an explicit decision for a local collision;
+it does not continue another project's catalog.
 
 ## Bounded acceptance
 

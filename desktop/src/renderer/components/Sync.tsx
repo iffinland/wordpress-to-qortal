@@ -34,6 +34,11 @@ const RESOLUTIONS: Record<string, Array<{ value: string; label: string }>> = {
     { value: 'replan', label: 'Re-plan from source' },
     { value: 'skip', label: 'Skip this item' }
   ],
+  LOCAL_DRAFT_DIFFERS: [
+    { value: 'keep_draft', label: 'Keep local draft' },
+    { value: 'take_source', label: 'Use WordPress version' },
+    { value: 'skip', label: 'Skip this article' }
+  ],
   IDENTITY_COLLISION: [
     { value: 'alternate', label: 'Use alternate identifier' },
     { value: 'skip', label: 'Skip this item' },
@@ -76,7 +81,7 @@ export function SyncView({ projectId, onBack, onPublishing }: SyncViewProps) {
   const [planResult, setPlanResult] = useState<SyncPlanResult | null>(null);
   const [tombstones, setTombstones] = useState<SyncTombstoneResult | null>(null);
   const [fullReconciliation, setFullReconciliation] = useState(false);
-  const [autoWithdrawals, setAutoWithdrawals] = useState(true);
+  const [autoWithdrawals, setAutoWithdrawals] = useState(false);
   const [withdrawalPolicy, setWithdrawalPolicy] = useState('hide');
   const [busy, setBusy] = useState(false);
   const [resolvingId, setResolvingId] = useState<string | null>(null);
@@ -140,7 +145,7 @@ export function SyncView({ projectId, onBack, onPublishing }: SyncViewProps) {
   const withdrawnEntries = scan?.delta.withdrawn ?? [];
   const pendingWithdrawals = scan?.counts.withdrawn ?? 0;
   const deltaKeys = useMemo(
-    () => [...(scan?.delta.new ?? []), ...(scan?.delta.modified ?? [])].map((entry) => entry.sourceKey),
+    () => [...(scan?.delta.new ?? []), ...(scan?.delta.modified ?? []), ...(scan?.delta.unpublished ?? []).filter(entry => entry.reason === 'LOCAL_NOT_PUBLISHED')].map((entry) => entry.sourceKey),
     [scan]
   );
 
@@ -186,7 +191,7 @@ export function SyncView({ projectId, onBack, onPublishing }: SyncViewProps) {
       const result = await api().sync.resume(projectId, scan.scanId);
       if (!mounted.current) return;
       setLastResult(result);
-      setNotice(result.status === 'interrupted' ? 'Scan paused again at a checkpoint. Resume to continue.' : 'Scan resumed and finished.');
+      setNotice(result.status === 'interrupted' ? 'The check paused again. Continue from its checkpoint.' : result.status === 'completed' ? 'Check completed. Review the content below.' : result.status === 'requires_rescan' ? 'The previous check stopped before saving a complete source batch. Start a new check; your project and published content are kept.' : 'The check is not complete. Review the reported issue before preparing a package.');
       await refresh();
     } catch (resumeError) {
       if (mounted.current) setError(resumeError);
@@ -313,7 +318,7 @@ export function SyncView({ projectId, onBack, onPublishing }: SyncViewProps) {
     <div className="stack" data-testid="sync-view">
       <div className="hero">
         <div>
-          <p className="eyebrow">Phase 7 · incremental synchronization</p>
+          <p className="eyebrow">Source changes and decisions</p>
           <h1>Check for updates</h1>
           <p className="muted">
             Compares WordPress with the persistent identity mappings and prepares only new or modified resources.
@@ -450,7 +455,7 @@ export function SyncView({ projectId, onBack, onPublishing }: SyncViewProps) {
       )}
 
       {scan?.planningAllowed && deltaKeys.length === 0 && scan.status === 'completed' && (
-        <Alert tone="good">No new or modified content was found in this completed scan. Nothing will be republished.</Alert>
+        <Alert tone="good">No new, changed or unfinished public content was found in this check. Previously verified content is kept.</Alert>
       )}
 
       {planResult && (

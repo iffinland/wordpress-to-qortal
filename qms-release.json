@@ -13,10 +13,10 @@
   },
   "components": {
     "desktop": {
-      "version": "0.8.0-beta.2",
+      "version": "0.8.0-beta.5",
       "channel": "beta",
       "source": "desktop/package.json",
-      "changelog": "Runtime-accepted guided desktop beta.2, built from clean committed source for the v0.8.0-beta.4 public beta release."
+      "changelog": "Unpublished owner trial: restore beta.2 normal WordPress form login; remove false CAPTCHA blocking; keep extra website login collapsed; retain Home and project-management fixes."
     },
     "publisher": {
       "version": "0.8.0-beta.2",
@@ -62,6 +62,23 @@
         "candidate": "RC.1",
         "sha256": "49c1f85f5c0fef091b157c0d9cd219056b981a2b4f6fb264e53fb58fef69014d"
       }
+    },
+    "desktop": {
+      "version": "0.8.0-beta.5",
+      "tag": "desktop-v0.8.0-beta.5",
+      "notes": "docs/migration-studio/RELEASE-DESKTOP-0.8.0-BETA.5.md",
+      "runtimeAcceptance": {
+        "status": "passed",
+        "date": "2026-11-28",
+        "sha256": "09fb3e389e8dbb69a1a7274cc7faa4a7ee46f384ea590b6c80b9ca76176a1eb6"
+      }
     }
+  },
+  "development": {
+    "status": "unpublished",
+    "component": "desktop",
+    "version": "0.8.0-beta.5",
+    "baseCommit": "154750d6bb63a544d3ea1a78630c526bb9591af0",
+    "notes": "docs/migration-studio/DESKTOP-PROJECTS-TESTING.md"
   }
 }

@@ -1,3 +1,4 @@
+import { openSourceLogin, completeSourceLogin, closeSourceLogin } from './source-login.js';
 import { BrowserWindow, ipcMain, shell, dialog } from 'electron';
 import { IPC } from '../shared/channels.js';
 import { validateIpcPayload } from '../shared/validation.js';
@@ -121,7 +122,19 @@ export function registerIpc(deps: IpcDependencies): void {
     [IPC.restoreBackup]: async () => {
       const result = await dialog.showOpenDialog({ title: 'Restore a QMS project backup', properties: ['openFile'], filters: [{ name: 'QMS backup', extensions: ['gz'] }] });
       if (result.canceled || !result.filePaths[0]) return { cancelled: true };
-      return invoke('backup.restore', { file: result.filePaths[0] }, 60 * 60000);
+      try { return await invoke('backup.restore', { file: result.filePaths[0] }, 60 * 60000); }
+      catch (error) {
+        if ((error as { message?: string }).message?.includes('already exists')) {
+          const choice = await dialog.showMessageBox({ type: 'question', title: 'This project already exists', message: 'Your current project has been kept.', detail: 'Cancel and open the existing project, or restore the backup in another workspace without replacing your current data.', buttons: ['Cancel and open existing project', 'Choose another workspace'], defaultId: 0, cancelId: 0 });
+          if (choice.response === 0) return { cancelled: true };
+          const folder = await dialog.showOpenDialog({ title: 'Choose another QMS workspace', properties: ['openDirectory', 'createDirectory'] });
+          if (folder.canceled || !folder.filePaths[0]) return { cancelled: true };
+          await deps.setDataRoot(folder.filePaths[0]);
+          const restored = await invoke('backup.restore', { file: result.filePaths[0] }, 60 * 60000);
+          return { ...restored as object, workspaceChanged: true };
+        }
+        throw error;
+      }
     },
     [IPC.appInfo]: async () => deps.appInfo(),
     [IPC.appSettings]: async () => deps.getSettings(),
@@ -170,6 +183,10 @@ export function registerIpc(deps: IpcDependencies): void {
       return { opened: true, path: resolved };
     },
 
+    [IPC.projectUnarchive]: async (params) => invoke('project.unarchive', { projectId: params.projectId }),
+    [IPC.projectTrash]: async () => invoke('project.trash', {}),
+    [IPC.projectRestoreTrash]: async (params) => invoke('project.restoreTrash', params),
+    [IPC.projectPurgeTrash]: async (params) => invoke('project.purgeTrash', params),
     [IPC.projectList]: async (params) => invoke('project.list', { includeArchived: params.includeArchived === true }),
     [IPC.projectInspect]: async (params) => invoke('project.inspect', { projectId: params.projectId }),
     [IPC.projectCreate]: async (params) => invoke('project.create', params),
@@ -182,18 +199,34 @@ export function registerIpc(deps: IpcDependencies): void {
       patch: { settings: { desktopWizard: params.wizard } }
     }),
 
+    [IPC.sourceOpenLogin]: async (params) => {
+      const project = await invoke<{ project: { source: { baseUrl: string } } }>('project.get', { projectId: params.projectId });
+      return openSourceLogin(String(params.projectId), project.project.source.baseUrl, deps.getWindow());
+    },
+    [IPC.sourceCompleteLogin]: async (params) => {
+      const projectId = String(params.projectId);
+      const project = await invoke<{ project: { source: { baseUrl: string } } }>('project.get', { projectId });
+      const auth = await completeSourceLogin(projectId, project.project.source.baseUrl);
+      const result = await invoke<{ status: string; report?: { ok?: boolean } }>('source.validate', { projectId, auth });
+      if (result.status === 'completed' && result.report?.ok) {
+        await deps.credentials.store(projectId, auth, false);
+        closeSourceLogin(projectId);
+        await invoke('project.update', { projectId, patch: { source: { authMode: 'session' } } });
+      }
+      return result;
+    },
     [IPC.sourceList]: async () => invoke('source.list', {}),
     [IPC.sourceCapabilities]: async (params) => invoke('source.capabilities', { adapterId: params.adapterId }),
     [IPC.sourceValidate]: async (params) => {
       const auth = await ensureAuth(String(params.projectId), params.auth);
-      if (params.remember === true) await deps.credentials.store(String(params.projectId), auth, true);
-      else await deps.credentials.store(String(params.projectId), auth, false);
-      return invoke('source.validate', {
-        projectId: params.projectId,
-        adapterId: params.adapterId,
-        auth,
-        source: params.source ?? {}
+      const result = await invoke<{ status: string; report?: { ok?: boolean } }>('source.validate', {
+        projectId: params.projectId, adapterId: params.adapterId, auth, source: params.source ?? {}
       });
+      if (result.status === 'completed' && result.report?.ok) {
+        await deps.credentials.store(String(params.projectId), auth, params.remember === true && !auth.browserSession);
+        await invoke('project.update', { projectId: params.projectId, patch: { source: { authMode: auth.mode } } });
+      }
+      return result;
     },
     [IPC.sourceDiscover]: async (params) => {
       const auth = await ensureAuth(String(params.projectId), params.auth);

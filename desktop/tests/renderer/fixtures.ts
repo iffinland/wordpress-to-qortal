@@ -207,6 +207,10 @@ export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
       test: vi.fn(async () => ({ ok: true, url: 'http://127.0.0.1:24991', status: 200, latencyMs: 4, height: 100, message: 'Node reachable at block 100.', checkedAt: '2026-11-08T00:00:00.000Z' }))
     },
     projects: {
+      unarchive: vi.fn(async () => ({ restored: true })),
+      trash: vi.fn(async () => []),
+      restoreTrash: vi.fn(async () => ({ restored: true })),
+      purgeTrash: vi.fn(async () => ({ purged: true })),
       list: vi.fn(async () => [project()]),
       inspect: vi.fn(async () => ({
         project: project() as never,
@@ -225,6 +229,8 @@ export function mockApi(overrides: Partial<QmsApi> = {}): QmsApi {
       saveWizard: vi.fn(async () => ({ project: project() }))
     },
     sources: {
+      openLogin: vi.fn(async () => ({ opened: true })),
+      completeLogin: vi.fn(async () => ({ status: 'completed', report: { ok: true } } as never)),
       list: vi.fn(async () => [adapter()]),
       capabilities: vi.fn(async () => adapter()),
       validate: vi.fn(async () => ({ runId: 'run_test', status: 'completed', report: { ok: true, adapter: 'wordpress', adapterVersion: '1.0.0', auth: { mode: 'none', authenticated: true }, site: { name: 'Demo' }, counts: {}, contentTypes: ['post', 'page'], unsupported: {}, warnings: [] } })),

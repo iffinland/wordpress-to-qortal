@@ -48,6 +48,8 @@ export interface ProjectSummary {
   storageRoot: string;
 }
 
+export interface DeletedProject { trashId: string; projectId: string; name: string; sourceBaseUrl?: string; targetQdnName?: string; removedAt: string; }
+
 export interface ProjectDocument extends ProjectSummary {
   schema: string;
   version: number;
@@ -858,6 +860,10 @@ export interface QmsApi {
     test(url: string): Promise<NodeTestResult>;
   };
   projects: {
+    unarchive(projectId: string): Promise<Record<string, unknown>>;
+    trash(): Promise<DeletedProject[]>;
+    restoreTrash(trashId: string): Promise<Record<string, unknown>>;
+    purgeTrash(trashId: string, confirmation: string): Promise<Record<string, unknown>>;
     list(includeArchived?: boolean): Promise<ProjectSummary[]>;
     inspect(projectId: string): Promise<ProjectInspection>;
     create(input: Record<string, unknown>): Promise<ProjectSummary>;
@@ -868,6 +874,8 @@ export interface QmsApi {
     saveWizard(projectId: string, wizard: WizardState): Promise<Record<string, unknown>>;
   };
   sources: {
+    openLogin(projectId: string): Promise<{ opened: boolean }>;
+    completeLogin(projectId: string): Promise<SourceValidationResult>;
     list(): Promise<AdapterInfo[]>;
     capabilities(adapterId: string): Promise<AdapterInfo>;
     validate(projectId: string, input: Record<string, unknown>): Promise<SourceValidationResult>;

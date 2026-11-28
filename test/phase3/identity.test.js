@@ -105,9 +105,7 @@ test('identifiers stay stable across slug and content revisions and route change
     makePost(2),
     makePost(3)
   ]);
-  const routeServer = await startWordpressFixtureServer({ data: routeData });
-  t.after(() => routeServer.close().catch(() => {}));
-  await env.handle.update({ source: { baseUrl: routeServer.url } });
+  Object.assign(env.wp.data, routeData);
   assert.equal((await env.handle.source.discover({ mode: 'full', perPage: 50 })).status, 'completed');
   const routePlan = await env.handle.planning.create({ batchSize: 3, estimateMedia: false });
   assert.equal(routePlan.status, 'completed');
@@ -125,9 +123,7 @@ test('identifiers stay stable across slug and content revisions and route change
     makePost(2),
     makePost(3)
   ]);
-  const contentServer = await startWordpressFixtureServer({ data: contentData });
-  t.after(() => contentServer.close().catch(() => {}));
-  await env.handle.update({ source: { baseUrl: contentServer.url } });
+  Object.assign(env.wp.data, contentData);
   assert.equal((await env.handle.source.discover({ mode: 'full', perPage: 50 })).status, 'completed');
   const modifiedPlan = await env.handle.planning.create({ batchSize: 3, estimateMedia: false });
   assert.equal(modifiedPlan.status, 'completed');

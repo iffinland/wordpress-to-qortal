@@ -1,0 +1,500 @@
+{
+  "schema": "qms-desktop-owner-acceptance@1",
+  "version": "0.8.0-beta.5",
+  "artifact": {
+    "schema": "qms-deb-artifact@1",
+    "artifact": "qortal-migration-studio_0.8.0-beta.5_amd64.deb",
+    "path": "/workspace/scratch/e5f65e187db1/wordpress-to-qortal/desktop/release/qortal-migration-studio_0.8.0-beta.5_amd64.deb",
+    "bytes": 129094048,
+    "sha256": "09fb3e389e8dbb69a1a7274cc7faa4a7ee46f384ea590b6c80b9ca76176a1eb6",
+    "version": "0.8.0-beta.5",
+    "debianVersion": "0.8.0~beta.5",
+    "architecture": "amd64",
+    "channel": "beta",
+    "signing": "unsigned",
+    "sourceCommit": "154750d6bb63a544d3ea1a78630c526bb9591af0",
+    "sourceTree": "dc972147789e963b9459da251e390a4e9fe52770",
+    "workingSourceSha256": "c74276e05f40a490c31dc63ba01d4e7f22251bcd4e34175398ea4be96d46bb87",
+    "branch": "fix/qms-guided-projects",
+    "dirty": true,
+    "sourceDateEpoch": 1795499246,
+    "builtAt": "2026-11-27T11:13:09.850Z"
+  },
+  "ownerAcceptance": {
+    "status": "passed",
+    "date": "2026-11-28",
+    "instruction": "runtime test passed; publish the same DEB, commit and push main; do not rerun large or long tests"
+  },
+  "automatedEvidence": {
+    "desktopTests": 110,
+    "engineTests": 304,
+    "validation": {
+      "schema": "qms-deb-validation@1",
+      "artifact": "qortal-migration-studio_0.8.0-beta.5_amd64.deb",
+      "bytes": 129094048,
+      "sha256": "09fb3e389e8dbb69a1a7274cc7faa4a7ee46f384ea590b6c80b9ca76176a1eb6",
+      "version": "0.8.0-beta.5",
+      "architecture": "amd64",
+      "checks": 60,
+      "passed": 60,
+      "failed": 0,
+      "results": [
+        {
+          "name": "artifact name follows Debian convention",
+          "ok": true,
+          "detail": "qortal-migration-studio_0.8.0-beta.5_amd64.deb"
+        },
+        {
+          "name": "artifact is a plausible Electron package size",
+          "ok": true,
+          "detail": "129094048"
+        },
+        {
+          "name": "package name",
+          "ok": true,
+          "detail": "qortal-migration-studio"
+        },
+        {
+          "name": "package version",
+          "ok": true,
+          "detail": "0.8.0~beta.5"
+        },
+        {
+          "name": "package architecture",
+          "ok": true,
+          "detail": "amd64"
+        },
+        {
+          "name": "package section",
+          "ok": true,
+          "detail": "office"
+        },
+        {
+          "name": "maintainer present",
+          "ok": true,
+          "detail": "Qortal Migration Studio contributors <maintainers@example.invalid>"
+        },
+        {
+          "name": "homepage present",
+          "ok": true,
+          "detail": "https://github.com/iffinland/wordpress-to-qortal"
+        },
+        {
+          "name": "installed size present",
+          "ok": true,
+          "detail": "300172"
+        },
+        {
+          "name": "GTK dependency alternatives",
+          "ok": true,
+          "detail": "libgtk-3-0 | libgtk-3-0t64, libnotify4, libnss3, libxss1, libxtst6, xdg-utils, libatspi2.0-0 | libatspi2.0-0t64, libuuid1, libsecret-1-0, libasound2t64 (>= 1.0.16) | libasound2 (>= 1.0.16), libgbm1, libdrm2, libxkbcommon0, libxcomposite1, libxdamage1, libxrandr2, libxfixes3, libcups2 | libcups2t64, libpango-1.0-0, libcairo2, libatk1.0-0 | libatk1.0-0t64, libatk-bridge2.0-0 | libatk-bridge2.0-0t64, libx11-6, libxcb1, libxext6, libxi6, libatomic1, libc6 (>= 2.28)"
+        },
+        {
+          "name": "libsecret dependency",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "xdg-utils dependency",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/qortal-migration-studio",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/resources/app.asar",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/resources/engine/bin/qms-host.js",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/resources/engine/node_modules/cheerio/package.json",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/resources/engine/node_modules/dotenv/package.json",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/resources/engine/templates/generic-cms/dist/index.html",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./opt/qortal-migration-studio/resources/engine/templates/generic-cms/template.json",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./usr/share/applications/qortal-migration-studio.desktop",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./usr/bin/qortal-migration-studio",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains ./usr/share/doc/qortal-migration-studio/copyright",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 16x16",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 32x32",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 48x48",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 64x64",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 128x128",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 256x256",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "contains icon 512x512",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "no forbidden path /\\/profiles\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/\\.env$/",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/fixtures\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/test\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/tests\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/test-support\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/corbettreport\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/viewer\\/node_modules\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\.map$/",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/\\.git\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "no forbidden path /\\/release\\//",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "main executable is executable",
+          "ok": true,
+          "detail": "100755"
+        },
+        {
+          "name": "chrome-sandbox is setuid root",
+          "ok": true,
+          "detail": "104755"
+        },
+        {
+          "name": "chrome-sandbox mode is 4755",
+          "ok": true,
+          "detail": "104755"
+        },
+        {
+          "name": "desktop entry name",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "desktop entry exec",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "desktop entry icon",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "desktop entry not terminal",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "engine runtime schema",
+          "ok": true,
+          "detail": "qms-engine-runtime@1"
+        },
+        {
+          "name": "engine runtime version",
+          "ok": true,
+          "detail": "0.8.0-beta.5"
+        },
+        {
+          "name": "engine runtime template version",
+          "ok": true,
+          "detail": "0.9.0-beta.4"
+        },
+        {
+          "name": "engine runtime file hashes match manifest",
+          "ok": true,
+          "detail": "0"
+        },
+        {
+          "name": "bundled template schema",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "bundled template version",
+          "ok": true,
+          "detail": "0.9.0-beta.4"
+        },
+        {
+          "name": "bundled template has root index.html",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "asar package version",
+          "ok": true,
+          "detail": "0.8.0-beta.5"
+        },
+        {
+          "name": "usr/bin launcher is a symlink",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "usr/bin launcher target",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "no unsafe permissions",
+          "ok": true,
+          "detail": ""
+        },
+        {
+          "name": "maintainer scripts never delete project data",
+          "ok": true,
+          "detail": null
+        },
+        {
+          "name": "prerm has no destructive command",
+          "ok": true,
+          "detail": null
+        }
+      ],
+      "validatedAt": "2026-11-27T11:13:35.752Z"
+    },
+    "security": {
+      "schema": "qms-security-report@1",
+      "version": "0.8.0-beta.5",
+      "artifact": "qortal-migration-studio_0.8.0-beta.5_amd64.deb",
+      "dependencyAudits": [
+        {
+          "name": "engine-runtime",
+          "exitCode": 0,
+          "error": null,
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 0,
+            "critical": 0,
+            "total": 0
+          }
+        },
+        {
+          "name": "desktop",
+          "exitCode": 0,
+          "error": null,
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 0,
+            "critical": 0,
+            "total": 0
+          }
+        }
+      ],
+      "productionHighOrCritical": 0,
+      "payloadScan": {
+        "files": 1178,
+        "textFiles": 1104,
+        "bytes": 307375700,
+        "secretFindings": [],
+        "forbiddenNames": []
+      },
+      "verdict": "pass",
+      "scannedAt": "2026-11-27T11:13:44.333Z"
+    },
+    "engineCleanInstall": {
+      "schema": "qms-engine-clean-install@1",
+      "status": "pass",
+      "artifact": "qortal-migration-studio_0.8.0-beta.5_amd64.deb",
+      "artifactBytes": 129094048,
+      "artifactSha256": "09fb3e389e8dbb69a1a7274cc7faa4a7ee46f384ea590b6c80b9ca76176a1eb6",
+      "version": "0.8.0-beta.5",
+      "enginePackageVersion": "0.8.0-beta.5",
+      "runtime": "electron",
+      "runtimeVersion": "bundled Electron (ELECTRON_RUN_AS_NODE=1)",
+      "engineRoot": "/opt/qortal-migration-studio/resources/engine",
+      "entry": "bin/qms-host.js",
+      "handshake": {
+        "method": "engine.info",
+        "ok": true,
+        "apiVersion": "qms-engine@1",
+        "engineVersion": "0.8.0-beta.5",
+        "durationMs": 298,
+        "reason": null,
+        "exitCode": 0
+      },
+      "hiddenModules": [],
+      "detector": null,
+      "stderrExcerpt": "",
+      "stdoutExcerpt": "an-tTwcrT/root/opt/qortal-migration-studio/resources/engine\",\"eventSchema\":\"qms-event@1\",\"eventTypes\":[\"operation_started\",\"progress_updated\",\"warning_emitted\",\"operation_completed\",\"operation_failed\",\"operation_cancelled\",\"state_snapshot\"],\"sourceContract\":\"qms-source-adapter@1\",\"contentSchema\":\"qms-content@1\",\"planSchema\":\"qms-plan@1\",\"identitySchema\":\"qms-identity-state@1\",\"syncSchema\":\"qms-sync-state@1\",\"syncScanSchema\":\"qms-sync-scan@1\",\"syncConflictSchema\":\"qms-sync-conflict@1\",\"withdrawalSchema\":\"qms-withdrawal-record@1\",\"handoffSchema\":\"qms-publication-handoff@1\",\"receiptSchema\":\"qms-publication-receipt@1\",\"publicationStateSchema\":\"qms-publication-state@1\",\"auditEntrySchema\":\"qms-audit-entry@1\",\"historySnapshotSchema\":\"qms-history-snapshot@1\",\"recoveryCheckpointSchema\":\"qms-recovery-checkpoint@1\",\"recoveryStageSchema\":\"qms-recovery-stage@1\",\"recoveryStatusSchema\":\"qms-recovery-status@1\",\"cleanupRecordSchema\":\"qms-cleanup-record@1\",\"cleanupPreviewSchema\":\"qms-cleanup-preview@1\",\"supportBundleSchema\":\"qms-support-bundle@1\",\"maxPublishBatchResources\":20,\"adapters\":[{\"id\":\"wordpress\",\"displayName\":\"WordPress REST API\",\"version\":\"1.0.1\",\"contract\":\"qms-source-adapter@1\",\"contractVersion\":1,\"capabilities\":{\"contract\":\"qms-source-adapter@1\",\"contractVersion\":1,\"contentTypes\":[\"post\",\"page\"],\"terms\":[\"category\",\"tag\"],\"assets\":{\"images\":true,\"audio\":true,\"video\":true,\"documents\":true,\"embeds\":true},\"states\":[\"publish\",\"draft\",\"pending\",\"private\",\"future\",\"inherit\",\"unknown\"],\"incremental\":{\"new\":true,\"modified\":true,\"deleted\":false,\"cursor\":\"date\"},\"authentication\":[\"none\",\"application_password\",\"session\"],\"limits\":{\"maxPageSize\":100,\"supportsDateFilters\":true,\"supportsModifiedFilters\":true,\"supportsOffset\":true,\"boundedMemory\":true},\"unsupported\":{\"customPostTypes\":\"reported-with-counts\",\"comments\":\"reported-not-migrated\",\"users\":\"reported-not-migrated\",\"menus\":\"reported-not-migrated\",\"widgets\":\"reported-not-migrated\",\"reusableBlocks\":\"reported-not-migrated\"}}}]}}\n",
+      "ranAt": "2026-11-27T11:13:35.502Z"
+    },
+    "packagedAcceptance": [
+      {
+        "schema": "qms-guided-projects-acceptance@1",
+        "app": "/tmp/qms-beta5-extracted/opt/qortal-migration-studio/qortal-migration-studio",
+        "startedAt": "2026-11-27T11:13:37.598Z",
+        "checks": [
+          {
+            "name": "Fresh project: connection, sample, ZIP, receipt and exact APP/content verification",
+            "passed": true
+          },
+          {
+            "name": "Older date-range content extends the same three-item catalog without duplicate identities",
+            "passed": true
+          },
+          {
+            "name": "Guided updates revise the original article and preserve the earlier catalog",
+            "passed": true
+          },
+          {
+            "name": "Rename, archive, reactivate, remove and restore preserve the original project",
+            "passed": true
+          },
+          {
+            "name": "Independent same-source project is allowed and shared Qortal address is explicitly reviewed",
+            "passed": true
+          },
+          {
+            "name": "Never-submitted package can be set aside and its existing identities migrated to a corrected Qortal name",
+            "passed": true
+          },
+          {
+            "name": "Persistent Home navigation and credential-free project persistence",
+            "passed": true
+          }
+        ],
+        "authMode": "session",
+        "passed": true,
+        "completedAt": "2026-11-27T11:13:56.711Z"
+      },
+      {
+        "schema": "qms-guided-projects-acceptance@1",
+        "app": "/tmp/qms-beta5-extracted/opt/qortal-migration-studio/qortal-migration-studio",
+        "startedAt": "2026-11-27T11:14:00.012Z",
+        "checks": [
+          {
+            "name": "Fresh project: connection, sample, ZIP, receipt and exact APP/content verification",
+            "passed": true
+          },
+          {
+            "name": "Older date-range content extends the same three-item catalog without duplicate identities",
+            "passed": true
+          },
+          {
+            "name": "Guided updates revise the original article and preserve the earlier catalog",
+            "passed": true
+          },
+          {
+            "name": "Rename, archive, reactivate, remove and restore preserve the original project",
+            "passed": true
+          },
+          {
+            "name": "Independent same-source project is allowed and shared Qortal address is explicitly reviewed",
+            "passed": true
+          },
+          {
+            "name": "Never-submitted package can be set aside and its existing identities migrated to a corrected Qortal name",
+            "passed": true
+          },
+          {
+            "name": "Persistent Home navigation and credential-free project persistence",
+            "passed": true
+          }
+        ],
+        "authMode": "browser",
+        "passed": true,
+        "completedAt": "2026-11-27T11:14:18.670Z"
+      }
+    ]
+  },
+  "promotion": {
+    "rebuild": false,
+    "originalDirtyTrialMetadataPreserved": true,
+    "requireMatchingCommittedProductSource": true,
+    "publisherCmsChanged": false
+  }
+}

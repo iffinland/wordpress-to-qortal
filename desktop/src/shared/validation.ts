@@ -184,7 +184,7 @@ export function sanitizeAuth(input: unknown): Dict {
     mode,
     username: text(auth.username, 'auth.username', { optional: true, max: 200 }) ?? '',
     password: text(auth.password, 'auth.password', { optional: true, max: 500, trim: false }) ?? '',
-    loginUrl: text(auth.loginUrl, 'auth.loginUrl', { optional: true, max: 2000 }) ?? '/login/'
+    ...(auth.loginUrl ? { loginUrl: text(auth.loginUrl, 'auth.loginUrl', { max: 2000 }) } : {})
   };
 }
 
@@ -203,6 +203,7 @@ export function sanitizeSource(input: unknown): Dict {
   }
   return {
     ...(baseUrl ? { baseUrl } : {}),
+    ...(source.authMode !== undefined && ['none', 'application_password', 'session'].includes(String(source.authMode)) ? { authMode: source.authMode } : {}),
     ...(source.timeoutMs !== undefined ? { timeoutMs: integer(source.timeoutMs, 'source.timeoutMs', { min: 1000, max: 1800000, optional: true }) } : {})
   };
 }
@@ -296,6 +297,13 @@ function sanitizeSettings(input: unknown): Dict {
   if (settings.disk !== undefined) out.disk = sanitizeDisk(settings.disk);
   if (settings.media !== undefined) out.media = sanitizeMedia(settings.media);
   if (settings.batchSize !== undefined) out.batchSize = integer(settings.batchSize, 'settings.batchSize', { min: 1, max: 1000 });
+  if (settings.website !== undefined) {
+    const website = object(settings.website, 'settings.website');
+    if (website.cms !== undefined && !['none', 'generic-cms'].includes(String(website.cms))) fail('Choose Website and content or Content only.');
+    if (website.service !== undefined && !['APP', 'WEBSITE'].includes(String(website.service))) fail('Choose APP or WEBSITE.');
+    out.website = sanitizePersisted(website);
+  }
+  if (settings.guidedDraft !== undefined) out.guidedDraft = sanitizePersisted(settings.guidedDraft);
   if (settings.desktopWizard !== undefined) out.desktopWizard = sanitizePersisted(settings.desktopWizard, 0);
   return out;
 }
@@ -385,6 +393,7 @@ export function validateIpcPayload(channel: string, payload: unknown): Dict {
   const params = object(payload, 'payload', { optional: true });
 
   switch (channel) {
+    case IPC.projectTrash:
     case IPC.chooseWorkspace:
     case IPC.restoreBackup:
       return {};
@@ -392,12 +401,13 @@ export function validateIpcPayload(channel: string, payload: unknown): Dict {
       return { projectId: projectId(params) };
     case IPC.workflow: {
       const action = text(params.action, 'action', { max: 20 });
-      if (!['status', 'preview', 'prepare', 'pause', 'verify', 'item'].includes(action ?? '')) fail('Unknown workflow action.');
+      if (!['status', 'preview', 'prepare', 'pause', 'cancel', 'verify', 'item', 'destination', 'approveDestination', 'reset', 'discard'].includes(action ?? '')) fail('Unknown workflow action.');
       return { projectId: projectId(params), action,
         ...(params.options ? { options: sanitizePersisted(params.options) } : {}),
         ...(params.resume !== undefined ? { resume: bool(params.resume, 'resume', false) } : {}),
         ...(params.nodeUrl !== undefined ? { nodeUrl: text(params.nodeUrl, 'nodeUrl', { max: 1000 }) } : {}),
         ...(params.receipt !== undefined ? { receipt: sanitizePersisted(params.receipt) } : {}),
+        ...(params.token !== undefined ? { token: text(params.token, 'token', { max: 64, pattern: /^[a-f0-9]{64}$/ }) } : {}),
         ...(params.sourceKey !== undefined ? { sourceKey: text(params.sourceKey, 'sourceKey', { max: 160 }) } : {}) };
     }
     case IPC.appInfo:
@@ -459,6 +469,12 @@ export function validateIpcPayload(channel: string, payload: unknown): Dict {
         settings: sanitizeSettings(params.settings)
       };
 
+    case IPC.projectRestoreTrash:
+    case IPC.projectPurgeTrash:
+      return { trashId: text(params.trashId, 'trashId', { max: 80, pattern: /^prj_[a-z0-9][a-z0-9-]{3,47}-[0-9]{10,16}$/ }), ...(channel === IPC.projectPurgeTrash ? { confirmation: text(params.confirmation, 'confirmation', { max: 120 }) } : {}) };
+    case IPC.sourceOpenLogin:
+    case IPC.sourceCompleteLogin:
+    case IPC.projectUnarchive:
     case IPC.projectOpen:
       return { projectId: projectId(params), recoverStaleLock: bool(params.recoverStaleLock, 'recoverStaleLock', false) };
 

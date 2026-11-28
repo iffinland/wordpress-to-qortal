@@ -33,8 +33,10 @@ test('guided preparation survives reopen and checks publication before advancing
   env.handle.planning.create = async () => { throw new Error('Simulated next-group disk interruption'); };
   await service.verify(node.url, null, receiptFor(manifest, 'guidedfirst'));
   state = await settle(service);
-  assert.equal(state.status, 'failed', JSON.stringify(state));
+  assert.equal(state.status, 'paused');
   assert.equal(state.cursor, 2);
+  await service.prepare(); state = await settle(service);
+  assert.equal(state.status, 'failed');
   assert.equal(state.handoffId, null);
   await assert.rejects(service.verify(node.url, null, receiptFor(manifest, 'guidedfirst')), /No publication package/);
   env.handle.planning.create = createPlan;

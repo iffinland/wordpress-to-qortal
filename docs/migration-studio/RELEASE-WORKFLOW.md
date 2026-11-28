@@ -1,5 +1,17 @@
 # Release Workflow
 
+## Runtime-approved Desktop promotion
+
+For an explicitly accepted Desktop artifact, use `publish-desktop.mjs` and
+`.github/workflows/qms-desktop-release.yml` on `release/desktop-*`. The workflow
+downloads the approved artifact, verifies its pinned digest and committed source
+fingerprint, publishes only Desktop and verifies public bytes. It does not build
+or rerun functional suites. An ephemeral artifact transfer is provided on the
+release branch; it is never merged into main. Keep the original trial metadata,
+record the integration commit and ship acceptance/provenance/SBOM/checksums. The
+full-bundle and other component paths below are unchanged.
+
+
 Operational instructions for publishing Qortal Migration Studio releases from the OpenClaw
 development environment. Applies to alpha prereleases and, later, stable releases.
 

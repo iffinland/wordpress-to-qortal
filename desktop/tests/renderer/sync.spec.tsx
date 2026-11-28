@@ -172,7 +172,7 @@ describe('synchronization desktop flow', () => {
 
     await user.click(await screen.findByRole('button', { name: /Resume scan/i }));
     await waitFor(() => expect(api.sync.resume).toHaveBeenCalledWith(projectId, 'scn_test'));
-    expect(await screen.findByTestId('sync-notice')).toHaveTextContent(/Scan resumed and finished/);
+    expect(await screen.findByTestId('sync-notice')).toHaveTextContent(/Check completed/);
   });
 
   it('adopts an existing migration without changing identities', async () => {

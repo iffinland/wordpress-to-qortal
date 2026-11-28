@@ -1,5 +1,7 @@
 # QMS Desktop 0.8.0-beta.2 — user and acceptance guide
 
+> **Unpublished Desktop trial:** `qortal-migration-studio_0.8.0-beta.5_amd64.deb` adds guided project continuation, project settings, archive/trash restoration and update fixes. This local owner trial is not a public download or a GitHub release. See [the trial guide](DESKTOP-PROJECTS-TESTING.md).
+
 Artifact: `qortal-migration-studio_0.8.0-beta.2_amd64.deb`.
 
 This guide covers the owner-runtime-accepted Desktop **0.8.0-beta.2**, published in GitHub bundle **v0.8.0-beta.4**. Publisher remains **0.8.0-beta.1** and Generic CMS **0.9.0-beta.1**. Verify the downloaded DEB against that release's SHA256SUMS. The public package is built from clean committed source; the earlier unpublished trial has its own historical checksum and evidence.

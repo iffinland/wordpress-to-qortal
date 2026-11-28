@@ -1,5 +1,33 @@
 # Changelog
 
+## Desktop 0.8.0-beta.5 — owner accepted 2026-11-28
+
+Owner runtime test passed. Integrate the guided project management and simplified
+WordPress login fixes and promote the exact accepted DEB under
+`desktop-v0.8.0-beta.5`. No rebuild or expensive functional test replay.
+Publisher 0.8.0-beta.2 and Generic CMS 0.9.0-beta.4 remain unchanged.
+See [release notes](docs/migration-studio/RELEASE-DESKTOP-0.8.0-BETA.5.md).
+
+## Unpublished Desktop 0.8.0-beta.5 owner trial - 2026-11-27
+
+- Restore beta.2's normal username/password form submission. Merely referencing a CAPTCHA plugin no longer blocks login before the server checks the account.
+- Hide optional website-window sign-in under Trouble signing in?; the normal flow uses one connection button and no extra window.
+- Retain session redirect/nonce fixes, Home navigation and project-management changes. Publisher/CMS unchanged; no commit or push.
+
+## Unpublished Desktop 0.8.0-beta.4 owner trial - 2026-11-27
+
+- Restore three access methods; add isolated manual website login for CAPTCHA/two-factor.
+- Correct session redirects and REST nonce handling; keep credentials off project files.
+- Add persistent top-left Projects / Home navigation and prior-publication checking.
+
+- Guided project center with archive/reactivation and recoverable local removal.
+- Shared preparation state, new/changed/older content paths, automatic media preparation,
+  corrected update checkpoint coverage and explicit continuation between groups.
+- Project/WordPress/destination settings, destination collision review and controlled
+  correction of packages explicitly confirmed never submitted to Hub.
+- Publisher and CMS source are unchanged; no commit, push or public release.
+- See `docs/migration-studio/DESKTOP-PROJECTS-TESTING.md` for testing and limitations.
+
 
 ## Generic CMS 0.9.0-beta.4 — 2026-11-24
 
