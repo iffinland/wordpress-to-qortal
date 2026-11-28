@@ -1,15 +1,14 @@
 # Install Qortal Migration Studio on Linux
 
-> **Unpublished Desktop trial:** `qortal-migration-studio_0.8.0-beta.5_amd64.deb` adds guided project continuation, project settings, archive/trash restoration and update fixes. This local owner trial is not a public download or a GitHub release. See [the trial guide](DESKTOP-PROJECTS-TESTING.md).
 
 
 This guide installs the self-contained Debian package. The target machine does
 not need Node.js, npm, Git or development tools.
 
-This is the **0.8.0-beta.2** Desktop package in the **v0.8.0-beta.4** GitHub
-bundle release. It is unsigned and amd64 only. Read
-[RELEASE-0.8.0-BETA.4.md](RELEASE-0.8.0-BETA.4.md) and
-[alpha/KNOWN-ISSUES.md](alpha/KNOWN-ISSUES.md) before installing.
+This is the **0.8.0-beta.5** Desktop package from **desktop-v0.8.0-beta.5**.
+It is unsigned and amd64 only. Read [the release notes](RELEASE-DESKTOP-0.8.0-BETA.5.md).
+The original accepted trial metadata is preserved in the published provenance;
+the committed product-source fingerprint and exact DEB checksum are verified.
 
 The beginner path needs **no Node.js, npm, Git, compiler or terminal build step**.
 Download the .deb from the release, verify it, and install it with apt. Source
@@ -30,18 +29,18 @@ The package is amd64 only in this release.
 ## Verify the download
 
 ~~~bash
-sha256sum qortal-migration-studio_0.8.0-beta.2_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-beta.5_amd64.deb
 cat SHA256SUMS
 ~~~
 
-The artifact is **unsigned** in this beta.2 package. Compare the SHA-256 with the
+The artifact is **unsigned** in this beta.5 package. Compare the SHA-256 with the
 published value and inspect sbom.cdx.json and provenance.intoto.json before
 installing. Do not install an artifact whose hash does not match.
 
 ## Install
 
 ~~~bash
-sudo apt install ./qortal-migration-studio_0.8.0-beta.2_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-beta.5_amd64.deb
 ~~~
 
 apt resolves the GTK, NSS, libsecret and audio dependencies. Launch **Qortal
@@ -55,7 +54,7 @@ Verify the installed version:
 
 ~~~bash
 dpkg-query -W -f='${Version}\n' qortal-migration-studio
-# expected: 0.8.0~beta.1
+# expected: 0.8.0~beta.5
 ~~~
 
 Downloading the .deb installs the migration tool. It does **not** publish
@@ -70,7 +69,7 @@ referenced `fflate` without shipping it. 0.8.0-beta.1 ships and verifies the
 complete engine runtime and the imported-card image fix. Replace the package in place:
 
 ~~~bash
-sudo apt install ./qortal-migration-studio_0.8.0-beta.2_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-beta.5_amd64.deb
 qortal-migration-studio
 ~~~
 

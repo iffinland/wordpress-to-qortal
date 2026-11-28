@@ -1,12 +1,10 @@
-# QMS Desktop 0.8.0-beta.5 - accepted owner trial
+# QMS Desktop 0.8.0-beta.5 — guided project management
 
-This is an **unpublished**, unsigned Linux amd64 Desktop test build:
-`qortal-migration-studio_0.8.0-beta.5_amd64.deb`.
-Owner runtime acceptance passed on 2026-11-28; source integration and exact-byte
-GitHub promotion are authorized. This describes the original unpublished trial. Public download links
-continue to refer to Desktop 0.8.0-beta.2. Migration Publisher and Generic CMS
-source code and versions are unchanged. This DEB embeds the repository's unchanged
-Generic CMS 0.9.0-beta.4 template; updating Desktop does not deploy it to QDN.
+Owner runtime acceptance passed on 2026-11-28. Download the exact accepted
+`qortal-migration-studio_0.8.0-beta.5_amd64.deb` from
+[desktop-v0.8.0-beta.5](https://github.com/iffinland/wordpress-to-qortal/releases/tag/desktop-v0.8.0-beta.5).
+This unsigned independent Desktop release leaves Publisher and CMS unchanged.
+The original trial metadata is preserved; no rebuild or long test replay was used.
 
 ## Simple login restored in beta.5
 
@@ -72,7 +70,7 @@ sudo apt install ./qortal-migration-studio_0.8.0-beta.5_amd64.deb
 qortal-migration-studio
 ```
 
-This is a local test package, not a signed/public release. Verify the supplied
+This is an unsigned public beta. Verify the supplied
 SHA256SUMS. Debian 12/13 and MX Linux remain targets; the exact machine and runtime
 coverage is listed in the accompanying validation notes. Native Hub signing and
 actual network publication require the owner's own runtime test.
@@ -174,7 +172,7 @@ No QORT is spent. Source-level regression tests cover multi-day update gaps,
 reserved items, backup relocation, target correction, stale-plan rejection and safe
 lifecycle paths. The handoff protocol and Publisher/CMS source remain unchanged.
 
-The owner should now check the installed DEB on MX Linux with a backed-up copy of an
-existing Guided/Advanced project and the existing Publisher in Hub. Owner
+The owner completed runtime acceptance on 2026-11-28. Use a backed-up copy of an
+existing Guided/Advanced project when upgrading. Owner
 acceptance passed on 2026-11-28; see evidence/DESKTOP-BETA.5-ACCEPTANCE.json. Retain the matching
-base-commit/source patch and artifact checksum for the unpublished trial.
+base-commit/source mapping and artifact checksum retained with the release.

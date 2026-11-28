@@ -1,8 +1,8 @@
-> Unpublished Desktop 0.8.0-beta.3 project-center trial: see [the complete continuation/settings guide](DESKTOP-PROJECTS-TESTING.md). The public beta.2 instructions below remain historical for this local trial.
+> Current Desktop 0.8.0-beta.5: see [the complete project and continuation guide](DESKTOP-PROJECTS-TESTING.md). Older technical controls below remain available through Project tools.
 
 # Qortal Migration Studio user manual
 
-Desktop **0.8.0-beta.2** opens **Guided mode** by default. Follow the [current four-step guide](DESKTOP-BETA.2-TESTING.md): website address → content selection → Qortal destination → review and prepare. The app fills in site information and automatically runs local preparation. Import the Publisher confirmation for independent verification; larger selections continue in verified groups. Settings & help includes project backup/restore, node settings and text size.
+Desktop **0.8.0-beta.5** opens **Guided mode** by default. Follow the [current guided project workflow](DESKTOP-PROJECTS-TESTING.md): website address → content selection → Qortal destination → review and prepare. The app fills in site information and automatically runs local preparation. Import the Publisher confirmation for independent verification; larger selections continue in verified groups. Settings & help includes project backup/restore, node settings and text size.
 
 The detailed controls below remain available through **Advanced tools**. QMS prepares local material; Qortal Hub performs wallet signing and approval.
 

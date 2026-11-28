@@ -29,6 +29,7 @@ export function evaluateActiveDocs({
   const errors = [];
   const version = release.version;
   const tag = release.releaseTag;
+  const desktopTag = release.componentReleases?.desktop?.tag || tag;
   const names = expectedArtifactNames(release);
 
   if (!new RegExp('^##\\s+' + escapeRegExp(version) + '(?:\\s|$)', 'm').test(changelog)) {
@@ -60,8 +61,8 @@ export function evaluateActiveDocs({
   }
 
   const quickStartActive = quickstart.split('\n').slice(0, 30).join('\n');
-  if (!quickStartActive.includes('/download/' + tag + '/' + names.desktop)) {
-    errors.push('QUICKSTART.md primary desktop download does not point at ' + tag + '/' + names.desktop + '.');
+  if (!quickStartActive.includes('/download/' + desktopTag + '/' + names.desktop)) {
+    errors.push('QUICKSTART.md primary desktop download does not point at ' + desktopTag + '/' + names.desktop + '.');
   }
   if (quickStartActive.toLowerCase().includes('rc.7')) {
     errors.push('QUICKSTART.md primary instructions still reference 0.8.0-rc.7.');
@@ -76,8 +77,8 @@ export function evaluateActiveDocs({
   if (!installActive.includes(names.desktop)) {
     errors.push('INSTALL-LINUX.md instructions do not name the current desktop artifact ' + names.desktop + '.');
   }
-  if (!installActive.includes(tag)) {
-    errors.push('INSTALL-LINUX.md instructions do not name the current bundle tag ' + tag + '.');
+  if (!installActive.includes(desktopTag)) {
+    errors.push('INSTALL-LINUX.md instructions do not name the current Desktop release tag ' + desktopTag + '.');
   }
 
   if (strictManifest) {

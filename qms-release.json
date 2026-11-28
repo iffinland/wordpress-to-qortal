@@ -16,7 +16,7 @@
       "version": "0.8.0-beta.5",
       "channel": "beta",
       "source": "desktop/package.json",
-      "changelog": "Unpublished owner trial: restore beta.2 normal WordPress form login; remove false CAPTCHA blocking; keep extra website login collapsed; retain Home and project-management fixes."
+      "changelog": "Runtime-accepted Desktop beta.5: guided continuation and project lifecycle, settings, persistent Home navigation and simple normal-password WordPress login."
     },
     "publisher": {
       "version": "0.8.0-beta.2",
@@ -73,12 +73,5 @@
         "sha256": "09fb3e389e8dbb69a1a7274cc7faa4a7ee46f384ea590b6c80b9ca76176a1eb6"
       }
     }
-  },
-  "development": {
-    "status": "unpublished",
-    "component": "desktop",
-    "version": "0.8.0-beta.5",
-    "baseCommit": "154750d6bb63a544d3ea1a78630c526bb9591af0",
-    "notes": "docs/migration-studio/DESKTOP-PROJECTS-TESTING.md"
   }
 }

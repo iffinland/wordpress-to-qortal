@@ -1,6 +1,5 @@
 # Quick Start
 
-> **Unpublished Desktop trial:** `qortal-migration-studio_0.8.0-beta.5_amd64.deb` adds guided project continuation, project settings, archive/trash restoration and update fixes. This local owner trial is not a public download or a GitHub release. See [the trial guide](docs/migration-studio/DESKTOP-PROJECTS-TESTING.md).
 
 
 
@@ -8,7 +7,7 @@
 **Generic CMS 0.9.0-beta.4:** runtime-accepted attachment publishing fixes and independent content discovery for separate APP/WEBSITE installation. See [CMS content connection](docs/migration-studio/CMS-CONTENT-CONNECTION.md).
 
 
-Desktop **0.8.0-beta.2** is included in bundle **v0.8.0-beta.4**. Publisher **0.8.0-beta.2** is a separate [Publisher-only release](https://github.com/iffinland/wordpress-to-qortal/releases/tag/publisher-v0.8.0-beta.2). Generic CMS **0.9.0-beta.4** is a separate [CMS-only release](https://github.com/iffinland/wordpress-to-qortal/releases/tag/cms-v0.9.0-beta.4); the Desktop DEB is unchanged.
+Desktop **0.8.0-beta.5** is the independent [Desktop release](https://github.com/iffinland/wordpress-to-qortal/releases/tag/desktop-v0.8.0-beta.5). Publisher **0.8.0-beta.2** and Generic CMS **0.9.0-beta.4** retain their existing releases. The original bundle remains **v0.8.0-beta.4**.
 
 ## Beginner path — Qortal Migration Studio desktop app
 
@@ -16,17 +15,17 @@ This path needs **no Node.js, npm, Git, compiler or manual build**. Do not clone
 the repository and do not run npm.
 
 1. Download
-   [qortal-migration-studio_0.8.0-beta.2_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/qortal-migration-studio_0.8.0-beta.2_amd64.deb)
-   and [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/SHA256SUMS).
+   [qortal-migration-studio_0.8.0-beta.5_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/qortal-migration-studio_0.8.0-beta.5_amd64.deb)
+   and [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/SHA256SUMS).
 2. Verify and install:
 
    ~~~bash
-   sha256sum qortal-migration-studio_0.8.0-beta.2_amd64.deb
-   sudo apt install ./qortal-migration-studio_0.8.0-beta.2_amd64.deb
+   sha256sum qortal-migration-studio_0.8.0-beta.5_amd64.deb
+   sudo apt install ./qortal-migration-studio_0.8.0-beta.5_amd64.deb
    qortal-migration-studio
    ~~~
 
-3. Follow the [four-step desktop guide](docs/migration-studio/DESKTOP-BETA.2-TESTING.md). The detailed wizard and publishing controls remain under **Advanced tools**.
+3. Follow the [guided project and continuation guide](docs/migration-studio/DESKTOP-PROJECTS-TESTING.md). Use Project tools for detailed publishing and recovery controls.
 
 The release also offers a **Migration Publisher Q-App ZIP** and a **Generic CMS
 Q-App ZIP**. Downloading either ZIP does **not** deploy it. A downloaded ZIP

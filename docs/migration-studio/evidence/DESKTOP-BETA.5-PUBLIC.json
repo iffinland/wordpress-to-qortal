@@ -1,0 +1,83 @@
+{
+  "schema": "qms-desktop-public-verification@1",
+  "ok": true,
+  "tag": "desktop-v0.8.0-beta.5",
+  "url": "https://github.com/iffinland/wordpress-to-qortal/releases/tag/desktop-v0.8.0-beta.5",
+  "sourceCommit": "267205e96339988d8ac17f55c68fced0f349ee75",
+  "checkedAt": "2026-11-28T09:19:40.749Z",
+  "downloads": [
+    {
+      "name": "acceptance.json",
+      "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/acceptance.json",
+      "bytes": 17195,
+      "sha256": "c7b29f2659377378fd78824f803644b0288aae825ccd34e13414cd7a471fada2"
+    },
+    {
+      "name": "desktop-release-manifest.json",
+      "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/desktop-release-manifest.json",
+      "bytes": 1811,
+      "sha256": "c9f24dc2d50cb48f868d5604ff9a58d6ebf8aced13fda4000d3b185bfcfaaeae"
+    },
+    {
+      "name": "original-trial-artifact.json",
+      "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/original-trial-artifact.json",
+      "bytes": 813,
+      "sha256": "e9694afd1731cd21b35ba6ac58eb42e8a2d859b0747a20c7fba8824175491a48"
+    },
+    {
+      "name": "provenance.intoto.json",
+      "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/provenance.intoto.json",
+      "bytes": 2011,
+      "sha256": "55de4675e11bb56676558f79106dbbea58b243968d97f1ccb6d95b43cba72018"
+    },
+    {
+      "name": "qortal-migration-studio_0.8.0-beta.5_amd64.deb",
+      "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/qortal-migration-studio_0.8.0-beta.5_amd64.deb",
+      "bytes": 129094048,
+      "sha256": "09fb3e389e8dbb69a1a7274cc7faa4a7ee46f384ea590b6c80b9ca76176a1eb6"
+    },
+    {
+      "name": "RELEASE-NOTES.md",
+      "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/RELEASE-NOTES.md",
+      "bytes": 2230,
+      "sha256": "726a53503df6c0748c2146a17b4ea63170d8748dd068478f87575ebe108f55e5"
+    },
+    {
+      "name": "sbom.cdx.json",
+      "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/sbom.cdx.json",
+      "bytes": 15863,
+      "sha256": "03d61646790c11100bc9cc16ebedc40dd62da8020c84d96851de0469a0e3b45f"
+    },
+    {
+      "name": "security-report.json",
+      "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/security-report.json",
+      "bytes": 878,
+      "sha256": "58d9646f97ffbb76ceeebea9c018797b050eb97a39701b005802ff71f01bb2e4"
+    },
+    {
+      "name": "SHA256SUMS",
+      "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/SHA256SUMS",
+      "bytes": 113,
+      "sha256": "42e4f407248bd185209a820364b0a6e594aa2966efa8bf7f58195faddcda8504"
+    },
+    {
+      "name": "validation.json",
+      "url": "https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/validation.json",
+      "bytes": 7314,
+      "sha256": "8eeba3750afe11876ed0c6fad2e498eeb04690c759e06f91bb338463a892257f"
+    }
+  ],
+  "checks": {
+    "runtimeAcceptance": "owner passed 2026-11-28",
+    "productSource": "matches original accepted trial",
+    "publicAssets": "all 10 files downloaded anonymously and rehashed",
+    "readmeLinks": "release:readme-links passed against actual public GitHub API and checksum assets",
+    "documentation": "docs:verify and 11 focused documentation checks passed",
+    "rebuild": false,
+    "largeTestsRerun": false,
+    "unchangedComponents": [
+      "publisher 0.8.0-beta.2",
+      "cms 0.9.0-beta.4"
+    ]
+  }
+}

@@ -39,6 +39,15 @@ test('accepts current active documentation', () => {
   const result = valid();
   assert.equal(result.ok, true, result.errors.join(' '));
 });
+test('checks independent Desktop URLs against its component tag rather than the older bundle', () => {
+  const next = { ...release, components: { ...release.components, desktop: { version: '0.8.0-beta.5' } }, componentReleases: { desktop: { version: '0.8.0-beta.5', tag: 'desktop-v0.8.0-beta.5' } } };
+  const name = expectedArtifactNames(next).desktop;
+  const replace = text => text.replaceAll('/download/v0.8.0-beta.2/' + names.desktop, '/download/desktop-v0.8.0-beta.5/' + name).replaceAll(names.desktop, name);
+  const componentManifests = { desktop: { version: '0.8.0-beta.5', tag: 'desktop-v0.8.0-beta.5', artifact: { name, componentVersion: '0.8.0-beta.5' } } };
+  const input = { release: next, componentManifests, readme: replace(readme), quickstart: replace(quickstart), install: replace(install) + '\nRelease: desktop-v0.8.0-beta.5\n' };
+  assert.equal(valid(input).ok, true);
+  assert.equal(valid({ ...input, quickstart }).ok, false);
+});
 test('rejects a changelog without the current release', () => {
   assert.match(valid({ changelog: '# Changelog\n\n## 0.8.0-beta.1\n' }).errors.join(' '), /CHANGELOG/);
 });

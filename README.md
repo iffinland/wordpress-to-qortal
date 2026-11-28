@@ -1,6 +1,5 @@
 # Qortal Migration Studio
 
-> **Unpublished Desktop trial:** `qortal-migration-studio_0.8.0-beta.5_amd64.deb` adds guided project continuation, project settings, archive/trash restoration and update fixes. This local owner trial is not a public download or a GitHub release. See [the trial guide](docs/migration-studio/DESKTOP-PROJECTS-TESTING.md).
 
 
 
@@ -14,21 +13,21 @@ normalizes the content, downloads and de-duplicates supported media, prepares
 deterministic QDN batches, hands them to a separate Qortal Hub publishing app,
 and verifies the resulting QDN resources byte-for-byte.
 
-## Download Qortal Migration Studio 0.8.0 beta.2
+## Download Qortal Migration Studio 0.8.0 beta.5
 
-The **v0.8.0-beta.4** public beta ships Desktop **0.8.0-beta.2** with the new guided migration workflow, automatic local preparation, safe continuation, previews and project backup/restore. Publisher **0.8.0-beta.2** is an independent [Publisher release](https://github.com/iffinland/wordpress-to-qortal/releases/tag/publisher-v0.8.0-beta.2) with a modern workspace, automatic account detection and protected upload recovery. Generic CMS **0.9.0-beta.4** remains its independent CMS release. The Desktop DEB and Publisher downloads are unchanged.
+Desktop **0.8.0-beta.5** is an independent, owner-runtime-accepted release with guided project continuation, project settings, archive/deletion restoration, persistent Home navigation and simplified WordPress login. The DEB is exactly the accepted package, without a rebuild. Publisher **0.8.0-beta.2** and Generic CMS **0.9.0-beta.4** remain unchanged in their independent releases.
 
 | What you need | Download | What it does |
 | --- | --- | --- |
-| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0-beta.2_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/qortal-migration-studio_0.8.0-beta.2_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. |
+| **Qortal Migration Studio (Linux .deb)** | [qortal-migration-studio_0.8.0-beta.5_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/qortal-migration-studio_0.8.0-beta.5_amd64.deb) | The desktop application that reads WordPress, prepares media and handoffs, and verifies published QDN resources. |
 | **Migration Publisher (Q-App ZIP)** | [qortal-migration-publisher-v0.8.0-beta.2.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/publisher-v0.8.0-beta.2/qortal-migration-publisher-v0.8.0-beta.2.zip) | The Qortal Q-App that opens QMS handoff packages, reviews fees, publishes through Qortal Hub and returns a receipt. |
 | **Generic CMS (Q-App ZIP)** | [qortal-migration-generic-cms-v0.9.0-beta.4.zip](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.4/qortal-migration-generic-cms-v0.9.0-beta.4.zip) | The neutral website/APP Q-App that renders a published QDN catalog and supports owner editing of imported and CMS-authored content. |
 
 Verify Desktop with
-[SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/SHA256SUMS). Verify Publisher with its [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/publisher-v0.8.0-beta.2/SHA256SUMS).
+[SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/SHA256SUMS). Verify Publisher with its [SHA256SUMS](https://github.com/iffinland/wordpress-to-qortal/releases/download/publisher-v0.8.0-beta.2/SHA256SUMS).
 Verify the [CMS checksum](https://github.com/iffinland/wordpress-to-qortal/releases/download/cms-v0.9.0-beta.4/SHA256SUMS) and read the [CMS 0.9.0-beta.4 release notes](https://github.com/iffinland/wordpress-to-qortal/releases/tag/cms-v0.9.0-beta.4).
-Read the [Desktop release notes](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/RELEASE-NOTES.md)
-or open the [Desktop beta.2 prerelease](https://github.com/iffinland/wordpress-to-qortal/releases/tag/v0.8.0-beta.4).
+Read the [Desktop release notes](https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/RELEASE-NOTES.md)
+or open the [Desktop beta.5 prerelease](https://github.com/iffinland/wordpress-to-qortal/releases/tag/desktop-v0.8.0-beta.5).
 
 Read the field-by-field operational manuals: [Qortal Migration Studio](docs/migration-studio/QORTAL-MIGRATION-STUDIO-USER-MANUAL.md), [Migration Publisher](docs/migration-studio/MIGRATION-PUBLISHER-USER-MANUAL.md), and [Generic CMS](docs/migration-studio/GENERIC-CMS-USER-MANUAL.md).
 
@@ -146,14 +145,14 @@ or any development tools.
 ## Download, install and launch
 
 1. Download
-   [qortal-migration-studio_0.8.0-beta.2_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/v0.8.0-beta.4/qortal-migration-studio_0.8.0-beta.2_amd64.deb)
+   [qortal-migration-studio_0.8.0-beta.5_amd64.deb](https://github.com/iffinland/wordpress-to-qortal/releases/download/desktop-v0.8.0-beta.5/qortal-migration-studio_0.8.0-beta.5_amd64.deb)
    and the release assets `SHA256SUMS`, `sbom.cdx.json` and
    `provenance.intoto.json`.
 2. Verify the checksum (see [Security](#security-and-checksums)).
 3. Install and launch:
 
 ```bash
-sudo apt install ./qortal-migration-studio_0.8.0-beta.2_amd64.deb
+sudo apt install ./qortal-migration-studio_0.8.0-beta.5_amd64.deb
 qortal-migration-studio
 ```
 
@@ -377,7 +376,7 @@ signing key in the release environment, so `apt` cannot verify a signature.
 Verify the published hash before installing:
 
 ```bash
-sha256sum qortal-migration-studio_0.8.0-beta.2_amd64.deb
+sha256sum qortal-migration-studio_0.8.0-beta.5_amd64.deb
 # Compare the output with this artifact's line in SHA256SUMS
 # from the v0.8.0-beta.3 release page.
 sha256sum -c SHA256SUMS
